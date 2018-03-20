@@ -6,9 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"log"
 	"math"
 	"math/big"
-	"wallet_client"
 )
 
 type Zl_Client struct {
@@ -40,7 +40,7 @@ func GetBalance(address string) float64 {
 	var balanceVal float64
 	if err != nil {
 		panic(err)
-		fmt.Println("error filters:", err.Error())
+		fmt.Println("error subscribe:", err.Error())
 		balanceVal = 0.0
 	} else {
 		fmt.Printf("Big Int: %v\n", balance)
@@ -63,6 +63,11 @@ func GetBalance(address string) float64 {
 //}
 
 func main() {
+	log.Fatal("error!!!!!!")
+	fmt.Println("did not exit!!!!!")
+
+	return
+
 	var balance float64
 	var account_address = "0xa40f6bf261914447987959ce26880d22eddf7dc6"
 	balance = GetBalance(account_address)

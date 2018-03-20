@@ -1,4 +1,4 @@
-package logfilter
+package subscribe
 
 import (
 	"context"
@@ -6,17 +6,15 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 	"testing"
-	"wallet/client/eth"
+	"blockchain_server/chains/eth"
 	"time"
-	//"github.com/ethereum/go-ethereum/common"
-	//"math/big"
 	"github.com/ethereum/go-ethereum/common"
-	//"math/big"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func TestLogfilter(t *testing.T) {
+func TestSubscribe(t *testing.T) {
 	//client, err := eth.NewHttpClient("http://127.0.0.1:8100")
-	client, err := eth.NewWsClient("ws://127.0.0.1:8500")
+	client, err := ethclient.Dial("ws://127.0.0.1:8500")
 	if err != nil {
 		fmt.Printf("connect to rpc server error:%v\n", err)
 		return
@@ -48,7 +46,7 @@ func TestLogfilter(t *testing.T) {
 		}
 	}
 
-	kstore := eth.DefaultTestKeyStore()
+	kstore := eth.DefualtKeyStore()
 	if len(kstore.Accounts()) == 0 {
 		fmt.Println("keystore account count is 0, exit")
 		return
@@ -73,7 +71,7 @@ func TestLogfilter(t *testing.T) {
 	//logs_ch := make(chan types.Log, 50)
 
 
-	if  true {
+	if  false {
 		ch_txHashString := make(chan string)
 		subscription, err := client.SubscribePendingTransactions(ctx, ch_txHashString)
 		if err!=nil {
@@ -98,7 +96,7 @@ func TestLogfilter(t *testing.T) {
 		}
 		subscription.Unsubscribe()
 	}
-	if  false {
+	if  true {
 		header_ch := make(chan *types.Header)
 		subscription, err := client.SubscribeNewHead(ctx, true, header_ch)
 		if err!=nil || nil==subscription {
