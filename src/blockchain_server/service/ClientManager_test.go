@@ -44,6 +44,7 @@ func TestNetCmdSvr(t *testing.T) {
 
 	// 创建并发送Transaction, 订阅只需要调用一次, 所有的Send的交易都会通过这个订阅channel传回来
 	clientManager.SubscribeTxStateChange(txStateChannel)
+
 	ctx2, _ := context.WithCancel(ctx)
 	go func(ctx2 context.Context, txstateChannel TxStateChange_Channel) {
 		close := false
