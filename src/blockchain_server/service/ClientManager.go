@@ -20,14 +20,14 @@ const (
 
 var (
 	feed event.Feed
-	//cmdHandler *NetcmdHandler
+	//cmdHandler *ClientManager
 )
 
-type TxCmdStateSubscribe_Channel chan *CmdTx
+type TxStateChange_Channel chan *CmdTx
 type Addresswatcher_Channel chan *types.Transfer
 
 func init() {
-	//cmdHandler = &NetcmdHandler{}
+	//cmdHandler = &ClientManager{}
 }
 
 type ErrorInvalideParam struct {
@@ -69,18 +69,18 @@ type CmdTx struct {
 	tx        *types.Transfer
 }
 
-type CmdNewAccount struct {
+type CmdAccounts struct {
 	types.NetCmd
 	amount			uint32
 }
 
-type CmdMonitorAddresses struct {
+type CmdRechargeAddress struct {
 	types.NetCmd
 	recall_url string
 	addresses []string
 }
 
-type NetcmdHandler struct {
+type ClientManager struct {
 	txCmdChannel chan *CmdTx
 	txCmdClose   chan bool
 	clients      map[string]blockchain_server.ChainClient
@@ -136,28 +136,55 @@ func TestFeed(t *testing.TxStateString) {
 }
 */
 
-func (self *NetcmdHandler) SubscribeTxStateChange(txCmdStateChangeChannel *TxCmdStateSubscribe_Channel) *event.Subscription{
-	subscribe := feed.Subscribe(txCmdStateChangeChannel)
+func (self *ClientManager) AddClient(client blockchain_server.ChainClient) {
+	if self.clients==nil {
+		self.clients = make(map[string]blockchain_server.ChainClient)
+	}
+
+	self.clients[client.Name()] = client
+}
+
+func (self *ClientManager) Start(ctx context.Context, rct_channel types.RechargeTxChannel) {
+	self.loopTxCmd()
+	self.startAllClient(ctx, rct_channel)
+}
+
+func (self *ClientManager) startAllClient(ctx context.Context, rct_channel types.RechargeTxChannel) error {
+	if self.clients==nil || len(self.clients)==0 {
+		return fmt.Errorf("there are 0 client instance. add client instance first!")
+	}
+	for _, instance := range self.clients {
+		instance.Start(rct_channel)
+	}
+	return nil
+}
+
+func (self *ClientManager) SubscribeTxStateChange(txStateChannel TxStateChange_Channel) *event.Subscription{
+	subscribe := feed.Subscribe(txStateChannel)
 	return &subscribe
 }
 
-func (self *NetcmdHandler) SubscribeInComeTxWithAddresses(coin string, addresses []string,
+func (self *ClientManager) innerSetRechargeAddress(coin string, addresses []string,
 	) (error) {
 	client := self.clients[coin]
-	if(nil==client) {
+	if nil==client {
 		return fmt.Errorf("coin not supported:%s", coin)
 	}
 	client.InsertCareAddress(addresses)
 	return nil
 }
 
-//func (self *NetcmdHandler) SubscribeIncomingTx (types. incomeTxChannel *Addresswatcher_Channel)  *event.Subscription {
+func (self *ClientManager) SetRechargeAddress(cmdRchAddress *CmdRechargeAddress) error {
+	return self.innerSetRechargeAddress(cmdRchAddress.Coin, cmdRchAddress.addresses)
+}
+
+//func (self *ClientManager) SubscribeIncomingTx (types. incomeTxChannel *Addresswatcher_Channel)  *event.Subscription {
 //	subscribe := feed.Subscribe(incomeTxChannel)
 //	return &subscribe
 //}
 
-func (self *NetcmdHandler)sendTx(txCmd *CmdTx) {
-	l4g.Trace("------------SendTransaction begin------------")
+func (self *ClientManager) innerSendTx(txCmd *CmdTx) {
+	l4g.Trace("------------sendTransaction begin------------")
 	handler := self.clients[txCmd.Coin]
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
@@ -269,24 +296,7 @@ func (self *NetcmdHandler)sendTx(txCmd *CmdTx) {
 	l4g.Trace("------------SendTransaction   end------------")
 }
 
-func (self *NetcmdHandler)StartClient(coin string, client blockchain_server.ChainClient,
-	rctChannel types.RechargeTxChannel) error {
-	if self.clients[coin]!=nil {
-		return fmt.Errorf("already exist : %s", coin)
-	}
-
-	if self.clients==nil {
-		self.clients = make(map[string]blockchain_server.ChainClient)
-	}
-	self.clients[coin] = client
-	if err:=self.clients[coin].Start(rctChannel); err!=nil {
-		fmt.Printf("start client:%s, error:%s\n", coin, err.Error())
-		return err
-	}
-	return nil
-}
-
-func (self *NetcmdHandler)loopTransferCmdChan() {
+func (self *ClientManager) loopTxCmd() {
 	//var done, subscribed sync.WaitGroup
 	transferCmdChan	:= make(chan *CmdTx)
 	sub := feed.Subscribe(transferCmdChan)
@@ -297,7 +307,7 @@ func (self *NetcmdHandler)loopTransferCmdChan() {
 	for !closeloop {
 		select {
 		case txCmd := <- self.txCmdChannel: {
-			go self.sendTx(txCmd)
+			go self.innerSendTx(txCmd)
 		}
 		case closeloop = <- self.txCmdClose: {
 			break
@@ -306,7 +316,7 @@ func (self *NetcmdHandler)loopTransferCmdChan() {
 	}
 }
 
-func (self *NetcmdHandler)NewAccounts(cmd *CmdNewAccount) ([]*types.Account, error) {
+func (self *ClientManager)NewAccounts(cmd *CmdAccounts) ([]*types.Account, error) {
 	if cmd.amount==0 || cmd.amount>max_once_account_number {
 		return nil, newInvalidParamError(fmt.Sprintf("the count of account must >0 and <%d", max_once_account_number))
 	}
@@ -338,79 +348,89 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 	return x509.ParseECPrivateKey(plainKey)
 }
 
-func newTransferCmd(msgId, coinname, chiperKey, to string, amount uint64) (*CmdTx) {
+func NewAccountCmd(msgId, coinname string, amount uint32) *CmdAccounts {
+	return &CmdAccounts{
+		NetCmd:types.NetCmd{MsgId: msgId, Coin:coinname, Method:"new_account", Result:nil, Error:nil},
+	amount:amount}
+}
+
+func NewTxCmd(msgId, coinname, chiperKey, to string, amount uint64) (*CmdTx) {
 	return &CmdTx{ NetCmd:types.NetCmd{MsgId: msgId, Coin:coinname, Method:"send_transaction", Result:nil, Error:nil},
 		chiperkey:chiperKey, tx:&types.Transfer{To: to, Amount:amount}}
 }
 
-func newCareAddressCmd(msgId, coin string, address []string) (*CmdMonitorAddresses) {
-	return &CmdMonitorAddresses{
+func NewRechargeAddressCmd(msgId, coin string, address []string) (*CmdRechargeAddress) {
+	return &CmdRechargeAddress{
 		NetCmd:types.NetCmd{MsgId: msgId, Coin: coin, Method:"watch_addresses", Result:nil, Error:nil},
 		addresses:address }
 }
 
-func (self *NetcmdHandler) waitTxCmd() *CmdTx {
+func (self *ClientManager) waitTxCmd() *CmdTx {
 	return <-self.txCmdChannel
 }
 
-func (self *NetcmdHandler) waitTxCmdClose() bool {
+func (self *ClientManager) waitTxCmdClose() bool {
 	return <-self.txCmdClose
 }
 
-func (self *NetcmdHandler) closeTransferloop() {
+func (self *ClientManager) closeTransferloop() {
 	self.txCmdClose <-true
 }
 
-func (self *NetcmdHandler)SendTx(msgid, coin, chiperkey, to string, amount uint64)  {
-	transferCmd := newTransferCmd(msgid, coin, chiperkey, to, amount)
-	self.txCmdChannel <- transferCmd
-	//privatekey, err := privatekeyFromChiperHexString(chiperKey)
-	//if err!=nil {
-	//	return nil, err
-	//}
-	//gaslimit := 0x2fefd8			// gas limit 可以设置尽量大
-	//big_amount := big.NewInt(int64(amount))
-	//toaddress := common.HexToAddress(to)
-	//gasprice, err := self.client.SuggestGasPrice()
-	////gasprice, err := big.NewInt(int64(math.Pow10(18))), func() error {return nil}()
-	//if nil!=err {
-	//	return err
-	//}
-	//nonce, err := self.client.PendingNonceAt(ctx, ac.Address)
-	//if nil!=err {
-	//	return err
-	//}
-	//
-	//tx := types.NewTransaction(nonce, toaddress, amount, uint64(gaslimit), gasprice, nil)
-	//ks.Unlock(ac, "ko2005,./123eth")
-	//tx, err = ks.SignTx(ac, tx, big.NewInt(15))
-	//if err!=nil {
-	//	return err
-	//}
-	//
-	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
-	//tx := NewTransfer(tx, time.Now().Format("02-01-2006"))
-	//
-	//if err:=tx.Send(ctx, client); err!=nil {
-	//	return err
-	//}
+func (self *ClientManager) SendTx(cmdTx *CmdTx) {
+	self.txCmdChannel <- cmdTx
 }
 
-func (self *NetcmdHandler)TxInfo(tx_hash string)(*types.Transfer, error) {
+//func (self *ClientManager)SendTx(msgid, coin, chiperkey, to string, amount uint64)  {
+//	transferCmd := NewTxCmd(msgid, coin, chiperkey, to, amount)
+//	self.txCmdChannel <- transferCmd
+//}
+
+//privatekey, err := privatekeyFromChiperHexString(chiperKey)
+//if err!=nil {
+//	return nil, err
+//}
+//gaslimit := 0x2fefd8			// gas limit 可以设置尽量大
+//big_amount := big.NewInt(int64(amount))
+//toaddress := common.HexToAddress(to)
+//gasprice, err := self.client.SuggestGasPrice()
+////gasprice, err := big.NewInt(int64(math.Pow10(18))), func() error {return nil}()
+//if nil!=err {
+//	return err
+//}
+//nonce, err := self.client.PendingNonceAt(ctx, ac.Address)
+//if nil!=err {
+//	return err
+//}
+//
+//tx := types.NewTransaction(nonce, toaddress, amount, uint64(gaslimit), gasprice, nil)
+//ks.Unlock(ac, "ko2005,./123eth")
+//tx, err = ks.SignTx(ac, tx, big.NewInt(15))
+//if err!=nil {
+//	return err
+//}
+//
+////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
+//tx := NewTransfer(tx, time.Now().Format("02-01-2006"))
+//
+//if err:=tx.Send(ctx, client); err!=nil {
+//	return err
+//}
+
+func (self *ClientManager)TxInfo(tx_hash string)(*types.Transfer, error) {
 	return nil, nil
 }
 
-func (self *NetcmdHandler) Blocknumber() uint64 {
+func (self *ClientManager) Blocknumber() uint64 {
 	return 0
 }
 
-func (self *NetcmdHandler)Close() {
+func (self *ClientManager)Close() {
 	// TODO !!!!!
 	for _, client := range self.clients {
 		client.Stop(context.TODO(), time.Second * 5)
 	}
 }
-
 
 func init () {
 

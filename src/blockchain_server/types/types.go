@@ -13,8 +13,8 @@ import (
 //-32000 to -32099	Server error	Reserved for implementation-defined server-errors.
 
 type Account struct {
-	Private_key string			// 加密后的私钥字节流的16进制字符串
-	Address		string			// 私钥对应的地址
+	PrivateKey string // 加密后的私钥字节流的16进制字符串
+	Address    string // 私钥对应的地址
 }
 
 const (
@@ -55,6 +55,8 @@ type Transfer struct {
 	OnBlocknumber 		uint64
 	PresentBlocknumber 	uint64
 	Confirmationsnumber uint64
+	Times 				uint64  //TODO
+	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
 }
 
 func TxStateString(state TxState) string {
@@ -115,4 +117,3 @@ type NetCmd struct  {
 func NewNetCmdErr(code int32, message string, data interface{}) *NetCmdErr {
 	return &NetCmdErr{Code:code, Message:message, Data:data}
 }
-

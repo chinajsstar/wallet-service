@@ -62,7 +62,7 @@ func NewAccount() (*wtypes.Account, error) {
 	address := crypto.PubkeyToAddress(priKey.PublicKey)
 	addressString := fmt.Sprintf("0x%x", address)
 
-	account := wtypes.Account{Private_key:keyChiperString, Address:addressString}
+	account := wtypes.Account{PrivateKey:keyChiperString, Address:addressString}
 	//account := types.Account{keyChiperString, address}
 
 	return &account, nil

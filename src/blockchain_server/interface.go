@@ -12,6 +12,7 @@ type Signer interface {
 
 
 type ChainClient interface {
+	Name() string
 	NewAccount()(*types.Account, error)
 	// from is a crypted private key
 	SendTx(ctx context.Context, privkey string, transfer *types.Transfer) error
@@ -19,9 +20,7 @@ type ChainClient interface {
 	//TxRecipt(ctx context.Context, tx_hash string)(*types.Transfer, error)
 	Blocknumber(ctx context.Context) (uint64, error)
 	InsertCareAddress(address []string)
-	Start(channel types.RechargeTxChannel) error
-	Stop(ctx context.Context,  duration time.Duration)
 
-	//// this function will block and return income transaction
-	//WaiteForIncomeTx() *types.Transfer
+	Start(rcTxChannel types.RechargeTxChannel) error
+	Stop(ctx context.Context,  duration time.Duration)
 }

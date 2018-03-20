@@ -73,16 +73,19 @@ func NewClient() (*Client, error) {
 	return c, nil
 }
 
-func (self *Client) Start(channel types.RechargeTxChannel) error {
+func (self *Client) Start(rcTxChannel types.RechargeTxChannel) error {
 	//if self.txChannel==nil {
 	//	fmt.Println( "self.txchannel is nil")
 	//} else {
 	//	fmt.Println( "self.txchannel is not nil")
 	//}
 	self.subscribeNewBlockheader()
-	self.StartScanBlock(channel)
-
+	self.StartScanBlock(rcTxChannel)
 	return nil
+}
+
+func (self *Client) Name() string {
+	return types.Chain_eth
 }
 
 func (self *Client) NewAccount()(*types.Account, error) {
@@ -117,7 +120,7 @@ func (self *Client)SendTx(ctx context.Context,  chiperKey string, tx *types.Tran
 func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 	//ctx, cancel := context.WithCancel(context.Background())
 	//defer cancel()
-	gaslimit := uint64(0x4712388)
+	gaslimit := uint64(0x2fefd8)
 	gasprice, err := self.c.SuggestGasPrice(context.TODO())
 	if err!=nil {
 		return nil, err
