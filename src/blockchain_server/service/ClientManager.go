@@ -324,7 +324,7 @@ func (self *ClientManager)NewAccounts(cmd *CmdAccounts) ([]*types.Account, error
 
 	client := self.clients[cmd.Coin]
 
-	for i:=0; i<max_once_account_number; i++ {
+	for i:=0; i<int(cmd.amount); i++ {
 		acc, err := client.NewAccount()
 		if err!=nil {
 			l4g.Error("new %s account error, messafge", cmd.Coin, err.Error())
