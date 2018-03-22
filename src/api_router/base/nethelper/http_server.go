@@ -1,4 +1,4 @@
-package jrpc
+package nethelper
 
 import (
 	"net/http"
@@ -12,7 +12,7 @@ import (
 // Start Http Server
 // @parameter: port string, like ":8080"
 // @return: error
-func StartHttpServer(port string) error {
+func StartHttpServer11(port string) error {
 	/*http.HandleFunc("/walletrpc", func(w http.ResponseWriter, req *http.Request) {
 		log.Println("Http server Accept a client: ", req.RemoteAddr)
 
@@ -35,7 +35,7 @@ func StartHttpServer(port string) error {
 // Start restful Http Server
 // @parameter: port string, like ":8080"
 // @return: error
-func StartHttpServer2(ctx context.Context, wg *sync.WaitGroup, port string) error {
+func StartHttpServer3(ctx context.Context, wg *sync.WaitGroup, port string) error {
 	listener, err := net.Listen("tcp", port)
 	if err != nil {
 		fmt.Println("#StartRestFulHttpServer Error:", err.Error())

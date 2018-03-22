@@ -1,7 +1,7 @@
 package main
 
 import (
-	"../base/jrpc"
+	"../base/nethelper"
 	"../data"
 	"fmt"
 	"encoding/json" // for json get
@@ -16,10 +16,10 @@ var timeBegin,timeEnd time.Time
 
 func DoTest(params interface{}, str *string, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
-	err := jrpc.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, params, &ackData)
+	err := nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==100{
+	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -31,10 +31,10 @@ func DoTest(params interface{}, str *string, count *int64, right *int64, times i
 
 func DoTest2(client *rpc.Client, params interface{}, str *string, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
-	err := jrpc.CallJRPCToHttpServerOnClient(client, data.MethodServiceCenterDispatch, params, &ackData)
+	err := nethelper.CallJRPCToHttpServerOnClient(client, data.MethodServiceCenterDispatch, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==100{
+	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -47,10 +47,10 @@ func DoTest2(client *rpc.Client, params interface{}, str *string, count *int64, 
 func DoTestTcp(params interface{}, str *string, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
 
-	err := jrpc.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, params, &ackData)
+	err := nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==100{
+	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -62,10 +62,10 @@ func DoTestTcp(params interface{}, str *string, count *int64, right *int64, time
 
 func DoTestTcp2(client *rpc.Client, params interface{}, str *string, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
-	err := jrpc.CallJRPCToTcpServerOnClient(client, data.MethodServiceNodeCall, params, &ackData)
+	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodServiceNodeCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==100{
+	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -76,16 +76,16 @@ func DoTestTcp2(client *rpc.Client, params interface{}, str *string, count *int6
 }
 
 // http rpc风格
-// curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"version":"v1", "api":"MyFunc2.Sub","argv":"[{\"A\":\"hello, \", \"B\":\"world\"}]"}], "id": 1}' http://localhost:8080
+// curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"version":"v1", "api":"arith.add","argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]", "id":1}], "id": 1}' http://localhost:8080/rpc
 // curl -d '{
 // "method":"ServiceCenter.Dispatch",
-// "params":[{"version":"v1", "api":"MyFunc2.Sub","argv":"[{\"A\":\"hello, \", \"B\":\"world\"}]}],
+// "params":[{"version":"v1", "api":"arith.add","argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]}],
 // "id": 1
 // }'
-// http://localhost:8080/wallet
+// http://localhost:8080/rpc
 
-// http restuful风格
-// curl -d '{"argv":"[{\"A\":\"hello, \", \"B\":\"world\"}]"}' http://localhost:8080/wallet/v1/myfunc2/sub
+// http restful风格
+// curl -d '{"argv":"[{\"a\":2, \"b\":1}]", "id":1}' http://localhost:8080/restful/v1/arith/add
 func main() {
 
 
@@ -102,8 +102,9 @@ func main() {
 
 	dispatchData := data.ServiceCenterDispatchData{}
 	dispatchData.Version = "v1"
-	dispatchData.Api = "MyFunc1.Add"
+	dispatchData.Api = "Arith.Add"
 	dispatchData.Argv = "[{\"a\":1, \"b\":2}]"
+	dispatchData.Id = 0
 	b,err := json.Marshal(dispatchData);
 	if err != nil {
 		fmt.Println("Error: ", err.Error())
@@ -128,10 +129,10 @@ func main() {
 			fmt.Println("I do quit")
 			break;
 		}else if input == "d1" {
-			jrpc.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, &ackData)
+			nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, &ackData)
 			fmt.Println("ack==", ackData)
 		}else if input == "d2" {
-			jrpc.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, dispatchData, &ackData)
+			nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, dispatchData, &ackData)
 			fmt.Println("ack==", ackData)
 		}else if input == "d3" {
 			for i := 0; i < times; i++ {
@@ -145,8 +146,9 @@ func main() {
 				continue
 			}
 
-			for i := 0; i < times; i++ {
-				go DoTestTcp2(client, dispatchData, &testdata, &count, &right, times)
+			for i := 0; i < times*times*2; i++ {
+				dispatchData.Id = i
+				go DoTestTcp2(client, dispatchData, &testdata, &count, &right, times*times*2)
 			}
 		}else if input == "d4" {
 			for i := 0; i < times; i++ {
@@ -163,6 +165,7 @@ func main() {
 				continue
 			}
 			for i := 0; i < times*times*2; i++ {
+				dispatchData.Id = i
 				go DoTest2(client, dispatchData, &testdata, &count, &right, times*times*2)
 			}
 		}

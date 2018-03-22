@@ -15,6 +15,7 @@ const ArithSrvName = "arith"
 const ArithSrvVersion = "v1"
 const (
 	GateWayAddr = "127.0.0.1:8081"
+	SrvAddr = "127.0.0.1:8090"
 )
 
 // 注册方法
@@ -32,7 +33,7 @@ func main() {
 
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(ArithSrvName, ArithSrvVersion)
-	nodeInstance.RegisterData.Addr = "127.0.0.1:8090"
+	nodeInstance.RegisterData.Addr = SrvAddr
 	nodeInstance.RegisterData.RegisterApi(new(handler.Arith))
 	nodeInstance.Handler = callArithFunction
 
@@ -41,10 +42,7 @@ func main() {
 
 	// 启动节点服务
 	ctx, cancel := context.WithCancel(context.Background())
-
-	//nodeInstance.Start(ctx, wg)
-
-	go service.StartNode(ctx, nodeInstance)
+	nodeInstance.Start(ctx, wg)
 
 	time.Sleep(time.Second*2)
 	for ; ;  {

@@ -3,15 +3,14 @@ package service
 import (
 	"sync"
 	"../../data"
-	"../jrpc"
+	"../nethelper"
 	"fmt"
-	"encoding/json"
 	"context"
 	"strings"
-	"io"
 	"log"
 	"net/rpc"
 	"time"
+	"errors"
 )
 
 // 服务节点回调接口
@@ -26,14 +25,13 @@ type ServiceNode struct{
 	// 服务中心
 	ServiceCenterAddr string
 	// 等待
-	Wg *sync.WaitGroup
+	wg *sync.WaitGroup
 }
 
 // 生成一个服务节点
 func NewServiceNode(serviceName string, serviceVersion string) (*ServiceNode, error){
 	serviceNode := &ServiceNode{}
 
-	serviceNode.Wg = &sync.WaitGroup{}
 	serviceNode.RegisterData.Name = serviceName
 	serviceNode.RegisterData.Version = serviceVersion
 
@@ -41,19 +39,59 @@ func NewServiceNode(serviceName string, serviceVersion string) (*ServiceNode, er
 }
 
 // 启动服务节点
-func StartNode(ctx context.Context, serviceNode *ServiceNode) {
-	go startServiceNode(ctx, serviceNode)
+func (ni *ServiceNode)Start(ctx context.Context, wg *sync.WaitGroup) error {
+	ni.wg = wg
 
-	go registerToServiceCenter(ctx, serviceNode)
+	err := func()error{
+		s :=strings.Split(ni.RegisterData.Addr, ":")
+		if len(s) != 2{
+			fmt.Println("#Error: Node addr is not ip:port format")
+			return errors.New("#Addr is error format")
+		}
 
-	<-ctx.Done()
+		listener, err := nethelper.CreateTcpServer(":"+s[1])
+		if err != nil {
+			log.Println("#ListenTCP Error: ", err.Error())
+			return err
+		}
+
+		go func() {
+			ni.wg.Add(1)
+			defer ni.wg.Done()
+
+			log.Println("Tcp server routine running... ")
+			go func(){
+				for{
+					conn, err := listener.Accept();
+					if err != nil {
+						log.Println("Error: ", err.Error())
+						continue
+					}
+
+					log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
+					go rpc.ServeConn(conn)
+				}
+			}()
+
+			<- ctx.Done()
+			log.Println("Tcp server routine stoped... ")
+		}()
+
+		return nil
+	}()
+
+	if err != nil {
+		return err
+	}
+
+	err = ni.startToServiceCenter(ctx)
+
+	return err
 }
 
 // RPC 方法
 // 服务节点RPC--调用节点方法ServiceNodeInstance.Call
 func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	ack.Version = req.Version
-	ack.Api = req.Api
 	ack.Err = data.ServiceDispatchErrOk
 	ack.ErrMsg = ""
 	if ni.Handler != nil {
@@ -68,106 +106,58 @@ func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.Servi
 	return nil
 }
 
+const(
+	ToCenterStatusOk = 0
+	ToCenterStatusCLose = 1
+	ToCenterStatusStop = 2
+)
 // 内部方法
-///////////////////////////////////////////////////////////////////////
-func startServiceNode(ctx context.Context, serviceNode *ServiceNode){
-	serviceNode.Wg.Add(1)
-	defer serviceNode.Wg.Done()
-
-	s :=strings.Split(serviceNode.RegisterData.Addr, ":")
-	if len(s) != 2{
-		fmt.Println("Error: Node addr is not ip:port format")
-		return
-	}
-
-	l, err := jrpc.CreateTcpServer(":"+s[1])
-	if err != nil {
-		fmt.Println("Error: Create tcp server, ", err.Error())
-		return
-	}
-
-	var conns []io.ReadWriteCloser
-	go func(){
-		for{
-			conn, err := l.Accept();
-			if err != nil {
-				log.Println("Error: ", err.Error())
-				continue
-			}
-
-			log.Println("JRPC Tcp server Accept a client: ", conn.RemoteAddr())
-			conns = append(conns, conn)
-			go rpc.ServeConn(conn)
-		}
-	}()
-
-	<- ctx.Done()
-	for i := 0; i < len(conns); i++ {
-		conns[i].Close()
-	}
-	fmt.Println("i am graceful quit StartServiceNode")
-}
-
-func keepAlive(serviceNode *ServiceNode, params *string, status int) int{
+func (ni *ServiceNode)keepAlive(status int) int{
 	var err error
 	var res string
-	if status == 1 {
-		err = jrpc.CallJRPCToTcpServer(serviceNode.ServiceCenterAddr, data.MethodServiceCenterRegister, *params, &res)
-		if err != nil {
-		}else{
-			status = 0
+	if status == ToCenterStatusCLose {
+		err = nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterRegister, ni.RegisterData, &res)
+		if err == nil {
+			status = ToCenterStatusOk
 		}
 	}
 
-	if status == 0{
-		err = jrpc.CallJRPCToTcpServer(serviceNode.ServiceCenterAddr, data.MethodServiceCenterPingpong, "ping", &res)
+	if status == ToCenterStatusOk{
+		err = nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterPingpong, "ping", &res)
 		if err == nil && res == "pong" {
-			status = 0
+			status = ToCenterStatusOk
 		}else{
-			status = 1
+			status = ToCenterStatusCLose
 		}
 	}
 
 	return status
 }
 
-func registerToServiceCenter(ctx context.Context, serviceNode *ServiceNode){
-	serviceNode.Wg.Add(1)
-	defer serviceNode.Wg.Done()
-
-	var params string
-	b,err := json.Marshal(serviceNode.RegisterData);
-	if err != nil {
-		fmt.Println("Error: ", err.Error())
-		return;
-	}
-	params = string(b[:])
-	fmt.Println("params: ", params)
-
+func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error{
 	timeout := make(chan bool)
 	go func(){
 		for ; ; {
 			timeout <- true
 			time.Sleep(time.Second*10)
-			fmt.Println("timeout... ")
 		}
 	}()
 
-	status := 1
-	for ; ; {
-		select{
-		case <-ctx.Done():
-			fmt.Println("done signal")
-			status = 2
-		case <-timeout:
-			fmt.Println("timeout signal")
-			status = keepAlive(serviceNode, &params, status)
-		}
+	go func() {
+		status := ToCenterStatusCLose
+		for ; ; {
+			select{
+			case <-ctx.Done():
+				status = ToCenterStatusStop
+			case <-timeout:
+				status = ni.keepAlive(status)
+			}
 
-		if status == 2{
-			break
+			if status == ToCenterStatusStop{
+				break
+			}
 		}
-	}
+	}()
 
-	fmt.Println("i am graceful quit RegisterToServiceCenter")
+	return  nil
 }

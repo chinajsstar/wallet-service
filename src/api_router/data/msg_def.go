@@ -40,11 +40,12 @@ func (rd *ServiceCenterRegisterData)GetVersionName() string {
 }
 
 // 请求信息，作为rpc请求的params数据
-// json like: {"version":"v1", "api":"Arith.Add", "argv":""}
+// json like: {"version":"v1", "api":"Arith.Add", "argv":"", "id":1}
 type ServiceCenterDispatchData struct{
 	Version string `json:"version"` // like "v1"
 	Api  	string `json:"api"`  	// like "xxx.xxx"
 	Argv 	string `json:"argv"` 	// json string
+	Id 		int    `json:"id"`		// req id
 }
 
 func (sd *ServiceCenterDispatchData)GetVersionApi() string {
@@ -52,10 +53,9 @@ func (sd *ServiceCenterDispatchData)GetVersionApi() string {
 }
 
 // 应答信息，作为rpc应答的result数据
-// json like: {"version":"v1", "api":"Arith.Add", "err":0, "errmsg":"", "value":""}
+// json like: {"id":1, "err":0, "errmsg":"", "value":""}
 type ServiceCenterDispatchAckData struct{
-	Version string `json:"version"` // like "v1"
-	Api     string `json:"api"`     // like "xxx.xxx"
+	Id 		int    `json:"id"`		// req id
 	Err     int    `json:"err"`     // like 0
 	ErrMsg  string `json:"errmsg"`  // string
 	Value   string `json:"value"`   // json string

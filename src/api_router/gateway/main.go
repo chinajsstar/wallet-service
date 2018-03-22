@@ -1,28 +1,24 @@
 package main
 
 import (
-	"net/rpc"
 	"../base/service"
 	"fmt"
 	"time"
 	"context"
+	"sync"
 )
 
 const ServiceCenterName = "center"
 
 func main() {
-	// 创建服务中心
-	centerInstance,_ := service.NewServiceCenter(ServiceCenterName)
-	centerInstance.HttpPort = ":8080"
-	centerInstance.TcpPort = ":8081"
+	wg := &sync.WaitGroup{}
 
-	// 注册RPC接口
-	centerInstance.RpcServer = rpc.NewServer()
-	centerInstance.RpcServer.Register(centerInstance)
+	// 创建服务中心
+	centerInstance,_ := service.NewServiceCenter(ServiceCenterName, ":8080", ":8081")
 
 	// 启动服务中心
 	ctx, cancel := context.WithCancel(context.Background())
-	go service.StartCenter(ctx, centerInstance)
+	centerInstance.Start(ctx, wg)
 
 	time.Sleep(time.Second*2)
 	for ; ;  {
@@ -37,7 +33,7 @@ func main() {
 	}
 
 	fmt.Println("Waiting all routine quit...")
-	centerInstance.Wg.Wait()
+	wg.Wait()
 	fmt.Println("All routine is quit...")
 }
 

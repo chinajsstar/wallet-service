@@ -4,8 +4,7 @@ import (
 	"sync"
 	"net/rpc"
 	"../../data"
-	"../jrpc"
-	wlutil "../../utils"
+	"../nethelper"
 	"log"
 	"encoding/json"
 	"fmt"
@@ -33,16 +32,16 @@ type ServiceNodeBusiness struct{
 
 type ServiceCenter struct{
 	// 名称
-	Name string
+	name string
 
 	// rpc服务
-	RpcServer *rpc.Server
+	rpcServer *rpc.Server
 
 	// http
-	HttpPort string
+	httpPort string
 
 	// tcp
-	TcpPort string
+	tcpPort string
 
 	// 节点信息
 	Rwmu sync.RWMutex
@@ -50,119 +49,127 @@ type ServiceCenter struct{
 	ServiceNameMapBusiness map[string]*ServiceNodeBusiness // name+version mapto allservicenode
 
 	// 等待
-	Wg *sync.WaitGroup
-
-	// 请求队列
-	ApiRequestTracer *wlutil.ApiRequestTracer
+	wg *sync.WaitGroup
 }
 
 // 生成一个服务中心
-func NewServiceCenter(rootName string) (*ServiceCenter, error){
+func NewServiceCenter(rootName string, httpPort string, tcpPort string) (*ServiceCenter, error){
 	serviceCenter := &ServiceCenter{}
 
-	serviceCenter.Wg = &sync.WaitGroup{}
-	serviceCenter.Name = rootName
+	serviceCenter.name = rootName
+	serviceCenter.httpPort = httpPort
+	serviceCenter.tcpPort = tcpPort
+	serviceCenter.rpcServer = rpc.NewServer()
+	serviceCenter.rpcServer.Register(serviceCenter)
+
 	serviceCenter.ApiMapServiceName = make(map[string]string)
 	serviceCenter.ServiceNameMapBusiness = make(map[string]*ServiceNodeBusiness)
-
-	serviceCenter.ApiRequestTracer = wlutil.NewApiRequestTracer()
 
 	return serviceCenter, nil
 }
 
 // 启动服务中心
-func StartCenter(ctx context.Context, serviceCenter *ServiceCenter) {
-	serviceCenter.RpcServer.HandleHTTP("/wallet", "/wallet_debug")
-	http.Handle("/walletrpc", http.HandlerFunc(serviceCenter.walletRpc))
-	http.Handle("/walletrest/", http.HandlerFunc(serviceCenter.walletRest))
+func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
+	mi.wg = wg
 
-	go serviceCenter.ApiRequestTracer.StartTracer(ctx, serviceCenter.Wg)
-	go startHttpServiceCenter(ctx, serviceCenter)
-	go startServiceCenter(ctx, serviceCenter)
+	mi.rpcServer.HandleHTTP("/wallet", "/wallet_debug")
+	http.Handle("/rpc", http.HandlerFunc(mi.handleRpc))
+	http.Handle("/restful/", http.HandlerFunc(mi.handleRestful))
 
-	<-ctx.Done()
-}
-
-// RPC 方法
-// 服务中心方法--注册到服务中心
-func (mi *ServiceCenter) Register(req *string, res *string) error {
-	RegisterData := data.ServiceCenterRegisterData{}
-	err := json.Unmarshal([]byte(*req), &RegisterData);
-	if err != nil {
-		fmt.Println("Error: ", err.Error())
-		return err;
-	}
-
-	err = mi.registerServiceNodeInfo(&RegisterData)
-	if err != nil {
-		log.Println("Error: ", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-// 服务中心方法--发送请求到服务中心进行转发
-/*
-func (mi *ServiceCenter) Dispatch(req *string, res * string) error {
-	dispatchData := &common.ServiceCenterDispatchData{}
-	err := json.Unmarshal([]byte(*req), &dispatchData);
-	if err != nil {
-		fmt.Println("Error: ", err.Error())
-		return err;
-	}
-
-	fmt.Println("A module dispatch in...", *req)
-	nodeInfo := mi.getServiceNodeInfoByApi(dispatchData.Api)
-	if nodeInfo == nil {
-		fmt.Println("Error: not find api")
-		return errors.New("not find api")
-	}
-
-	if nodeInfo.Client == nil {
-		mi.openClient(nodeInfo)
-	}
-
-	err = func() error {
-		if nodeInfo.Client != nil {
-			nodeInfo.Rwmu.RLock()
-			defer nodeInfo.Rwmu.RUnlock()
-			return jrpc.CallJRPCToTcpServerOnClient(nodeInfo.Client, common.MethodServiceNodeCall, dispatchData, res)
+	// http server
+	err := func() error {
+		log.Println("Start Http server on ", mi.httpPort)
+		listener, err := net.Listen("tcp", mi.httpPort)
+		if err != nil {
+			fmt.Println("#Http listen Error:", err.Error())
+			return err
 		}
+		go func() {
+			mi.wg.Add(1)
+			defer mi.wg.Done()
+
+			log.Println("Http server routine running... ")
+			srv := http.Server{Handler:nil}
+			go srv.Serve(listener)
+
+			<-ctx.Done()
+			listener.Close()
+
+			log.Println("Http server routine stoped... ")
+		}()
+
 		return nil
 	}()
 
 	if err != nil {
-		fmt.Println("Call service api failed close client, ", err.Error())
-
-		mi.closeClient(nodeInfo)
-		return err;
+		return err
 	}
 
-	fmt.Println("A module dispatch in callback")
+	// tcp server
+	err = func() error {
+		log.Println("Start Tcp server on ", mi.tcpPort)
+		listener, err := nethelper.CreateTcpServer(mi.tcpPort)
+		if err != nil {
+			log.Println("#ListenTCP Error: ", err.Error())
+			return err
+		}
+		go func() {
+			mi.wg.Add(1)
+			defer mi.wg.Done()
+
+			log.Println("Tcp server routine running... ")
+			go func(){
+				for{
+					conn, err := listener.Accept();
+					if err != nil {
+						log.Println("Error: ", err.Error())
+						continue
+					}
+
+					log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
+					go mi.rpcServer.ServeConn(conn)
+				}
+			}()
+
+			<- ctx.Done()
+			log.Println("Tcp server routine stoped... ")
+		}()
+
+		return nil
+	}()
+
 	return err
 }
-*/
-func (mi *ServiceCenter) Dispatch(ask *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	mi.Wg.Add(1)
-	defer mi.Wg.Done()
 
-	versionApi := ask.GetVersionApi()
-
-	fmt.Println("A module dispatch in versionApi...", versionApi)
-
-	id := mi.ApiRequestTracer.TraceApi(versionApi)
-	if id == "" {
-		ack.Err = data.ServiceDispatchErrServiceStop
-		ack.ErrMsg = "service is stop"
-		return nil
+// RPC 方法
+// 服务中心方法--注册到服务中心
+func (mi *ServiceCenter) Register(reg *data.ServiceCenterRegisterData, res *string) error {
+	err := mi.registerServiceNodeInfo(reg)
+	if err != nil {
+		log.Println("#Register Error: ", err.Error())
+		return err
 	}
-	defer mi.ApiRequestTracer.FinishTraceApi(id)
+
+	*res = "ok"
+	fmt.Println("Addr ", reg.Addr, " register in gateway...")
+	return nil
+}
+
+// 派发明亮
+func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+	mi.wg.Add(1)
+	defer mi.wg.Done()
+
+	ack.Id = req.Id
+	versionApi := req.GetVersionApi()
+	fmt.Println("Center dispatch versionApi...", versionApi)
 
 	nodeInfo := mi.getServiceNodeInfoByApi(versionApi)
 	if nodeInfo == nil {
-		fmt.Println("Error: not find versionApi")
-		return errors.New("not find versionApi")
+		fmt.Println("#Error: not find versionApi")
+		ack.Err = data.ServiceDispatchErrNotFindApi
+		ack.ErrMsg = "Not find api"
+		return nil
 	}
 
 	if nodeInfo.Client == nil {
@@ -173,15 +180,19 @@ func (mi *ServiceCenter) Dispatch(ask *data.ServiceCenterDispatchData, ack *data
 		if nodeInfo.Client != nil {
 			nodeInfo.Rwmu.RLock()
 			defer nodeInfo.Rwmu.RUnlock()
-			return jrpc.CallJRPCToTcpServerOnClient(nodeInfo.Client, data.MethodServiceNodeCall, ask, ack)
+
+			return nethelper.CallJRPCToTcpServerOnClient(nodeInfo.Client, data.MethodServiceNodeCall, req, ack)
 		}
-		return nil
+		return errors.New("Srv is not online")
 	}()
 
 	if err != nil {
-		fmt.Println("Call service versionApi failed close client, ", err.Error())
+		fmt.Println("#Call versionApi failed, close client, ", err.Error())
 
 		mi.closeClient(nodeInfo)
+
+		ack.Err = data.ServiceDispatchErrNotFindApi
+		ack.ErrMsg = "Others error"
 		return err;
 	}
 
@@ -199,55 +210,6 @@ func (mi *ServiceCenter) Pingpong(req *string, res * string) error {
 }
 
 // 内部方法
-func startHttpServiceCenter(ctx context.Context, serviceCenter *ServiceCenter){
-	serviceCenter.Wg.Add(1)
-	defer serviceCenter.Wg.Done()
-
-	log.Println("Start Http server on ", serviceCenter.HttpPort)
-	listener, err := net.Listen("tcp", serviceCenter.HttpPort)
-	if err != nil {
-		fmt.Println("#startHttpServiceCenter Error:", err.Error())
-		return
-	}
-
-	srv := http.Server{Handler:nil}
-	go srv.Serve(listener)
-
-	<-ctx.Done()
-	listener.Close()
-
-	fmt.Println("i am quit startHttpServiceCenter")
-}
-
-func startServiceCenter(ctx context.Context, serviceCenter *ServiceCenter){
-	serviceCenter.Wg.Add(1)
-	defer serviceCenter.Wg.Done()
-
-	log.Println("Start JRPC Tcp server on ", serviceCenter.TcpPort)
-	l, err := jrpc.CreateTcpServer(serviceCenter.TcpPort)
-	if err != nil {
-		fmt.Println("Error: Create tcp server, ", err.Error())
-		return
-	}
-
-	go func(serviceCenter *ServiceCenter){
-		for{
-			conn, err := l.Accept();
-			if err != nil {
-				log.Println("Error: ", err.Error())
-				continue
-			}
-
-			log.Println("JRPC Tcp server Accept a client: ", conn.RemoteAddr())
-			//go rpc.ServeConn(conn)
-			go serviceCenter.RpcServer.ServeConn(conn)
-		}
-	}(serviceCenter)
-
-	<- ctx.Done()
-	fmt.Println("i am quit startServiceCenter")
-}
-
 func (mi *ServiceCenter)registerServiceNodeInfo(registerData *data.ServiceCenterRegisterData) error{
 	mi.Rwmu.Lock()
 	defer mi.Rwmu.Unlock()
@@ -383,7 +345,7 @@ func newRPCRequest(r io.Reader) *rpcRequest {
 	done := make(chan bool)
 	return &rpcRequest{r, &buf, done}
 }
-func (mi *ServiceCenter) walletRpc(w http.ResponseWriter, req *http.Request) {
+func (mi *ServiceCenter) handleRpc(w http.ResponseWriter, req *http.Request) {
 	log.Println("Http server Accept a rpc client: ", req.RemoteAddr)
 	defer req.Body.Close()
 
@@ -391,19 +353,19 @@ func (mi *ServiceCenter) walletRpc(w http.ResponseWriter, req *http.Request) {
 	rpcReq := newRPCRequest(req.Body)
 
 	// go and wait
-	go mi.RpcServer.ServeCodec(jsonrpc.NewServerCodec(rpcReq))
+	go mi.rpcServer.ServeCodec(jsonrpc.NewServerCodec(rpcReq))
 	<-rpcReq.done
 
 	io.Copy(w, rpcReq.rw)
 }
-func (mi *ServiceCenter) walletRest(w http.ResponseWriter, req *http.Request) {
+func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request) {
 	log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	defer req.Body.Close()
 
 	fmt.Println("path=", req.URL.Path)
 
 	versionApi := req.URL.Path
-	versionApi = strings.Replace(versionApi, "walletrest", "", -1)
+	versionApi = strings.Replace(versionApi, "restful", "", -1)
 
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
