@@ -3,36 +3,47 @@ package main
 import (
 	"net/rpc"
 	"../base/service"
-	"../base/common"
-	"./function"
+	"../data"
+	"./handler"
 	"fmt"
 	"context"
 	"time"
+	"sync"
 )
 
-const ServiceNodeName = "node"
-const ServiceNodeVersion = "v1"
+const ArithSrvName = "arith"
+const ArithSrvVersion = "v1"
+const (
+	GateWayAddr = "127.0.0.1:8081"
+)
 
-func callNodeApi(req *common.ServiceCenterDispatchData, ack *common.ServiceCenterDispatchAckData){
-
+// 注册方法
+func callArithFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
 	fmt.Println("callNodeApi req: ", *req)
 	fmt.Println("callNodeApi ack: ", *ack)
+
+	// TODO:
+	ack.Err = 0
+	ack.Value = "I am Arith service..."
 }
 
 func main() {
+	wg := &sync.WaitGroup{}
+
 	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(ServiceNodeName, ServiceNodeVersion)
+	nodeInstance, _:= service.NewServiceNode(ArithSrvName, ArithSrvVersion)
 	nodeInstance.RegisterData.Addr = "127.0.0.1:8090"
-	nodeInstance.RegisterData.RegisterApi(new(function.MyFunc1))
-	nodeInstance.RegisterData.RegisterApi(new(function.MyFunc2))
+	nodeInstance.RegisterData.RegisterApi(new(handler.Arith))
+	nodeInstance.Handler = callArithFunction
 
-	nodeInstance.ServiceCenterAddr = "127.0.0.1:8081"
-	nodeInstance.Handler = callNodeApi
-
+	nodeInstance.ServiceCenterAddr = GateWayAddr
 	rpc.Register(nodeInstance)
 
 	// 启动节点服务
 	ctx, cancel := context.WithCancel(context.Background())
+
+	//nodeInstance.Start(ctx, wg)
+
 	go service.StartNode(ctx, nodeInstance)
 
 	time.Sleep(time.Second*2)
@@ -48,6 +59,6 @@ func main() {
 	}
 
 	fmt.Println("Waiting all routine quit...")
-	nodeInstance.Wg.Wait()
+	wg.Wait()
 	fmt.Println("All routine is quit...")
 }

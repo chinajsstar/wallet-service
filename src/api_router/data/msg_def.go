@@ -1,4 +1,4 @@
-package common
+package data
 
 import (
 	"reflect"
@@ -14,10 +14,10 @@ const(
 
 // 注册信息
 type ServiceCenterRegisterData struct {
-	Name    string `json:"name"`		// service node name
-	Version string `json:"version"`		// service node version
-	Addr    string `json:"addr"`		// service node ip address
-	Apis  []string `json:"apis""`  		// service node apis
+	Name    string `json:"name"`		// service arith_srv name
+	Version string `json:"version"`		// service arith_srv version
+	Addr    string `json:"addr"`		// service arith_srv ip address
+	Apis  []string `json:"apis""`  		// service arith_srv apis
 }
 
 // 注册API
@@ -56,7 +56,7 @@ func (sd *ServiceCenterDispatchData)GetVersionApi() string {
 type ServiceCenterDispatchAckData struct{
 	Version string `json:"version"` // like "v1"
 	Api     string `json:"api"`     // like "xxx.xxx"
-	Err     int    `json:"err"`     // like 100
+	Err     int    `json:"err"`     // like 0
 	ErrMsg  string `json:"errmsg"`  // string
 	Value   string `json:"value"`   // json string
 }

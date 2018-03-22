@@ -2,7 +2,7 @@ package service
 
 import (
 	"sync"
-	"../common"
+	"../../data"
 	"../jrpc"
 	"fmt"
 	"encoding/json"
@@ -15,12 +15,12 @@ import (
 )
 
 // 服务节点回调接口
-type CallNodeApi func(req *common.ServiceCenterDispatchData, ack *common.ServiceCenterDispatchAckData)
+type CallNodeApi func(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)
 
 // 服务节点信息
 type ServiceNode struct{
 	// 注册的信息
-	RegisterData common.ServiceCenterRegisterData
+	RegisterData data.ServiceCenterRegisterData
 	// 回掉
 	Handler CallNodeApi
 	// 服务中心
@@ -51,17 +51,17 @@ func StartNode(ctx context.Context, serviceNode *ServiceNode) {
 
 // RPC 方法
 // 服务节点RPC--调用节点方法ServiceNodeInstance.Call
-func (ni *ServiceNode) Call(req *common.ServiceCenterDispatchData, ack *common.ServiceCenterDispatchAckData) error {
+func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
 	ack.Version = req.Version
 	ack.Api = req.Api
-	ack.Err = common.ServiceDispatchErrOk
+	ack.Err = data.ServiceDispatchErrOk
 	ack.ErrMsg = ""
 	if ni.Handler != nil {
 		ni.Handler(req, ack)
 	}else{
 		fmt.Println("Error api call (no handler)--api=" , req.Api, ",argv=", req.Argv)
 
-		ack.Err = common.ServiceDispatchErrNotFindHanlder
+		ack.Err = data.ServiceDispatchErrNotFindHanlder
 		ack.ErrMsg = "Not find handler"
 	}
 
@@ -112,7 +112,7 @@ func keepAlive(serviceNode *ServiceNode, params *string, status int) int{
 	var err error
 	var res string
 	if status == 1 {
-		err = jrpc.CallJRPCToTcpServer(serviceNode.ServiceCenterAddr, common.MethodServiceCenterRegister, *params, &res)
+		err = jrpc.CallJRPCToTcpServer(serviceNode.ServiceCenterAddr, data.MethodServiceCenterRegister, *params, &res)
 		if err != nil {
 		}else{
 			status = 0
@@ -120,7 +120,7 @@ func keepAlive(serviceNode *ServiceNode, params *string, status int) int{
 	}
 
 	if status == 0{
-		err = jrpc.CallJRPCToTcpServer(serviceNode.ServiceCenterAddr, common.MethodServiceCenterPingpong, "ping", &res)
+		err = jrpc.CallJRPCToTcpServer(serviceNode.ServiceCenterAddr, data.MethodServiceCenterPingpong, "ping", &res)
 		if err == nil && res == "pong" {
 			status = 0
 		}else{

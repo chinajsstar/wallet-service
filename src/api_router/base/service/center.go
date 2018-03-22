@@ -3,9 +3,9 @@ package service
 import (
 	"sync"
 	"net/rpc"
-	"../common"
+	"../../data"
 	"../jrpc"
-	wlutil "../util"
+	wlutil "../../utils"
 	"log"
 	"encoding/json"
 	"fmt"
@@ -21,7 +21,7 @@ import (
 )
 
 type ServiceNodeInfo struct{
-	RegisterData common.ServiceCenterRegisterData
+	RegisterData data.ServiceCenterRegisterData
 
 	Rwmu sync.RWMutex
 	Client *rpc.Client
@@ -86,7 +86,7 @@ func StartCenter(ctx context.Context, serviceCenter *ServiceCenter) {
 // RPC 方法
 // 服务中心方法--注册到服务中心
 func (mi *ServiceCenter) Register(req *string, res *string) error {
-	RegisterData := common.ServiceCenterRegisterData{}
+	RegisterData := data.ServiceCenterRegisterData{}
 	err := json.Unmarshal([]byte(*req), &RegisterData);
 	if err != nil {
 		fmt.Println("Error: ", err.Error())
@@ -143,7 +143,7 @@ func (mi *ServiceCenter) Dispatch(req *string, res * string) error {
 	return err
 }
 */
-func (mi *ServiceCenter) Dispatch(ask *common.ServiceCenterDispatchData, ack *common.ServiceCenterDispatchAckData) error {
+func (mi *ServiceCenter) Dispatch(ask *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
 	mi.Wg.Add(1)
 	defer mi.Wg.Done()
 
@@ -153,7 +153,7 @@ func (mi *ServiceCenter) Dispatch(ask *common.ServiceCenterDispatchData, ack *co
 
 	id := mi.ApiRequestTracer.TraceApi(versionApi)
 	if id == "" {
-		ack.Err = common.ServiceDispatchErrServiceStop
+		ack.Err = data.ServiceDispatchErrServiceStop
 		ack.ErrMsg = "service is stop"
 		return nil
 	}
@@ -173,7 +173,7 @@ func (mi *ServiceCenter) Dispatch(ask *common.ServiceCenterDispatchData, ack *co
 		if nodeInfo.Client != nil {
 			nodeInfo.Rwmu.RLock()
 			defer nodeInfo.Rwmu.RUnlock()
-			return jrpc.CallJRPCToTcpServerOnClient(nodeInfo.Client, common.MethodServiceNodeCall, ask, ack)
+			return jrpc.CallJRPCToTcpServerOnClient(nodeInfo.Client, data.MethodServiceNodeCall, ask, ack)
 		}
 		return nil
 	}()
@@ -248,7 +248,7 @@ func startServiceCenter(ctx context.Context, serviceCenter *ServiceCenter){
 	fmt.Println("i am quit startServiceCenter")
 }
 
-func (mi *ServiceCenter)registerServiceNodeInfo(registerData *common.ServiceCenterRegisterData) error{
+func (mi *ServiceCenter)registerServiceNodeInfo(registerData *data.ServiceCenterRegisterData) error{
 	mi.Rwmu.Lock()
 	defer mi.Rwmu.Unlock()
 
@@ -415,7 +415,7 @@ func (mi *ServiceCenter) walletRest(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("body=", body)
 
 	// 重组rpc结构json
-	dispatchData := common.ServiceCenterDispatchData{}
+	dispatchData := data.ServiceCenterDispatchData{}
 	err = json.Unmarshal(b, &dispatchData);
 	if err != nil {
 		fmt.Println("#HandleRequest Error: ", err.Error())
@@ -437,7 +437,7 @@ func (mi *ServiceCenter) walletRest(w http.ResponseWriter, req *http.Request) {
 	}
 	dispatchData.Api = strings.TrimRight(dispatchData.Api, ".")
 
-	dispatchAckData := common.ServiceCenterDispatchAckData{}
+	dispatchAckData := data.ServiceCenterDispatchAckData{}
 	mi.Dispatch(&dispatchData, &dispatchAckData)
 
 	w.Header().Set("Content-Type", "application/json")
