@@ -21,6 +21,6 @@ type ChainClient interface {
 	Blocknumber(ctx context.Context) (uint64, error)
 	InsertCareAddress(address []string)
 
-	Start(rcTxChannel types.RechargeTxChannel) error
+	Start(rcTxchannel types.RechargeTxChannel) error
 	Stop(ctx context.Context,  duration time.Duration)
 }

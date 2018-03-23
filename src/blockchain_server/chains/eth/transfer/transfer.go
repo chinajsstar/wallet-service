@@ -1,16 +1,6 @@
 package transfer
 //
-//import (
-//	"github.com/ethereum/go-ethereum/common"
-//	"math/big"
-//	"fmt"
-//	"time"
-//	"github.com/ethereum/go-ethereum/ethclient"
-//	"bytes"
-//	"github.com/ethereum/go-ethereum/accounts/keystore"
-//)
-//
-/// *
+////*
 //import (
 //	"context"
 //	"fmt"
@@ -91,7 +81,6 @@ package transfer
 //}
 //
 //func NewTransfer(tx *types.Transaction, identifer string) (transfer *Transfer) {
-//	return wtypes.Transfer{}
 //	return &Transfer{tx: tx, blocknumber: nil, state:wtypes.Tx_state_unkown , confirmed_number: 0, confirmation_number: 12, identifer: identifer}
 //}
 //

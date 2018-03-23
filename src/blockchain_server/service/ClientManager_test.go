@@ -25,7 +25,7 @@ func TestNetCmdSvr(t *testing.T) {
 	defer cancel()
 
 	/*********批量创建账号示例*********/
-	accCmd := NewAccountCmd("message id", types.Chain_eth, 10)
+	accCmd := types.NewAccountCmd("message id", types.Chain_eth, 10)
 	var accs []*types.Account
 	accs, err = clientManager.NewAccounts(accCmd)
 	for i, account := range accs {
@@ -34,25 +34,25 @@ func TestNetCmdSvr(t *testing.T) {
 	}
 
 	/*********添加监控地址示例*********/
-	addresses := []string{"address1", "address2"}
-	rcaCmd := NewRechargeAddressCmd("message id", types.Chain_eth, addresses)
+	addresses := []string{accs[0].Address, accs[1].Address}
+	rcaCmd := types.NewRechargeAddressCmd("message id", types.Chain_eth, addresses)
 	clientManager.SetRechargeAddress(rcaCmd)
 
 
 	/*********监控提币交易的channel*********/
-	txStateChannel := make(TxStateChange_Channel)
+	txStateChannel := make(types.TxStateChange_Channel)
 
 	// 创建并发送Transaction, 订阅只需要调用一次, 所有的Send的交易都会通过这个订阅channel传回来
 	clientManager.SubscribeTxStateChange(txStateChannel)
 
 	ctx2, _ := context.WithCancel(ctx)
-	go func(ctx2 context.Context, txstateChannel TxStateChange_Channel) {
+	go func(ctx2 context.Context, txstateChannel types.TxStateChange_Channel) {
 		close := false
 		for !close {
 			select {
 			case cmdTx := <-txStateChannel:{
 				fmt.Printf("Transaction state changed, transaction information:%s\n",
-					cmdTx.tx.String())
+					cmdTx.Tx.String())
 			}
 			case <-ctx.Done():{
 				close = true
@@ -63,7 +63,7 @@ func TestNetCmdSvr(t *testing.T) {
 
 
 	/*********执行提币命令*********/
-	txCmd := NewTxCmd("message id", types.Chain_eth, accs[0].PrivateKey, accs[1].Address, 10000)
+	txCmd := types.NewTxCmd("message id", types.Chain_eth, accs[0].PrivateKey, accs[1].Address, 10000)
 	clientManager.SendTx(txCmd)
 
 

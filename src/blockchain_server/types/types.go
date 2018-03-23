@@ -29,9 +29,29 @@ const (
 
 	NetCmdCode_success = iota
 	NetCmdCode_failed
-
 )
 
+
+
+type CmdTx struct {
+	NetCmd
+	Chiperkey string
+	Tx        *Transfer
+}
+
+type CmdAccounts struct {
+	NetCmd
+	Amount uint32
+}
+
+type CmdRechargeAddress struct {
+	NetCmd
+	Recall_url string
+	Addresses  []string
+}
+
+type TxStateChange_Channel  chan *CmdTx
+type Addresswatcher_Channel chan *Transfer
 type TxState int
 
 // Transaction of Recharge
@@ -49,7 +69,7 @@ type Transfer struct {
 	Amount  			uint64
 	Gase				uint64
 	Gaseprice			uint64
-	Total				uint64	// amount + gas *gasprice = total
+	Total				uint64	// Amount + gas *gasprice = total
 
 	State				TxState
 	OnBlocknumber 		uint64
@@ -79,7 +99,7 @@ func TxStateString(state TxState) string {
 }
 
 func (tx *Transfer)String() string {
-	return fmt.Sprintf("from:%s, to:%s, amount:%s, state:%s, minerfee:%d, onblocknumber:%d, present block number:%d", tx.From, tx.To, tx.Amount,
+	return fmt.Sprintf("from:%s, to:%s, Amount:%d, state:%s, minerfee:%d, onblocknumber:%d, present block number:%d", tx.From, tx.To, tx.Amount,
 		TxStateString(tx.State), tx.Gaseprice * tx.Gase, tx.OnBlocknumber, tx.PresentBlocknumber)
 }
 
@@ -95,25 +115,38 @@ func NewTxNotFoundErr(tx *Transfer) *TxNotFoundErr {
 	return &TxNotFoundErr{tx_info: fmt.Sprintf("Transaction not found, detail:%s", tx.String())}
 }
 
-
 type NetCmdErr struct {
 	Code 		int32
 	Message		string
 	Data 		interface{}
 }
 
-//type NetCmdRlt struct {
-//
-//}
-
 type NetCmd struct  {
-	MsgId  string
-	Coin   string
-	Method string
-	Result interface{}
-	Error  *NetCmdErr
+	MsgId    string
+	Coinname string
+	Method   string
+	Result   interface{}
+	Error    *NetCmdErr
 }
 
 func NewNetCmdErr(code int32, message string, data interface{}) *NetCmdErr {
 	return &NetCmdErr{Code:code, Message:message, Data:data}
 }
+
+func NewAccountCmd(msgId, coinname string, amount uint32) *CmdAccounts {
+	return &CmdAccounts{
+		NetCmd:NetCmd{MsgId: msgId, Coinname:coinname, Method:"new_account", Result:nil, Error:nil},
+		Amount:amount}
+}
+
+func NewTxCmd(msgId, coinname, chiperKey, to string, amount uint64) (*CmdTx) {
+	return &CmdTx{ NetCmd:NetCmd{MsgId: msgId, Coinname:coinname, Method:"send_transaction", Result:nil, Error:nil},
+		Chiperkey:chiperKey, Tx:&Transfer{To: to, Amount:amount}}
+}
+
+func NewRechargeAddressCmd(msgId, coin string, address []string) (*CmdRechargeAddress) {
+	return &CmdRechargeAddress{
+		NetCmd:NetCmd{MsgId: msgId, Coinname: coin, Method:"watch_addresses", Result:nil, Error:nil},
+		Addresses:address }
+}
+

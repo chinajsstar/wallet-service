@@ -19,12 +19,9 @@ const (
 )
 
 var (
-	feed event.Feed
+	subcribeFeed event.Feed
 	//cmdHandler *ClientManager
 )
-
-type TxStateChange_Channel chan *CmdTx
-type Addresswatcher_Channel chan *types.Transfer
 
 func init() {
 	//cmdHandler = &ClientManager{}
@@ -38,6 +35,13 @@ type ErrSendTx struct {
 	types.NetCmdErr
 }
 
+
+type ClientManager struct {
+	txCmdChannel chan *types.CmdTx
+	txCmdClose   chan bool
+	clients      map[string]blockchain_server.ChainClient
+}
+
 func newInvalidParamError(msg string) *ErrorInvalideParam{
 	return &ErrorInvalideParam{message:msg}
 }
@@ -49,10 +53,10 @@ func newInvalidParamError(msg string) *ErrorInvalideParam{
 //-32602	Invalid params	Invalid method parameter(s).
 //-32603	Internal error	Internal JSON-RPC error.
 //-32000 to -32099	Server error	Reserved for implementation-defined server-errors.
-func newTxSendError(txCmd *CmdTx, message string, code int32)*ErrSendTx {
+func newTxSendError(txCmd *types.CmdTx, message string, code int32)*ErrSendTx {
 	return &ErrSendTx{types.NetCmdErr{
 		Message:fmt.Sprintf("Send %s Transaction error:%s\ntx detail:%s",
-		txCmd.Coin, message, txCmd.tx.String()), Code:code, Data:nil}}
+		txCmd.Coinname, message, txCmd.Tx.String()), Code: code, Data: nil}}
 }
 
 func (e ErrSendTx) Error() string {
@@ -63,39 +67,16 @@ func (self ErrorInvalideParam)Error() string {
 	return self.message
 }
 
-type CmdTx struct {
-	types.NetCmd
-	chiperkey string
-	tx        *types.Transfer
-}
-
-type CmdAccounts struct {
-	types.NetCmd
-	amount			uint32
-}
-
-type CmdRechargeAddress struct {
-	types.NetCmd
-	recall_url string
-	addresses []string
-}
-
-type ClientManager struct {
-	txCmdChannel chan *CmdTx
-	txCmdClose   chan bool
-	clients      map[string]blockchain_server.ChainClient
-}
-
 // subscribe Sample
 /*
 func TestFeed(t *testing.TxStateString) {
-	var feed Feed
+	var subcribeFeed Feed
 	var done, subscribed sync.WaitGroup
 	subscriber := func(i int) {
 		defer done.Done()
 
 		subchan := make(chan int)
-		sub := feed.Subscribe(subchan)
+		sub := subcribeFeed.Subscribe(subchan)
 		timeout := time.NewTimer(2 * time.Second)
 		subscribed.Done()
 
@@ -126,10 +107,10 @@ func TestFeed(t *testing.TxStateString) {
 		go subscriber(i)
 	}
 	subscribed.Wait()
-	if nsent := feed.Send(1); nsent != n {
+	if nsent := subcribeFeed.Send(1); nsent != n {
 		t.Errorf("first send delivered %d times, want %d", nsent, n)
 	}
-	if nsent := feed.Send(2); nsent != 0 {
+	if nsent := subcribeFeed.Send(2); nsent != 0 {
 		t.Errorf("second send delivered %d times, want 0", nsent)
 	}
 	done.Wait()
@@ -140,29 +121,34 @@ func (self *ClientManager) AddClient(client blockchain_server.ChainClient) {
 	if self.clients==nil {
 		self.clients = make(map[string]blockchain_server.ChainClient)
 	}
-
 	self.clients[client.Name()] = client
 }
 
-func (self *ClientManager) Start(ctx context.Context, rct_channel types.RechargeTxChannel) {
+func (self *ClientManager) Start(ctx context.Context, rctxChannel types.RechargeTxChannel) {
 	self.loopTxCmd()
-	self.startAllClient(ctx, rct_channel)
+	self.startAllClient(ctx, rctxChannel)
 }
 
-func (self *ClientManager) startAllClient(ctx context.Context, rct_channel types.RechargeTxChannel) error {
+func (self *ClientManager) startAllClient(ctx context.Context, rctChannel types.RechargeTxChannel) error {
 	if self.clients==nil || len(self.clients)==0 {
 		return fmt.Errorf("there are 0 client instance. add client instance first!")
 	}
 	for _, instance := range self.clients {
-		instance.Start(rct_channel)
+		instance.Start(rctChannel)
 	}
 	return nil
 }
 
-func (self *ClientManager) SubscribeTxStateChange(txStateChannel TxStateChange_Channel) *event.Subscription{
-	subscribe := feed.Subscribe(txStateChannel)
-	return &subscribe
+func (self *ClientManager) SubscribeTxStateChange(txStateChannel types.TxStateChange_Channel) event.Subscription{
+	subscribe := subcribeFeed.Subscribe(txStateChannel)
+	return subscribe
 }
+
+//func (slef *ClientManager) SubscribeRechargeTx(rctChannel types.RechargeTxChannel) *event.Subscription {
+//	for _, instance := range slef.clients {
+//		instance.SubscribeRechargeTx(rctChannel)
+//	}
+//}
 
 func (self *ClientManager) innerSetRechargeAddress(coin string, addresses []string,
 	) (error) {
@@ -174,37 +160,37 @@ func (self *ClientManager) innerSetRechargeAddress(coin string, addresses []stri
 	return nil
 }
 
-func (self *ClientManager) SetRechargeAddress(cmdRchAddress *CmdRechargeAddress) error {
-	return self.innerSetRechargeAddress(cmdRchAddress.Coin, cmdRchAddress.addresses)
+func (self *ClientManager) SetRechargeAddress(cmdRchAddress *types.CmdRechargeAddress) error {
+	return self.innerSetRechargeAddress(cmdRchAddress.Coinname, cmdRchAddress.Addresses)
 }
 
 //func (self *ClientManager) SubscribeIncomingTx (types. incomeTxChannel *Addresswatcher_Channel)  *event.Subscription {
-//	subscribe := feed.Subscribe(incomeTxChannel)
+//	subscribe := subcribeFeed.Subscribe(incomeTxChannel)
 //	return &subscribe
 //}
 
-func (self *ClientManager) innerSendTx(txCmd *CmdTx) {
+func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 	l4g.Trace("------------sendTransaction begin------------")
-	handler := self.clients[txCmd.Coin]
+	handler := self.clients[txCmd.Coinname]
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
 
-	err := handler.SendTx(ctx, txCmd.chiperkey, txCmd.tx)
+	err := handler.SendTx(ctx, txCmd.Chiperkey, txCmd.Tx)
 	if nil!=err {
 		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 		l4g.Error("Send Transaction error:%s", txCmd.Error.Message)
-		feed.Send(txCmd)
+		subcribeFeed.Send(txCmd)
 	}
 
-	txCmd.tx.State = types.Tx_state_commited
-	feed.Send(txCmd)
+	txCmd.Tx.State = types.Tx_state_commited
+	subcribeFeed.Send(txCmd)
 
 	escapeloop := false
 	// Transaction state change : committed->waite confirm number -> confirmed/unconfirmed ??
 	for !escapeloop {
 		time.Sleep(time.Second)
-		tx, err := handler.Tx(ctx, txCmd.tx.Tx_hash)
+		tx, err := handler.Tx(ctx, txCmd.Tx.Tx_hash)
 
 		if err != nil {
 			if nfe, ok := err.(*types.TxNotFoundErr); ok {
@@ -213,25 +199,25 @@ func (self *ClientManager) innerSendTx(txCmd *CmdTx) {
 				escapeloop = true
 				txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 				l4g.Error(err.Error())
-				feed.Send(txCmd)
+				subcribeFeed.Send(txCmd)
 			}
 			continue
 		}
 
-		if tx.State != txCmd.tx.State {
+		if tx.State != txCmd.Tx.State {
 			if tx.State==types.Tx_state_confirmed {
 				escapeloop = true
 			}
 
 			l4g.Trace("Transaction state from:%s to %s, Transaction information:%s",
-				types.TxStateString(txCmd.tx.State), types.TxStateString(tx.State), tx.String())
+				types.TxStateString(txCmd.Tx.State), types.TxStateString(tx.State), tx.String())
 
-			txCmd.tx = tx
-			feed.Send(txCmd)
+			txCmd.Tx = tx
+			subcribeFeed.Send(txCmd)
 
 		} else if tx.State==types.Tx_state_mined {
 
-			if tx.PresentBlocknumber!=txCmd.tx.PresentBlocknumber {
+			if tx.PresentBlocknumber!=txCmd.Tx.PresentBlocknumber {
 
 				if tx.PresentBlocknumber-tx.PresentBlocknumber>tx.Confirmationsnumber {
 
@@ -243,21 +229,21 @@ func (self *ClientManager) innerSendTx(txCmd *CmdTx) {
 							tx.String())
 				}
 
-				txCmd.tx = tx
-				feed.Send(txCmd)
+				txCmd.Tx = tx
+				subcribeFeed.Send(txCmd)
 			}
 		}
 		/*
 		switch tx.State {
 		case types.Tx_state_commited: {
 			txCmd.tx = tx
-			feed.Send(txCmd)
+			subcribeFeed.Send(txCmd)
 		}
 		case types.Tx_state_mined: {
 			if txCmd.tx.State != tx.State {
 				l4g.Trace("Transaction mined, Transaction infromation:%s", tx.String())
 				txCmd.tx = tx
-				feed.Send(txCmd)
+				subcribeFeed.Send(txCmd)
 			}
 		}
 		case types.Tx_state_confirmed: {
@@ -276,19 +262,19 @@ func (self *ClientManager) innerSendTx(txCmd *CmdTx) {
 			}
 
 			txCmd.tx = tx
-			feed.Send(txCmd)
+			subcribeFeed.Send(txCmd)
 		}
 		case types.Tx_state_unconfirmed: {
 			txCmd.tx = tx
 			l4g.Trace("Transaction is unconfimred! tx information:%s", tx.String())
-			feed.Send(txCmd)
+			subcribeFeed.Send(txCmd)
 		}
 		default: {
 			message = fmt.Sprintf("Transaction state looks unusual, the state changed from:'%s' to:'%s' Transaction information:%s", types.TxStateString(txCmd.tx.State), types.TxStateString(tx.State))
 			txCmd.Error = types.NewNetCmdErr(-32000, message, nil)
 			l4g.Warn(message)
 			escapeloop = true
-			feed.Send(txCmd)
+			subcribeFeed.Send(txCmd)
 		}
 		}
 		*/
@@ -296,41 +282,68 @@ func (self *ClientManager) innerSendTx(txCmd *CmdTx) {
 	l4g.Trace("------------SendTransaction   end------------")
 }
 
-func (self *ClientManager) loopTxCmd() {
-	//var done, subscribed sync.WaitGroup
-	transferCmdChan	:= make(chan *CmdTx)
-	sub := feed.Subscribe(transferCmdChan)
-	defer sub.Unsubscribe()
+func NewClientManager() *ClientManager {
+	//clientManager := &ClientManager{txCmdChannel:make(chan *types.CmdTx),
+	//	clients : make(map[string]blockchain_server.ChainClient),
+	//	txCmdClose : make(chan bool)}
 
-	closeloop := false
+	clientManager := &ClientManager{}
+	clientManager.init()
 
-	for !closeloop {
-		select {
-		case txCmd := <- self.txCmdChannel: {
-			go self.innerSendTx(txCmd)
-		}
-		case closeloop = <- self.txCmdClose: {
-			break
-		}
-		}
-	}
+	return clientManager
 }
 
-func (self *ClientManager)NewAccounts(cmd *CmdAccounts) ([]*types.Account, error) {
-	if cmd.amount==0 || cmd.amount>max_once_account_number {
+func (self *ClientManager) init () {
+	self.txCmdChannel = make(chan *types.CmdTx)
+	self.clients = make(map[string]blockchain_server.ChainClient)
+	self.txCmdClose = make(chan bool)
+}
+
+func (self *ClientManager) loopTxCmd() {
+	if self.txCmdChannel == nil {
+		fmt.Printf("self.txCmdChannel is nil , create new")
+		self.txCmdChannel = make(chan *types.CmdTx)
+	}
+	go func() {
+		closeloop := false
+		for !closeloop {
+			select {
+			case txCmd := <- self.txCmdChannel: {
+				fmt.Printf("recived TxCommand: %s \n", txCmd.MsgId)
+				go self.innerSendTx(txCmd)
+			}
+			case closeloop = <- self.txCmdClose: {
+				break
+			}
+			default: {
+				fmt.Printf("looping Transaction command.....\n")
+				time.Sleep(time.Second * time.Duration(10))
+			}
+
+			}
+		}
+	}()
+}
+
+func (self *ClientManager)NewAccounts(cmd *types.CmdAccounts) ([]*types.Account, error) {
+	if cmd.Amount==0 || cmd.Amount>max_once_account_number {
 		return nil, newInvalidParamError(fmt.Sprintf("the count of account must >0 and <%d", max_once_account_number))
 	}
-	accs := make([]*types.Account,cmd.amount)
+	accs := make([]*types.Account,cmd.Amount)
 
-	client := self.clients[cmd.Coin]
+	client := self.clients[cmd.Coinname]
 
-	for i:=0; i<int(cmd.amount); i++ {
+	if nil==client {
+		return nil, fmt.Errorf("not found '%s' client!", cmd.Coinname)
+	}
+
+	for i:=0; i<int(cmd.Amount); i++ {
 		acc, err := client.NewAccount()
 		if err!=nil {
-			l4g.Error("new %s account error, messafge", cmd.Coin, err.Error())
+			l4g.Error("new %s account error, messafge", cmd.Coinname, err.Error())
 			return nil, err
 		}
-		accs = append(accs, acc)
+		accs[i] = acc
 	}
 	return accs, nil
 }
@@ -348,36 +361,17 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 	return x509.ParseECPrivateKey(plainKey)
 }
 
-func NewAccountCmd(msgId, coinname string, amount uint32) *CmdAccounts {
-	return &CmdAccounts{
-		NetCmd:types.NetCmd{MsgId: msgId, Coin:coinname, Method:"new_account", Result:nil, Error:nil},
-	amount:amount}
-}
-
-func NewTxCmd(msgId, coinname, chiperKey, to string, amount uint64) (*CmdTx) {
-	return &CmdTx{ NetCmd:types.NetCmd{MsgId: msgId, Coin:coinname, Method:"send_transaction", Result:nil, Error:nil},
-		chiperkey:chiperKey, tx:&types.Transfer{To: to, Amount:amount}}
-}
-
-func NewRechargeAddressCmd(msgId, coin string, address []string) (*CmdRechargeAddress) {
-	return &CmdRechargeAddress{
-		NetCmd:types.NetCmd{MsgId: msgId, Coin: coin, Method:"watch_addresses", Result:nil, Error:nil},
-		addresses:address }
-}
-
-func (self *ClientManager) waitTxCmd() *CmdTx {
-	return <-self.txCmdChannel
-}
-
-func (self *ClientManager) waitTxCmdClose() bool {
-	return <-self.txCmdClose
-}
 
 func (self *ClientManager) closeTransferloop() {
 	self.txCmdClose <-true
 }
 
-func (self *ClientManager) SendTx(cmdTx *CmdTx) {
+func (self *ClientManager) SendTx(cmdTx *types.CmdTx) {
+	if self.txCmdChannel==nil {
+		fmt.Print("txCmdChannel is nil, create new")
+		self.txCmdChannel = make(chan *types.CmdTx)
+	}
+
 	self.txCmdChannel <- cmdTx
 }
 
@@ -391,7 +385,7 @@ func (self *ClientManager) SendTx(cmdTx *CmdTx) {
 //	return nil, err
 //}
 //gaslimit := 0x2fefd8			// gas limit 可以设置尽量大
-//big_amount := big.NewInt(int64(amount))
+//big_amount := big.NewInt(int64(amounte))
 //toaddress := common.HexToAddress(to)
 //gasprice, err := self.client.SuggestGasPrice()
 ////gasprice, err := big.NewInt(int64(math.Pow10(18))), func() error {return nil}()

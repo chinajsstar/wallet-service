@@ -5,7 +5,6 @@ import (
 	mrand "math/rand"
 	"time"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"fmt"
 	"crypto/rand"
 	"blockchain_server/utils"
@@ -13,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	//lg4 "github.com/alecthomas/log4go"
 	"encoding/hex"
-	"crypto/x509"
 )
 
 func init() {
@@ -33,7 +31,7 @@ func getPassphrase(length uint32) string {
 }
 
 func generateECKey() (*ecdsa.PrivateKey, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("Can't create ECDSA keys: %s", err)
 	}
@@ -46,41 +44,42 @@ func NewAccount() (*wtypes.Account, error) {
 		return nil, err
 	}
 
-	keyChiper, err := blockchain_server.Encrypt(priKey.D.Bytes())
+	//keydata := crypto.FromECDSA(priKey)
+	//fmt.Printf("1: 0x%x\n", keydata)
+
+	cryptPrivKey, err := blockchain_server.Encrypt(priKey.D.Bytes())
 	if err!=nil {
 		utils.Faltal_error(err)
 	}
-
-	keyChiperString := fmt.Sprintf("0x%x", keyChiper)
-
-	//decryptBytes, err := wallet.Decrypto(keyChiper)
+	cryptKeyString := fmt.Sprintf("0x%x", cryptPrivKey)
+	//decryptBytes, err := wallet.Decrypto(cryptedPrivKeyByte)
 	//if err!=nil {
 	//	return nil, err
 	//}
 	//prikey_string = hex.EncodeToString(decryptBytes)
 
-	address := crypto.PubkeyToAddress(priKey.PublicKey)
-	addressString := fmt.Sprintf("0x%x", address)
+	account := wtypes.Account{PrivateKey: cryptKeyString, Address:crypto.PubkeyToAddress(priKey.PublicKey).String()}
 
-	account := wtypes.Account{PrivateKey:keyChiperString, Address:addressString}
-	//account := types.Account{keyChiperString, address}
-
+	//fmt.Printf("account.privatekey:	0x%x\n", priKey.D.Bytes())
+	//fmt.Printf("account.publickey:	%s\n", priKey.PublicKey.X.String())
+	//fmt.Printf("account.address:	%s\n", account.Address)
 	return &account, nil
 }
 
 func ParseChiperkey (keyChiper string) (*ecdsa.PrivateKey, error) {
-	keyChiperStr := utils.String_cat_prefix(keyChiper, "0x")
-	chiper, err := hex.DecodeString(keyChiperStr)
+	//fmt.Printf("crypt key : %s\n", keyChiper)
+	cryptKeyHexString := utils.String_cat_prefix(keyChiper, "0x")
+	cryptKeyData, err := hex.DecodeString(cryptKeyHexString )
+
 	if err!=nil {
 		return nil, fmt.Errorf("Invalid private key")
 	}
-
-	decryptBytes, err := blockchain_server.Decrypto(chiper)
+	decryptBytes, err := blockchain_server.Decrypto(cryptKeyData)
 	if err!=nil {
 		return nil, err
 	}
 
-	privateKey, err := x509.ParseECPrivateKey(decryptBytes)
+	privateKey, err := crypto.ToECDSA(decryptBytes)
 	if err!=nil {
 		return nil, err
 	}

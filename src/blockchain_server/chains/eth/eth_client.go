@@ -29,6 +29,9 @@ type Client struct {
 	cancelfun 			context.CancelFunc
 	ctxCancel 			context.CancelFunc
 	closeChannel		chan bool
+
+	//subscribeFeed 		event.Feed
+	rctChannel			types.RechargeTxChannel
 }
 
 type SortedString []string
@@ -69,9 +72,14 @@ func NewClient() (*Client, error) {
 	c.ctx, c.cancelfun  = context.WithCancel(context.Background())
 
 	c.beginScanBlock = config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber
-	c.addresses = make([]string, 512, 1024)
+	c.addresses = make([]string, 0, 1024)
 	return c, nil
 }
+
+//func (self *Client) SubscribeRechargeTx(rctChannel types.RechargeTxChannel) {
+//	self.rctChannel = rctChannel
+//	//return self.subscribeFeed.Subscribe(rctChannel)
+//}
 
 func (self *Client) Start(rcTxChannel types.RechargeTxChannel) error {
 	//if self.txChannel==nil {
@@ -79,8 +87,8 @@ func (self *Client) Start(rcTxChannel types.RechargeTxChannel) error {
 	//} else {
 	//	fmt.Println( "self.txchannel is not nil")
 	//}
-	self.subscribeNewBlockheader()
-	self.StartScanBlock(rcTxChannel)
+	go self.subscribeNewBlockheader()
+	go self.StartScanBlock(rcTxChannel)
 	return nil
 }
 
@@ -103,13 +111,27 @@ func (self *Client)SendTx(ctx context.Context,  chiperKey string, tx *types.Tran
 	if err!=nil {
 		return err
 	}
-	// signer := etypes.NewEIP155Signer()
-	signedTx, err := etypes.SignTx(etx, etypes.HomesteadSigner{}, key)
+
+	fmt.Printf("tx.gas=%d, tx.gasprice=%d, tx.value=%d, tx.cost=%d\n", etx.Gas(), etx.GasPrice().Uint64(), etx.Value().Uint64(), etx.Cost().Uint64())
+
+	//signer := etypes.NewEIP155Signer()
+
+	fmt.Printf("transaction from address:%s\n", crypto.PubkeyToAddress(key.PublicKey).String())
+	signedTx, err := etypes.SignTx(etx, etypes.NewEIP155Signer(big.NewInt(15)), key)
+
+	if err!=nil {
+		l4g.Error("sign Transaction error:%s", err.Error())
+		return err
+	}
+
+	l4g.Trace("eth Transaction information:%s", etx.String())
 
 	tx.Tx_hash = "0x" + signedTx.Hash().String()
 	tx.State = types.Tx_state_unkown
 
 	if err:=self.c.SendTransaction(context.TODO(), signedTx); err!=nil {
+		l4g.Trace("Transaction gas * price + value = %d",  signedTx.Cost().Uint64())
+		l4g.Error("SendTransaction error: %s", err.Error())
 		return err
 	}
 	tx.State = types.Tx_state_commited
@@ -125,11 +147,15 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 	if err!=nil {
 		return nil, err
 	}
+
 	address := common.HexToAddress(tx.To)
 	nonce, err := self.c.PendingNonceAt(context.TODO(), address)
 	if nil!= err {
 		return nil, err
 	}
+
+	//tx := types.NewTransaction(nonce, toaddress, amount, uint64(gaslimit), gasprice, nil)
+	//fmt.Printf("tx.amount ; %d, tx.realamount :%d\n", tx.Amount, big.NewInt(int64(tx.Amount)))
 	return etypes.NewTransaction(nonce, address, big.NewInt(int64(tx.Amount)), gaslimit, gasprice, nil), nil
 }
 
@@ -148,7 +174,6 @@ func (self *Client)Tx(ctx context.Context, tx_hash string)(*types.Transfer, erro
 }
 
 func (self *Client)subscribeNewBlockheader() {
-	//TODO: here to subscribe new block and update last block number
 	header_ch := make(chan *etypes.Header)
 	ctx, _ := context.WithCancel(self.ctx)
 	subscription, err := self.c.SubscribeNewHead(ctx, true, header_ch)
@@ -253,20 +278,23 @@ func txToTx(tx *etypes.Transaction, blocknumber uint64, lastnumber uint64) *type
 }
 
 func (self *Client)InsertCareAddress(address []string) {
+	if self.addresses==nil {
+		self.addresses = make([]string, 0, 1024)
+	}
 
 	if len(self.addresses)==0 {
-		self.addresses = address
+		for _, value := range address {
+			self.addresses = append(self.addresses, value)
+		}
 		sort.Strings(self.addresses)
 		return
 	}
 
-	for _, ad := range address {
-		ad = "0x" + ad
-		if !self.addresses.containString(ad) {
-			insertByOrder(self.addresses, ad)
+	for _, value := range address {
+		if !self.addresses.containString(value) {
+			insertByOrder(self.addresses, value)
 		}
 	}
-
 }
 
 func (self *Client) Stop(ctx context.Context,  duration time.Duration) {
