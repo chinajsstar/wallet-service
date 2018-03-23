@@ -31,21 +31,20 @@ func (rd *ServiceCenterRegisterData)RegisterApi(api interface{})  {
 		mName := method.Name
 
 		//rd.Apis = append(rd.Apis, tName+"."+mName)
-		rd.Apis = append(rd.Apis, strings.ToLower(tName) + "." + strings.ToLower(mName))
+		rd.Apis = append(rd.Apis, strings.ToLower(tName + "." + mName))
 	}
 }
 
 func (rd *ServiceCenterRegisterData)GetVersionName() string {
-	return strings.ToLower(rd.Version) + "." + strings.ToLower(rd.Name)
+	return strings.ToLower(rd.Version + "." + rd.Name)
 }
 
 // 请求信息，作为rpc请求的params数据
-// json like: {"version":"v1", "api":"Arith.Add", "argv":"", "id":1}
+// json like: {"version":"v1", "api":"Arith.Add", "argv":""}
 type ServiceCenterDispatchData struct{
 	Version string `json:"version"` // like "v1"
 	Api  	string `json:"api"`  	// like "xxx.xxx"
 	Argv 	string `json:"argv"` 	// json string
-	Id 		int    `json:"id"`		// req id
 }
 
 func (sd *ServiceCenterDispatchData)GetVersionApi() string {
@@ -53,9 +52,8 @@ func (sd *ServiceCenterDispatchData)GetVersionApi() string {
 }
 
 // 应答信息，作为rpc应答的result数据
-// json like: {"id":1, "err":0, "errmsg":"", "value":""}
+// json like: {"err":0, "errmsg":"", "value":""}
 type ServiceCenterDispatchAckData struct{
-	Id 		int    `json:"id"`		// req id
 	Err     int    `json:"err"`     // like 0
 	ErrMsg  string `json:"errmsg"`  // string
 	Value   string `json:"value"`   // json string

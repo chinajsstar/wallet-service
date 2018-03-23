@@ -19,7 +19,7 @@ func DoTest(params interface{}, str *string, count *int64, right *int64, times i
 	err := nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
+	if  err == nil && ackData.Err==0{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -34,7 +34,7 @@ func DoTest2(client *rpc.Client, params interface{}, str *string, count *int64, 
 	err := nethelper.CallJRPCToHttpServerOnClient(client, data.MethodServiceCenterDispatch, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
+	if  err == nil && ackData.Err==0{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -50,7 +50,7 @@ func DoTestTcp(params interface{}, str *string, count *int64, right *int64, time
 	err := nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
+	if  err == nil && ackData.Err==0{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -65,7 +65,7 @@ func DoTestTcp2(client *rpc.Client, params interface{}, str *string, count *int6
 	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodServiceNodeCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
-	if  err == nil && ackData.Err==0 && ackData.Id==ackData.Id{
+	if  err == nil && ackData.Err==0{
 		atomic.AddInt64(right, 1)
 	}
 
@@ -104,7 +104,6 @@ func main() {
 	dispatchData.Version = "v1"
 	dispatchData.Api = "Arith.Add"
 	dispatchData.Argv = "[{\"a\":1, \"b\":2}]"
-	dispatchData.Id = 0
 	b,err := json.Marshal(dispatchData);
 	if err != nil {
 		fmt.Println("Error: ", err.Error())
@@ -147,7 +146,6 @@ func main() {
 			}
 
 			for i := 0; i < times*times*2; i++ {
-				dispatchData.Id = i
 				go DoTestTcp2(client, dispatchData, &testdata, &count, &right, times*times*2)
 			}
 		}else if input == "d4" {
@@ -165,7 +163,6 @@ func main() {
 				continue
 			}
 			for i := 0; i < times*times*2; i++ {
-				dispatchData.Id = i
 				go DoTest2(client, dispatchData, &testdata, &count, &right, times*times*2)
 			}
 		}

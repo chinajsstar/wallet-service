@@ -8,7 +8,6 @@ import (
 	"log"
 	"encoding/json"
 	"fmt"
-	"errors"
 	"context"
 	"net/http"
 	"io/ioutil"
@@ -160,7 +159,6 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	ack.Id = req.Id
 	versionApi := req.GetVersionApi()
 	fmt.Println("Center dispatch versionApi...", versionApi)
 
@@ -176,27 +174,26 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 		mi.openClient(nodeInfo)
 	}
 
-	err := func() error {
+	func() {
 		if nodeInfo.Client != nil {
 			nodeInfo.Rwmu.RLock()
 			defer nodeInfo.Rwmu.RUnlock()
 
-			return nethelper.CallJRPCToTcpServerOnClient(nodeInfo.Client, data.MethodServiceNodeCall, req, ack)
+			if nil != nethelper.CallJRPCToTcpServerOnClient(nodeInfo.Client, data.MethodServiceNodeCall, req, ack){
+				fmt.Println("#Call versionApi failed, close client")
+
+				mi.closeClient(nodeInfo)
+
+				ack.Err = data.ServiceDispatchErrNotFindApi
+				ack.ErrMsg = "Others error"
+			}
+		}else{
+			ack.Err = data.ServiceDispatchErrServiceStop
+			ack.ErrMsg = "Service is stop"
 		}
-		return errors.New("Srv is not online")
 	}()
 
-	if err != nil {
-		fmt.Println("#Call versionApi failed, close client, ", err.Error())
-
-		mi.closeClient(nodeInfo)
-
-		ack.Err = data.ServiceDispatchErrNotFindApi
-		ack.ErrMsg = "Others error"
-		return err;
-	}
-
-	return err
+	return nil
 }
 
 // 服务中心方法--与服务中心心跳
