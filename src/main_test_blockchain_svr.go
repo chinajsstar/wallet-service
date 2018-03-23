@@ -74,7 +74,6 @@ func main() {
 	clientManager.Start(ctx3, rcTxChannel)
 
 
-
 	/*********监控提币交易的channel*********/
 	txStateChannel := make(types.TxStateChange_Channel)
 
@@ -96,15 +95,14 @@ func main() {
 		for !close {
 			select {
 			case cmdTx := <-txStateChannel:{
-				fmt.Printf("Transaction state changed, transaction information:%s\n",
-					cmdTx.Tx.String())
+				l4g.Trace("Transaction state changed, information:%s", cmdTx.Tx.String())
 				if cmdTx.Tx.State == types.Tx_state_confirmed &&
 					cmdTx.Tx.Confirmationsnumber==(cmdTx.Tx.PresentBlocknumber-cmdTx.Tx.OnBlocknumber) {
-					fmt.Printf("Transaction success done!!!!\n")
+					l4g.Trace("Transaction %s, sucess done!!", cmdTx.Tx.Tx_hash)
 					close = true
 				}
 				if cmdTx.Tx.State == types.Tx_state_unconfirmed {
-					fmt.Printf("Transaction failed!!!!\n")
+					l4g.Trace("Transaction failed!!", cmdTx.Tx.Tx_hash)
 					close = true
 				}
 			}

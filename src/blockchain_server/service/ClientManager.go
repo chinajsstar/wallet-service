@@ -171,16 +171,17 @@ func (self *ClientManager) SetRechargeAddress(cmdRchAddress *types.CmdRechargeAd
 
 func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 	l4g.Trace("------------sendTransaction begin------------")
-	handler := self.clients[txCmd.Coinname]
+	instance := self.clients[txCmd.Coinname]
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
 
-	err := handler.SendTx(ctx, txCmd.Chiperkey, txCmd.Tx)
+	err := instance.SendTx(ctx, txCmd.Chiperkey, txCmd.Tx)
 	if nil!=err {
 		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 		l4g.Error("Send Transaction error:%s", txCmd.Error.Message)
 		subcribeFeed.Send(txCmd)
+		
 	}
 
 	txCmd.Tx.State = types.Tx_state_commited
@@ -190,11 +191,11 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 	// Transaction state change : committed->waite confirm number -> confirmed/unconfirmed ??
 	for !escapeloop {
 		time.Sleep(time.Second)
-		tx, err := handler.Tx(ctx, txCmd.Tx.Tx_hash)
+		tx, err := instance.Tx(ctx, txCmd.Tx.Tx_hash)
 
 		if err != nil {
-			if nfe, ok := err.(*types.TxNotFoundErr); ok {
-				l4g.Trace(nfe)
+			if _, ok := err.(*types.TxNotFoundErr); ok {
+				l4g.Trace("Transaction: %s have not found on node, please wait.....!", txCmd.Tx.Tx_hash)
 			} else {
 				escapeloop = true
 				txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
@@ -317,7 +318,7 @@ func (self *ClientManager) loopTxCmd() {
 			}
 			default: {
 				fmt.Printf("looping Transaction command.....\n")
-				time.Sleep(time.Second * time.Duration(10))
+				time.Sleep(time.Second * time.Duration(3))
 			}
 
 			}

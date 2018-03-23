@@ -20,6 +20,7 @@ type Account struct {
 const (
 	Tx_state_unkown = iota
 	Tx_state_commited             	// transaction was sended(call SendTransaction)
+	Tx_state_pending				// pending Transaction on node
 	Tx_state_mined					// transaction mined on a block!!
 	Tx_state_confirmed              // transaction was mined and stored on a block. confirmed number is 1 or biger
 	Tx_state_unconfirmed            // some error happened...need to re send

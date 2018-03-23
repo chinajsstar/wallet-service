@@ -30,7 +30,8 @@ type Client struct {
 	ctxCancel 			context.CancelFunc
 	closeChannel		chan bool
 
-	//subscribeFeed 		event.Feed
+	//subscribeFeed 		event.Fee
+	// d
 	rctChannel			types.RechargeTxChannel
 }
 
@@ -112,12 +113,17 @@ func (self *Client)SendTx(ctx context.Context,  chiperKey string, tx *types.Tran
 		return err
 	}
 
-	fmt.Printf("tx.gas=%d, tx.gasprice=%d, tx.value=%d, tx.cost=%d\n", etx.Gas(), etx.GasPrice().Uint64(), etx.Value().Uint64(), etx.Cost().Uint64())
+	l4g.Trace("tx.gas=%d, tx.gasprice=%d, tx.value=%d, tx.cost=%d\n", etx.Gas(), etx.GasPrice().Uint64(), etx.Value().Uint64(), etx.Cost().Uint64())
 
 	//signer := etypes.NewEIP155Signer()
 
-	fmt.Printf("transaction from address:%s\n", crypto.PubkeyToAddress(key.PublicKey).String())
-	signedTx, err := etypes.SignTx(etx, etypes.NewEIP155Signer(big.NewInt(15)), key)
+	l4g.Trace("transaction from address:%s\n", crypto.PubkeyToAddress(key.PublicKey).String())
+
+	//types.SignTx(tx, types.NewEIP155Signer(chainID), key.PrivateKey)
+	// return types.SignTx(tx, types.HomesteadSigner{}, key.PrivateKey)
+
+	chainId := big.NewInt(15)
+	signedTx, err := etypes.SignTx(etx, etypes.NewEIP155Signer(chainId), key)
 
 	if err!=nil {
 		l4g.Error("sign Transaction error:%s", err.Error())
@@ -150,6 +156,7 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 
 	address := common.HexToAddress(tx.To)
 	nonce, err := self.c.PendingNonceAt(context.TODO(), address)
+	
 	if nil!= err {
 		return nil, err
 	}
@@ -195,7 +202,8 @@ func (self *Client)subscribeNewBlockheader() {
 
 			}
 			self.lastBlocknumber = header.Number.Uint64()
-			fmt.Printf("new block header : %s\n", header.String())
+			l4g.Trace("new block header : blocknumber : %d, hashvalue:%s\n",
+				self.lastBlocknumber, header.Hash())
 		}
 		}
 
