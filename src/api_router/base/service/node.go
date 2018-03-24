@@ -29,11 +29,10 @@ type ServiceNode struct{
 }
 
 // 生成一个服务节点
-func NewServiceNode(serviceName string, serviceVersion string) (*ServiceNode, error){
+func NewServiceNode(versionSrvName string) (*ServiceNode, error){
 	serviceNode := &ServiceNode{}
 
-	serviceNode.RegisterData.Name = serviceName
-	serviceNode.RegisterData.Version = serviceVersion
+	serviceNode.RegisterData.Srv = versionSrvName
 
 	return serviceNode, nil
 }
@@ -84,7 +83,7 @@ func (ni *ServiceNode)Start(ctx context.Context, wg *sync.WaitGroup) error {
 		return err
 	}
 
-	err = ni.startToServiceCenter(ctx)
+	ni.startToServiceCenter(ctx)
 
 	return err
 }
@@ -97,7 +96,7 @@ func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.Servi
 	if ni.Handler != nil {
 		ni.Handler(req, ack)
 	}else{
-		fmt.Println("Error api call (no handler)--api=" , req.Api, ",argv=", req.Argv)
+		fmt.Println("Error function call (no handler)--function=" , req.Function, ",argv=", req.Argv)
 
 		ack.Err = data.ServiceDispatchErrNotFindHanlder
 		ack.ErrMsg = "Not find handler"
@@ -106,58 +105,50 @@ func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.Servi
 	return nil
 }
 
-const(
-	ToCenterStatusOk = 0
-	ToCenterStatusCLose = 1
-	ToCenterStatusStop = 2
-)
-// 内部方法
-func (ni *ServiceNode)keepAlive(status int) int{
-	var err error
-	var res string
-	if status == ToCenterStatusCLose {
-		err = nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterRegister, ni.RegisterData, &res)
-		if err == nil {
-			status = ToCenterStatusOk
-		}
+// 服务节点RPC--与服务中心心跳
+func (ni *ServiceNode) Pingpong(req *string, res * string) error {
+	if *req == "ping" {
+		*res = "pong"
+	}else{
+		*res = *req
 	}
-
-	if status == ToCenterStatusOk{
-		err = nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterPingpong, "ping", &res)
-		if err == nil && res == "pong" {
-			status = ToCenterStatusOk
-		}else{
-			status = ToCenterStatusCLose
-		}
-	}
-
-	return status
+	return nil;
 }
 
-func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error{
-	timeout := make(chan bool)
-	go func(){
-		for ; ; {
-			timeout <- true
-			time.Sleep(time.Second*10)
-		}
-	}()
+// 内部方法
+func (ni *ServiceNode)registToCenter() error{
+	var res string
+	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterRegister, ni.RegisterData, &res)
 
+	return err
+}
+
+func (ni *ServiceNode)unRegistToCenter() error{
+	var res string
+	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterUnRegister, ni.RegisterData, &res)
+
+	return err
+}
+
+func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
 	go func() {
-		status := ToCenterStatusCLose
-		for ; ; {
-			select{
-			case <-ctx.Done():
-				status = ToCenterStatusStop
-			case <-timeout:
-				status = ni.keepAlive(status)
-			}
+		ni.wg.Add(1)
+		defer ni.wg.Done()
 
-			if status == ToCenterStatusStop{
+		err := ni.registToCenter()
+		for {
+			if err == nil {
+				fmt.Println("Regist to center ok...", ni.RegisterData)
 				break
 			}
+			time.Sleep(time.Second*5)
+			fmt.Println("#Fail to regist to center...sleep 5")
 		}
+
+		<-ctx.Done()
+		ni.unRegistToCenter()
+		fmt.Println("UnRegist to center ok...", ni.RegisterData)
 	}()
 
-	return  nil
+	return nil
 }

@@ -32,9 +32,9 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(ArithSrvName, ArithSrvVersion)
+	nodeInstance, _:= service.NewServiceNode(ArithSrvVersion + "." + ArithSrvName)
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterApi(new(handler.Arith))
+	nodeInstance.RegisterData.RegisterFunction(new(handler.Arith))
 	nodeInstance.Handler = callArithFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr

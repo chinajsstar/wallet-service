@@ -16,18 +16,8 @@ import (
 	"io"
 	"bytes"
 	"net"
+	"time"
 )
-
-type ServiceNodeInfo struct{
-	RegisterData data.ServiceCenterRegisterData
-
-	Rwmu sync.RWMutex
-	Client *rpc.Client
-}
-
-type ServiceNodeBusiness struct{
-	AddrMapServiceNodeInfo map[string]*ServiceNodeInfo
-}
 
 type ServiceCenter struct{
 	// 名称
@@ -44,8 +34,7 @@ type ServiceCenter struct{
 
 	// 节点信息
 	Rwmu sync.RWMutex
-	ApiMapServiceName map[string]string // api+version mapto name+version
-	ServiceNameMapBusiness map[string]*ServiceNodeBusiness // name+version mapto allservicenode
+	SrvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
 
 	// 等待
 	wg *sync.WaitGroup
@@ -61,8 +50,7 @@ func NewServiceCenter(rootName string, httpPort string, tcpPort string) (*Servic
 	serviceCenter.rpcServer = rpc.NewServer()
 	serviceCenter.rpcServer.Register(serviceCenter)
 
-	serviceCenter.ApiMapServiceName = make(map[string]string)
-	serviceCenter.ServiceNameMapBusiness = make(map[string]*ServiceNodeBusiness)
+	serviceCenter.SrvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
 
 	return serviceCenter, nil
 }
@@ -143,172 +131,56 @@ func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
 // RPC 方法
 // 服务中心方法--注册到服务中心
 func (mi *ServiceCenter) Register(reg *data.ServiceCenterRegisterData, res *string) error {
-	err := mi.registerServiceNodeInfo(reg)
-	if err != nil {
-		log.Println("#Register Error: ", err.Error())
-		return err
+	mi.Rwmu.Lock()
+	defer mi.Rwmu.Unlock()
+
+	versionSrvName := reg.GetVersionSrvName()
+	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+	if srvNodeGroup == nil {
+		srvNodeGroup = &SrvNodeGroup{}
+		mi.SrvNodeNameMapSrvNodeGroup[versionSrvName] = srvNodeGroup
 	}
 
-	*res = "ok"
-	fmt.Println("Addr ", reg.Addr, " register in gateway...")
-	return nil
+	return srvNodeGroup.RegisterNode(reg)
 }
 
-// 派发明亮
+// 服务中心方法--注册到服务中心
+func (mi *ServiceCenter) UnRegister(reg *data.ServiceCenterRegisterData, res *string) error {
+	mi.Rwmu.Lock()
+	defer mi.Rwmu.Unlock()
+
+	versionSrvName := reg.GetVersionSrvName()
+	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+	if srvNodeGroup == nil {
+		return nil
+	}
+
+	return srvNodeGroup.UnRegisterNode(reg)
+}
+
+// 派发命令
 func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	versionApi := req.GetVersionApi()
-	fmt.Println("Center dispatch versionApi...", versionApi)
+	versionSrvName := req.GetVersionSrvName()
+	fmt.Println("Center dispatch...", versionSrvName, ".", req.Function)
 
-	nodeInfo := mi.getServiceNodeInfoByApi(versionApi)
-	if nodeInfo == nil {
-		fmt.Println("#Error: not find versionApi")
-		ack.Err = data.ServiceDispatchErrNotFindApi
-		ack.ErrMsg = "Not find api"
-		return nil
-	}
+	return func() error {
+		mi.Rwmu.RLock()
+		defer mi.Rwmu.RUnlock()
 
-	if nodeInfo.Client == nil {
-		mi.openClient(nodeInfo)
-	}
-
-	func() {
-		if nodeInfo.Client != nil {
-			nodeInfo.Rwmu.RLock()
-			defer nodeInfo.Rwmu.RUnlock()
-
-			if nil != nethelper.CallJRPCToTcpServerOnClient(nodeInfo.Client, data.MethodServiceNodeCall, req, ack){
-				fmt.Println("#Call versionApi failed, close client")
-
-				mi.closeClient(nodeInfo)
-
-				ack.Err = data.ServiceDispatchErrNotFindApi
-				ack.ErrMsg = "Others error"
-			}
-		}else{
-			ack.Err = data.ServiceDispatchErrServiceStop
-			ack.ErrMsg = "Service is stop"
+		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+		if srvNodeGroup == nil{
+			fmt.Println("#Error: not find versionApi group")
+			ack.Err = data.ServiceDispatchErrNotFindApi
+			ack.ErrMsg = "Not find api"
+			return nil
 		}
+
+		return srvNodeGroup.Dispatch(req, ack)
+
 	}()
-
-	return nil
-}
-
-// 服务中心方法--与服务中心心跳
-func (mi *ServiceCenter) Pingpong(req *string, res * string) error {
-	if *req == "ping" {
-		*res = "pong"
-	}else{
-		*res = *req
-	}
-	return nil;
-}
-
-// 内部方法
-func (mi *ServiceCenter)registerServiceNodeInfo(registerData *data.ServiceCenterRegisterData) error{
-	mi.Rwmu.Lock()
-	defer mi.Rwmu.Unlock()
-
-	//version := registerData.Version
-	version := strings.ToLower(registerData.Version)
-
-	versionName := registerData.GetVersionName()
-
-	business := mi.ServiceNameMapBusiness[versionName]
-	if business == nil {
-		business = new(ServiceNodeBusiness)
-		mi.ServiceNameMapBusiness[versionName] = business;
-	}
-
-	for i := 0; i < len(registerData.Apis); i++ {
-		//api := registerData.Apis[i]
-		api := version + "." + strings.ToLower(registerData.Apis[i])
-		mi.ApiMapServiceName[api] = versionName;
-	}
-
-	if business.AddrMapServiceNodeInfo == nil {
-		business.AddrMapServiceNodeInfo = make(map[string]*ServiceNodeInfo)
-	}
-
-	if business.AddrMapServiceNodeInfo[registerData.Addr] == nil {
-		business.AddrMapServiceNodeInfo[registerData.Addr] = &ServiceNodeInfo{RegisterData:*registerData, Client:nil};
-	}
-
-	fmt.Println("nodes = ", len(business.AddrMapServiceNodeInfo))
-	return nil
-}
-
-func (mi *ServiceCenter)getServiceNodeInfoByApi(versionApi string) *ServiceNodeInfo{
-	mi.Rwmu.RLock()
-	defer mi.Rwmu.RUnlock()
-
-	versionName := mi.ApiMapServiceName[versionApi]
-	if versionName == ""{
-		return nil
-	}
-
-	business := mi.ServiceNameMapBusiness[versionName]
-	if business == nil || business.AddrMapServiceNodeInfo == nil{
-		return nil
-	}
-
-	var nodeInfo *ServiceNodeInfo
-	nodeInfo = nil
-	for _, v := range business.AddrMapServiceNodeInfo{
-		nodeInfo = v
-		break
-	}
-
-	// first we return index 0
-	return nodeInfo
-}
-
-func (mi *ServiceCenter)removeServiceNodeInfo(nodeInfo *ServiceNodeInfo) error{
-	mi.Rwmu.Lock()
-	defer mi.Rwmu.Unlock()
-
-	business := mi.ServiceNameMapBusiness[nodeInfo.RegisterData.Name]
-	if business == nil || business.AddrMapServiceNodeInfo == nil{
-		return nil
-	}
-
-	delete(business.AddrMapServiceNodeInfo, nodeInfo.RegisterData.Addr)
-
-	fmt.Println("nodes = ", len(business.AddrMapServiceNodeInfo))
-	return nil
-}
-
-func (mi *ServiceCenter)openClient(nodeInfo *ServiceNodeInfo) error{
-	nodeInfo.Rwmu.Lock()
-	defer nodeInfo.Rwmu.Unlock()
-
-	if nodeInfo.Client == nil{
-		client, err := rpc.Dial("tcp", nodeInfo.RegisterData.Addr)
-		if err != nil {
-			log.Println("Error Open client: ", err.Error())
-			return err
-		}
-
-		nodeInfo.Client = client
-	}
-
-	return nil
-}
-
-func (mi *ServiceCenter)closeClient(nodeInfo *ServiceNodeInfo) error{
-	nodeInfo.Rwmu.Lock()
-	defer nodeInfo.Rwmu.Unlock()
-
-	if nodeInfo.Client != nil{
-		nodeInfo.Client.Close()
-		nodeInfo.Client = nil
-	}
-
-	//mi.RemoveServiceNodeInfo(nodeInfo)
-
-	return nil
 }
 
 // http 处理
@@ -361,8 +233,10 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 
 	fmt.Println("path=", req.URL.Path)
 
-	versionApi := req.URL.Path
-	versionApi = strings.Replace(versionApi, "restful", "", -1)
+	path := req.URL.Path
+	path = strings.Replace(path, "restful", "", -1)
+	path = strings.TrimLeft(path, "/")
+	path = strings.TrimRight(path, "/")
 
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -381,20 +255,18 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 		return;
 	}
 
-	var version = true
-	paths := strings.Split(versionApi, "/")
+	// 分割参数
+	paths := strings.Split(path, "/")
 	for i := 0; i < len(paths); i++ {
-		if paths[i] == "" {
-			continue;
-		}
-		if version {
-			dispatchData.Version = paths[i]
-			version = false
+		if i < len(paths)-1 {
+			if dispatchData.Srv != "" {
+				dispatchData.Srv += "."
+			}
+			dispatchData.Srv += paths[i]
 		}else{
-			dispatchData.Api += paths[i] + "."
+			dispatchData.Function = paths[i]
 		}
 	}
-	dispatchData.Api = strings.TrimRight(dispatchData.Api, ".")
 
 	dispatchAckData := data.ServiceCenterDispatchAckData{}
 	mi.Dispatch(&dispatchData, &dispatchAckData)
@@ -409,4 +281,41 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 
 	w.Write(b)
 	return
+}
+
+func (mi *ServiceCenter)keepAlive(){
+	mi.Rwmu.RLock()
+	defer mi.Rwmu.RUnlock()
+
+	for _, v := range mi.SrvNodeNameMapSrvNodeGroup{
+		v.KeepAlive()
+	}
+}
+
+func (mi *ServiceCenter)startToKeepAlive(ctx context.Context) error{
+	timeout := make(chan bool)
+	go func(){
+		for ; ; {
+			timeout <- true
+			time.Sleep(time.Second*10)
+		}
+	}()
+
+	go func() {
+		mi.wg.Add(1)
+		defer mi.wg.Done()
+
+		for ; ; {
+			select{
+			case <-ctx.Done():
+				fmt.Println("Keep alive quit...")
+				return
+			case <-timeout:
+				mi.keepAlive()
+			}
+		}
+
+	}()
+
+	return  nil
 }

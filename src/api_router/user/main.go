@@ -76,10 +76,10 @@ func DoTestTcp2(client *rpc.Client, params interface{}, str *string, count *int6
 }
 
 // http rpc风格
-// curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"version":"v1", "api":"arith.add","argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]", "id":1}], "id": 1}' http://localhost:8080/rpc
+// curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"srv":"v1.arith", "function":"add","argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]"}], "id": 1}' http://localhost:8080/rpc
 // curl -d '{
 // "method":"ServiceCenter.Dispatch",
-// "params":[{"version":"v1", "api":"arith.add","argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]}],
+// "params":[{"srv":"v1.arith", "function":"add", "argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]}],
 // "id": 1
 // }'
 // http://localhost:8080/rpc
@@ -101,8 +101,8 @@ func main() {
 	testdata = "hello, world"
 
 	dispatchData := data.ServiceCenterDispatchData{}
-	dispatchData.Version = "v1"
-	dispatchData.Api = "Arith.Add"
+	dispatchData.Srv = "v1.arith"
+	dispatchData.Function = "add"
 	dispatchData.Argv = "[{\"a\":1, \"b\":2}]"
 	b,err := json.Marshal(dispatchData);
 	if err != nil {
