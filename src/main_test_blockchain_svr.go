@@ -96,9 +96,14 @@ func main() {
 			select {
 			case cmdTx := <-txStateChannel:{
 				l4g.Trace("Transaction state changed, information:%s", cmdTx.Tx.String())
+				l4g.Trace("PresentBlock - Onblock = %d, need = %d.",
+					cmdTx.Tx.PresentBlock-cmdTx.Tx.OnBlock, cmdTx.Tx.Confirmationsnumber)
+
 				if cmdTx.Tx.State == types.Tx_state_confirmed &&
-					cmdTx.Tx.Confirmationsnumber==(cmdTx.Tx.PresentBlocknumber-cmdTx.Tx.OnBlocknumber) {
-					l4g.Trace("Transaction %s, sucess done!!", cmdTx.Tx.Tx_hash)
+					cmdTx.Tx.OnBlock != 0 &&
+					cmdTx.Tx.Confirmationsnumber <= (cmdTx.Tx.PresentBlock-cmdTx.Tx.OnBlock) {
+					l4g.Trace("Transaction %s, sucess done!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", cmdTx.Tx.Tx_hash)
+
 					close = true
 				}
 				if cmdTx.Tx.State == types.Tx_state_unconfirmed {

@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"sort"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum"
 )
 
 type Client struct {
@@ -107,17 +108,17 @@ func (self *Client)SendTx(ctx context.Context,  chiperKey string, tx *types.Tran
 	if err!= nil {
 		return err
 	}
-	tx.From = "0x" + crypto.PubkeyToAddress(key.PublicKey).String()
+	tx.From = crypto.PubkeyToAddress(key.PublicKey).String()
 	etx, err := self.newEthTx(tx)
 	if err!=nil {
 		return err
 	}
 
-	l4g.Trace("tx.gas=%d, tx.gasprice=%d, tx.value=%d, tx.cost=%d\n", etx.Gas(), etx.GasPrice().Uint64(), etx.Value().Uint64(), etx.Cost().Uint64())
+	//l4g.Trace("tx.gas=%d, tx.gasprice=%d, tx.value=%d, tx.cost=%d\n", etx.Gas(), etx.GasPrice().Uint64(), etx.Value().Uint64(), etx.Cost().Uint64())
 
 	//signer := etypes.NewEIP155Signer()
 
-	l4g.Trace("transaction from address:%s\n", crypto.PubkeyToAddress(key.PublicKey).String())
+	//l4g.Trace("transaction from address:%s\n", crypto.PubkeyToAddress(key.PublicKey).String())
 
 	//types.SignTx(tx, types.NewEIP155Signer(chainID), key.PrivateKey)
 	// return types.SignTx(tx, types.HomesteadSigner{}, key.PrivateKey)
@@ -132,7 +133,7 @@ func (self *Client)SendTx(ctx context.Context,  chiperKey string, tx *types.Tran
 
 	l4g.Trace("eth Transaction information:%s", etx.String())
 
-	tx.Tx_hash = "0x" + signedTx.Hash().String()
+	tx.Tx_hash = signedTx.Hash().String()
 	tx.State = types.Tx_state_unkown
 
 	if err:=self.c.SendTransaction(context.TODO(), signedTx); err!=nil {
@@ -154,30 +155,46 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 		return nil, err
 	}
 
-	address := common.HexToAddress(tx.To)
+	address := common.HexToAddress(tx.From)
 	nonce, err := self.c.PendingNonceAt(context.TODO(), address)
-	
 	if nil!= err {
 		return nil, err
 	}
 
+	//l4g.Trace("^^^^^^^^^^^^^^^^^^\n" +
+	//	"getPendingNonce at (%s) returns nonce : %d\n" +
+	//	"^^^^^^^^^^^^^^^^^^",
+	//	tx.From, nonce)
+
 	//tx := types.NewTransaction(nonce, toaddress, amount, uint64(gaslimit), gasprice, nil)
-	//fmt.Printf("tx.amount ; %d, tx.realamount :%d\n", tx.Amount, big.NewInt(int64(tx.Amount)))
-	return etypes.NewTransaction(nonce, address, big.NewInt(int64(tx.Amount)), gaslimit, gasprice, nil), nil
+	//fmt.Printf("tx.amount ; %d, tx.realamount :%d\n", tx.Value, big.NewInt(int64(tx.Value)))
+	return etypes.NewTransaction(nonce, address, big.NewInt(int64(tx.Value)), gaslimit, gasprice, nil), nil
 }
 
+func (self *Client)blocknumber() uint64 {
+	blocknumber, err := self.c.BlockByNumber(context.TODO(), nil)
+	if err!=nil {
+		return 0
+	}
+	return blocknumber.NumberU64()
+}
 
 func (self *Client)Tx(ctx context.Context, tx_hash string)(*types.Transfer, error) {
-
 	tx, blocknumber, err := self.c.TransactionByHash(ctx, common.HexToHash(tx_hash))
 	if err!= nil {
+		if err==ethereum.NotFound {
+			return nil, types.NewTxNotFoundErr(tx_hash)
+		}
 		return nil, err
 	}
-	big_blocknumber, err := utils.Hex_string_to_big_int(*blocknumber)
-	if err != nil {
-		return nil, err
+	var big_blocknumber *big.Int = nil
+	if blocknumber!=nil {
+		big_blocknumber , _ = utils.Hex_string_to_big_int(*blocknumber)
+	} else {
+		big_blocknumber = big.NewInt(0)
 	}
-	return txToTx(tx, big_blocknumber.Uint64(), self.lastBlocknumber), nil
+
+	return txToTx(tx, big_blocknumber.Uint64(), self.blocknumber()), nil
 }
 
 func (self *Client)subscribeNewBlockheader() {
@@ -203,7 +220,7 @@ func (self *Client)subscribeNewBlockheader() {
 			}
 			self.lastBlocknumber = header.Number.Uint64()
 			l4g.Trace("new block header : blocknumber : %d, hashvalue:%s\n",
-				self.lastBlocknumber, header.Hash())
+				self.lastBlocknumber, header.Hash().String())
 		}
 		}
 
@@ -272,16 +289,27 @@ func (self *Client) StartScanBlock(rtc types.RechargeTxChannel) error {
 }
 
 func txToTx(tx *etypes.Transaction, blocknumber uint64, lastnumber uint64) *types.Transfer {
+	var state types.TxState
+
+	if blocknumber==0 {
+		state = types.Tx_state_pending
+	} else if lastnumber-blocknumber >= config.GetConfiger().Clientconfig[types.Chain_eth].CoinConfirmNumber {
+		state = types.Tx_state_confirmed
+	} else {
+		state = types.Tx_state_mined
+	}
+
 	return &types.Transfer{
-		Tx_hash : "0x" + tx.Hash().String(),
-		To : tx.To().String(),
-		Amount : tx.Value().Uint64(),
-		Gase :	tx.Gas(),
-		Gaseprice: tx.GasPrice().Uint64(),
-		Total : tx.Cost().Uint64(),
-		OnBlocknumber : blocknumber,
-		PresentBlocknumber : lastnumber,
-		State: types.Tx_state_confirmed,
+		Tx_hash:      tx.Hash().String(),
+		From:		  tx.From(),
+		To :          tx.To().String(),
+		Value:        tx.Value().Uint64(),
+		Gase :        tx.Gas(),
+		Gaseprice:    tx.GasPrice().Uint64(),
+		Total :       tx.Cost().Uint64(),
+		OnBlock:      blocknumber,
+		PresentBlock: lastnumber,
+		State:        state,
 	}
 }
 
