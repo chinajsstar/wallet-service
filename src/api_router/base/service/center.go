@@ -134,7 +134,7 @@ func (mi *ServiceCenter) Register(reg *data.ServiceCenterRegisterData, res *stri
 	mi.Rwmu.Lock()
 	defer mi.Rwmu.Unlock()
 
-	versionSrvName := reg.GetVersionSrvName()
+	versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
 	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
 	if srvNodeGroup == nil {
 		srvNodeGroup = &SrvNodeGroup{}
@@ -149,7 +149,7 @@ func (mi *ServiceCenter) UnRegister(reg *data.ServiceCenterRegisterData, res *st
 	mi.Rwmu.Lock()
 	defer mi.Rwmu.Unlock()
 
-	versionSrvName := reg.GetVersionSrvName()
+	versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
 	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
 	if srvNodeGroup == nil {
 		return nil
@@ -163,8 +163,50 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	versionSrvName := req.GetVersionSrvName()
-	fmt.Println("Center dispatch...", versionSrvName, ".", req.Function)
+	// 验证数据
+	reqAuth := *req
+	var ackAuth data.ServiceCenterDispatchAckData
+	if mi.authData(&reqAuth, &ackAuth) != nil || ackAuth.Err != data.NoErr{
+		// 失败
+		*ack = ackAuth
+		return nil
+	}
+
+	// 请求服务
+	reqSrv := *req
+	reqSrv.Argv = ackAuth.Value
+	var ackSrv data.ServiceCenterDispatchAckData
+	func(){
+		versionSrvName := strings.ToLower(reqSrv.Srv + "." + reqSrv.Version)
+		fmt.Println("Center dispatch...", versionSrvName, ".", reqSrv.Function)
+
+		mi.Rwmu.RLock()
+		defer mi.Rwmu.RUnlock()
+
+		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+		if srvNodeGroup == nil{
+			ack.Err = data.ErrNotFindSrv
+			ack.ErrMsg = data.ErrNotFindSrvText
+		}
+
+		srvNodeGroup.Dispatch(&reqSrv, &ackSrv)
+	}()
+
+	// 打包数据
+	var reqEncrypted data.ServiceCenterDispatchData
+	reqEncrypted = *req
+	reqEncrypted.Argv = ackSrv.Value
+	mi.encryptData(&reqEncrypted, ack)
+
+	return nil
+}
+
+func (mi *ServiceCenter) authData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error{
+	req.Srv = "auth"
+	req.Function = "AuthData"
+
+	fmt.Println("Center auth data...")
+	versionSrvName := strings.ToLower(req.Srv + "." + req.Version)
 
 	return func() error {
 		mi.Rwmu.RLock()
@@ -172,14 +214,38 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 
 		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
 		if srvNodeGroup == nil{
-			fmt.Println("#Error: not find versionApi group")
-			ack.Err = data.ServiceDispatchErrNotFindApi
-			ack.ErrMsg = "Not find api"
+			ack.Err = data.ErrNotFindAuth
+			ack.ErrMsg = data.ErrNotFindAuthText
 			return nil
 		}
 
-		return srvNodeGroup.Dispatch(req, ack)
+		err := srvNodeGroup.Dispatch(req, ack)
 
+		return err
+	}()
+}
+
+func (mi *ServiceCenter) encryptData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error{
+	req.Srv = "auth"
+	req.Function = "EncryptData"
+
+	fmt.Println("Center encrypt data...")
+	versionSrvName := strings.ToLower(req.Srv + "." + req.Version)
+
+	return func() error {
+		mi.Rwmu.RLock()
+		defer mi.Rwmu.RUnlock()
+
+		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+		if srvNodeGroup == nil{
+			ack.Err = data.ErrNotFindAuth
+			ack.ErrMsg = data.ErrNotFindAuthText
+			return nil
+		}
+
+		err := srvNodeGroup.Dispatch(req, ack)
+
+		return err
 	}()
 }
 

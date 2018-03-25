@@ -11,18 +11,18 @@ import (
 	"sync"
 )
 
-const ArithSrvName = "arith"
-const ArithSrvVersion = "v1"
+const AuthSrvName = "auth"
+const AuthSrvVersion = "v1"
 const (
 	GateWayAddr = "127.0.0.1:8081"
-	SrvAddr = "127.0.0.1:8090"
+	SrvAddr = "127.0.0.1:8091"
 )
 
 // 注册方法
-func callArithFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
+func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
 	// TODO:
 	ack.Err = 0
-	ack.Value = "I am Arith service..."
+	ack.Value = req.Argv
 
 	fmt.Println("callNodeApi req: ", *req)
 	fmt.Println("callNodeApi ack: ", *ack)
@@ -32,10 +32,10 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(ArithSrvName, ArithSrvVersion)
+	nodeInstance, _:= service.NewServiceNode(AuthSrvName, AuthSrvVersion)
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterFunction(new(handler.Arith))
-	nodeInstance.Handler = callArithFunction
+	nodeInstance.RegisterData.RegisterFunction(new(handler.Auth))
+	nodeInstance.Handler = callAuthFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr
 	rpc.Register(nodeInstance)

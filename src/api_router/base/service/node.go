@@ -29,10 +29,11 @@ type ServiceNode struct{
 }
 
 // 生成一个服务节点
-func NewServiceNode(versionSrvName string) (*ServiceNode, error){
+func NewServiceNode(srvName string, versionName string) (*ServiceNode, error){
 	serviceNode := &ServiceNode{}
 
-	serviceNode.RegisterData.Srv = versionSrvName
+	serviceNode.RegisterData.Srv = srvName
+	serviceNode.RegisterData.Version = versionName
 
 	return serviceNode, nil
 }
@@ -91,15 +92,15 @@ func (ni *ServiceNode)Start(ctx context.Context, wg *sync.WaitGroup) error {
 // RPC 方法
 // 服务节点RPC--调用节点方法ServiceNodeInstance.Call
 func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	ack.Err = data.ServiceDispatchErrOk
+	ack.Err = data.NoErr
 	ack.ErrMsg = ""
 	if ni.Handler != nil {
 		ni.Handler(req, ack)
 	}else{
 		fmt.Println("Error function call (no handler)--function=" , req.Function, ",argv=", req.Argv)
 
-		ack.Err = data.ServiceDispatchErrNotFindHanlder
-		ack.ErrMsg = "Not find handler"
+		ack.Err = data.ErrSrvInternalErr
+		ack.ErrMsg = data.ErrSrvInternalErrText
 	}
 
 	return nil
@@ -135,15 +136,17 @@ func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
 		ni.wg.Add(1)
 		defer ni.wg.Done()
 
-		err := ni.registToCenter()
-		for {
-			if err == nil {
-				fmt.Println("Regist to center ok...", ni.RegisterData)
-				break
+		go func() {
+			err := ni.registToCenter()
+			for {
+				if err == nil {
+					fmt.Println("Regist to center ok...", ni.RegisterData)
+					break
+				}
+				time.Sleep(time.Second*5)
+				fmt.Println("#Fail to regist to center...sleep 5")
 			}
-			time.Sleep(time.Second*5)
-			fmt.Println("#Fail to regist to center...sleep 5")
-		}
+		}()
 
 		<-ctx.Done()
 		ni.unRegistToCenter()

@@ -12,9 +12,48 @@ import (
 type SrvNode struct{
 	RegisterData data.ServiceCenterRegisterData
 
+	Rwmu sync.RWMutex
 	Client *rpc.Client
 
 	LastOperationTime time.Time
+}
+
+// 内部方法
+func (srvNode *SrvNode)openClient() error{
+	srvNode.Rwmu.Lock()
+	defer srvNode.Rwmu.Unlock()
+
+	if srvNode.Client == nil{
+		client, err := rpc.Dial("tcp", srvNode.RegisterData.Addr)
+		if err != nil {
+			fmt.Println("Error Open client: ", err.Error())
+			return err
+		}
+
+		srvNode.LastOperationTime = time.Now()
+		srvNode.Client = client
+	}
+
+	return nil
+}
+
+func (srvNode *SrvNode)closeClient() error{
+	srvNode.Rwmu.Lock()
+	defer srvNode.Rwmu.Unlock()
+
+	if srvNode.Client != nil{
+		srvNode.Client.Close()
+		srvNode.Client = nil
+	}
+
+	return nil
+}
+
+func (srvNode *SrvNode)sendData(method string, params interface{}, res interface{}) error {
+	srvNode.Rwmu.RLock()
+	defer srvNode.Rwmu.RUnlock()
+
+	return nethelper.CallJRPCToTcpServerOnClient(srvNode.Client, method, params, res)
 }
 
 type SrvNodeGroup struct{
@@ -52,7 +91,7 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.ServiceCenterRegisterData) err
 
 	srvNode := sng.AddrMapSrvNode[reg.Addr]
 	if srvNode != nil {
-		sng.closeClient(srvNode)
+		srvNode.closeClient()
 	}
 	delete(sng.AddrMapSrvNode, reg.Addr)
 
@@ -61,9 +100,12 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.ServiceCenterRegisterData) err
 }
 
 func (sng *SrvNodeGroup) Dispatch(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+	sng.Rwmu.RLock()
+	defer sng.Rwmu.RUnlock()
+
 	if sng.AddrMapSrvNode == nil || len(sng.AddrMapSrvNode) == 0 {
-		ack.Err = data.ServiceDispatchErrServiceStop
-		ack.ErrMsg = "No service online"
+		ack.Err = data.ErrNotFindSrv
+		ack.ErrMsg = data.ErrNotFindSrvText
 		return nil
 	}
 
@@ -75,84 +117,58 @@ func (sng *SrvNodeGroup) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 		break
 	}
 	if srvNode == nil{
+		ack.Err = data.ErrNotFindSrv
+		ack.ErrMsg = data.ErrNotFindSrvText
 		return nil
 	}
 
 	// 检查是否连接
 	if srvNode.Client == nil {
-		sng.openClient(srvNode)
+		srvNode.openClient()
 	}
 
-	func() {
-		if srvNode.Client != nil {
-			sng.Rwmu.RLock()
-			defer sng.Rwmu.RUnlock()
+	// 发送数据
+	if srvNode.Client != nil {
+		err := srvNode.sendData(data.MethodServiceNodeCall, req, ack)
+		if err != nil {
+			fmt.Println("#Call srv failed")
 
-			srvNode.LastOperationTime = time.Now()
-			if nil != nethelper.CallJRPCToTcpServerOnClient(srvNode.Client, data.MethodServiceNodeCall, req, ack){
-				fmt.Println("#Call versionApi failed, close client")
+			srvNode.closeClient()
 
-				sng.closeClient(srvNode)
-
-				ack.Err = data.ServiceDispatchErrNotFindApi
-				ack.ErrMsg = "Others error"
-			}
-		}else{
-			ack.Err = data.ServiceDispatchErrServiceStop
-			ack.ErrMsg = "Service is stop"
+			ack.Err = data.ErrCall
+			ack.ErrMsg = err.Error()
 		}
-	}()
+	}else{
+		ack.Err = data.ErrClientConn
+		ack.ErrMsg = data.ErrClientConnText
+	}
 
 	return nil
 }
 
 func (sng *SrvNodeGroup)KeepAlive() {
-	sng.Rwmu.RLock()
-	defer sng.Rwmu.RUnlock()
+	// 是否有断开连接
+	var rgQuit []data.ServiceCenterRegisterData
 
-	var res string
-	for _, b := range sng.AddrMapSrvNode{
-		if b.Client != nil{
-			b.LastOperationTime = time.Now()
-			res = ""
-			err := nethelper.CallJRPCToTcpServerOnClient(b.Client, data.MethodServiceNodePingpong, "ping", &res)
-			if err != nil || res != "pong" {
-				// close this client
-				fmt.Println("#keep alive failed, remove...")
-				sng.UnRegisterNode(&b.RegisterData)
-				break
+	func(){
+		sng.Rwmu.RLock()
+		defer sng.Rwmu.RUnlock()
+
+		var res string
+		for _, b := range sng.AddrMapSrvNode{
+			if b.Client != nil{
+				b.LastOperationTime = time.Now()
+				res = ""
+				err := b.sendData(data.MethodServiceNodePingpong, "ping", &res)
+				if err != nil || res != "pong" {
+					rgQuit = append(rgQuit, b.RegisterData)
+				}
 			}
 		}
+	}()
+
+	// 去掉断开的
+	for _, v := range rgQuit {
+		sng.UnRegisterNode(&v)
 	}
-}
-
-// 内部方法
-func (sng *SrvNodeGroup)openClient(srvNode *SrvNode) error{
-	sng.Rwmu.Lock()
-	defer sng.Rwmu.Unlock()
-
-	if srvNode.Client == nil{
-		client, err := rpc.Dial("tcp", srvNode.RegisterData.Addr)
-		if err != nil {
-			fmt.Println("Error Open client: ", err.Error())
-			return err
-		}
-
-		srvNode.LastOperationTime = time.Now()
-		srvNode.Client = client
-	}
-
-	return nil
-}
-
-func (sng *SrvNodeGroup)closeClient(srvNode *SrvNode) error{
-	//sng.Rwmu.Lock()
-	//defer sng.Rwmu.Unlock()
-
-	if srvNode.Client != nil{
-		srvNode.Client.Close()
-		srvNode.Client = nil
-	}
-
-	return nil
 }

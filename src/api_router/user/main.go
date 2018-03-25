@@ -9,12 +9,11 @@ import (
 	"net/rpc"
 	"log"
 	"time"
-	"strconv"
 )
 
 var timeBegin,timeEnd time.Time
 
-func DoTest(params interface{}, str *string, count *int64, right *int64, times int64){
+func DoTest(params interface{}, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
 	err := nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, params, &ackData)
 
@@ -29,7 +28,7 @@ func DoTest(params interface{}, str *string, count *int64, right *int64, times i
 	}
 }
 
-func DoTest2(client *rpc.Client, params interface{}, str *string, count *int64, right *int64, times int64){
+func DoTest2(client *rpc.Client, params interface{}, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
 	err := nethelper.CallJRPCToHttpServerOnClient(client, data.MethodServiceCenterDispatch, params, &ackData)
 
@@ -44,7 +43,7 @@ func DoTest2(client *rpc.Client, params interface{}, str *string, count *int64, 
 	}
 }
 
-func DoTestTcp(params interface{}, str *string, count *int64, right *int64, times int64){
+func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
 
 	err := nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, params, &ackData)
@@ -60,7 +59,7 @@ func DoTestTcp(params interface{}, str *string, count *int64, right *int64, time
 	}
 }
 
-func DoTestTcp2(client *rpc.Client, params interface{}, str *string, count *int64, right *int64, times int64){
+func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int64, times int64){
 	ackData := data.ServiceCenterDispatchAckData{}
 	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodServiceNodeCall, params, &ackData)
 
@@ -85,7 +84,7 @@ func DoTestTcp2(client *rpc.Client, params interface{}, str *string, count *int6
 // http://localhost:8080/rpc
 
 // http restful风格
-// curl -d '{"argv":"[{\"a\":2, \"b\":1}]", "id":1}' http://localhost:8080/restful/v1/arith/add
+// curl -d '{"argv":"[{\"a\":2, \"b\":1}]"}' http://localhost:8080/restful/v1/arith/add
 func main() {
 
 
@@ -94,26 +93,48 @@ func main() {
 	count = 0
 	right = 0
 
-	var testdata string
-	for i := 0; i < 1000; i++ {
-		testdata += strconv.Itoa(i)
-	}
-	testdata = "hello, world"
+	yourmessage := "[{\"a\":1, \"b\":2}]"
+	yourlicensekey := "1234"
 
+	// 用户数据
+	var ud data.UserData
+	ud.LicenseKey = yourlicensekey
+	ud.Message = func() string{
+		// TODO: 用我们的pub加密message ->encrypteddata
+		var encrypteddata string
+		encrypteddata = yourmessage
+
+		return encrypteddata
+	}()
+	ud.Signature = func() string{
+		// TODO: 用自己的pri签名encrypteddata ->signature
+		var signature string
+		signature = ud.Message
+
+		return signature
+	}()
+
+	b2,err2 := json.Marshal(ud);
+	if err2 != nil {
+		fmt.Println("Error: ", err2.Error())
+		return;
+	}
+
+	// 封装信息
 	dispatchData := data.ServiceCenterDispatchData{}
-	dispatchData.Srv = "v1.arith"
+	dispatchData.Version = "v1"
+	dispatchData.Srv = "arith"
 	dispatchData.Function = "add"
-	dispatchData.Argv = "[{\"a\":1, \"b\":2}]"
+	dispatchData.Argv = string(b2)
+
 	b,err := json.Marshal(dispatchData);
 	if err != nil {
 		fmt.Println("Error: ", err.Error())
 		return;
 	}
-
-	fmt.Println("argv:", string(b[:]))
+	fmt.Println("msg:", string(b[:]))
 
 	ackData := data.ServiceCenterDispatchAckData{}
-
 	for ; ;  {
 		fmt.Println("Please input command: ")
 		var input string
@@ -135,7 +156,7 @@ func main() {
 			fmt.Println("ack==", ackData)
 		}else if input == "d3" {
 			for i := 0; i < times; i++ {
-				go DoTestTcp(dispatchData, &testdata, &count, &right, times)
+				go DoTestTcp(dispatchData, &count, &right, times)
 			}
 		} else if input == "d33" {
 
@@ -146,11 +167,11 @@ func main() {
 			}
 
 			for i := 0; i < times*times*2; i++ {
-				go DoTestTcp2(client, dispatchData, &testdata, &count, &right, times*times*2)
+				go DoTestTcp2(client, dispatchData, &count, &right, times*times*2)
 			}
 		}else if input == "d4" {
 			for i := 0; i < times; i++ {
-				go DoTest(dispatchData, &testdata, &count, &right, times)
+				go DoTest(dispatchData, &count, &right, times)
 			}
 		} else if input == "d44" {
 
@@ -163,7 +184,7 @@ func main() {
 				continue
 			}
 			for i := 0; i < times*times*2; i++ {
-				go DoTest2(client, dispatchData, &testdata, &count, &right, times*times*2)
+				go DoTest2(client, dispatchData, &count, &right, times*times*2)
 			}
 		}
 	}
