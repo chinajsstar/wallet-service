@@ -15,15 +15,16 @@ var (
 )
 
 type ClientConfig struct {
+	Name 	string				   `json:"name"`
 	RPC_url string				   `json:"rpc_url"`
 	Start_scan_Blocknumber uint64  `json:"start_sacn_blocknumber,string,omitempty"`
+	CoinConfirmNumber	uint64	   `json:"confirmnumber,string,omitempty"`
 }
 
 type Configer struct {
 	Cryptofile  	string	`json:"crypto_file"`
 	Log_conf_file	string  `json:"log_conf_file"`
 	Log_path		string  `json:"log_path"`
-
 	Clientconfig    map[string]*ClientConfig
 }
 

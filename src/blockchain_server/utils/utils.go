@@ -17,6 +17,7 @@ func Faltal_error(err error) {
 	os.Exit(1)
 }
 
+
 func string_has_prefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }

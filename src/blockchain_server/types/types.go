@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"blockchain_server/conf"
 )
 
 //-32700	Parse error	Invalid JSON was received by the server.
@@ -63,21 +64,27 @@ type RechargeTx struct {
 type RechargeTxChannel chan *RechargeTx
 
 type Transfer struct {
-	Tx_hash 			string
-	From				string
-	To					string
-
-	Amount  			uint64
-	Gase				uint64
-	Gaseprice			uint64
-	Total				uint64	// Amount + gas *gasprice = total
-
-	State				TxState
-	OnBlocknumber 		uint64
-	PresentBlocknumber 	uint64
+	Tx_hash             string
+	From                string
+	To                  string
+	Value               uint64
+	Gase                uint64
+	Gaseprice           uint64
+	Total				uint64
+	State               TxState
+	OnBlock             uint64
+	PresentBlock        uint64
 	Confirmationsnumber uint64
-	Times 				uint64  //TODO
+	Time                uint64 //TODO
 	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
+}
+
+func (tx *Transfer) Minerfee() uint64 {
+	return 	tx.Gase * tx.Gaseprice
+}
+
+func (tx *Transfer) Tatolcost() uint64 {
+	return tx.Minerfee() + tx.Value
 }
 
 func TxStateString(state TxState) string {
@@ -87,6 +94,12 @@ func TxStateString(state TxState) string {
 	}
 	case Tx_state_commited: {
 		return "commit"
+	}
+	case Tx_state_pending: {
+		return "pending"
+	}
+	case Tx_state_mined: {
+		return "mined"
 	}
 	case Tx_state_confirmed: {
 		return "confirmed"
@@ -100,20 +113,35 @@ func TxStateString(state TxState) string {
 }
 
 func (tx *Transfer)String() string {
-	return fmt.Sprintf("from:%s, to:%s, Amount:%d, state:%s, minerfee:%d, onblocknumber:%d, present block number:%d", tx.From, tx.To, tx.Amount,
-		TxStateString(tx.State), tx.Gaseprice * tx.Gase, tx.OnBlocknumber, tx.PresentBlocknumber)
+	return fmt.Sprintf(`
+	TX (%s)
+	From:	%s
+	To:		%s
+	State:	%s
+	Value:	%d
+	gasfee:	%d 
+	OnBlock:%d
+	CurrentBlock:	%d`,
+		tx.Tx_hash,
+		tx.From,
+		tx.To,
+		TxStateString(tx.State),
+		tx.Value,
+		tx.Minerfee(),
+		tx.OnBlock, tx.PresentBlock)
 }
 
-type TxNotFoundErr struct {
-	tx_info string
+type NotFound struct {
+	message string
 }
 
-func (self *TxNotFoundErr)Error() string {
-	return self.tx_info
+func (self *NotFound)Error() string {
+	return self.message
 }
 
-func NewTxNotFoundErr(tx *Transfer) *TxNotFoundErr {
-	return &TxNotFoundErr{tx_info: fmt.Sprintf("Transaction not found, detail:%s", tx.String())}
+func NewTxNotFoundErr(tx_hash string) *NotFound {
+	//return &NotFound{tx_info: fmt.Sprintf("Transaction not found, detail:%s", tx.String())}
+	return &NotFound{message:fmt.Sprintf("Transaction(%s) not found!", tx_hash)}
 }
 
 type NetCmdErr struct {
@@ -142,7 +170,9 @@ func NewAccountCmd(msgId, coinname string, amount uint32) *CmdAccounts {
 
 func NewTxCmd(msgId, coinname, chiperKey, to string, amount uint64) (*CmdTx) {
 	return &CmdTx{ NetCmd:NetCmd{MsgId: msgId, Coinname:coinname, Method:"send_transaction", Result:nil, Error:nil},
-		Chiperkey:chiperKey, Tx:&Transfer{To: to, Amount:amount}}
+		Chiperkey:chiperKey, Tx:&Transfer{To: to, Value:amount,
+		Confirmationsnumber: config.GetConfiger().Clientconfig[coinname].CoinConfirmNumber,
+		OnBlock:0, PresentBlock:0}}
 }
 
 func NewRechargeAddressCmd(msgId, coin string, address []string) (*CmdRechargeAddress) {

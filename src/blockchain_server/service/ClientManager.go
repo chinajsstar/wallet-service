@@ -173,7 +173,8 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 	l4g.Trace("------------sendTransaction begin------------")
 	instance := self.clients[txCmd.Coinname]
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
+	ctx, canncel := context.WithCancel(context.Background())
+	defer canncel()
 
 	err := instance.SendTx(ctx, txCmd.Chiperkey, txCmd.Tx)
 	if nil!=err {
@@ -192,9 +193,10 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 	for !escapeloop {
 		time.Sleep(time.Second)
 		tx, err := instance.Tx(ctx, txCmd.Tx.Tx_hash)
+		tx.Confirmationsnumber = txCmd.Tx.Confirmationsnumber
 
 		if err != nil {
-			if _, ok := err.(*types.TxNotFoundErr); ok {
+			if _, ok := err.(*types.NotFound); ok {
 				l4g.Trace("Transaction: %s have not found on node, please wait.....!", txCmd.Tx.Tx_hash)
 			} else {
 				escapeloop = true
@@ -210,24 +212,23 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 				escapeloop = true
 			}
 
-			l4g.Trace("Transaction state from:%s to %s, Transaction information:%s",
-				types.TxStateString(txCmd.Tx.State), types.TxStateString(tx.State), tx.String())
+			l4g.Trace("Transaction state changed from:%s to %s",
+				types.TxStateString(txCmd.Tx.State), types.TxStateString(tx.State))
 
 			txCmd.Tx = tx
 			subcribeFeed.Send(txCmd)
 
 		} else if tx.State==types.Tx_state_mined {
 
-			if tx.PresentBlocknumber!=txCmd.Tx.PresentBlocknumber {
+			if tx.PresentBlock !=txCmd.Tx.PresentBlock {
 
-				if tx.PresentBlocknumber-tx.PresentBlocknumber>tx.Confirmationsnumber {
+				if tx.PresentBlock-tx.PresentBlock >tx.Confirmationsnumber {
 
 					tx.State = types.Tx_state_confirmed
 					escapeloop = true
 
-					l4g.Trace("Transaction state from:%s to %s, Transaction information:%s",
-						types.TxStateString(types.Tx_state_mined), types.TxStateString(types.Tx_state_confirmed),
-							tx.String())
+					l4g.Trace("Transaction state from:%s to %s",
+						types.TxStateString(types.Tx_state_mined), types.TxStateString(types.Tx_state_confirmed))
 				}
 
 				txCmd.Tx = tx
@@ -248,12 +249,12 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 			}
 		}
 		case types.Tx_state_confirmed: {
-			if tx.PresentBlocknumber != txCmd.tx.PresentBlocknumber {
-				if tx.PresentBlocknumber-tx.OnBlocknumber > tx.Confirmationsnumber {
+			if tx.PresentBlock != txCmd.tx.PresentBlock {
+				if tx.PresentBlock-tx.OnBlock > tx.Confirmationsnumber {
 					l4g.Trace("Transaction success done! Transaction information:%s", tx.String())
 					escapeloop = true
 				}
-			} else if tx.PresentBlocknumber == txCmd.tx.PresentBlocknumber {
+			} else if tx.PresentBlock == txCmd.tx.PresentBlock {
 				break
 			} else {
 				message = "It's imporsible that: old PresentBlockNumber biger than new PresentBlockNumber, check this situation!"
@@ -372,7 +373,6 @@ func (self *ClientManager) SendTx(cmdTx *types.CmdTx) {
 		fmt.Print("txCmdChannel is nil, create new")
 		self.txCmdChannel = make(chan *types.CmdTx)
 	}
-
 	self.txCmdChannel <- cmdTx
 }
 
