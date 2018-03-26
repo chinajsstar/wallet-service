@@ -34,7 +34,7 @@ func main() {
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(ArithSrvName, ArithSrvVersion)
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterApi(new(handler.Arith))
+	nodeInstance.RegisterData.RegisterFunction(new(handler.Arith))
 	nodeInstance.Handler = callArithFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr
