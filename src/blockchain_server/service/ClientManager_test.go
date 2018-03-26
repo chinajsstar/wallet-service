@@ -6,11 +6,14 @@ import (
 	"blockchain_server/chains/eth"
 	"fmt"
 	"context"
+	l4g "github.com/alecthomas/log4go"
+	"time"
 )
 
 func TestNetCmdSvr(t *testing.T) {
+	rctChannel := make(types.RechargeTxChannel)
 	clientManager := &ClientManager{}
-	client, err := eth.NewClient()
+	client, err := eth.NewClient(rctChannel)
 
 	if nil!=err {
 		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error() )
@@ -46,6 +49,7 @@ func TestNetCmdSvr(t *testing.T) {
 	clientManager.SubscribeTxStateChange(txStateChannel)
 
 	ctx2, _ := context.WithCancel(ctx)
+	txok_channel := make(chan bool)
 	go func(ctx2 context.Context, txstateChannel types.TxStateChange_Channel) {
 		close := false
 		for !close {
@@ -53,6 +57,17 @@ func TestNetCmdSvr(t *testing.T) {
 			case cmdTx := <-txStateChannel:{
 				fmt.Printf("Transaction state changed, transaction information:%s\n",
 					cmdTx.Tx.String())
+
+				if cmdTx.Tx.State == types.Tx_state_confirmed {
+					l4g.Trace("Transaction is confirmed! success!!!")
+					txok_channel <- true
+				}
+
+				if cmdTx.Tx.State == types.Tx_state_unconfirmed {
+					l4g.Trace("Transaction is unconfirmed! failed!!!!")
+					txok_channel <- false
+				}
+
 			}
 			case <-ctx.Done():{
 				close = true
@@ -68,13 +83,14 @@ func TestNetCmdSvr(t *testing.T) {
 
 
 	/*********创建监控充币地址channael*********/
-	rctChannel := make(types.RechargeTxChannel)
+	watch_address_channel := make(chan bool)
 	go func(ctx context.Context, channel types.RechargeTxChannel) {
 		exit := false
 		for !exit {
 			select {
 			case rct := <-channel:{
 				fmt.Printf("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+				watch_address_channel <- true
 			}
 			case <-ctx.Done():{
 				fmt.Println("RechangeTx context done, because : ", ctx.Err())
@@ -88,4 +104,29 @@ func TestNetCmdSvr(t *testing.T) {
 	ctx3, _ := context.WithCancel(ctx)
 	rcTxChannel := make(types.RechargeTxChannel)
 	clientManager.Start(ctx3, rcTxChannel)
+
+
+	okcount := 0
+	select {
+	case <-watch_address_channel :{
+		okcount++
+		l4g.Trace("watching address gorouine already exited!")
+		if okcount==2 {
+			ctx.Done()
+		}
+	}
+	case   <-txok_channel :{
+		okcount++
+		l4g.Trace("transaction gorouine already exited!")
+		if okcount==2 {
+			ctx.Done()
+		}
+	}
+	}
+
+	clientManager.Close()
+
+	l4g.Trace("exit main!")
+
+	time.Sleep(1 * time.Second)
 }

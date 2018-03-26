@@ -171,7 +171,7 @@ func NewAccountCmd(msgId, coinname string, amount uint32) *CmdAccounts {
 func NewTxCmd(msgId, coinname, chiperKey, to string, amount uint64) (*CmdTx) {
 	return &CmdTx{ NetCmd:NetCmd{MsgId: msgId, Coinname:coinname, Method:"send_transaction", Result:nil, Error:nil},
 		Chiperkey:chiperKey, Tx:&Transfer{To: to, Value:amount,
-		Confirmationsnumber: config.GetConfiger().Clientconfig[coinname].CoinConfirmNumber,
+		Confirmationsnumber: config.GetConfiger().Clientconfig[coinname].TxConfirmNumber,
 		OnBlock:0, PresentBlock:0}}
 }
 

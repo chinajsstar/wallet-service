@@ -2,17 +2,22 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 func main() {
-	slice := make([]int, 3, 5)
+	channel := make(chan int, 256)
 
-	for i:=0; i<10; i++ {
-		slice = append(slice, i)
-		fmt.Printf("pointer address:%d\n", &(slice[0]))
+	go func() {
+		for {
+			fmt.Printf("value is %d\n", <-channel)
+		}
+	}()
+
+	for i:=0; i<10; i++{
+		channel <- i
+		time.Sleep(time.Second * 1)
 	}
 
-	for i, value := range slice {
-		fmt.Printf("i:%d, value:%d\n",i,  value)
-	}
+
 }

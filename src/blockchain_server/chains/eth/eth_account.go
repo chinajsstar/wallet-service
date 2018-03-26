@@ -14,9 +14,6 @@ import (
 	"encoding/hex"
 )
 
-func init() {
-}
-
 func getPassphrase(length uint32) string {
    const str = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
    bytes := []byte(str)

@@ -15,10 +15,10 @@ var (
 )
 
 type ClientConfig struct {
-	Name 	string				   `json:"name"`
-	RPC_url string				   `json:"rpc_url"`
-	Start_scan_Blocknumber uint64  `json:"start_sacn_blocknumber,string,omitempty"`
-	CoinConfirmNumber	uint64	   `json:"confirmnumber,string,omitempty"`
+	Name                   string `json:"name"`
+	RPC_url                string `json:"rpc_url"`
+	Start_scan_Blocknumber uint64 `json:"start_sacn_blocknumber,string,omitempty"`
+	TxConfirmNumber        uint64 `json:"confirmnumber,string,omitempty"`
 }
 
 type Configer struct {
@@ -51,6 +51,10 @@ func init () {
 
 func GetConfiger() (*Configer) {
 	return &configer
+}
+
+func (self *Configer) Save(coinname string) {
+	// TODO : 这个貌似应该同步!!
 }
 
 func getConfigFilePath() string {
