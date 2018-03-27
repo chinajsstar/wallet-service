@@ -4,11 +4,11 @@ import (
 	"blockchain_server/chains/eth"
 	"blockchain_server/service"
 	"blockchain_server/types"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/garyburd/redigo/redis"
-	"golang.org/x/net/context"
 	"sync"
 )
 
@@ -17,34 +17,39 @@ func NewBusinessSvr() *Business {
 }
 
 type Business struct {
-	wallet    *service.ClientManager
-	ctx       context.Context
-	cancel    context.CancelFunc
-	waitGroup *sync.WaitGroup
+	rechargeChannel types.RechargeTxChannel
+	txStateChannel  types.TxStateChange_Channel
+	wallet          *service.ClientManager
+	ctx             context.Context
+	cancel          context.CancelFunc
+	waitGroup       *sync.WaitGroup
 }
 
-func (self *Business) Init() error {
-	self.ctx, self.cancel = context.WithCancel(context.Background())
-	self.waitGroup = new(sync.WaitGroup)
-	self.wallet = new(service.ClientManager)
+func (busi *Business) InitAndStart() error {
+	busi.rechargeChannel = make(types.RechargeTxChannel)
+	busi.txStateChannel = make(types.TxStateChange_Channel)
+	busi.ctx, busi.cancel = context.WithCancel(context.Background())
+	busi.waitGroup = new(sync.WaitGroup)
+	busi.wallet = new(service.ClientManager)
 
 	//实例化以太坊客户端
-	client, err := eth.NewClient()
+	client, err := eth.NewClient(busi.rechargeChannel)
 	if err != nil {
 		fmt.Printf("create client:%s error:%s\n", types.Chain_eth, err.Error())
 		return err
 	}
-	self.wallet.AddClient(client)
+	busi.wallet.AddClient(client)
+	busi.wallet.SubscribeTxStateChange(busi.txStateChannel)
+
+	busi.recvRechargeTxChannel()
+	busi.recvTxStateChannel()
+	busi.startWalletSever()
 
 	return nil
 }
 
-func (self *Business) Start() {
-	// 创建监控充币地址channael
-	self.waitGroup.Add(1)
-	defer self.waitGroup.Done()
-
-	rctChannel := make(types.RechargeTxChannel)
+func (busi *Business) recvRechargeTxChannel() {
+	busi.waitGroup.Add(1)
 	go func(ctx context.Context, channel types.RechargeTxChannel) {
 		for {
 			select {
@@ -54,24 +59,52 @@ func (self *Business) Start() {
 				}
 			case <-ctx.Done():
 				{
-					fmt.Printf("Business正常退出")
+					fmt.Println("RechangeTx context done, because : ", ctx.Err())
+					busi.waitGroup.Done()
 					return
 				}
 			}
 		}
-	}(self.ctx, rctChannel)
-
-	/*********开启服务!!!!!*********/
-	ctx, _ := context.WithCancel(self.ctx)
-	go self.wallet.Start(ctx, rctChannel)
+	}(busi.ctx, busi.rechargeChannel)
 }
 
-func (self *Business) Stop() {
-	self.cancel()
-	self.waitGroup.Wait()
+func (busi *Business) recvTxStateChannel() {
+	busi.waitGroup.Add(1)
+	go func(ctx context.Context, channel types.TxStateChange_Channel) {
+		for {
+			select {
+			case cmdTx := <-channel:
+				{
+					fmt.Printf("Transaction state changed, transaction information:%s\n",
+						cmdTx.Tx.String())
+
+					if cmdTx.Tx.State == types.Tx_state_confirmed {
+						fmt.Println("Transaction is confirmed! success!!!")
+					}
+
+					if cmdTx.Tx.State == types.Tx_state_unconfirmed {
+						fmt.Println("Transaction is unconfirmed! failed!!!!")
+					}
+				}
+			case <-ctx.Done():
+				fmt.Println("TxState context done, because : ", ctx.Err())
+				busi.waitGroup.Done()
+				return
+			}
+		}
+	}(busi.ctx, busi.txStateChannel)
 }
 
-func (self *Business) HandleMsg(args string, reply *string) error {
+func (busi *Business) startWalletSever() {
+	busi.wallet.Start()
+}
+
+func (busi *Business) Stop() {
+	busi.cancel()
+	busi.waitGroup.Wait()
+}
+
+func (busi *Business) HandleMsg(args string, reply *string) error {
 	var head ReqHead
 	err := json.Unmarshal([]byte(args), &head)
 	if err != nil {
@@ -82,9 +115,13 @@ func (self *Business) HandleMsg(args string, reply *string) error {
 	replyChan := make(chan string)
 	switch head.Method {
 	case "new_address":
-		go self.HandleNewAddress(args, replyChan)
+		{
+			go busi.HandleNewAddress(args, replyChan)
+		}
 	case "withdrawal":
-		go self.HandleWithdrawal(args, replyChan)
+		{
+			go busi.HandleWithdrawal(args, replyChan)
+		}
 		*reply = args
 	default:
 		return errors.New("invalid command")
@@ -93,10 +130,10 @@ func (self *Business) HandleMsg(args string, reply *string) error {
 	return nil
 }
 
-func (self *Business) HandleNewAddress(args string, replyChan chan string) error {
+func (busi *Business) HandleNewAddress(args string, replyChan chan string) error {
 	c, err := redis.Dial("tcp", "127.0.0.1:6379")
 	if err != nil {
-		fmt.Printf("HandleNewAddress Redis Error: %s", err.Error())
+		fmt.Printf("handle new address redis error: %s", err.Error())
 		return err
 	}
 	defer c.Close()
@@ -104,7 +141,7 @@ func (self *Business) HandleNewAddress(args string, replyChan chan string) error
 	req := new(ReqNewAddress)
 	err = json.Unmarshal([]byte(args), req)
 	if err != nil {
-		fmt.Printf("HandleNewAddress Json Unmarshal Error:%s", err.Error())
+		fmt.Printf("handle new address json Unmarshal Error:%s", err.Error())
 		return err
 	}
 
@@ -128,7 +165,7 @@ func (self *Business) HandleNewAddress(args string, replyChan chan string) error
 
 	if sum < 500 {
 		//需要去请求地址了
-		accs, err := self.getAddress(symbol, 999-uint32(sum))
+		accs, err := busi.getAddress(symbol, 999-uint32(sum))
 		if err != nil {
 			fmt.Printf("%s", err.Error())
 			return err
@@ -155,9 +192,10 @@ func (self *Business) HandleNewAddress(args string, replyChan chan string) error
 	json.Unmarshal([]byte(accs[0]), &acc)
 
 	var addresses []string
-	addresses = append(addresses, acc.Address[2:])
-	rcaCmd := service.NewRechargeAddressCmd("message id", symbol, addresses)
-	self.wallet.SetRechargeAddress(rcaCmd)
+	addresses = append(addresses, acc.Address)
+	rcaCmd := types.NewRechargeAddressCmd("message id", symbol, addresses)
+	busi.wallet.SetRechargeAddress(rcaCmd)
+	fmt.Println(acc.Address)
 
 	rsp := new(RspNewAddress)
 	rsp.Result.ID = req.UserID
@@ -177,7 +215,7 @@ func (self *Business) HandleNewAddress(args string, replyChan chan string) error
 	return nil
 }
 
-func (self *Business) HandleWithdrawal(args string, replyChan chan string) error {
+func (busi *Business) HandleWithdrawal(args string, replyChan chan string) error {
 	req := new(ReqWithdrawal)
 	err := json.Unmarshal([]byte(args), req)
 	if err != nil {
@@ -198,8 +236,8 @@ func (self *Business) HandleWithdrawal(args string, replyChan chan string) error
 	return nil
 }
 
-func (self *Business) getAddress(symbol string, count uint32) ([]*types.Account, error) {
-	accCmd := service.NewAccountCmd("message id", symbol, uint32(count))
-	return self.wallet.NewAccounts(accCmd)
+func (busi *Business) getAddress(symbol string, count uint32) ([]*types.Account, error) {
+	accCmd := types.NewAccountCmd("message id", symbol, uint32(count))
+	return busi.wallet.NewAccounts(accCmd)
 
 }
