@@ -5,6 +5,7 @@ import (
 	"../base/service"
 	"../data"
 	"./handler"
+	"./db"
 	"fmt"
 	"context"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"io/ioutil"
 	"crypto/sha512"
 	"crypto"
+	"strings"
 )
 
 const AuthSrvName = "auth"
@@ -24,9 +26,20 @@ const (
 
 // 注册方法
 func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
-	// TODO:
-	ack.Err = 0
-	ack.Value = req.Argv
+	var err error
+	switch strings.ToLower(req.Function) {
+	case "authdata":
+		err = handler.AuthInstance().AuthData(req, ack)
+		break
+	case "encryptdata":
+		err = handler.AuthInstance().EncryptData(req, ack)
+		break
+	}
+
+	if err != nil {
+		ack.Err = data.ErrAuthSrvIllegalData
+		ack.ErrMsg = data.ErrAuthSrvIllegalDataText
+	}
 
 	fmt.Println("callNodeApi req: ", *req)
 	fmt.Println("callNodeApi ack: ", *ack)
@@ -34,6 +47,11 @@ func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCent
 
 func main() {
 	wg := &sync.WaitGroup{}
+
+	handler.AuthInstance().Init()
+
+	// 启动db
+	db.Init()
 
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(AuthSrvName, AuthSrvVersion)
@@ -51,6 +69,8 @@ func main() {
 	var err error
 	var cipherData []byte
 
+	var index int
+
 	time.Sleep(time.Second*2)
 	for ; ;  {
 		fmt.Println("Input 'quit' to quit...")
@@ -61,9 +81,33 @@ func main() {
 			cancel()
 			break;
 		}else if input == "rsagen"{
-			err := utils.RsaGen(2048, "/Users/henly.liu/workspace/private.pem", "/Users/henly.liu/workspace/public.pem")
-			fmt.Println(err)
+			index++
+			pri := fmt.Sprintf("/Users/henly.liu/workspace/private_%d.pem", index)
+			pub := fmt.Sprintf("/Users/henly.liu/workspace/public_%d.pem", index)
+			err := utils.RsaGen(2048, pri, pub)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			pubKey, err := ioutil.ReadFile(pub)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			licenseKey := fmt.Sprintf("licensekey_%d", index)
+			userName := fmt.Sprintf("username_%d", index)
+
+			err = handler.AuthInstance().CreateUser(licenseKey, userName, string(pubKey))
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			fmt.Println("rsagen ok")
 		}else if input == "rsatest" {
+
 			var priKey, pubKey []byte
 			priKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
 			if err != nil {
@@ -76,26 +120,31 @@ func main() {
 				continue
 			}
 
-			// en
-			cipherData, err = utils.RsaEncrypt([]byte("123456"), pubKey)
-			if err != nil {
-				fmt.Println(err)
-				continue
+			fmt.Println("b:", time.Now())
+			for i := 0; i < 20000; i++ {
+				// en
+				cipherData, err = utils.RsaEncrypt([]byte("123456"), pubKey)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				//fmt.Println("加密后数据：")
+				//fmt.Println(cipherData)
+
+				// de
+				//var originData []byte
+				_, err = utils.RsaDecrypt(cipherData, priKey)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				//fmt.Println("解密后数据：")
+				//fmt.Println(string(originData))
 			}
+			fmt.Println("e:", time.Now())
 
-			fmt.Println("加密后数据：")
-			fmt.Println(cipherData)
-
-			// de
-			var originData []byte
-			originData, err = utils.RsaDecrypt(cipherData, priKey)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			fmt.Println("解密后数据：")
-			fmt.Println(string(originData))
 		}else if input == "rsatest2" {
 			var priKey, pubKey []byte
 			priKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
@@ -127,7 +176,7 @@ func main() {
 			fmt.Println("签名后数据：")
 			fmt.Println(signData)
 
-			// de
+			// verify
 			err = utils.RsaVerify(crypto.SHA512, hashData, signData, pubKey)
 			if err != nil {
 				fmt.Println(err)

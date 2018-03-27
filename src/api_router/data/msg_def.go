@@ -46,18 +46,18 @@ type UserData struct {
 }
 
 // 请求信息，作为请求数据
-// json like: {"version":"v1", "srv":"arith", "function":"add", "argv":""}
+// json like: {"version":"v1", "srv":"arith", "function":"add", "argv":{...}}
 type ServiceCenterDispatchData struct{
 	Version     string `json:"version"`   // 版本号
 	Srv     	string `json:"srv"`	  	  // 服务名称
 	Function  	string `json:"function"`  // 服务功能
-	Argv 		string `json:"argv"` 	  // UserData string
+	Argv 		UserData `json:"argv"` 	  // UserData
 }
 
 // 应答信息，作为应答数据
-// json like: {"err":0, "errmsg":"", "value":""}
+// json like: {"err":0, "errmsg":"", "value":{...}}
 type ServiceCenterDispatchAckData struct{
 	Err     int    `json:"err"`     // 错误码
 	ErrMsg  string `json:"errmsg"`  // 错误信息
-	Value   string `json:"value"`   // UserData string
+	Value   UserData `json:"value"` // UserData
 }

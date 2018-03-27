@@ -21,8 +21,11 @@ const (
 // 注册方法
 func callArithFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
 	// TODO:
+	fmt.Println(req.Argv.Message)
+
 	ack.Err = 0
-	ack.Value = "I am Arith service..."
+	ack.Value.LicenseKey = req.Argv.LicenseKey
+	ack.Value.Message = "I am Arith service..."
 
 	fmt.Println("callNodeApi req: ", *req)
 	fmt.Println("callNodeApi ack: ", *ack)

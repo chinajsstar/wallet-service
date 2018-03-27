@@ -9,6 +9,11 @@ import (
 	"net/rpc"
 	"log"
 	"time"
+	"io/ioutil"
+	"../utils"
+	"crypto/sha512"
+	"crypto"
+	"encoding/base64"
 )
 
 var timeBegin,timeEnd time.Time
@@ -24,6 +29,7 @@ func DoTest(params interface{}, count *int64, right *int64, times int64){
 
 	if atomic.CompareAndSwapInt64(count, times, times) {
 		cost := time.Now().Sub(timeBegin)
+		fmt.Println("结束时间：", time.Now())
 		fmt.Println("finish...", *count, "...right...", *right, "...cost...", cost)
 	}
 }
@@ -39,6 +45,7 @@ func DoTest2(client *rpc.Client, params interface{}, count *int64, right *int64,
 
 	if atomic.CompareAndSwapInt64(count, times, times) {
 		cost := time.Now().Sub(timeBegin)
+		fmt.Println("结束时间：", time.Now())
 		fmt.Println("finish...", *count, "...right...", *right, "...cost...", cost)
 	}
 }
@@ -55,6 +62,7 @@ func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
 
 	if atomic.CompareAndSwapInt64(count, times, times) {
 		cost := time.Now().Sub(timeBegin)
+		fmt.Println("结束时间：", time.Now())
 		fmt.Println("finish...", *count, "...right...", *right, "...cost...", cost)
 	}
 }
@@ -70,6 +78,7 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 
 	if atomic.CompareAndSwapInt64(count, times, times) {
 		cost := time.Now().Sub(timeBegin)
+		fmt.Println("结束时间：", time.Now())
 		fmt.Println("finish...", *count, "...right...", *right, "...cost...", cost)
 	}
 }
@@ -87,6 +96,23 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 // curl -d '{"argv":"[{\"a\":2, \"b\":1}]"}' http://localhost:8080/restful/v1/arith/add
 func main() {
 
+	var err error
+	index := 1
+	priPath := fmt.Sprintf("/Users/henly.liu/workspace/private_%d.pem", index)
+	serverPubPath := fmt.Sprintf("/Users/henly.liu/workspace/public.pem")
+	licenseKey := fmt.Sprintf("licensekey_%d", index)
+
+	var priKey, serverPubKey []byte
+	priKey, err = ioutil.ReadFile(priPath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	serverPubKey, err = ioutil.ReadFile(serverPubPath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	const times = 100;
 	var count, right int64
@@ -94,38 +120,43 @@ func main() {
 	right = 0
 
 	yourmessage := "[{\"a\":1, \"b\":2}]"
-	yourlicensekey := "1234"
+	yourlicensekey := licenseKey
 
 	// 用户数据
 	var ud data.UserData
 	ud.LicenseKey = yourlicensekey
 	ud.Message = func() string{
-		// TODO: 用我们的pub加密message ->encrypteddata
-		var encrypteddata string
-		encrypteddata = yourmessage
+		// 用我们的pub加密message ->encrypteddata
+		encrypted, err := utils.RsaEncrypt([]byte(yourmessage), serverPubKey)
+		if err != nil {
+			return ""
+		}
 
-		return encrypteddata
+		return base64.StdEncoding.EncodeToString(encrypted)
 	}()
 	ud.Signature = func() string{
-		// TODO: 用自己的pri签名encrypteddata ->signature
-		var signature string
-		signature = ud.Message
+		// 用自己的pri签名encrypteddata ->signature
+		var hashData []byte
+		hs := sha512.New()
+		hs.Write([]byte(ud.Message))
+		hashData = sha512.New().Sum(nil)
 
-		return signature
+		var signData []byte
+		signData, err = utils.RsaSign(crypto.SHA512, hashData, priKey)
+		if err != nil {
+			fmt.Println(err)
+			return ""
+		}
+
+		return base64.StdEncoding.EncodeToString(signData)
 	}()
-
-	b2,err2 := json.Marshal(ud);
-	if err2 != nil {
-		fmt.Println("Error: ", err2.Error())
-		return;
-	}
 
 	// 封装信息
 	dispatchData := data.ServiceCenterDispatchData{}
 	dispatchData.Version = "v1"
 	dispatchData.Srv = "arith"
 	dispatchData.Function = "add"
-	dispatchData.Argv = string(b2)
+	dispatchData.Argv = ud
 
 	b,err := json.Marshal(dispatchData);
 	if err != nil {
@@ -144,6 +175,7 @@ func main() {
 		count = 0
 		right = 0
 		timeBegin = time.Now();
+		fmt.Println("开始时间：", timeBegin)
 
 		if input == "quit" {
 			fmt.Println("I do quit")
