@@ -22,3 +22,6 @@
 [submodule "src/github.com/satori/go.uuid"]
 	path = src/github.com/satori/go.uuid
 	url = https://github.com/satori/go.uuid
+[submodule "src/github.com/go-sql-driver/mysql"]
+	path = src/github.com/go-sql-driver/mysql
+	url = https://github.com/go-sql-driver/mysql.git
