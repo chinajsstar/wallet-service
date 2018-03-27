@@ -120,28 +120,35 @@ func main() {
 				continue
 			}
 
+			var data []byte
+			for i := 0; i < 1024; i++ {
+				data = append(data, byte(i))
+			}
+
 			fmt.Println("b:", time.Now())
-			for i := 0; i < 20000; i++ {
+			for i := 0; i < 1; i++ {
+				fmt.Println("原始数据：", len(data))
+				fmt.Println(data)
 				// en
-				cipherData, err = utils.RsaEncrypt([]byte("123456"), pubKey)
+				cipherData, err = utils.RsaEncrypt(data, pubKey, utils.RsaEncodeLimit2048)
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
 
-				//fmt.Println("加密后数据：")
-				//fmt.Println(cipherData)
+				fmt.Println("加密后数据：", len(cipherData))
+				fmt.Println(cipherData)
 
 				// de
-				//var originData []byte
-				_, err = utils.RsaDecrypt(cipherData, priKey)
+				var originData []byte
+				originData, err = utils.RsaDecrypt(cipherData, priKey, utils.RsaDecodeLimit2048)
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
 
-				//fmt.Println("解密后数据：")
-				//fmt.Println(string(originData))
+				fmt.Println("解密后数据：")
+				fmt.Println(originData)
 			}
 			fmt.Println("e:", time.Now())
 
