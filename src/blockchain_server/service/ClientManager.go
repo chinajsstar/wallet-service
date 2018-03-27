@@ -10,7 +10,6 @@ import (
 	"crypto/x509"
 	"blockchain_server"
 	"blockchain_server/chains/event"
-	"context"
 	"time"
 )
 
@@ -124,17 +123,17 @@ func (self *ClientManager) AddClient(client blockchain_server.ChainClient) {
 	self.clients[client.Name()] = client
 }
 
-func (self *ClientManager) Start(ctx context.Context, rctxChannel types.RechargeTxChannel) {
+func (self *ClientManager) Start() {
 	self.loopTxCmd()
-	self.startAllClient(ctx, rctxChannel)
+	self.startAllClient()
 }
 
-func (self *ClientManager) startAllClient(ctx context.Context, rctChannel types.RechargeTxChannel) error {
+func (self *ClientManager) startAllClient() error {
 	if self.clients==nil || len(self.clients)==0 {
 		return fmt.Errorf("there are 0 client instance. add client instance first!")
 	}
 	for _, instance := range self.clients {
-		instance.Start(rctChannel)
+		instance.Start()
 	}
 	return nil
 }
@@ -173,10 +172,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 	l4g.Trace("------------sendTransaction begin------------")
 	instance := self.clients[txCmd.Coinname]
 
-	ctx, canncel := context.WithCancel(context.Background())
-	defer canncel()
-
-	err := instance.SendTx(ctx, txCmd.Chiperkey, txCmd.Tx)
+	err := instance.SendTx(txCmd.Chiperkey, txCmd.Tx)
 	if nil!=err {
 		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
@@ -192,7 +188,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdTx) {
 	// Transaction state change : committed->waite confirm number -> confirmed/unconfirmed ??
 	for !escapeloop {
 		time.Sleep(time.Second)
-		tx, err := instance.Tx(ctx, txCmd.Tx.Tx_hash)
+		tx, err := instance.Tx(txCmd.Tx.Tx_hash)
 		tx.Confirmationsnumber = txCmd.Tx.Confirmationsnumber
 
 		if err != nil {
@@ -296,8 +292,8 @@ func NewClientManager() *ClientManager {
 }
 
 func (self *ClientManager) init () {
-	self.txCmdChannel = make(chan *types.CmdTx)
-	self.clients = make(map[string]blockchain_server.ChainClient)
+	self.txCmdChannel = make(chan *types.CmdTx, 2048)
+	self.clients = make(map[string]blockchain_server.ChainClient, 1024)
 	self.txCmdClose = make(chan bool)
 }
 
@@ -421,13 +417,10 @@ func (self *ClientManager) Blocknumber() uint64 {
 }
 
 func (self *ClientManager)Close() {
-	// TODO !!!!!
+	close(self.txCmdChannel)
+	close(self.txCmdClose)
 	for _, client := range self.clients {
-		client.Stop(context.TODO(), time.Second * 5)
+		client.Stop()
 	}
-}
-
-func init () {
-
 }
 

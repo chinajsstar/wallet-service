@@ -14,7 +14,6 @@ import (
 	"blockchain_server/utils"
 	"fmt"
 	"sort"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum"
 )
 
@@ -22,18 +21,13 @@ type Client struct {
 	c                *ethclient.Client
 	addresses        SortedString
 	pendingTxChannel chan *types.Transfer
+	// TODO:由于blockheight被两个routine使用, 应该加上同步!!
+	blockHeight      uint64
+	scanblock        uint64
+	rctChannel       types.RechargeTxChannel
 
-	lastBlocknumber 	uint64
-	beginScanBlock		uint64
-
-	ctx 				context.Context
-	cancelfun 			context.CancelFunc
-	ctxCancel 			context.CancelFunc
-	closeChannel		chan bool
-
-	//subscribeFeed 		event.Fee
-	// d
-	rctChannel			types.RechargeTxChannel
+	ctx					context.Context
+	ctx_canncel			context.CancelFunc
 }
 
 type SortedString []string
@@ -49,48 +43,49 @@ func insertByOrder(strSorted SortedString, s string) {
 	}
 }
 func (self SortedString)containString(s string) bool {
-	return self[sort.SearchStrings(self, s)]==s
+	if index:=sort.SearchStrings(self, s); index>=0 && index<len(self) && self[index]==s {
+		return true
+	}
+	return false
 }
 
-func NewClient() (*Client, error) {
-	ctx, _ := context.WithTimeout(context.Background(), time.Second * 5)
-
-	rpc_client, err := rpc.DialContext(ctx, config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
-	if err!=nil {
-		return nil, err
-	}
-	client := ethclient.NewClient(rpc_client)
-	//rpc_client, err := ethclient.Dial(config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
-	//if nil!=err {
-	//	l4g.Error("create eth client error! message:%s", err.Error())
+func NewClient(rctChannel types.RechargeTxChannel) (*Client, error) {
+	//ctx, _ := context.WithTimeout(context.Background(), time.Second * 5)
+	//rpc_client, err := rpc.DialContext(ctx, config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
+	//if err!=nil {
 	//	return nil, err
 	//}
-	c := &Client{
-			c:				  client,
-			closeChannel:     make(chan bool),
-			pendingTxChannel: make(chan *types.Transfer),
-			lastBlocknumber:  0}
+	//client := ethclient.NewClient(rpc_client)
 
-	c.ctx, c.cancelfun  = context.WithCancel(context.Background())
+	client, err := ethclient.Dial(config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
+	if nil!=err {
+		l4g.Error("create eth client error! message:%s", err.Error())
+		return nil, err
+	}
+	c := &Client{c:client, rctChannel:rctChannel}
+	c.init()
 
-	c.beginScanBlock = config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber
-	c.addresses = make([]string, 0, 1024)
 	return c, nil
 }
 
-//func (self *Client) SubscribeRechargeTx(rctChannel types.RechargeTxChannel) {
-//	self.rctChannel = rctChannel
-//	//return self.subscribeFeed.Subscribe(rctChannel)
-//}
+func  (self *Client) init() {
+	self.addresses = make([]string, 0, 1024)
+	self.blockHeight = self.Blocknumber()
+	self.scanblock = config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber
+	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
+}
 
-func (self *Client) Start(rcTxChannel types.RechargeTxChannel) error {
-	//if self.txChannel==nil {
-	//	fmt.Println( "self.txchannel is nil")
-	//} else {
-	//	fmt.Println( "self.txchannel is not nil")
-	//}
-	go self.subscribeNewBlockheader()
-	go self.StartScanBlock(rcTxChannel)
+
+
+func (self *Client) Start() error {
+	if err := self.beginSubscribeBlockHaders(); err!=nil {
+		return err
+	}
+
+	if err := self.beginScanBlock(); err!=nil {
+		self.Stop()
+		return err
+	}
 	return nil
 }
 
@@ -103,7 +98,7 @@ func (self *Client) NewAccount()(*types.Account, error) {
 }
 
 // from is a crypted private key
-func (self *Client)SendTx(ctx context.Context,  chiperKey string, tx *types.Transfer) error {
+func (self *Client)SendTx(chiperKey string, tx *types.Transfer) error {
 	key, err := ParseChiperkey(chiperKey)
 	if err!= nil {
 		return err
@@ -171,7 +166,7 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 	return etypes.NewTransaction(nonce, address, big.NewInt(int64(tx.Value)), gaslimit, gasprice, nil), nil
 }
 
-func (self *Client)blocknumber() uint64 {
+func (self *Client)Blocknumber() uint64 {
 	blocknumber, err := self.c.BlockByNumber(context.TODO(), nil)
 	if err!=nil {
 		return 0
@@ -179,8 +174,8 @@ func (self *Client)blocknumber() uint64 {
 	return blocknumber.NumberU64()
 }
 
-func (self *Client)Tx(ctx context.Context, tx_hash string)(*types.Transfer, error) {
-	tx, blocknumber, err := self.c.TransactionByHash(ctx, common.HexToHash(tx_hash))
+func (self *Client)Tx(tx_hash string)(*types.Transfer, error) {
+	tx, blocknumber, err := self.c.TransactionByHash(self.ctx, common.HexToHash(tx_hash))
 	if err!= nil {
 		if err==ethereum.NotFound {
 			return nil, types.NewTxNotFoundErr(tx_hash)
@@ -194,106 +189,114 @@ func (self *Client)Tx(ctx context.Context, tx_hash string)(*types.Transfer, erro
 		big_blocknumber = big.NewInt(0)
 	}
 
-	return txToTx(tx, big_blocknumber.Uint64(), self.blocknumber()), nil
+	return txToTx(tx, big_blocknumber.Uint64(), self.Blocknumber()), nil
 }
 
-func (self *Client)subscribeNewBlockheader() {
-	header_ch := make(chan *etypes.Header)
-	ctx, _ := context.WithCancel(self.ctx)
-	subscription, err := self.c.SubscribeNewHead(ctx, true, header_ch)
+func (self *Client) beginSubscribeBlockHaders() error {
+	header_chan := make(chan *etypes.Header)
+	subscription, err := self.c.SubscribeNewHead(self.ctx, true, header_chan)
+
 	if err!=nil || nil==subscription {
-		fmt.Printf("subscribefiler error:%s\n", err.Error())
-		return
+		l4g.Error("subscribefiler error:%s\n", err.Error())
+		return err
 	}
+	l4g.Trace("eth Subscribe new block header, begin!")
 
-	fmt.Printf("subcribe newblock ok, listenling...\n")
-
-	tobreak := false
-	for {
-		select {
-		case <- ctx.Done():
-			fmt.Printf("error happened:%v\n", ctx.Err())
-			tobreak = true
-		case header := <-header_ch: {
-			if self.beginScanBlock == header.Number.Uint64() {
-
+	go func(header_chan chan *etypes.Header) {
+		for {
+			select {
+			case <-self.ctx.Done() : {
+				l4g.Error("subscribe block header exit loop for:%s", self.ctx.Err().Error())
+				subscription.Unsubscribe()
+				close(header_chan)
+				goto endfor
 			}
-			self.lastBlocknumber = header.Number.Uint64()
-			l4g.Trace("new block header : blocknumber : %d, hashvalue:%s\n",
-				self.lastBlocknumber, header.Hash().String())
-		}
+			case header := <- header_chan: {
+				// TODO: 订阅到新区块, 可以搞一些事情
+				self.blockHeight = header.Number.Uint64()
+			}
+			}
 		}
 
-		if tobreak {
-			break
-		}
-	}
-	subscription.Unsubscribe()
+	endfor:
+		l4g.Trace("Will stop subscribe block header!")
+	}(header_chan)
+
+	return nil
 }
 
 
 //TxRecipt(ctx context.Context, tx_hash string)(*types.Transfer, error)
-func (self *Client)Blocknumber(ctx context.Context) (uint64, error) {
-	n, err := self.c.BlockByNumber(ctx, nil)
-	if err!=nil {
-		return 0, err
-	}
-	return n.NumberU64(), nil
-}
+//func (self *Client)Blocknumber(ctx context.Context) (uint64, error) {
+//	n, err := self.c.BlockByNumber(ctx, nil)
+//	if err!=nil {
+//		return 0, err
+//	}
+//	return n.NumberU64(), nil
+//}
 
-func (self *Client) StartScanBlock(rtc types.RechargeTxChannel) error {
+func (self *Client) beginScanBlock() error {
 	if nil==self.addresses || len(self.addresses)==0 {
-		return fmt.Errorf("address length is 0, please add care address")
+		return fmt.Errorf("address length is 0, please add cared address")
 	}
-	var close = false
-	for !close {
-		ctx, _ := context.WithCancel(self.ctx)
 
-		big_bigenblock := big.NewInt(int64(self.beginScanBlock))
-		block, err := self.c.BlockByNumber(ctx, big_bigenblock)
-
-		if err!= nil {
-			l4g.Error("MinitorAddress get block error, message:%s", err.Error())
-			break
-		}
-
-		txs := block.Transactions()
-
-		for _, tx := range txs {
-			l4g.Trace( "transaction onblock : %d, tx information:%s", block.NumberU64(),
-				tx.String())
-
-			if !self.addresses.containString("0x" + tx.To().String()) {
+	go func() {
+		for {
+			if self.blockHeight <= self.scanblock {
+				time.Sleep(time.Second)
 				continue
 			}
-			l4g.Trace("Transaction to address in wallet storage: %s", tx.To().String())
 
-			rtc <- &types.RechargeTx{types.Chain_eth, txToTx(tx, big_bigenblock.Uint64(), uint64(self.lastBlocknumber))}
-		}
+			block, err := self.c.BlockByNumber(self.ctx, big.NewInt(int64(self.scanblock)))
 
-		self.lastBlocknumber++
-		select {
-		case <-self.ctx.Done(): {
-			close = true
-		}
-		case close = <-self.closeChannel: {
-			l4g.Trace("stop Scan blocks, close channel get true value!")
-		}
-		default: {
-			time.Sleep(time.Second)
-		}
-		}
+			//block.Time()
 
-	}
+			if err!= nil {
+				l4g.Error("get block error, stop scanning block, message:%s", err.Error())
+				goto endfor
+			}
+
+			l4g.Trace("scaning block :%d", block.NumberU64())
+
+			txs := block.Transactions()
+
+			for _, tx := range txs {
+				l4g.Trace( "transaction onblock : %d, tx information:%s", block.NumberU64(),
+					tx.String())
+
+				time.Sleep(time.Second)
+
+				if !self.addresses.containString(tx.To().String()) {
+					continue
+				}
+				// TODO : check if tx.TO().String() hax prefix "0x" originally
+				l4g.Trace("Transaction to address in wallet storage: %s", tx.To().String())
+				self.rctChannel <- &types.RechargeTx{types.Chain_eth, txToTx(tx,  block.NumberU64(), uint64(self.blockHeight))}
+			}
+
+			self.scanblock++
+
+			select {
+			case <-self.ctx.Done(): {
+				l4g.Trace("stop scaning blocks! for message:%s", self.ctx.Err().Error())
+				goto endfor
+			}
+			default: {
+			}
+			}
+
+		}
+	endfor:
+	}()
 	return nil
 }
 
-func txToTx(tx *etypes.Transaction, blocknumber uint64, lastnumber uint64) *types.Transfer {
+func txToTx(tx *etypes.Transaction, inblock uint64, lastblock uint64) *types.Transfer {
 	var state types.TxState
 
-	if blocknumber==0 {
+	if inblock ==0 {
 		state = types.Tx_state_pending
-	} else if lastnumber-blocknumber >= config.GetConfiger().Clientconfig[types.Chain_eth].CoinConfirmNumber {
+	} else if lastblock-inblock >= config.GetConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
 		state = types.Tx_state_confirmed
 	} else {
 		state = types.Tx_state_mined
@@ -301,19 +304,20 @@ func txToTx(tx *etypes.Transaction, blocknumber uint64, lastnumber uint64) *type
 
 	return &types.Transfer{
 		Tx_hash:      tx.Hash().String(),
-		From:		  tx.From(),
+		From:         tx.From(),
 		To :          tx.To().String(),
 		Value:        tx.Value().Uint64(),
 		Gase :        tx.Gas(),
 		Gaseprice:    tx.GasPrice().Uint64(),
 		Total :       tx.Cost().Uint64(),
-		OnBlock:      blocknumber,
-		PresentBlock: lastnumber,
+		OnBlock:      inblock,
+		PresentBlock: lastblock,
 		State:        state,
 	}
 }
 
 func (self *Client)InsertCareAddress(address []string) {
+	// TODO : 这个在修改address时, 应该使用同步的方式
 	if self.addresses==nil {
 		self.addresses = make([]string, 0, 1024)
 	}
@@ -333,9 +337,8 @@ func (self *Client)InsertCareAddress(address []string) {
 	}
 }
 
-func (self *Client) Stop(ctx context.Context,  duration time.Duration) {
-	self.closeChannel <- true
-	self.ctxCancel()
-
-	config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber = self.lastBlocknumber
+func (self *Client) Stop() {
+	self.ctx_canncel()
+	config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber = self.blockHeight
+	config.GetConfiger().Save(types.Chain_eth)
 }

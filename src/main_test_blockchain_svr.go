@@ -8,6 +8,7 @@ import (
 	"blockchain_server/types"
 	l4g "github.com/alecthomas/log4go"
 	"github.com/ethereum/go-ethereum/crypto"
+	"time"
 )
 
 
@@ -23,8 +24,10 @@ func init() {
 }
 
 func main() {
+	rctChannel := make(types.RechargeTxChannel)
 	clientManager := service.NewClientManager()
-	client, err := eth.NewClient()
+	client, err := eth.NewClient(rctChannel)
+
 
 	if nil!=err {
 		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error() )
@@ -53,29 +56,59 @@ func main() {
 
 	/*********创建监控充币地址channael*********/
 	rcTxChannel := make(types.RechargeTxChannel)
+	watch_address_channel := make(chan bool)
+	// 开启监控goroutine
 	go func(ctx context.Context, channel types.RechargeTxChannel) {
 		exit := false
 		for !exit {
 			select {
 			case rct := <-channel:{
 				fmt.Printf("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+				watch_address_channel <- true
 			}
 			case <-ctx.Done():{
 				fmt.Println("RechangeTx context done, because : ", ctx.Err())
+				watch_address_channel <- true
 				exit = true
 			}
 			}
 		}
 	}(ctx, rcTxChannel)
 
-
-	/*********开启服务!!!!!*********/
-	ctx3, _ := context.WithCancel(ctx)
-	clientManager.Start(ctx3, rcTxChannel)
-
-
 	/*********监控提币交易的channel*********/
 	txStateChannel := make(types.TxStateChange_Channel)
+	subTx := clientManager.SubscribeTxStateChange(txStateChannel)
+	txok_channel := make(chan bool)
+	// 开启交易监控goroutine
+	go func(tctx context.Context, xstateChannel types.TxStateChange_Channel) {
+		close := false
+		for !close {
+			select {
+			case cmdTx := <-txStateChannel:{
+				fmt.Printf("Transaction state changed, transaction information:%s\n",
+					cmdTx.Tx.String())
+
+				if cmdTx.Tx.State == types.Tx_state_confirmed {
+					l4g.Trace("Transaction is confirmed! success!!!")
+					txok_channel <- true
+				}
+
+				if cmdTx.Tx.State == types.Tx_state_unconfirmed {
+					l4g.Trace("Transaction is unconfirmed! failed!!!!")
+					txok_channel <- false
+				}
+
+			}
+			case <-ctx.Done():{
+				close = true
+			}
+			}
+		}
+	}(ctx, txStateChannel)
+
+	/*********开启服务!!!!!*********/
+	clientManager.Start()
+
 
 	// 创建并发送Transaction, 订阅只需要调用一次, 所有的Send的交易都会通过这个订阅channel传回来
 	/*********执行提币命令*********/
@@ -88,37 +121,24 @@ func main() {
 	txCmd := types.NewTxCmd("message id of transaction command", types.Chain_eth, tmp_account.PrivateKey, tmp_toaddress, 1)
 	clientManager.SendTx(txCmd)
 
-	subTx := clientManager.SubscribeTxStateChange(txStateChannel)
-	ctx2, _ := context.WithCancel(ctx)
-	func(ctx2 context.Context, txstateChannel types.TxStateChange_Channel) {
-		close := false
-		for !close {
-			select {
-			case cmdTx := <-txStateChannel:{
-				l4g.Trace("Transaction state changed, information:%s", cmdTx.Tx.String())
-				l4g.Trace("PresentBlock - Onblock = %d, need = %d.",
-					cmdTx.Tx.PresentBlock-cmdTx.Tx.OnBlock, cmdTx.Tx.Confirmationsnumber)
+	if ok := <-txok_channel; ok ||!ok {
+		l4g.Trace("transaction gorouine already exited!")
+	}
 
-				if cmdTx.Tx.State == types.Tx_state_confirmed &&
-					cmdTx.Tx.OnBlock != 0 &&
-					cmdTx.Tx.Confirmationsnumber <= (cmdTx.Tx.PresentBlock-cmdTx.Tx.OnBlock) {
-					l4g.Trace("Transaction %s, sucess done!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", cmdTx.Tx.Tx_hash)
+	if ok := <-watch_address_channel; ok ||!ok {
+		l4g.Trace("watching address gorouine already exited!")
+	}
 
-					close = true
-				}
-				if cmdTx.Tx.State == types.Tx_state_unconfirmed {
-					l4g.Trace("Transaction failed!!", cmdTx.Tx.Tx_hash)
-					close = true
-				}
-			}
-			case <-ctx.Done():{
-				close = true
-			}
-			}
-		}
-	}(ctx2, txStateChannel)
 
-	// 去掉订阅本次的Transaction
+	// 关闭所有client
+	clientManager.Close()
+	// 关闭订阅
 	subTx.Unsubscribe()
+	// 处罚ctx.done(), 结束地址监控和交易监控的goroutine
+	cancel()
+
+	l4g.Trace("exit main!")
+
+	time.Sleep(1 * time.Second)
 }
 
