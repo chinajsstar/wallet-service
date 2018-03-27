@@ -8,6 +8,15 @@ import (
 	"encoding/pem"
 	"os"
 	"errors"
+	"bytes"
+)
+
+const(
+	// rsa加解密限制
+	RsaEncodeLimit1024 = 1024 / 8 - 11
+	RsaDecodeLimit1024 = 1024 / 8
+	RsaEncodeLimit2048 = 2048 / 8 - 11
+	RsaDecodeLimit2048 = 2048 / 8
 )
 
 func RsaGen(bits int, priPath string, pubPath string) error {
@@ -55,7 +64,7 @@ func RsaGen(bits int, priPath string, pubPath string) error {
 	return nil
 }
 
-func RsaEncrypt(originData []byte, pubKey []byte)([]byte, error){
+func RsaEncrypt(originData []byte, pubKey []byte, limit int)([]byte, error){
 	block, _ := pem.Decode(pubKey)
 	if block == nil {
 		return nil, errors.New("pub key error")
@@ -68,10 +77,40 @@ func RsaEncrypt(originData []byte, pubKey []byte)([]byte, error){
 
 	pub := pubInterface.(*rsa.PublicKey)
 
-	return rsa.EncryptPKCS1v15(rand.Reader, pub, originData)
+	// 分段加密
+	length := len(originData)
+
+	cnt := length/limit
+	if length%limit != 0{
+		cnt += 1
+	}
+	s := make([][]byte, cnt)
+
+	index := 0
+	offset := 0
+	for ; offset < length;  {
+		offsetto := 0
+		if length - offset > limit {
+			offsetto = offset + limit
+		}else{
+			offsetto = length
+		}
+		srcData := originData[offset:offsetto]
+
+		dstData, err := rsa.EncryptPKCS1v15(rand.Reader, pub, srcData)
+		if err != nil {
+			return nil, err
+		}
+		s[index] = dstData
+
+		index++
+		offset = offsetto
+	}
+
+	return bytes.Join(s, []byte("")), nil
 }
 
-func RsaDecrypt(cipherData []byte, priKey []byte)([]byte, error){
+func RsaDecrypt(cipherData []byte, priKey []byte, limit int)([]byte, error){
 	block, _ := pem.Decode(priKey)
 	if block == nil {
 		return nil, errors.New("pri key error")
@@ -82,7 +121,37 @@ func RsaDecrypt(cipherData []byte, priKey []byte)([]byte, error){
 		return nil, err
 	}
 
-	return rsa.DecryptPKCS1v15(rand.Reader, priInterface, cipherData)
+	// 分段解密
+	length := len(cipherData)
+
+	cnt := length/limit
+	if length%limit != 0{
+		cnt += 1
+	}
+	s := make([][]byte, cnt)
+
+	index := 0
+	offset := 0
+	for ; offset < length;  {
+		offsetto := 0
+		if length - offset > limit {
+			offsetto = offset + limit
+		}else{
+			offsetto = length
+		}
+		srcData := cipherData[offset:offsetto]
+
+		dstData, err := rsa.DecryptPKCS1v15(rand.Reader, priInterface, srcData)
+		if err != nil {
+			return nil, err
+		}
+		s[index] = dstData
+
+		index++
+		offset = offsetto
+	}
+
+	return bytes.Join(s, []byte("")), nil
 }
 
 func RsaSign(hash crypto.Hash, hashData []byte, priKey []byte)([]byte, error){

@@ -12,22 +12,24 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"blockchain_server/utils"
-	"fmt"
 	"sort"
 	"github.com/ethereum/go-ethereum"
+	"sync"
+	"sync/atomic"
 )
 
 type Client struct {
 	c                *ethclient.Client
-	addresses        SortedString
-	pendingTxChannel chan *types.Transfer
+	addresslist      SortedString
+	//pendingTxChannel chan *types.Transfer
 	// TODO:由于blockheight被两个routine使用, 应该加上同步!!
 	blockHeight      uint64
 	scanblock        uint64
 	rctChannel       types.RechargeTxChannel
+	ctx				 context.Context
+	ctx_canncel		 context.CancelFunc
 
-	ctx					context.Context
-	ctx_canncel			context.CancelFunc
+	address_locker   *sync.RWMutex
 }
 
 type SortedString []string
@@ -49,7 +51,15 @@ func (self SortedString)containString(s string) bool {
 	return false
 }
 
-func NewClient(rctChannel types.RechargeTxChannel) (*Client, error) {
+func (self *Client)lock() {
+	self.address_locker.Lock()
+}
+
+func (self *Client)unlock() {
+	self.address_locker.Unlock()
+}
+
+func NewClient() (*Client, error) {
 	//ctx, _ := context.WithTimeout(context.Background(), time.Second * 5)
 	//rpc_client, err := rpc.DialContext(ctx, config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
 	//if err!=nil {
@@ -62,20 +72,19 @@ func NewClient(rctChannel types.RechargeTxChannel) (*Client, error) {
 		l4g.Error("create eth client error! message:%s", err.Error())
 		return nil, err
 	}
-	c := &Client{c:client, rctChannel:rctChannel}
+	c := &Client{c:client}
 	c.init()
 
 	return c, nil
 }
 
 func  (self *Client) init() {
-	self.addresses = make([]string, 0, 1024)
-	self.blockHeight = self.Blocknumber()
+	self.addresslist = make([]string, 0, 512)
+	atomic.StoreUint64(&self.blockHeight, self.BlockHeight())
 	self.scanblock = config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
+	self.address_locker = new(sync.RWMutex)
 }
-
-
 
 func (self *Client) Start() error {
 	if err := self.beginSubscribeBlockHaders(); err!=nil {
@@ -95,6 +104,11 @@ func (self *Client) Name() string {
 
 func (self *Client) NewAccount()(*types.Account, error) {
 	return NewAccount()
+}
+
+
+func (self *Client)SubscribeRechageTx(txRechChannel types.RechargeTxChannel) {
+	self.rctChannel = txRechChannel
 }
 
 // from is a crypted private key
@@ -166,12 +180,17 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 	return etypes.NewTransaction(nonce, address, big.NewInt(int64(tx.Value)), gaslimit, gasprice, nil), nil
 }
 
-func (self *Client)Blocknumber() uint64 {
-	blocknumber, err := self.c.BlockByNumber(context.TODO(), nil)
+func (self Client) getBlockHeight() uint64 {
+	block, err := self.c.BlockByNumber(context.TODO(), nil)
 	if err!=nil {
 		return 0
 	}
-	return blocknumber.NumberU64()
+	atomic.StoreUint64(&self.blockHeight, block.NumberU64())
+	return atomic.LoadUint64(&self.blockHeight)
+}
+
+func (self *Client) BlockHeight() uint64 {
+	return atomic.LoadUint64(&self.blockHeight)
 }
 
 func (self *Client)Tx(tx_hash string)(*types.Transfer, error) {
@@ -189,7 +208,7 @@ func (self *Client)Tx(tx_hash string)(*types.Transfer, error) {
 		big_blocknumber = big.NewInt(0)
 	}
 
-	return txToTx(tx, big_blocknumber.Uint64(), self.Blocknumber()), nil
+	return txToTx(tx, big_blocknumber.Uint64(), atomic.LoadUint64(&self.blockHeight)), nil
 }
 
 func (self *Client) beginSubscribeBlockHaders() error {
@@ -203,6 +222,7 @@ func (self *Client) beginSubscribeBlockHaders() error {
 	l4g.Trace("eth Subscribe new block header, begin!")
 
 	go func(header_chan chan *etypes.Header) {
+		defer subscription.Unsubscribe()
 		for {
 			select {
 			case <-self.ctx.Done() : {
@@ -213,7 +233,7 @@ func (self *Client) beginSubscribeBlockHaders() error {
 			}
 			case header := <- header_chan: {
 				// TODO: 订阅到新区块, 可以搞一些事情
-				self.blockHeight = header.Number.Uint64()
+				atomic.StoreUint64(&self.blockHeight, header.Number.Uint64())
 			}
 			}
 		}
@@ -225,24 +245,15 @@ func (self *Client) beginSubscribeBlockHaders() error {
 	return nil
 }
 
-
-//TxRecipt(ctx context.Context, tx_hash string)(*types.Transfer, error)
-//func (self *Client)Blocknumber(ctx context.Context) (uint64, error) {
-//	n, err := self.c.BlockByNumber(ctx, nil)
-//	if err!=nil {
-//		return 0, err
-//	}
-//	return n.NumberU64(), nil
-//}
-
 func (self *Client) beginScanBlock() error {
-	if nil==self.addresses || len(self.addresses)==0 {
-		return fmt.Errorf("address length is 0, please add cared address")
-	}
-
 	go func() {
 		for {
-			if self.blockHeight <= self.scanblock {
+			height := atomic.LoadUint64(&self.blockHeight)
+
+			if nil==self.addresslist || len(self.addresslist)==0 ||
+				height <= self.scanblock ||
+				self.rctChannel == nil {
+				l4g.Trace("recharge address is nil, or scanblockheight==blockheight or recharge channel is nil, sleep 1 second")
 				time.Sleep(time.Second)
 				continue
 			}
@@ -266,12 +277,13 @@ func (self *Client) beginScanBlock() error {
 
 				time.Sleep(time.Second)
 
-				if !self.addresses.containString(tx.To().String()) {
+				if !self.hasAddress(tx.To().String()) {
 					continue
 				}
+
 				// TODO : check if tx.TO().String() hax prefix "0x" originally
 				l4g.Trace("Transaction to address in wallet storage: %s", tx.To().String())
-				self.rctChannel <- &types.RechargeTx{types.Chain_eth, txToTx(tx,  block.NumberU64(), uint64(self.blockHeight))}
+				self.rctChannel <- &types.RechargeTx{types.Chain_eth, txToTx(tx,  block.NumberU64(), height)}
 			}
 
 			self.scanblock++
@@ -282,6 +294,7 @@ func (self *Client) beginScanBlock() error {
 				goto endfor
 			}
 			default: {
+				time.Sleep(time.Second * 5)
 			}
 			}
 
@@ -289,6 +302,12 @@ func (self *Client) beginScanBlock() error {
 	endfor:
 	}()
 	return nil
+}
+
+func (self *Client) hasAddress(address string) bool {
+	self.lock()
+	defer self.unlock()
+	return self.addresslist.containString(address)
 }
 
 func txToTx(tx *etypes.Transaction, inblock uint64, lastblock uint64) *types.Transfer {
@@ -316,29 +335,37 @@ func txToTx(tx *etypes.Transaction, inblock uint64, lastblock uint64) *types.Tra
 	}
 }
 
-func (self *Client)InsertCareAddress(address []string) {
-	// TODO : 这个在修改address时, 应该使用同步的方式
-	if self.addresses==nil {
-		self.addresses = make([]string, 0, 1024)
+func (self *Client) InsertRechageAddress(address []string) {
+	self.lock()
+	defer self.unlock()
+
+	if self.addresslist ==nil {
+		self.addresslist = make([]string, 0, 512)
 	}
 
-	if len(self.addresses)==0 {
+	if len(self.addresslist)==0 {
 		for _, value := range address {
-			self.addresses = append(self.addresses, value)
+			self.addresslist = append(self.addresslist, value)
 		}
-		sort.Strings(self.addresses)
+		sort.Strings(self.addresslist)
 		return
 	}
 
 	for _, value := range address {
-		if !self.addresses.containString(value) {
-			insertByOrder(self.addresses, value)
+		if !self.addresslist.containString(value) {
+			insertByOrder(self.addresslist, value)
 		}
 	}
 }
 
 func (self *Client) Stop() {
 	self.ctx_canncel()
-	config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber = self.blockHeight
-	config.GetConfiger().Save(types.Chain_eth)
+
+	atomic.StoreUint64(&config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber, atomic.LoadUint64(&self.blockHeight))
+
+	config.GetConfiger().Save()
+
+	//close(self.rctChannel)
+	//close(self.pendingTxChannel)
+
 }

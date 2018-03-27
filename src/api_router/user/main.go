@@ -84,16 +84,16 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 }
 
 // http rpc风格
-// curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"srv":"v1.arith", "function":"add","argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]"}], "id": 1}' http://localhost:8080/rpc
+// curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"srv":"v1.arith", "function":"add","argv":"{\"a\":\"hello, \", \"b\":\"world\"}"}], "id": 1}' http://localhost:8080/rpc
 // curl -d '{
 // "method":"ServiceCenter.Dispatch",
-// "params":[{"srv":"v1.arith", "function":"add", "argv":"[{\"a\":\"hello, \", \"b\":\"world\"}]}],
+// "params":[{"srv":"v1.arith", "function":"add", "argv":"{\"a\":\"hello, \", \"b\":\"world\"}}],
 // "id": 1
 // }'
 // http://localhost:8080/rpc
 
 // http restful风格
-// curl -d '{"argv":"[{\"a\":2, \"b\":1}]"}' http://localhost:8080/restful/v1/arith/add
+// curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/restful/v1/arith/add
 func main() {
 
 	var err error
@@ -127,7 +127,7 @@ func main() {
 	ud.LicenseKey = yourlicensekey
 	ud.Message = func() string{
 		// 用我们的pub加密message ->encrypteddata
-		encrypted, err := utils.RsaEncrypt([]byte(yourmessage), serverPubKey)
+		encrypted, err := utils.RsaEncrypt([]byte(yourmessage), serverPubKey, utils.RsaEncodeLimit2048)
 		if err != nil {
 			return ""
 		}
@@ -183,6 +183,32 @@ func main() {
 		}else if input == "d1" {
 			nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, &ackData)
 			fmt.Println("ack==", ackData)
+
+			bmessage, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+			if err != nil {
+				fmt.Println("#Error AuthData--", err.Error())
+				continue
+			}
+
+			bsignature, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+			if err != nil {
+				fmt.Println("#Error AuthData--", err.Error())
+				continue
+			}
+
+			// 解密数据
+			d2, err := utils.RsaDecrypt(bmessage, priKey, utils.RsaDecodeLimit2048)
+			fmt.Println(string(d2))
+
+			// 验证签名
+			var hashData []byte
+			hs := sha512.New()
+			hs.Write(bmessage)
+			hashData = sha512.New().Sum(nil)
+
+			err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, serverPubKey)
+			fmt.Println("验证签名--", err)
+
 		}else if input == "d2" {
 			nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, dispatchData, &ackData)
 			fmt.Println("ack==", ackData)

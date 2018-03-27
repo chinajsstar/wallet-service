@@ -52,7 +52,8 @@ type CmdRechargeAddress struct {
 	Addresses  []string
 }
 
-type TxStateChange_Channel  chan *CmdTx
+type RechargeTxChannel chan *RechargeTx
+type CmdTxChannel chan *CmdTx
 type Addresswatcher_Channel chan *Transfer
 type TxState int
 
@@ -61,7 +62,6 @@ type RechargeTx struct {
 	Coin_name string
 	Tx        *Transfer
 }
-type RechargeTxChannel chan *RechargeTx
 
 type Transfer struct {
 	Tx_hash             string

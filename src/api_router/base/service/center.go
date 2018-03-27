@@ -205,8 +205,8 @@ func (mi *ServiceCenter) authData(req *data.ServiceCenterDispatchData, ack *data
 	req.Srv = "auth"
 	req.Function = "AuthData"
 
-	fmt.Println("Center auth data...")
 	versionSrvName := strings.ToLower(req.Srv + "." + req.Version)
+	fmt.Println("Center auth data...", versionSrvName)
 
 	return func() error {
 		mi.Rwmu.RLock()
@@ -324,13 +324,15 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 	// 分割参数
 	paths := strings.Split(path, "/")
 	for i := 0; i < len(paths); i++ {
-		if i < len(paths)-1 {
-			if dispatchData.Srv != "" {
-				dispatchData.Srv += "."
+		if i == 0 {
+			dispatchData.Version = paths[i]
+		}else if i == 1{
+			dispatchData.Srv = paths[i]
+		} else{
+			if dispatchData.Function != "" {
+				dispatchData.Function += "."
 			}
-			dispatchData.Srv += paths[i]
-		}else{
-			dispatchData.Function = paths[i]
+			dispatchData.Function += paths[i]
 		}
 	}
 

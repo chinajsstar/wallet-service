@@ -13,7 +13,7 @@ import (
 func TestNetCmdSvr(t *testing.T) {
 	rctChannel := make(types.RechargeTxChannel)
 	clientManager := &ClientManager{}
-	client, err := eth.NewClient(rctChannel)
+	client, err := eth.NewClient()
 
 	if nil!=err {
 		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error() )
@@ -39,18 +39,18 @@ func TestNetCmdSvr(t *testing.T) {
 	/*********添加监控地址示例*********/
 	addresses := []string{accs[0].Address, accs[1].Address}
 	rcaCmd := types.NewRechargeAddressCmd("message id", types.Chain_eth, addresses)
-	clientManager.SetRechargeAddress(rcaCmd)
+	clientManager.InsertRechargeAddress(rcaCmd)
 
 
 	/*********监控提币交易的channel*********/
-	txStateChannel := make(types.TxStateChange_Channel)
+	txStateChannel := make(types.CmdTxChannel)
 
 	// 创建并发送Transaction, 订阅只需要调用一次, 所有的Send的交易都会通过这个订阅channel传回来
-	clientManager.SubscribeTxStateChange(txStateChannel)
+	clientManager.SubscribeTxCmdState(txStateChannel)
 
 	ctx2, _ := context.WithCancel(ctx)
 	txok_channel := make(chan bool)
-	go func(ctx2 context.Context, txstateChannel types.TxStateChange_Channel) {
+	go func(ctx2 context.Context, txstateChannel types.CmdTxChannel) {
 		close := false
 		for !close {
 			select {
@@ -101,9 +101,9 @@ func TestNetCmdSvr(t *testing.T) {
 	}(ctx, rctChannel)
 
 	/*********开启服务!!!!!*********/
-	ctx3, _ := context.WithCancel(ctx)
 	rcTxChannel := make(types.RechargeTxChannel)
-	clientManager.Start(ctx3, rcTxChannel)
+	clientManager.SubscribeRechargeTx(rcTxChannel)
+	clientManager.Start()
 
 
 	okcount := 0

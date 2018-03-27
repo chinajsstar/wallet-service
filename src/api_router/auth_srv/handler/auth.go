@@ -84,19 +84,19 @@ func (auth* Auth)CreateUser(licenseKey string, userName string, pubKey string)er
 func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)  error{
 	user, err := auth.getUser(req.Argv.LicenseKey)
 	if err != nil {
-		fmt.Println("111--", err.Error())
+		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
 	bmessage, err := base64.StdEncoding.DecodeString(req.Argv.Message)
 	if err != nil {
-		fmt.Println("222--", err.Error())
+		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
 	bsignature, err := base64.StdEncoding.DecodeString(req.Argv.Signature)
 	if err != nil {
-		fmt.Println("333--", err.Error())
+		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
@@ -108,15 +108,15 @@ func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.Service
 
 	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, []byte(user.PubKey))
 	if err != nil {
-		fmt.Println("444--", err.Error())
+		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
 	// 解密数据
 	var originData []byte
-	originData, err = utils.RsaDecrypt(bmessage, auth.PrivateKey)
+	originData, err = utils.RsaDecrypt(bmessage, auth.PrivateKey, utils.RsaDecodeLimit2048)
 	if err != nil {
-		fmt.Println("555--", err.Error())
+		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
@@ -131,14 +131,14 @@ func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.Service
 func (auth *Auth)EncryptData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)  error{
 	user, err := auth.getUser(req.Argv.LicenseKey)
 	if err != nil {
-		fmt.Println("111--", err.Error())
+		fmt.Println("#Error EncryptData--", err.Error())
 		return err
 	}
 
 	// 加密
 	ack.Value.Message, err = func() (string, error){
 		// 用用户的pub加密message ->encrypteddata
-		encrypted, err := utils.RsaEncrypt([]byte(req.Argv.Message), []byte(user.PubKey))
+		encrypted, err := utils.RsaEncrypt([]byte(req.Argv.Message), []byte(user.PubKey), utils.RsaEncodeLimit2048)
 		if err != nil {
 			return "", err
 		}
