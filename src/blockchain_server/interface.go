@@ -16,8 +16,10 @@ type ChainClient interface {
 	SendTx(privkey string, transfer *types.Transfer) error
 	Tx(tx_hash string)(*types.Transfer, error)
 	//TxRecipt(ctx context.Context, tx_hash string)(*types.Transfer, error)
-	Blocknumber() (uint64)
-	InsertCareAddress(address []string)
+	BlockHeight() (uint64)
+	InsertRechageAddress(address []string)
+
+	SubscribeRechageTx(txRechChannel types.RechargeTxChannel)
 
 	Start() error
 	Stop()

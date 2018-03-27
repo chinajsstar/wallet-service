@@ -24,19 +24,20 @@ func init() {
 }
 
 func main() {
-	rctChannel := make(types.RechargeTxChannel)
 	clientManager := service.NewClientManager()
-	client, err := eth.NewClient(rctChannel)
-
-
+	client, err := eth.NewClient()
 	if nil!=err {
 		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error() )
 		return
 	}
 
+	txRechChannel := make(types.RechargeTxChannel, 56)
+	subTxRech := clientManager.SubscribeTxRecharge(txRechChannel)
+	txStateChannel := make(types.CmdTxChannel, 56)
+	subTx := clientManager.SubscribeTxCmdState(txStateChannel)
+
 	// add client instance to manager
 	clientManager.AddClient(client)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -52,7 +53,7 @@ func main() {
 	/*********添加监控地址示例*********/
 	rcaCmd := types.NewRechargeAddressCmd("message id of monitor recharge address command", types.Chain_eth,
 		[]string{accs[0].Address, tmp_toaddress})
-	clientManager.SetRechargeAddress(rcaCmd)
+	clientManager.InsertRechargeAddress(rcaCmd)
 
 	/*********创建监控充币地址channael*********/
 	rcTxChannel := make(types.RechargeTxChannel)
@@ -76,16 +77,14 @@ func main() {
 	}(ctx, rcTxChannel)
 
 	/*********监控提币交易的channel*********/
-	txStateChannel := make(types.TxStateChange_Channel)
-	subTx := clientManager.SubscribeTxStateChange(txStateChannel)
 	txok_channel := make(chan bool)
 	// 开启交易监控goroutine
-	go func(tctx context.Context, xstateChannel types.TxStateChange_Channel) {
+	go func(tctx context.Context, xstateChannel types.CmdTxChannel) {
 		close := false
 		for !close {
 			select {
 			case cmdTx := <-txStateChannel:{
-				fmt.Printf("Transaction state changed, transaction information:%s\n",
+				l4g.Trace("Transaction state changed, transaction information:%s\n",
 					cmdTx.Tx.String())
 
 				if cmdTx.Tx.State == types.Tx_state_confirmed {
@@ -129,11 +128,12 @@ func main() {
 		l4g.Trace("watching address gorouine already exited!")
 	}
 
-
 	// 关闭所有client
 	clientManager.Close()
 	// 关闭订阅
 	subTx.Unsubscribe()
+	subTxRech.Unsubscribe()
+
 	// 处罚ctx.done(), 结束地址监控和交易监控的goroutine
 	cancel()
 
