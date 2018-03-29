@@ -8,16 +8,15 @@ import (
 	"crypto/sha512"
 	"crypto"
 	"io/ioutil"
-	"../user"
 	"encoding/base64"
 	"sync"
 )
 
 type Auth struct{
-	PrivateKey []byte
+	privateKey []byte
 
-	Rwmu sync.RWMutex
-	users map[string]*user.User
+	rwmu sync.RWMutex
+	usersLicenseKey map[string][]byte
 }
 
 var defaultAuth = &Auth{}
@@ -26,42 +25,40 @@ func AuthInstance() *Auth{
 	return defaultAuth
 }
 
-func (auth * Auth)getUser(licenseKey string) (*user.User, error)  {
-	usr := func() *user.User{
-		auth.Rwmu.RLock()
-		defer auth.Rwmu.RUnlock()
+func (auth * Auth)getUserPubKey(licenseKey string) ([]byte, error)  {
+	key := func() []byte{
+		auth.rwmu.RLock()
+		defer auth.rwmu.RUnlock()
 
-		usr := auth.users[licenseKey]
-		if usr != nil {
-			return usr
+		key := auth.usersLicenseKey[licenseKey]
+		if key != nil {
+			return key
 		}
-		return nil
+		return key
 	}()
-	if usr != nil {
-		return usr,nil
+	if key != nil {
+		return key,nil
 	}
 
-	return func() (*user.User, error){
-		auth.Rwmu.Lock()
-		defer auth.Rwmu.Unlock()
+	return func() ([]byte, error){
+		auth.rwmu.Lock()
+		defer auth.rwmu.Unlock()
 
-		usr := auth.users[licenseKey]
-		if usr != nil {
-			return usr, nil
+		key := auth.usersLicenseKey[licenseKey]
+		if key != nil {
+			return key, nil
 		}
-		user, err := db.Read(licenseKey)
+		keyStr, err := db.ReadPubKey(licenseKey)
 		if err != nil {
-			fmt.Println("111--", err.Error())
 			return nil, err
 		}
-
-		return user, nil
+		return []byte(keyStr), nil
 	}()
 }
 
 func (auth * Auth)Init() error {
 	var err error
-	auth.PrivateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
+	auth.privateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -70,25 +67,15 @@ func (auth * Auth)Init() error {
 	return nil
 }
 
-// 创建
-func (auth* Auth)CreateUser(licenseKey string, userName string, pubKey string)error{
-	user := user.User{}
-	user.LicenseKey = licenseKey
-	user.Username = userName
-	user.PubKey = pubKey
-
-	return db.Create(&user)
-}
-
 // 验证数据
 func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)  error{
-	user, err := auth.getUser(req.Argv.LicenseKey)
+	pubKey, err := auth.getUserPubKey(req.Argv.LicenseKey)
 	if err != nil {
 		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
-	bmessage, err := base64.StdEncoding.DecodeString(req.Argv.Message)
+	bencrypted, err := base64.StdEncoding.DecodeString(req.Argv.Message)
 	if err != nil {
 		fmt.Println("#Error AuthData--", err.Error())
 		return err
@@ -103,10 +90,10 @@ func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.Service
 	// 验证签名
 	var hashData []byte
 	hs := sha512.New()
-	hs.Write(bmessage)
-	hashData = sha512.New().Sum(nil)
+	hs.Write(bencrypted)
+	hashData = hs.Sum(nil)
 
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, []byte(user.PubKey))
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, []byte(pubKey))
 	if err != nil {
 		fmt.Println("#Error AuthData--", err.Error())
 		return err
@@ -114,7 +101,7 @@ func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.Service
 
 	// 解密数据
 	var originData []byte
-	originData, err = utils.RsaDecrypt(bmessage, auth.PrivateKey, utils.RsaDecodeLimit2048)
+	originData, err = utils.RsaDecrypt(bencrypted, auth.privateKey, utils.RsaDecodeLimit2048)
 	if err != nil {
 		fmt.Println("#Error AuthData--", err.Error())
 		return err
@@ -129,47 +116,49 @@ func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.Service
 
 // 打包数据
 func (auth *Auth)EncryptData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)  error{
-	user, err := auth.getUser(req.Argv.LicenseKey)
+	pubKey, err := auth.getUserPubKey(req.Argv.LicenseKey)
 	if err != nil {
 		fmt.Println("#Error EncryptData--", err.Error())
 		return err
 	}
 
 	// 加密
-	ack.Value.Message, err = func() (string, error){
+	bencrypted, err := func() ([]byte, error){
 		// 用用户的pub加密message ->encrypteddata
-		encrypted, err := utils.RsaEncrypt([]byte(req.Argv.Message), []byte(user.PubKey), utils.RsaEncodeLimit2048)
+		bencrypted, err := utils.RsaEncrypt([]byte(req.Argv.Message), []byte(pubKey), utils.RsaEncodeLimit2048)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		return base64.StdEncoding.EncodeToString(encrypted), nil
+		return bencrypted, nil
 	}()
 	if err != nil {
 		return err
 	}
+	ack.Value.Message = base64.StdEncoding.EncodeToString(bencrypted)
 
 	// 签名
-	ack.Value.Signature, err = func() (string, error){
+	bsignature, err := func() ([]byte, error){
 		// 用服务器的pri签名encrypteddata ->signature
 		var hashData []byte
 		hs := sha512.New()
-		hs.Write([]byte(ack.Value.Message))
-		hashData = sha512.New().Sum(nil)
+		hs.Write(bencrypted)
+		hashData = hs.Sum(nil)
 
-		var signData []byte
-		signData, err = utils.RsaSign(crypto.SHA512, hashData, auth.PrivateKey)
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, auth.privateKey)
 		if err != nil {
 			fmt.Println(err)
-			return "", err
+			return nil, err
 		}
 
-		return base64.StdEncoding.EncodeToString(signData), nil
+		return bsignature, nil
 	}()
 	if err != nil {
 		return err
 	}
+	ack.Value.Signature = base64.StdEncoding.EncodeToString(bsignature)
 
+	// licensekey
 	ack.Value.LicenseKey = req.Argv.LicenseKey
 
 	return nil

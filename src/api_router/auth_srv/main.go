@@ -69,8 +69,6 @@ func main() {
 	var err error
 	var cipherData []byte
 
-	var index int
-
 	time.Sleep(time.Second*2)
 	for ; ;  {
 		fmt.Println("Input 'quit' to quit...")
@@ -80,34 +78,7 @@ func main() {
 		if input == "quit" {
 			cancel()
 			break;
-		}else if input == "rsagen"{
-			index++
-			pri := fmt.Sprintf("/Users/henly.liu/workspace/private_%d.pem", index)
-			pub := fmt.Sprintf("/Users/henly.liu/workspace/public_%d.pem", index)
-			err := utils.RsaGen(2048, pri, pub)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			pubKey, err := ioutil.ReadFile(pub)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			licenseKey := fmt.Sprintf("licensekey_%d", index)
-			userName := fmt.Sprintf("username_%d", index)
-
-			err = handler.AuthInstance().CreateUser(licenseKey, userName, string(pubKey))
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			fmt.Println("rsagen ok")
 		}else if input == "rsatest" {
-
 			var priKey, pubKey []byte
 			priKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
 			if err != nil {
@@ -169,7 +140,7 @@ func main() {
 			var hashData []byte
 			hs := sha512.New()
 			hs.Write(cipherData)
-			hashData = sha512.New().Sum(nil)
+			hashData = hs.Sum(nil)
 			fmt.Println("哈希后数据：")
 			fmt.Println(hashData)
 

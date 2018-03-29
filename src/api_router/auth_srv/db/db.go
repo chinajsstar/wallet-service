@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
-	"../user"
+	userdb "../../user_srv/db"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -19,11 +18,7 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"delete": "DELETE from %s.%s where licensekey = ?",
-		"create": `INSERT into %s.%s (
-				licensekey, username, pubkey, created) 
-				values (?, ?, ?, ?)`,
-		"read": "SELECT licensekey, username, pubkey, created from %s.%s where licensekey = ?",
+		"readPubKey": "SELECT public_key from %s.%s where license_key = ? limit ? offset ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -55,14 +50,14 @@ func Init() {
 	if d, err = sql.Open("mysql", Url); err != nil {
 		log.Fatal(err)
 	}
-	if _, err = d.Exec(accountSchema); err != nil {
+	if _, err = d.Exec(userdb.UsersSchema); err != nil {
 		log.Fatal(err)
 	}
 
 	db = d
 
 	for query, statement := range accountQ {
-		prepared, err := db.Prepare(fmt.Sprintf(statement, database, "accounts"))
+		prepared, err := db.Prepare(fmt.Sprintf(statement, database, "users"))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -70,27 +65,16 @@ func Init() {
 	}
 }
 
-func Create(user *user.User) error {
-	user.Created = time.Now().Unix()
-	_, err := st["create"].Exec(user.LicenseKey, user.Username, user.PubKey, user.Created)
-	return err
-}
+func ReadPubKey(licenseKey string) (string, error) {
+	r := st["readPubKey"].QueryRow(licenseKey, 1, 0)
 
-func Delete(licensekey string) error {
-	_, err := st["delete"].Exec(licensekey)
-	return err
-}
-
-func Read(licensekey string) (*user.User, error) {
-	user := &user.User{}
-
-	r := st["read"].QueryRow(licensekey)
-	if err := r.Scan(&user.LicenseKey, &user.Username, &user.PubKey, &user.Created); err != nil {
+	pubKey := ""
+	if err := r.Scan(&pubKey); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.New("not found")
+			return "", errors.New("not found")
 		}
-		return nil, err
+		return "", err
 	}
 
-	return user, nil
+	return pubKey, nil
 }

@@ -174,7 +174,7 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 
 	// 请求服务
 	reqSrv := *req
-	reqSrv.Argv = ackAuth.Value
+	reqSrv.Argv.Message = ackAuth.Value.Message
 	var ackSrv data.ServiceCenterDispatchAckData
 	func(){
 		versionSrvName := strings.ToLower(reqSrv.Srv + "." + reqSrv.Version)
@@ -195,7 +195,7 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 	// 打包数据
 	var reqEncrypted data.ServiceCenterDispatchData
 	reqEncrypted = *req
-	reqEncrypted.Argv = ackSrv.Value
+	reqEncrypted.Argv.Message = ackSrv.Value.Message
 	mi.encryptData(&reqEncrypted, ack)
 
 	return nil
