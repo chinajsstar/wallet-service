@@ -21,4 +21,9 @@ const(
 	// 1001-2000 auth_srv使用
 	ErrAuthSrvIllegalData 		= 1001
 	ErrAuthSrvIllegalDataText 	= "非法数据"
+
+	// 2001-3000 user_srv使用
+	ErrUserSrvRegister			= 2001
+	ErrUserSrvRegisterText		= "用户注册失败"
+
 )
