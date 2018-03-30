@@ -59,8 +59,11 @@ func (srvNode *SrvNode)sendData(method string, params interface{}, res interface
 type SrvNodeGroup struct{
 	Srv	string
 	Rwmu sync.RWMutex
+
 	AddrMapSrvNode map[string]*SrvNode
 }
+
+
 
 func (sng *SrvNodeGroup) RegisterNode(reg *data.ServiceCenterRegisterData) error {
 	sng.Rwmu.Lock()
@@ -74,8 +77,6 @@ func (sng *SrvNodeGroup) RegisterNode(reg *data.ServiceCenterRegisterData) error
 	if sng.AddrMapSrvNode[reg.Addr] == nil {
 		sng.AddrMapSrvNode[reg.Addr] = &SrvNode{RegisterData:*reg, Client:nil}
 	}
-
-	time.Now()
 
 	fmt.Println("srv-", sng.Srv, ",register node-", reg.Addr, ",all-", len(sng.AddrMapSrvNode))
 	return nil
@@ -99,13 +100,13 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.ServiceCenterRegisterData) err
 	return nil
 }
 
-func (sng *SrvNodeGroup) Dispatch(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+func (sng *SrvNodeGroup) Dispatch(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
 	sng.Rwmu.RLock()
 	defer sng.Rwmu.RUnlock()
 
 	if sng.AddrMapSrvNode == nil || len(sng.AddrMapSrvNode) == 0 {
-		ack.Err = data.ErrNotFindSrv
-		ack.ErrMsg = data.ErrNotFindSrvText
+		ack.SrvAck.Err = data.ErrNotFindSrv
+		ack.SrvAck.ErrMsg = data.ErrNotFindSrvText
 		return nil
 	}
 
@@ -117,8 +118,8 @@ func (sng *SrvNodeGroup) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 		break
 	}
 	if srvNode == nil{
-		ack.Err = data.ErrNotFindSrv
-		ack.ErrMsg = data.ErrNotFindSrvText
+		ack.SrvAck.Err = data.ErrNotFindSrv
+		ack.SrvAck.ErrMsg = data.ErrNotFindSrvText
 		return nil
 	}
 
@@ -135,12 +136,12 @@ func (sng *SrvNodeGroup) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 
 			srvNode.closeClient()
 
-			ack.Err = data.ErrCall
-			ack.ErrMsg = err.Error()
+			ack.SrvAck.Err = data.ErrCall
+			ack.SrvAck.ErrMsg = err.Error()
 		}
 	}else{
-		ack.Err = data.ErrClientConn
-		ack.ErrMsg = data.ErrClientConnText
+		ack.SrvAck.Err = data.ErrClientConn
+		ack.SrvAck.ErrMsg = data.ErrClientConnText
 	}
 
 	return nil

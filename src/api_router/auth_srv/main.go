@@ -10,11 +10,12 @@ import (
 	"context"
 	"time"
 	"sync"
-	"../utils"
+	"../base/utils"
 	"io/ioutil"
 	"crypto/sha512"
 	"crypto"
 	"strings"
+	"errors"
 )
 
 const AuthSrvName = "auth"
@@ -24,25 +25,27 @@ const (
 	SrvAddr = "127.0.0.1:8091"
 )
 
+var g_apisMap = make(map[string]service.CallNodeApi)
+
 // 注册方法
-func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
+func callAuthFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error{
 	var err error
-	switch strings.ToLower(req.Function) {
-	case "authdata":
-		err = handler.AuthInstance().AuthData(req, ack)
-		break
-	case "encryptdata":
-		err = handler.AuthInstance().EncryptData(req, ack)
-		break
+	h := g_apisMap[strings.ToLower(req.SrvArgv.Function)]
+	if h != nil {
+		err = h(req, ack)
+	}else{
+		err = errors.New("not find api")
 	}
 
 	if err != nil {
-		ack.Err = data.ErrAuthSrvIllegalData
-		ack.ErrMsg = data.ErrAuthSrvIllegalDataText
+		ack.SrvAck.Err = data.ErrAuthSrvIllegalData
+		ack.SrvAck.ErrMsg = data.ErrAuthSrvIllegalDataText
 	}
 
 	fmt.Println("callNodeApi req: ", *req)
 	fmt.Println("callNodeApi ack: ", *ack)
+
+	return err
 }
 
 func main() {
@@ -56,7 +59,7 @@ func main() {
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(AuthSrvName, AuthSrvVersion)
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterFunction(new(handler.Auth))
+	handler.AuthInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
 	nodeInstance.Handler = callAuthFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr

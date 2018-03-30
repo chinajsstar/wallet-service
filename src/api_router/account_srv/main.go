@@ -6,13 +6,14 @@ import (
 	"../data"
 	"./handler"
 	"./db"
-	"../utils"
+	"../base/utils"
 	"fmt"
 	"context"
 	"time"
 	"sync"
 	"strings"
 	"./install"
+	"errors"
 )
 
 const AccountSrvName = "account"
@@ -21,58 +22,48 @@ const (
 	GateWayAddr = "127.0.0.1:8081"
 	SrvAddr = "127.0.0.1:8092"
 )
+var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
-func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
+func callAuthFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
 	var err error
-	err = func() error{
-		var err error
-		switch strings.ToLower(req.Function) {
-		case "create":
-			err = handler.AccountInstance().Create(req, ack)
-			break
-		case "login":
-			err = handler.AccountInstance().Login(req, ack)
-			break
-		case "logout":
-			err = handler.AccountInstance().Logout(req, ack)
-			break
-		case "updatepassword":
-			err = handler.AccountInstance().UpdatePassword(req, ack)
-			break
-		case "listusers":
-			err = handler.AccountInstance().ListUsers(req, ack)
-			break
-		}
-
-		return err
-	}()
+	h := g_apisMap[strings.ToLower(req.SrvArgv.Function)]
+	if h != nil {
+		err = h(req, ack)
+	}else{
+		err = errors.New("not find api")
+	}
 
 	if err != nil {
 		fmt.Println(err)
-		ack.Err = data.ErrUserSrvRegister
-		ack.ErrMsg = data.ErrUserSrvRegisterText
+		ack.SrvAck.Err = data.ErrUserSrvRegister
+		ack.SrvAck.ErrMsg = data.ErrUserSrvRegisterText
 	}
 
 	fmt.Println("callNodeApi req: ", *req)
 	fmt.Println("callNodeApi ack: ", *ack)
+
+	return err
 }
 
 func main() {
 	wg := &sync.WaitGroup{}
-
-	handler.AccountInstance().Init()
 
 	// 启动db
 	db.Init()
 
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(AccountSrvName, AccountSrvVersion)
+
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterFunction(new(handler.Account))
 	nodeInstance.Handler = callAuthFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr
+
+	// 注册API
+	handler.AccountInstance().Init()
+	handler.AccountInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
+
 	rpc.Register(nodeInstance)
 
 	// 启动节点服务

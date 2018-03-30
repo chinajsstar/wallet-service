@@ -7,10 +7,12 @@ import (
 	"crypto/rand"
 	"io/ioutil"
 	"../user"
+	"../../base/service"
 	"encoding/base64"
 	"golang.org/x/crypto/bcrypt"
 	"encoding/json"
 	"github.com/satori/go.uuid"
+	"errors"
 )
 
 const (
@@ -56,6 +58,36 @@ func (s *Account)Init() error {
 	s.serverPublicKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_wallet.pem")
 	if err != nil {
 		fmt.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *Account)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.CallNodeApi) error  {
+	regapi := func(name string, caller service.CallNodeApi, level int) error {
+		if (*apisfunc)[name] != nil {
+			return errors.New("api is already exist...")
+		}
+
+		*apis = append(*apis, data.ApiInfo{name, level})
+		(*apisfunc)[name] = caller
+		return nil
+	}
+
+	if err := regapi("create", service.CallNodeApi(s.Create), data.APILevel_boss); err != nil {
+		return err
+	}
+
+	if err := regapi("listusers", service.CallNodeApi(s.ListUsers), data.APILevel_admin); err != nil {
+		return err
+	}
+
+	if err := regapi("login", service.CallNodeApi(s.Login), data.APILevel_admin); err != nil {
+		return err
+	}
+
+	if err := regapi("updatepassword", service.CallNodeApi(s.UpdatePassword), data.APILevel_admin); err != nil {
 		return err
 	}
 
@@ -109,30 +141,14 @@ func (s *Account) LoginWebAdmin(din *user.UserLogin) (*user.UserLoginAck, error)
 		return nil, err
 	}
 
-	// TODO: add session
-	// save session
-	/*
-	sess := &account.Session{
-		Id:       random(128),
-		Username: username,
-		Created:  time.Now().Unix(),
-		Expires:  time.Now().Add(time.Hour * 24 * 7).Unix(),
-	}
-
-	if err := db.CreateSession(sess); err != nil {
-		return errors.InternalServerError("go.micro.srv.user.Login", err.Error())
-	}
-	rsp.Session = sess
-	*/
-
 	return dout, nil
 }
 
 // 创建账号
-func (s *Account) Create(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+func (s *Account) Create(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
 	// from req
 	din := user.UserCreate{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
+	err := json.Unmarshal([]byte(req.SrvArgv.Argv.Message), &din)
 	if err != nil {
 		return err
 	}
@@ -169,15 +185,15 @@ func (s *Account) Create(req *data.ServiceCenterDispatchData, ack *data.ServiceC
 		return err
 	}
 
-	ack.Value.Message = string(d)
+	ack.SrvAck.Value.Message = string(d)
 	return err
 }
 
 // 登入
-func (s *Account) Login(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+func (s *Account) Login(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
 	// from req
 	din := user.UserLogin{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
+	err := json.Unmarshal([]byte(req.SrvArgv.Argv.Message), &din)
 	if err != nil {
 		return err
 	}
@@ -219,22 +235,22 @@ func (s *Account) Login(req *data.ServiceCenterDispatchData, ack *data.ServiceCe
 		return err
 	}
 
-	ack.Value.Message = string(data)
+	ack.SrvAck.Value.Message = string(data)
 	return nil
 }
 
 // 登陆
-func (s *Account) Logout(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+func (s *Account) Logout(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
 	// TODO: 登出session处理
 	//return db.DeleteSession(req.SessionId)
 	return nil
 }
 
 // 更新密码
-func (s * Account) UpdatePassword(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error  {
+func (s * Account) UpdatePassword(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error  {
 	// from req
 	din := user.UserUpdatePassword{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
+	err := json.Unmarshal([]byte(req.SrvArgv.Argv.Message), &din)
 	if err != nil {
 		return err
 	}
@@ -274,16 +290,16 @@ func (s * Account) UpdatePassword(req *data.ServiceCenterDispatchData, ack *data
 		return err
 	}
 
-	ack.Value.Message = string(data)
+	ack.SrvAck.Value.Message = string(data)
 	return nil
 }
 
 // 获取用户列表
 // 登入
-func (s *Account) ListUsers(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+func (s *Account) ListUsers(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
 	// from req
 	din := user.UserList{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
+	err := json.Unmarshal([]byte(req.SrvArgv.Argv.Message), &din)
 	if err != nil {
 		return err
 	}
@@ -301,6 +317,6 @@ func (s *Account) ListUsers(req *data.ServiceCenterDispatchData, ack *data.Servi
 		return err
 	}
 
-	ack.Value.Message = string(data)
+	ack.SrvAck.Value.Message = string(data)
 	return nil
 }

@@ -3,13 +3,15 @@ package handler
 import (
 	"fmt"
 	"../db"
-	"../../utils"
+	"../../base/utils"
 	"../../data"
+	"../../base/service"
 	"crypto/sha512"
 	"crypto"
 	"io/ioutil"
 	"encoding/base64"
 	"sync"
+	"errors"
 )
 
 type Auth struct{
@@ -67,21 +69,43 @@ func (auth * Auth)Init() error {
 	return nil
 }
 
+func (auth *Auth)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.CallNodeApi) error  {
+	regapi := func(name string, caller service.CallNodeApi, level int) error {
+		if (*apisfunc)[name] != nil {
+			return errors.New("api is already exist...")
+		}
+
+		*apis = append(*apis, data.ApiInfo{name, level})
+		(*apisfunc)[name] = caller
+		return nil
+	}
+
+	if err := regapi("authdata", service.CallNodeApi(auth.AuthData), data.APILevel_client); err != nil {
+		return err
+	}
+
+	if err := regapi("encryptdata", service.CallNodeApi(auth.EncryptData), data.APILevel_client); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // 验证数据
-func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)  error{
-	pubKey, err := auth.getUserPubKey(req.Argv.LicenseKey)
+func (auth *Auth)AuthData(req *data.SrvDispatchData, ack *data.SrvDispatchAckData)  error{
+	pubKey, err := auth.getUserPubKey(req.SrvArgv.Argv.LicenseKey)
 	if err != nil {
 		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
-	bencrypted, err := base64.StdEncoding.DecodeString(req.Argv.Message)
+	bencrypted, err := base64.StdEncoding.DecodeString(req.SrvArgv.Argv.Message)
 	if err != nil {
 		fmt.Println("#Error AuthData--", err.Error())
 		return err
 	}
 
-	bsignature, err := base64.StdEncoding.DecodeString(req.Argv.Signature)
+	bsignature, err := base64.StdEncoding.DecodeString(req.SrvArgv.Argv.Signature)
 	if err != nil {
 		fmt.Println("#Error AuthData--", err.Error())
 		return err
@@ -107,16 +131,16 @@ func (auth *Auth)AuthData(req *data.ServiceCenterDispatchData, ack *data.Service
 		return err
 	}
 
-	ack.Value.Message = string(originData)
-	ack.Value.Signature = ""
-	ack.Value.LicenseKey = req.Argv.LicenseKey
+	ack.SrvAck.Value.Message = string(originData)
+	ack.SrvAck.Value.Signature = ""
+	ack.SrvAck.Value.LicenseKey = req.SrvArgv.Argv.LicenseKey
 
 	return nil
 }
 
 // 打包数据
-func (auth *Auth)EncryptData(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)  error{
-	pubKey, err := auth.getUserPubKey(req.Argv.LicenseKey)
+func (auth *Auth)EncryptData(req *data.SrvDispatchData, ack *data.SrvDispatchAckData)  error{
+	pubKey, err := auth.getUserPubKey(req.SrvArgv.Argv.LicenseKey)
 	if err != nil {
 		fmt.Println("#Error EncryptData--", err.Error())
 		return err
@@ -125,7 +149,7 @@ func (auth *Auth)EncryptData(req *data.ServiceCenterDispatchData, ack *data.Serv
 	// 加密
 	bencrypted, err := func() ([]byte, error){
 		// 用用户的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(req.Argv.Message), []byte(pubKey), utils.RsaEncodeLimit2048)
+		bencrypted, err := utils.RsaEncrypt([]byte(req.SrvArgv.Argv.Message), []byte(pubKey), utils.RsaEncodeLimit2048)
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +159,7 @@ func (auth *Auth)EncryptData(req *data.ServiceCenterDispatchData, ack *data.Serv
 	if err != nil {
 		return err
 	}
-	ack.Value.Message = base64.StdEncoding.EncodeToString(bencrypted)
+	ack.SrvAck.Value.Message = base64.StdEncoding.EncodeToString(bencrypted)
 
 	// 签名
 	bsignature, err := func() ([]byte, error){
@@ -156,10 +180,10 @@ func (auth *Auth)EncryptData(req *data.ServiceCenterDispatchData, ack *data.Serv
 	if err != nil {
 		return err
 	}
-	ack.Value.Signature = base64.StdEncoding.EncodeToString(bsignature)
+	ack.SrvAck.Value.Signature = base64.StdEncoding.EncodeToString(bsignature)
 
 	// licensekey
-	ack.Value.LicenseKey = req.Argv.LicenseKey
+	ack.SrvAck.Value.LicenseKey = req.SrvArgv.Argv.LicenseKey
 
 	return nil
 }

@@ -14,7 +14,7 @@ import (
 )
 
 // 服务节点回调接口
-type CallNodeApi func(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)
+type CallNodeApi func(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error
 
 // 服务节点信息
 type ServiceNode struct{
@@ -91,16 +91,16 @@ func (ni *ServiceNode)Start(ctx context.Context, wg *sync.WaitGroup) error {
 
 // RPC 方法
 // 服务节点RPC--调用节点方法ServiceNodeInstance.Call
-func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	ack.Err = data.NoErr
-	ack.ErrMsg = ""
+func (ni *ServiceNode) Call(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
+	ack.SrvAck.Err = data.NoErr
+	ack.SrvAck.ErrMsg = ""
 	if ni.Handler != nil {
 		ni.Handler(req, ack)
 	}else{
-		fmt.Println("Error function call (no handler)--function=" , req.Function, ",argv=", req.Argv)
+		fmt.Println("Error function call (no handler)--function=" , req.SrvArgv.Function, ",argv=", req.SrvArgv.Argv)
 
-		ack.Err = data.ErrSrvInternalErr
-		ack.ErrMsg = data.ErrSrvInternalErrText
+		ack.SrvAck.Err = data.ErrSrvInternalErr
+		ack.SrvAck.ErrMsg = data.ErrSrvInternalErrText
 	}
 
 	return nil
