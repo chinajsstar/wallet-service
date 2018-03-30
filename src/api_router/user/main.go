@@ -19,6 +19,7 @@ import (
 	"../account_srv/user"
 	"../account_srv/install"
 	"errors"
+	"strconv"
 )
 
 var g_admin_prikey []byte
@@ -104,10 +105,10 @@ func sendData(message, version, srv, function string) (*data.ServiceCenterDispat
 	dispatchData.Argv = ud
 
 	////////////////////////////////////////////
-	fmt.Println("ok send msg:", dispatchData)
+	//fmt.Println("ok send msg:", dispatchData)
 	ackData := &data.ServiceCenterDispatchAckData{}
 	nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, ackData)
-	fmt.Println("ok get ack:", ackData)
+	//fmt.Println("ok get ack:", ackData)
 
 	if ackData.Err != data.NoErr {
 		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
@@ -261,11 +262,11 @@ func main() {
 	}()
 	if err != nil {
 		fmt.Println("#err:", err)
-		return
+		//return
 	}
 
 	// 测试次数
-	const times = 100;
+	var runtimes = 100
 	var count, right int64
 	count = 0
 	right = 0
@@ -308,6 +309,11 @@ func main() {
 			fmt.Println("ack==", ackData)
 		}else if argv[0] == "d3" {
 
+			runtimes = 100
+			if len(argv) > 1 {
+				runtimes, _ = strconv.Atoi(argv[1])
+			}
+
 			var ud data.UserData
 			ud.Message = testMessage
 
@@ -316,10 +322,15 @@ func main() {
 			dispatchData.Srv = testSrv
 			dispatchData.Function = testFunction
 			dispatchData.Argv = ud
-			for i := 0; i < times; i++ {
-				go DoTestTcp(dispatchData, &count, &right, times)
+			for i := 0; i < runtimes; i++ {
+				go DoTestTcp(dispatchData, &count, &right, int64(runtimes))
 			}
 		} else if argv[0] == "d33" {
+
+			runtimes = 100
+			if len(argv) > 1 {
+				runtimes, _ = strconv.Atoi(argv[1])
+			}
 
 			client, err := rpc.Dial("tcp", "127.0.0.1:8090")
 			if err != nil {
@@ -335,14 +346,23 @@ func main() {
 			dispatchData.Srv = testSrv
 			dispatchData.Function = testFunction
 			dispatchData.Argv = ud
-			for i := 0; i < times*times*2; i++ {
-				go DoTestTcp2(client, dispatchData, &count, &right, times*times*2)
+			for i := 0; i < runtimes; i++ {
+				go DoTestTcp2(client, dispatchData, &count, &right, int64(runtimes))
 			}
 		}else if argv[0] == "d4" {
-			for i := 0; i < times; i++ {
-				go DoTest(&count, &right, times)
+			runtimes = 100
+			if len(argv) > 1 {
+				runtimes, _ = strconv.Atoi(argv[1])
+			}
+
+			for i := 0; i < runtimes; i++ {
+				go DoTest(&count, &right, int64(runtimes))
 			}
 		} else if argv[0] == "d44" {
+			runtimes = 100
+			if len(argv) > 1 {
+				runtimes, _ = strconv.Atoi(argv[1])
+			}
 
 			addr := "127.0.0.1:8080"
 			log.Println("Call JRPC to Http server...", addr)
@@ -352,8 +372,8 @@ func main() {
 				log.Println("Error: ", err.Error())
 				continue
 			}
-			for i := 0; i < times*times*2; i++ {
-				go DoTest2(client, &count, &right, times*times*2)
+			for i := 0; i < runtimes; i++ {
+				go DoTest2(client, &count, &right, int64(runtimes))
 			}
 		}else if argv[0] == "rsagen"{
 			u, err := uuid.NewV4()

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"fmt"
 	"time"
+	"sync/atomic"
 )
 
 type SrvNode struct{
@@ -61,15 +62,17 @@ type SrvNodeGroup struct{
 	Rwmu sync.RWMutex
 
 	AddrMapSrvNode map[string]*SrvNode
+
+	index int64
+	nodes []*SrvNode
 }
-
-
 
 func (sng *SrvNodeGroup) RegisterNode(reg *data.ServiceCenterRegisterData) error {
 	sng.Rwmu.Lock()
 	defer sng.Rwmu.Unlock()
 
 	if sng.AddrMapSrvNode == nil {
+		sng.index = 0
 		sng.Srv = reg.Srv
 		sng.AddrMapSrvNode = make(map[string]*SrvNode)
 	}
@@ -77,6 +80,8 @@ func (sng *SrvNodeGroup) RegisterNode(reg *data.ServiceCenterRegisterData) error
 	if sng.AddrMapSrvNode[reg.Addr] == nil {
 		sng.AddrMapSrvNode[reg.Addr] = &SrvNode{RegisterData:*reg, Client:nil}
 	}
+
+	sng.nodes = append(sng.nodes, sng.AddrMapSrvNode[reg.Addr])
 
 	fmt.Println("srv-", sng.Srv, ",register node-", reg.Addr, ",all-", len(sng.AddrMapSrvNode))
 	return nil
@@ -91,10 +96,18 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.ServiceCenterRegisterData) err
 	}
 
 	srvNode := sng.AddrMapSrvNode[reg.Addr]
+
+	for i, v := range sng.nodes {
+		if v == srvNode {
+			sng.nodes = append(sng.nodes[:i], sng.nodes[i+1:]...)
+		}
+	}
+
 	if srvNode != nil {
 		srvNode.closeClient()
 	}
 	delete(sng.AddrMapSrvNode, reg.Addr)
+
 
 	fmt.Println("srv-", sng.Srv, ",unregister node-", reg.Addr, ",all-", len(sng.AddrMapSrvNode))
 	return nil
@@ -110,13 +123,8 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvDispatchData, ack *data.SrvDispat
 		return nil
 	}
 
-	// TODO:根据算法获取空闲的
-	// NOTE:go map 多次range会从随机位置开始迭代
 	var srvNode *SrvNode
-	for _, v := range sng.AddrMapSrvNode{
-		srvNode = v
-		break
-	}
+	srvNode = sng.getNode()
 	if srvNode == nil{
 		ack.SrvAck.Err = data.ErrNotFindSrv
 		ack.SrvAck.ErrMsg = data.ErrNotFindSrvText
@@ -145,6 +153,27 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvDispatchData, ack *data.SrvDispat
 	}
 
 	return nil
+}
+
+func (sng *SrvNodeGroup) getNode() *SrvNode {
+	// TODO:根据算法获取空闲的
+	// NOTE:go map 多次range会从随机位置开始迭代
+	/*
+		for _, v := range sng.AddrMapSrvNode{
+		srvNode = v
+		break
+	}
+	 */
+	length := int64(len(sng.nodes))
+	if length == 0 {
+		return nil
+	}
+
+	atomic.AddInt64(&sng.index, 1)
+	atomic.CompareAndSwapInt64(&sng.index, length, 0)
+
+	index := sng.index % length
+	return sng.nodes[index]
 }
 
 func (sng *SrvNodeGroup)KeepAlive() {

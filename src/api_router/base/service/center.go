@@ -215,7 +215,7 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 	var rpcSrvAck data.SrvDispatchAckData
 	func(){
 		versionSrvName := strings.ToLower(rpcSrv.SrvArgv.Srv + "." + rpcSrv.SrvArgv.Version)
-		fmt.Println("Center dispatch...", versionSrvName, ".", rpcSrv.SrvArgv.Function)
+		//fmt.Println("Center dispatch...", versionSrvName, ".", rpcSrv.SrvArgv.Function)
 
 		mi.Rwmu.RLock()
 		defer mi.Rwmu.RUnlock()
@@ -253,7 +253,7 @@ func (mi *ServiceCenter) authData(req *data.SrvDispatchData, ack *data.SrvDispat
 	reqAck := data.SrvDispatchAckData{}
 
 	versionSrvName := strings.ToLower(reqAuth.SrvArgv.Srv + "." + reqAuth.SrvArgv.Version)
-	fmt.Println("Center auth data...", versionSrvName)
+	//fmt.Println("Center auth data...", versionSrvName)
 
 	return func() error {
 		mi.Rwmu.RLock()
@@ -280,7 +280,7 @@ func (mi *ServiceCenter) encryptData(req *data.SrvDispatchData, ack *data.SrvDis
 
 	reqAck := data.SrvDispatchAckData{}
 
-	fmt.Println("Center encrypt data...")
+	//fmt.Println("Center encrypt data...")
 	versionSrvName := strings.ToLower(reqEnc.SrvArgv.Srv + "." + reqEnc.SrvArgv.Version)
 
 	return func() error {

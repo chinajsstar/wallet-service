@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"api_router/data"
+	"../../data"
 	"../../base/service"
 	"errors"
 )

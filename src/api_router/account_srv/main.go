@@ -36,8 +36,8 @@ func callAuthFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) e
 
 	if err != nil {
 		fmt.Println(err)
-		ack.SrvAck.Err = data.ErrUserSrvRegister
-		ack.SrvAck.ErrMsg = data.ErrUserSrvRegisterText
+		ack.SrvAck.Err = data.ErrAccountSrvRegister
+		ack.SrvAck.ErrMsg = data.ErrAccountSrvRegisterText
 	}
 
 	fmt.Println("callNodeApi req: ", *req)

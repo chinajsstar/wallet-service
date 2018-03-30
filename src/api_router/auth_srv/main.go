@@ -22,7 +22,7 @@ const AuthSrvName = "auth"
 const AuthSrvVersion = "v1"
 const (
 	GateWayAddr = "127.0.0.1:8081"
-	SrvAddr = "127.0.0.1:8091"
+	SrvAddr = "127.0.0.1:8001"
 )
 
 var g_apisMap = make(map[string]service.CallNodeApi)
@@ -42,8 +42,8 @@ func callAuthFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) e
 		ack.SrvAck.ErrMsg = data.ErrAuthSrvIllegalDataText
 	}
 
-	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *ack)
+	//fmt.Println("callNodeApi req: ", *req)
+	//fmt.Println("callNodeApi ack: ", *ack)
 
 	return err
 }

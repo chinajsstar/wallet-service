@@ -31,8 +31,8 @@ func callArithFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) 
 		err = errors.New("not find api")
 	}
 
-	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *ack)
+	//fmt.Println("callNodeApi req: ", *req)
+	//fmt.Println("callNodeApi ack: ", *ack)
 
 	return err
 }
