@@ -41,7 +41,7 @@ type CmdTx struct {
 	Tx        *Transfer
 }
 
-type CmdAccounts struct {
+type CmdNewAccounts struct {
 	NetCmd
 	Amount uint32
 }
@@ -52,9 +52,16 @@ type CmdRechargeAddress struct {
 	Addresses  []string
 }
 
+type CmdqueryTx struct {
+	NetCmd
+	Hash string
+}
+
+type NetCmdChannel chan interface{}
+type CmdqTxChannel chan *CmdqueryTx
 type RechargeTxChannel chan *RechargeTx
 type CmdTxChannel chan *CmdTx
-type Addresswatcher_Channel chan *Transfer
+type TxChannel chan *Transfer
 type TxState int
 
 // Transaction of Recharge
@@ -163,8 +170,14 @@ func NewNetCmdErr(code int32, message string, data interface{}) *NetCmdErr {
 	return &NetCmdErr{Code:code, Message:message, Data:data}
 }
 
-func NewAccountCmd(msgId, coinname string, amount uint32) *CmdAccounts {
-	return &CmdAccounts{
+func NewQueryTxCmd(msgId, coinname, hash string) *CmdqueryTx {
+	return &CmdqueryTx{
+		NetCmd:NetCmd{MsgId:msgId, Coinname:coinname, Method:"get_transaction", Result:nil, Error:nil},
+		Hash: hash}
+}
+
+func NewAccountCmd(msgId, coinname string, amount uint32) *CmdNewAccounts {
+	return &CmdNewAccounts{
 		NetCmd:NetCmd{MsgId: msgId, Coinname:coinname, Method:"new_account", Result:nil, Error:nil},
 		Amount:amount}
 }

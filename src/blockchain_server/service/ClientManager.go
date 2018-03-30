@@ -27,8 +27,9 @@ type ErrSendTx struct {
 }
 
 type ClientManager struct {
-	txCmdChannel types.CmdTxChannel			// txCmdChannel 用于接收外部调用的命令并执行
-	txRchChannel types.RechargeTxChannel	// txRchChannel 接收所有Client监听地址充值事件
+	txCmdChannel types.CmdTxChannel			// txCmdChannel    用于接收外部调用的命令并执行
+	txRchChannel types.RechargeTxChannel	// txRchChannel    接收所有Client监听地址充值事件
+	txCmdqTxChannel types.CmdqTxChannel		// txCmdqTxChannel 通过hash值查询tx的channel
 
 	clients      map[string]blockchain_server.ChainClient
 
@@ -39,6 +40,10 @@ type ClientManager struct {
 
 	ctx 			context.Context
 	ctx_cannel 		context.CancelFunc
+
+
+	// TODO: try do all net command within one go routine
+	cmdChannel types.NetCmdChannel
 }
 
 func newInvalidParamError(msg string) *ErrorInvalideParam{
@@ -246,6 +251,58 @@ func (self *ClientManager) trackTxCmd(txCmd *types.CmdTx) {
 endfor:
 }
 
+/*  if qtxchannel is nil, block and returns tx or error
+	else no block, returns directly, with 2 nil,
+	then, send back cmdqtx from qtxchannel,
+	as tx information stored in the netcmd.result member*/
+func (self *ClientManager) QuryTx(cmdqTx *types.CmdqueryTx, qTxChannel types.CmdqTxChannel) (tx *types.Transfer, err error) {
+
+	instance := self.clients[cmdqTx.Coinname]
+	if instance==nil {
+		return nil, fmt.Errorf("query on not supported coin type(%s)", cmdqTx.Coinname)
+	}
+	if qTxChannel==nil {
+		tx, err = instance.Tx(cmdqTx.Hash)
+	} else {
+		go func() {
+			cmdqTx.Result, err = instance.Tx(cmdqTx.Hash)
+			if err!=nil {
+				cmdqTx.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
+			}
+			qTxChannel <- cmdqTx
+		}()
+	}
+	return tx, err
+}
+
+// TODO:
+//func (self *ClientManager) loopNetCmd(){
+//	if self.cmdChannel==nil {
+//		self.cmdChannel = make(types.NetCmdChannel)
+//	}
+//
+//	for {
+//		select {
+//		case cmd := <- self.cmdChannel: {
+//			if value, ok := cmd.(*types.CmdqueryTx); ok {
+//				// do CmdqueryTx
+//			}
+//			if value, ok := cmd.(*types.CmdTx); ok {
+//
+//			}
+//
+//			if value, ok := cmd.(*types.CmdNewAccounts); ok {
+//
+//			}
+//		}
+//		case self.ctx.Done(){
+//
+//		}
+//		}
+//	}
+//	endfor:
+//}
+
 func (self *ClientManager) trackTxState(clientName string,
 	tx *types.Transfer, tx_channel chan *types.Transfer, err_channel chan error) {
 
@@ -407,7 +464,7 @@ func (self *ClientManager) init () {
 	self.ctx, self.ctx_cannel = context.WithCancel(context.Background())
 }
 
-func (self *ClientManager)NewAccounts(cmd *types.CmdAccounts) ([]*types.Account, error) {
+func (self *ClientManager)NewAccounts(cmd *types.CmdNewAccounts) ([]*types.Account, error) {
 	if cmd.Amount==0 || cmd.Amount>max_once_account_number {
 		return nil, newInvalidParamError(fmt.Sprintf("the count of account must >0 and <%d", max_once_account_number))
 	}
