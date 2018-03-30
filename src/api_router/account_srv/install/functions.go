@@ -1,19 +1,18 @@
-package admin
+package install
 
 import (
 	"fmt"
 	"io/ioutil"
 	"crypto/md5"
 	"encoding/base64"
-	"encoding/json"
-	"../../user_srv/user"
+	"../user"
 	"strconv"
 )
 
-func AddUser() (string, error) {
+func AddUser() (*user.UserCreate, error) {
 	var input string
 
-	uc := user.UserCreate{}
+	uc := &user.UserCreate{}
 
 	fmt.Println("输入用户名: ")
 	fmt.Scanln(&input)
@@ -33,7 +32,7 @@ func AddUser() (string, error) {
 	pubKey, err := ioutil.ReadFile(pubPath)
 	if err != nil {
 		fmt.Println(err)
-		return "",err
+		return nil, err
 	}
 	uc.PublicKey = string(pubKey)
 
@@ -60,25 +59,29 @@ func AddUser() (string, error) {
 	// 密码base64
 	uc.Password = base64.StdEncoding.EncodeToString(pw)
 
-	uc.Language = "ch"
-	uc.Country = "China"
-	uc.TimeZone = "Beijing"
-	uc.GoogleAuth = ""
+	fmt.Println("输入国家: ")
+	fmt.Scanln(&input)
+	uc.Country = input
 
-	// 打包
-	m, err := json.Marshal(uc)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
+	fmt.Println("输入语言: ")
+	fmt.Scanln(&input)
+	uc.Language = input
 
-	return string(m), nil
+	fmt.Println("输入时区: ")
+	fmt.Scanln(&input)
+	uc.TimeZone = input
+
+	fmt.Println("输入google验证: ")
+	fmt.Scanln(&input)
+	uc.GoogleAuth = input
+
+	return uc, nil
 }
 
-func LoginUser() (string, error) {
+func LoginUser() (*user.UserLogin, error) {
 	var input string
 
-	uc := user.UserLogin{}
+	uc := &user.UserLogin{}
 
 	fmt.Println("用户名，电话，邮箱填一个: ")
 	fmt.Println("输入用户名: ")
@@ -104,32 +107,18 @@ func LoginUser() (string, error) {
 	// 密码base64
 	uc.Password = base64.StdEncoding.EncodeToString(pw)
 
-	// 打包
-	m, err := json.Marshal(uc)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-
-	return string(m), nil
+	return uc, nil
 }
 
-func ListUsers() (string, error) {
+func ListUsers() (*user.UserList, error) {
 	var err error
 	var input string
 
-	uc := user.UserList{}
+	uc := &user.UserList{}
 
 	fmt.Println("输入上次最小id，默认填-1: ")
 	fmt.Scanln(&input)
 	uc.Id, err = strconv.Atoi(input)
 
-	// 打包
-	m, err := json.Marshal(uc)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-
-	return string(m), nil
+	return uc, err
 }

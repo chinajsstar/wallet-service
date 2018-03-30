@@ -187,6 +187,7 @@ func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data
 		if srvNodeGroup == nil{
 			ack.Err = data.ErrNotFindSrv
 			ack.ErrMsg = data.ErrNotFindSrvText
+			return
 		}
 
 		srvNodeGroup.Dispatch(&reqSrv, &ackSrv)

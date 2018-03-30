@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	userdb "../../user_srv/db"
+	userdb "../../account_srv/db"
 	_ "github.com/go-sql-driver/mysql"
 )
 

@@ -16,36 +16,61 @@ import (
 	"encoding/base64"
 	"strings"
 	"github.com/satori/go.uuid"
-	"../user_srv/user"
+	"../account_srv/user"
+	"../account_srv/install"
 	"errors"
-	"./admin"
 )
 
+var g_admin_prikey []byte
+var g_admin_pubkey []byte
+var g_admin_licensekey string
 
-func sendData(serverPubKey []byte, message, version, srv, function string) ([]byte, error) {
-	priPath := fmt.Sprintf("/Users/henly.liu/workspace/private_%s.pem", "1")
+var g_server_pubkey []byte
 
+func loadRsaKeys() error {
 	var err error
-	var priKey []byte
-	priKey, err = ioutil.ReadFile(priPath)
+	g_admin_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_admin.pem")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	g_admin_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_admin.pem")
+	if err != nil {
+		return err
+	}
+
+	g_server_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_wallet.pem")
+	if err != nil {
+		return err
+	}
+
+	g_admin_licensekey = "c9730876-6f26-4bcb-8e8e-38b384280644"
+
+	return nil
+}
+
+const(
+	testMessage = "{\"a\":1, \"b\":1}"
+	testVersion = "v1"
+	testSrv = "arith"
+	testFunction = "add"
+)
+
+func sendData(message, version, srv, function string) (*data.ServiceCenterDispatchAckData, []byte, error) {
 	// 用户数据
 	var ud data.UserData
-	ud.LicenseKey = "c9730876-6f26-4bcb-8e8e-38b384280644"
+	ud.LicenseKey = g_admin_licensekey
 
 	bencrypted, err := func() ([]byte, error) {
 		// 用我们的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(message), serverPubKey, utils.RsaEncodeLimit2048)
+		bencrypted, err := utils.RsaEncrypt([]byte(message), g_server_pubkey, utils.RsaEncodeLimit2048)
 		if err != nil {
 			return nil, err
 		}
 		return bencrypted, nil
 	}()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ud.Message = base64.StdEncoding.EncodeToString(bencrypted)
@@ -57,7 +82,7 @@ func sendData(serverPubKey []byte, message, version, srv, function string) ([]by
 		hs.Write(bencrypted)
 		hashData = hs.Sum(nil)
 
-		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, priKey)
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, g_admin_prikey)
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
@@ -66,7 +91,7 @@ func sendData(serverPubKey []byte, message, version, srv, function string) ([]by
 		return bsignature, nil
 	}()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ud.Signature = base64.StdEncoding.EncodeToString(bsignature)
@@ -80,23 +105,23 @@ func sendData(serverPubKey []byte, message, version, srv, function string) ([]by
 
 	////////////////////////////////////////////
 	fmt.Println("ok send msg:", dispatchData)
-	ackData := data.ServiceCenterDispatchAckData{}
-	nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, &ackData)
+	ackData := &data.ServiceCenterDispatchAckData{}
+	nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, ackData)
 	fmt.Println("ok get ack:", ackData)
 
 	if ackData.Err != data.NoErr {
-		return nil, errors.New("# got err: " + ackData.ErrMsg)
+		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
 	}
 
 	// base64 decode
 	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
 	if err != nil {
-		return nil, err
+		return ackData, nil, err
 	}
 
 	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
 	if err != nil {
-		return nil, err
+		return ackData, nil, err
 	}
 
 	// 验证签名
@@ -105,31 +130,24 @@ func sendData(serverPubKey []byte, message, version, srv, function string) ([]by
 	hs.Write([]byte(bencrypted2))
 	hashData = hs.Sum(nil)
 
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, serverPubKey)
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, g_server_pubkey)
 	if err != nil {
-		return nil, err
+		return ackData, nil, err
 	}
 
 	// 解密数据
-	d2, err := utils.RsaDecrypt(bencrypted2, priKey, utils.RsaDecodeLimit2048)
+	d2, err := utils.RsaDecrypt(bencrypted2, g_admin_prikey, utils.RsaDecodeLimit2048)
 	if err != nil {
-		return nil, err
+		return ackData, nil, err
 	}
 
-	return d2, nil
+	return ackData, d2, nil
 }
-
-const(
-	testMessage = "{\"a\":1, \"b\":1}"
-	testVersion = "v1"
-	testSrv = "arith"
-	testFunction = "add"
-)
 
 var timeBegin,timeEnd time.Time
 
-func DoTest(serPubKey []byte, count *int64, right *int64, times int64){
-	d, err := sendData(serPubKey, testMessage, testVersion, testSrv, testFunction)
+func DoTest(count *int64, right *int64, times int64){
+	_, d, err := sendData(testMessage, testVersion, testSrv, testFunction)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil{
@@ -145,8 +163,8 @@ func DoTest(serPubKey []byte, count *int64, right *int64, times int64){
 	}
 }
 
-func DoTest2(client *rpc.Client, serPubKey []byte, count *int64, right *int64, times int64){
-	d, err := sendData(serPubKey, testMessage, testVersion, testSrv, testFunction)
+func DoTest2(client *rpc.Client, count *int64, right *int64, times int64){
+	_, d, err := sendData(testMessage, testVersion, testSrv, testFunction)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil{
@@ -208,12 +226,41 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 // curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/restful/v1/arith/add
 func main() {
 	// 加载服务器公钥
-	var err error
-	serverPubPath := fmt.Sprintf("/Users/henly.liu/workspace/public.pem")
-	var serverPubKey []byte
-	serverPubKey, err = ioutil.ReadFile(serverPubPath)
+	loadRsaKeys()
+
+	fmt.Println("Please first to login: ")
+	err := func() error {
+		m, err := install.LoginUser()
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		d, err := json.Marshal(m)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		_, d2, err := sendData(string(d), "v1", "account", "login")
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		uca := user.UserLoginAck{}
+		err = json.Unmarshal(d2, &uca)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		fmt.Println("login user ack: ", uca)
+
+		return nil
+	}()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("#err:", err)
 		return
 	}
 
@@ -241,7 +288,7 @@ func main() {
 			fmt.Println("I do quit")
 			break;
 		}else if argv[0] == "d1" {
-			d, err := sendData(serverPubKey, testMessage, testVersion, testSrv, testFunction)
+			_, d, err := sendData(testMessage, testVersion, testSrv, testFunction)
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(d))
 
@@ -293,7 +340,7 @@ func main() {
 			}
 		}else if argv[0] == "d4" {
 			for i := 0; i < times; i++ {
-				go DoTest(serverPubKey, &count, &right, times)
+				go DoTest(&count, &right, times)
 			}
 		} else if argv[0] == "d44" {
 
@@ -306,7 +353,7 @@ func main() {
 				continue
 			}
 			for i := 0; i < times*times*2; i++ {
-				go DoTest2(client, serverPubKey, &count, &right, times*times*2)
+				go DoTest2(client, &count, &right, times*times*2)
 			}
 		}else if argv[0] == "rsagen"{
 			u, err := uuid.NewV4()
@@ -325,15 +372,20 @@ func main() {
 			}
 
 			fmt.Println("rsagen ok, uuid-", uuid)
-		}else if argv[0] == "adduser"{
-
-			m, err := admin.AddUser()
+		}else if argv[0] == "test_adduser"{
+			m, err := install.AddUser()
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
-			d2, err := sendData(serverPubKey, m, "v1", "user", "create")
+			d, err := json.Marshal(m)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			_, d2, err := sendData(string(d), "v1", "account", "create")
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -348,15 +400,20 @@ func main() {
 			}
 
 			fmt.Println("create user ack: ", uca)
-		}else if argv[0] == "loginuser"{
-
-			m, err := admin.LoginUser()
+		}else if argv[0] == "test_loginuser"{
+			m, err := install.LoginUser()
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
-			d2, err := sendData(serverPubKey, m, "v1", "user", "login")
+			d, err := json.Marshal(m)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			_, d2, err := sendData(string(d), "v1", "account", "login")
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -371,15 +428,20 @@ func main() {
 			}
 
 			fmt.Println("login user ack: ", uca)
-		}else if argv[0] == "listusers"{
-
-			m, err := admin.ListUsers()
+		}else if argv[0] == "test_listusers"{
+			m, err := install.ListUsers()
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
-			d2, err := sendData(serverPubKey, m, "v1", "user", "listusers")
+			d, err := json.Marshal(m)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			_, d2, err := sendData(string(d), "v1", "account", "listusers")
 			if err != nil {
 				fmt.Println(err)
 				continue

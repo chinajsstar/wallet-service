@@ -6,20 +6,17 @@ import (
 	"../data"
 	"./handler"
 	"./db"
-	"./user"
 	"../utils"
 	"fmt"
 	"context"
 	"time"
 	"sync"
 	"strings"
-	"crypto/md5"
-	"io/ioutil"
-	"encoding/base64"
+	"./install"
 )
 
-const UserSrvName = "user"
-const UserSrvVersion = "v1"
+const AccountSrvName = "account"
+const AccountSrvVersion = "v1"
 const (
 	GateWayAddr = "127.0.0.1:8081"
 	SrvAddr = "127.0.0.1:8092"
@@ -70,7 +67,7 @@ func main() {
 	db.Init()
 
 	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(UserSrvName, UserSrvVersion)
+	nodeInstance, _:= service.NewServiceNode(AccountSrvName, AccountSrvVersion)
 	nodeInstance.RegisterData.Addr = SrvAddr
 	nodeInstance.RegisterData.RegisterFunction(new(handler.Account))
 	nodeInstance.Handler = callAuthFunction
@@ -85,6 +82,8 @@ func main() {
 	time.Sleep(time.Second*2)
 	for ; ;  {
 		fmt.Println("Input 'quit' to quit...")
+		fmt.Println("Input 'createadmin' to create a user...")
+		fmt.Println("Input 'loginadmin' to test the user...")
 		var input string
 		input = utils.ScanLine()
 
@@ -93,59 +92,26 @@ func main() {
 		if argv[0] == "quit" {
 			cancel()
 			break;
-		}else if argv[0] == "createwebadmin" {
-			if len(argv) < 6 {
-				fmt.Println("username phone email password pubkey, ", len(argv))
-				continue
-			}
-
-			pubPath := fmt.Sprintf("/Users/henly.liu/workspace/public_%s.pem", argv[5])
-			pubKey, err := ioutil.ReadFile(pubPath)
+		}else if argv[0] == "createadmin" {
+			uc, err := install.AddUser()
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("失败，",err)
 				continue
 			}
 
-			h := md5.New()
-			h.Write([]byte(argv[4]))
-			pw := h.Sum(nil)
-			pwss := base64.StdEncoding.EncodeToString(pw)
-
-			// name pubkey
-			uc := user.UserCreate{}
-			uc.UserName = argv[1]
-			uc.Phone = argv[2]
-			uc.Email = argv[3]
-			uc.Password = pwss
-			uc.Language = "ch"
-			uc.Country = "China"
-			uc.TimeZone = "Beijing"
-			uc.GoogleAuth = ""
-			uc.PublicKey = string(pubKey)
-
-			ack, err:= handler.AccountInstance().CreateWebAdmin(&uc)
-			fmt.Println("createwebadmin err:", err)
-			fmt.Println("createwebadmin ack:", ack)
-		}else if argv[0] == "loginwebadmin" {
-			if len(argv) < 3 {
-				fmt.Println("username password pubkey")
+			ack, err:= handler.AccountInstance().CreateWebAdmin(uc)
+			fmt.Println("createadmin err:", err)
+			fmt.Println("createadmin ack:", ack)
+		}else if argv[0] == "loginadmin" {
+			ul, err := install.LoginUser()
+			if err != nil {
+				fmt.Println("失败", err)
 				continue
 			}
-			h := md5.New()
-			h.Write([]byte(argv[2]))
-			pw := h.Sum(nil)
-			pwss := base64.StdEncoding.EncodeToString(pw)
 
-			// name pubkey
-			ul := user.UserLogin{}
-			ul.UserName = argv[1]
-			ul.Phone = "13585596201"
-			ul.Email = "henly.liu@blockshine.com"
-			ul.Password = pwss
-
-			ack, err:= handler.AccountInstance().LoginWebAdmin(&ul)
-			fmt.Println("loginwebadmin err:", err)
-			fmt.Println("loginwebadmin ack:", ack)
+			ack, err:= handler.AccountInstance().LoginWebAdmin(ul)
+			fmt.Println("loginadmin err:", err)
+			fmt.Println("loginadmin ack:", ack)
 		}
 	}
 

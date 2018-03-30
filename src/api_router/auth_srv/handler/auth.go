@@ -58,7 +58,7 @@ func (auth * Auth)getUserPubKey(licenseKey string) ([]byte, error)  {
 
 func (auth * Auth)Init() error {
 	var err error
-	auth.privateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
+	auth.privateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_wallet.pem")
 	if err != nil {
 		fmt.Println(err)
 		return err

@@ -48,12 +48,12 @@ func AccountInstance() *Account{
 // 初始化
 func (s *Account)Init() error {
 	var err error
-	s.privateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
+	s.privateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_wallet.pem")
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	s.serverPublicKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public.pem")
+	s.serverPublicKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_wallet.pem")
 	if err != nil {
 		fmt.Println(err)
 		return err
