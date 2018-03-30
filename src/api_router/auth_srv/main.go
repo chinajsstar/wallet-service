@@ -10,11 +10,12 @@ import (
 	"context"
 	"time"
 	"sync"
-	"../utils"
+	"../base/utils"
 	"io/ioutil"
 	"crypto/sha512"
 	"crypto"
 	"strings"
+	"errors"
 )
 
 const AuthSrvName = "auth"
@@ -24,25 +25,27 @@ const (
 	SrvAddr = "127.0.0.1:8091"
 )
 
+var g_apisMap = make(map[string]service.CallNodeApi)
+
 // 注册方法
-func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
+func callAuthFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error{
 	var err error
-	switch strings.ToLower(req.Function) {
-	case "authdata":
-		err = handler.AuthInstance().AuthData(req, ack)
-		break
-	case "encryptdata":
-		err = handler.AuthInstance().EncryptData(req, ack)
-		break
+	h := g_apisMap[strings.ToLower(req.SrvArgv.Function)]
+	if h != nil {
+		err = h(req, ack)
+	}else{
+		err = errors.New("not find api")
 	}
 
 	if err != nil {
-		ack.Err = data.ErrAuthSrvIllegalData
-		ack.ErrMsg = data.ErrAuthSrvIllegalDataText
+		ack.SrvAck.Err = data.ErrAuthSrvIllegalData
+		ack.SrvAck.ErrMsg = data.ErrAuthSrvIllegalDataText
 	}
 
 	fmt.Println("callNodeApi req: ", *req)
 	fmt.Println("callNodeApi ack: ", *ack)
+
+	return err
 }
 
 func main() {
@@ -56,7 +59,7 @@ func main() {
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(AuthSrvName, AuthSrvVersion)
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterFunction(new(handler.Auth))
+	handler.AuthInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
 	nodeInstance.Handler = callAuthFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr
@@ -69,8 +72,6 @@ func main() {
 	var err error
 	var cipherData []byte
 
-	var index int
-
 	time.Sleep(time.Second*2)
 	for ; ;  {
 		fmt.Println("Input 'quit' to quit...")
@@ -80,34 +81,7 @@ func main() {
 		if input == "quit" {
 			cancel()
 			break;
-		}else if input == "rsagen"{
-			index++
-			pri := fmt.Sprintf("/Users/henly.liu/workspace/private_%d.pem", index)
-			pub := fmt.Sprintf("/Users/henly.liu/workspace/public_%d.pem", index)
-			err := utils.RsaGen(2048, pri, pub)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			pubKey, err := ioutil.ReadFile(pub)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			licenseKey := fmt.Sprintf("licensekey_%d", index)
-			userName := fmt.Sprintf("username_%d", index)
-
-			err = handler.AuthInstance().CreateUser(licenseKey, userName, string(pubKey))
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			fmt.Println("rsagen ok")
 		}else if input == "rsatest" {
-
 			var priKey, pubKey []byte
 			priKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
 			if err != nil {
@@ -169,7 +143,7 @@ func main() {
 			var hashData []byte
 			hs := sha512.New()
 			hs.Write(cipherData)
-			hashData = sha512.New().Sum(nil)
+			hashData = hs.Sum(nil)
 			fmt.Println("哈希后数据：")
 			fmt.Println(hashData)
 
