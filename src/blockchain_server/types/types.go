@@ -61,6 +61,7 @@ type TxState int
 type RechargeTx struct {
 	Coin_name string
 	Tx        *Transfer
+	Err		  error
 }
 
 type Transfer struct {
@@ -114,14 +115,14 @@ func TxStateString(state TxState) string {
 
 func (tx *Transfer)String() string {
 	return fmt.Sprintf(`
-	TX (%s)
-	From:	%s
-	To:		%s
-	State:	%s
-	Value:	%d
-	gasfee:	%d 
+	TX      %s
+	From:   %s
+	To:     %s
+	State:  %s
+	Value:  %d
+	gasfee: %d 
 	OnBlock:%d
-	CurrentBlock:	%d`,
+	CurrentBlock: %d`,
 		tx.Tx_hash,
 		tx.From,
 		tx.To,
