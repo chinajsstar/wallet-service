@@ -39,6 +39,7 @@ func (ntc *Notice) recvRechargeTxChannel() {
 			case rct := <-channel:
 				{
 					fmt.Printf("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+					fmt.Println(rct)
 				}
 			case <-ctx.Done():
 				{

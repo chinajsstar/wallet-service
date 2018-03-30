@@ -49,3 +49,11 @@ type RspWithdrawal struct {
 		Msg  string `json:"msg"`
 	} `json:"status"`
 }
+
+type UserAssetAddress struct {
+	UserID     string `json:"user_id"`
+	AssetID    int    `json:"asset_id"`
+	Address    string `json:"address"`
+	Enabled    bool   `json:"enabled"`
+	CreateTime string `json:"create_time"`
+}
