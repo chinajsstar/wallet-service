@@ -5,6 +5,8 @@ import (
 	"../../base/service"
 	"errors"
 	"fmt"
+	"encoding/json"
+	"strconv"
 )
 
 type Args struct {
@@ -32,5 +34,19 @@ func (arith *Arith)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]servic
 	return nil
 }
 
-func (arith *Arith)Add(req *data.SrvRequestData, ack *data.SrvResponseData){
+func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
+	res.Data.Err = data.NoErr
+
+	// from req
+	din := Args{}
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
+	if err != nil {
+		res.Data.Err = data.ErrSrvInternalErr
+		res.Data.ErrMsg = data.ErrSrvInternalErrText
+		return
+	}
+
+	res.Data.Value.Message = strconv.Itoa(din.A+din.B)
+	res.Data.Value.Signature = ""
+	res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
 }
