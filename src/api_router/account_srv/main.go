@@ -13,7 +13,7 @@ import (
 	"sync"
 	"strings"
 	"./install"
-	"errors"
+	"encoding/json"
 )
 
 const AccountSrvName = "account"
@@ -25,25 +25,17 @@ const (
 var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
-func callAuthFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
-	var err error
-	h := g_apisMap[strings.ToLower(req.SrvArgv.Function)]
+func callAuthFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
+	h := g_apisMap[strings.ToLower(req.Data.Function)]
 	if h != nil {
-		err = h(req, ack)
+		h(req, res)
 	}else{
-		err = errors.New("not find api")
-	}
-
-	if err != nil {
-		fmt.Println(err)
-		ack.SrvAck.Err = data.ErrAccountSrvRegister
-		ack.SrvAck.ErrMsg = data.ErrAccountSrvRegisterText
+		res.Data.Err = data.ErrSrvInternalErr
+		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
 	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *ack)
-
-	return err
+	fmt.Println("callNodeApi ack: ", *res)
 }
 
 func main() {
@@ -89,20 +81,30 @@ func main() {
 				fmt.Println("失败，",err)
 				continue
 			}
+			b, _ := json.Marshal(uc)
 
-			ack, err:= handler.AccountInstance().CreateWebAdmin(uc)
-			fmt.Println("createadmin err:", err)
-			fmt.Println("createadmin ack:", ack)
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+
+			handler.AccountInstance().Create(&req, &res)
+			fmt.Println("createadmin err:", req)
+			fmt.Println("createadmin ack:", res)
 		}else if argv[0] == "loginadmin" {
 			ul, err := install.LoginUser()
 			if err != nil {
 				fmt.Println("失败", err)
 				continue
 			}
+			b, _ := json.Marshal(ul)
 
-			ack, err:= handler.AccountInstance().LoginWebAdmin(ul)
-			fmt.Println("loginadmin err:", err)
-			fmt.Println("loginadmin ack:", ack)
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+
+			handler.AccountInstance().Login(&req, &res)
+			fmt.Println("loginadmin err:", req)
+			fmt.Println("loginadmin ack:", res)
 		}
 	}
 

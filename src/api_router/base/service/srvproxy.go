@@ -11,7 +11,7 @@ import (
 )
 
 type SrvNode struct{
-	RegisterData data.ServiceCenterRegisterData
+	RegisterData data.SrvRegisterData
 
 	Rwmu sync.RWMutex
 	Client *rpc.Client
@@ -67,7 +67,7 @@ type SrvNodeGroup struct{
 	nodes []*SrvNode
 }
 
-func (sng *SrvNodeGroup) RegisterNode(reg *data.ServiceCenterRegisterData) error {
+func (sng *SrvNodeGroup) RegisterNode(reg *data.SrvRegisterData) error {
 	sng.Rwmu.Lock()
 	defer sng.Rwmu.Unlock()
 
@@ -87,7 +87,7 @@ func (sng *SrvNodeGroup) RegisterNode(reg *data.ServiceCenterRegisterData) error
 	return nil
 }
 
-func (sng *SrvNodeGroup) UnRegisterNode(reg *data.ServiceCenterRegisterData) error {
+func (sng *SrvNodeGroup) UnRegisterNode(reg *data.SrvRegisterData) error {
 	sng.Rwmu.Lock()
 	defer sng.Rwmu.Unlock()
 
@@ -113,22 +113,22 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.ServiceCenterRegisterData) err
 	return nil
 }
 
-func (sng *SrvNodeGroup) Dispatch(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
+func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvResponseData) {
 	sng.Rwmu.RLock()
 	defer sng.Rwmu.RUnlock()
 
 	if sng.AddrMapSrvNode == nil || len(sng.AddrMapSrvNode) == 0 {
-		ack.SrvAck.Err = data.ErrNotFindSrv
-		ack.SrvAck.ErrMsg = data.ErrNotFindSrvText
-		return nil
+		res.Data.Err = data.ErrNotFindSrv
+		res.Data.ErrMsg = data.ErrNotFindSrvText
+		return
 	}
 
 	var srvNode *SrvNode
 	srvNode = sng.getNode()
 	if srvNode == nil{
-		ack.SrvAck.Err = data.ErrNotFindSrv
-		ack.SrvAck.ErrMsg = data.ErrNotFindSrvText
-		return nil
+		res.Data.Err = data.ErrNotFindSrv
+		res.Data.ErrMsg = data.ErrNotFindSrvText
+		return
 	}
 
 	// 检查是否连接
@@ -138,21 +138,21 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvDispatchData, ack *data.SrvDispat
 
 	// 发送数据
 	if srvNode.Client != nil {
-		err := srvNode.sendData(data.MethodServiceNodeCall, req, ack)
+		err := srvNode.sendData(data.MethodNodeCall, req, res)
 		if err != nil {
-			fmt.Println("#Call srv failed")
+			fmt.Println("#Call srv failed...", err)
 
 			srvNode.closeClient()
 
-			ack.SrvAck.Err = data.ErrCall
-			ack.SrvAck.ErrMsg = err.Error()
+			res.Data.Err = data.ErrCall
+			res.Data.ErrMsg = data.ErrCallText
 		}
 	}else{
-		ack.SrvAck.Err = data.ErrClientConn
-		ack.SrvAck.ErrMsg = data.ErrClientConnText
+		res.Data.Err = data.ErrClientConn
+		res.Data.ErrMsg = data.ErrClientConnText
 	}
 
-	return nil
+	return
 }
 
 func (sng *SrvNodeGroup) getNode() *SrvNode {
@@ -178,7 +178,7 @@ func (sng *SrvNodeGroup) getNode() *SrvNode {
 
 func (sng *SrvNodeGroup)KeepAlive() {
 	// 是否有断开连接
-	var rgQuit []data.ServiceCenterRegisterData
+	var rgQuit []data.SrvRegisterData
 
 	func(){
 		sng.Rwmu.RLock()
@@ -189,7 +189,7 @@ func (sng *SrvNodeGroup)KeepAlive() {
 			if b.Client != nil{
 				b.LastOperationTime = time.Now()
 				res = ""
-				err := b.sendData(data.MethodServiceNodePingpong, "ping", &res)
+				err := b.sendData(data.MethodNodePingpong, "ping", &res)
 				if err != nil || res != "pong" {
 					rgQuit = append(rgQuit, b.RegisterData)
 				}

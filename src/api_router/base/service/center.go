@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"net"
 	"time"
-	"errors"
 )
 
 type ServiceCenter struct{
@@ -132,7 +131,7 @@ func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
 
 // RPC 方法
 // 服务中心方法--注册到服务中心
-func (mi *ServiceCenter) Register(reg *data.ServiceCenterRegisterData, res *string) error {
+func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error {
 	mi.Rwmu.Lock()
 	defer mi.Rwmu.Unlock()
 
@@ -158,7 +157,7 @@ func (mi *ServiceCenter) Register(reg *data.ServiceCenterRegisterData, res *stri
 }
 
 // 服务中心方法--注册到服务中心
-func (mi *ServiceCenter) UnRegister(reg *data.ServiceCenterRegisterData, res *string) error {
+func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) error {
 	mi.Rwmu.Lock()
 	defer mi.Rwmu.Unlock()
 
@@ -181,133 +180,123 @@ func (mi *ServiceCenter) UnRegister(reg *data.ServiceCenterRegisterData, res *st
 }
 
 // 派发命令
-func (mi *ServiceCenter) Dispatch(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
+	mi.call(req, res)
+
+	// 确保错误的情况下，没有实际数据
+	if res.Err != data.NoErr {
+		res.Value.Message = ""
+		res.Value.Signature = ""
+	}
+	return nil
+}
+
+func (mi *ServiceCenter) call(req *data.UserRequestData, res *data.UserResponseData) {
 	// 禁止直接调用auth
 	if req.Srv == "auth" {
-		return errors.New("not support this srv")
+		res.Err = data.ErrIllegalCall
+		res.ErrMsg = data.ErrIllegalCallText
+		fmt.Println("#Error: ", res.ErrMsg)
+		return
 	}
 
 	api := mi.getApiInfo(req)
 	if api == nil {
-		return errors.New("not find this api")
+		res.Err = data.ErrNotFindSrv
+		res.ErrMsg = data.ErrNotFindSrvText
+		fmt.Println("#Error: ", res.ErrMsg)
+		return
 	}
-
-	var rpcAuth data.SrvDispatchData
-	rpcAuth.SrvArgv = *req
-	rpcAuth.Api = *api
-
-	var rpcAuthAck data.SrvDispatchAckData
 
 	// 验证数据
-	if mi.authData(&rpcAuth, &rpcAuthAck) != nil || rpcAuthAck.SrvAck.Err != data.NoErr{
+	var rpcAuth data.SrvRequestData
+	rpcAuth.Data = *req
+	rpcAuth.Context.Api = *api
+	var rpcAuthRes data.SrvResponseData
+	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Data.Err != data.NoErr{
 		// 失败
-		*ack = rpcAuthAck.SrvAck
-		return nil
+		*res = rpcAuthRes.Data
+		return
 	}
 
-	// 请求服务
-	var rpcSrv data.SrvDispatchData
-	rpcSrv.SrvArgv = *req
-	rpcSrv.SrvArgv.Argv.Message = rpcAuthAck.SrvAck.Value.Message
-	var rpcSrvAck data.SrvDispatchAckData
-	func(){
-		versionSrvName := strings.ToLower(rpcSrv.SrvArgv.Srv + "." + rpcSrv.SrvArgv.Version)
-		//fmt.Println("Center dispatch...", versionSrvName, ".", rpcSrv.SrvArgv.Function)
-
-		mi.Rwmu.RLock()
-		defer mi.Rwmu.RUnlock()
-
-		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-		if srvNodeGroup == nil{
-			ack.Err = data.ErrNotFindSrv
-			ack.ErrMsg = data.ErrNotFindSrvText
-			return
-		}
-
-		srvNodeGroup.Dispatch(&rpcSrv, &rpcSrvAck)
-	}()
+	// 请求具体服务
+	var rpcSrv data.SrvRequestData
+	rpcSrv.Data = *req
+	rpcSrv.Context.Api = *api
+	rpcSrv.Data.Argv.Message = rpcAuthRes.Data.Value.Message
+	var rpcSrvRes data.SrvResponseData
+	if mi.dispatchFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
+		// 失败
+		*res = rpcSrvRes.Data
+		return
+	}
 
 	// 打包数据
-	var reqEncrypted data.SrvDispatchData
-	reqEncrypted.SrvArgv = *req
-	reqEncrypted.SrvArgv.Argv.Message = rpcSrvAck.SrvAck.Value.Message
-
-	var reqEncryptedAck data.SrvDispatchAckData
-
-	mi.encryptData(&reqEncrypted, &reqEncryptedAck)
+	var reqEncrypted data.SrvRequestData
+	reqEncrypted.Data = *req
+	reqEncrypted.Context.Api = *api
+	reqEncrypted.Data.Argv.Message = rpcSrvRes.Data.Value.Message
+	var reqEncryptedRes data.SrvResponseData
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
+		// 失败
+		*res = reqEncryptedRes.Data
+		return
+	}
 
 	// 返回
-	*ack = reqEncryptedAck.SrvAck
-
-	return nil
+	*res = reqEncryptedRes.Data
 }
 
-func (mi *ServiceCenter) authData(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error{
+func (mi *ServiceCenter) dispatchFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
+	versionSrvName := strings.ToLower(req.Data.Srv + "." + req.Data.Version)
+	fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Function)
+
+	mi.Rwmu.RLock()
+	defer mi.Rwmu.RUnlock()
+
+	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+	if srvNodeGroup == nil{
+		res.Data.Err = data.ErrNotFindSrv
+		res.Data.ErrMsg = data.ErrNotFindSrvText
+		fmt.Println("#Error: Center dispatch function...", res.Data.ErrMsg)
+		return
+	}
+
+	srvNodeGroup.Dispatch(req, res)
+}
+
+func (mi *ServiceCenter) authData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	reqAuth := *req
-	reqAuth.SrvArgv.Srv = "auth"
-	reqAuth.SrvArgv.Function = "AuthData"
+	reqAuth.Data.Srv = "auth"
+	reqAuth.Data.Function = "AuthData"
+	reqAuthRes := data.SrvResponseData{}
 
-	reqAck := data.SrvDispatchAckData{}
+	mi.dispatchFunction(&reqAuth, &reqAuthRes)
 
-	versionSrvName := strings.ToLower(reqAuth.SrvArgv.Srv + "." + reqAuth.SrvArgv.Version)
-	//fmt.Println("Center auth data...", versionSrvName)
-
-	return func() error {
-		mi.Rwmu.RLock()
-		defer mi.Rwmu.RUnlock()
-
-		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-		if srvNodeGroup == nil{
-			ack.SrvAck.Err = data.ErrNotFindAuth
-			ack.SrvAck.ErrMsg = data.ErrNotFindAuthText
-			return errors.New("not find this auth service")
-		}
-
-		err := srvNodeGroup.Dispatch(&reqAuth, &reqAck)
-		ack.SrvAck = reqAck.SrvAck
-
-		return err
-	}()
+	*res = reqAuthRes
 }
 
-func (mi *ServiceCenter) encryptData(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error{
+func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	reqEnc := *req
-	reqEnc.SrvArgv.Srv = "auth"
-	reqEnc.SrvArgv.Function = "EncryptData"
+	reqEnc.Data.Srv = "auth"
+	reqEnc.Data.Function = "EncryptData"
 
-	reqAck := data.SrvDispatchAckData{}
+	reqEncRes := data.SrvResponseData{}
 
-	//fmt.Println("Center encrypt data...")
-	versionSrvName := strings.ToLower(reqEnc.SrvArgv.Srv + "." + reqEnc.SrvArgv.Version)
+	mi.dispatchFunction(&reqEnc, &reqEncRes)
 
-	return func() error {
-		mi.Rwmu.RLock()
-		defer mi.Rwmu.RUnlock()
-
-		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-		if srvNodeGroup == nil{
-			ack.SrvAck.Err = data.ErrNotFindAuth
-			ack.SrvAck.ErrMsg = data.ErrNotFindAuthText
-			return errors.New("not find this auth service")
-		}
-
-		err := srvNodeGroup.Dispatch(&reqEnc, &reqAck)
-		ack.SrvAck = reqAck.SrvAck
-
-		return err
-	}()
+	*res = reqEncRes
 }
 
-func (mi *ServiceCenter) getApiInfo(req *data.ServiceCenterDispatchData) (*data.ApiInfo) {
+func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
 	mi.Rwmu.RLock()
 	defer mi.Rwmu.RUnlock()
 
 	name := strings.ToLower(req.Srv + "." + req.Version + "." + req.Function)
 	return mi.ApiInfo[name]
-
 }
 
 // http 处理
@@ -358,56 +347,57 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 	log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	defer req.Body.Close()
 
-	fmt.Println("path=", req.URL.Path)
+	resData := data.UserResponseData{}
+	func (){
+		fmt.Println("path=", req.URL.Path)
 
-	path := req.URL.Path
-	path = strings.Replace(path, "restful", "", -1)
-	path = strings.TrimLeft(path, "/")
-	path = strings.TrimRight(path, "/")
+		path := req.URL.Path
+		path = strings.Replace(path, "restful", "", -1)
+		path = strings.TrimLeft(path, "/")
+		path = strings.TrimRight(path, "/")
 
-	b, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		fmt.Println("#HandleRequest Error: ", err.Error())
-		return
-	}
-
-	body := string(b)
-	fmt.Println("body=", body)
-
-	// 重组rpc结构json
-	dispatchData := data.ServiceCenterDispatchData{}
-	err = json.Unmarshal(b, &dispatchData);
-	if err != nil {
-		fmt.Println("#HandleRequest Error: ", err.Error())
-		return;
-	}
-
-	// 分割参数
-	paths := strings.Split(path, "/")
-	for i := 0; i < len(paths); i++ {
-		if i == 0 {
-			dispatchData.Version = paths[i]
-		}else if i == 1{
-			dispatchData.Srv = paths[i]
-		} else{
-			if dispatchData.Function != "" {
-				dispatchData.Function += "."
-			}
-			dispatchData.Function += paths[i]
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			fmt.Println("#Error, handleRestful: ", err.Error())
+			resData.Err = data.ErrData
+			resData.ErrMsg = data.ErrDataText
+			return
 		}
-	}
 
-	dispatchAckData := data.ServiceCenterDispatchAckData{}
-	mi.Dispatch(&dispatchData, &dispatchAckData)
+		body := string(b)
+		fmt.Println("body=", body)
 
+		// 重组rpc结构json
+		reqData := data.UserRequestData{}
+		err = json.Unmarshal(b, &reqData.Argv);
+		if err != nil {
+			fmt.Println("#Error, handleRestful: ", err.Error())
+			resData.Err = data.ErrData
+			resData.ErrMsg = data.ErrDataText
+			return;
+		}
+
+		// 分割参数
+		paths := strings.Split(path, "/")
+		for i := 0; i < len(paths); i++ {
+			if i == 0 {
+				reqData.Version = paths[i]
+			}else if i == 1{
+				reqData.Srv = paths[i]
+			} else{
+				if reqData.Function != "" {
+					reqData.Function += "."
+				}
+				reqData.Function += paths[i]
+			}
+		}
+
+		mi.Dispatch(&reqData, &resData)
+	}()
+
+	// write back http
 	w.Header().Set("Content-Type", "application/json")
-
-	b, err = json.Marshal(dispatchAckData)
-	if err != nil {
-		fmt.Println("#HandleRequest Error: ", err.Error())
-		return;
-	}
-
+	b, _ := json.Marshal(resData)
 	w.Write(b)
 	return
 }

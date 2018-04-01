@@ -10,7 +10,6 @@ import (
 	"time"
 	"sync"
 	"strings"
-	"errors"
 )
 
 const ArithSrvName = "arith"
@@ -22,19 +21,17 @@ const (
 var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
-func callArithFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error{
-	var err error
-	h := g_apisMap[strings.ToLower(req.SrvArgv.Function)]
+func callArithFunction(req *data.SrvRequestData, res *data.SrvResponseData){
+	h := g_apisMap[strings.ToLower(req.Data.Function)]
 	if h != nil {
-		err = h(req, ack)
+		h(req, res)
 	}else{
-		err = errors.New("not find api")
+		res.Data.Err = data.ErrSrvInternalErr
+		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
-	//fmt.Println("callNodeApi req: ", *req)
-	//fmt.Println("callNodeApi ack: ", *ack)
-
-	return err
+	fmt.Println("callNodeApi req: ", *req)
+	fmt.Println("callNodeApi ack: ", *res)
 }
 
 func main() {

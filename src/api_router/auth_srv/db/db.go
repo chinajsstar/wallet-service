@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	userdb "../../account_srv/db"
+	accountdb "../../account_srv/db"
 	_ "github.com/go-sql-driver/mysql"
+	"../../account_srv/user"
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"readPubKey": "SELECT public_key from %s.%s where license_key = ? limit ? offset ?",
+		"readUserLevel": "SELECT level, is_frozen, public_key from %s.%s where license_key = ? limit ? offset ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -50,7 +51,7 @@ func Init() {
 	if d, err = sql.Open("mysql", Url); err != nil {
 		log.Fatal(err)
 	}
-	if _, err = d.Exec(userdb.UsersSchema); err != nil {
+	if _, err = d.Exec(accountdb.UsersSchema); err != nil {
 		log.Fatal(err)
 	}
 
@@ -65,16 +66,16 @@ func Init() {
 	}
 }
 
-func ReadPubKey(licenseKey string) (string, error) {
-	r := st["readPubKey"].QueryRow(licenseKey, 1, 0)
+func ReadUserLevel(licenseKey string) (*user.UserLevel, error) {
+	r := st["readUserLevel"].QueryRow(licenseKey, 1, 0)
 
-	pubKey := ""
-	if err := r.Scan(&pubKey); err != nil {
+	ul := &user.UserLevel{}
+	if err := r.Scan(&ul.Level, &ul.IsFrozen, &ul.PublicKey); err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.New("not found")
+			return nil, errors.New("not found")
 		}
-		return "", err
+		return nil, err
 	}
 
-	return pubKey, nil
+	return ul, nil
 }

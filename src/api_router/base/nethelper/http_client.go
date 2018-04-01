@@ -3,6 +3,9 @@ package nethelper
 import (
 	"log"
 	"net/rpc"
+	"bytes"
+	"io/ioutil"
+	"net/http"
 )
 
 // Call a JRPC to Http server
@@ -45,5 +48,34 @@ func CallJRPCToHttpServerOnClient(client *rpc.Client, method string, params inte
 		return err
 	}
 
+	return nil
+}
+
+// Call a JRPC to Http server
+// @parameter: addr string, like "127.0.0.1:8080"
+// @parameter: path string
+// @parameter: res *string
+// @return: error
+func CallToHttpServer(addr string, path string, body string, res *string) error {
+	url := addr + path
+	contentType := "application/json;charset=utf-8"
+
+	b := []byte(body)
+	b2 := bytes.NewBuffer(b)
+
+	resp, err := http.Post(url, contentType, b2)
+	if err != nil {
+		log.Println("#CallToHttpServer Post failed:", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("#CallToHttpServer Read failed:", err)
+		return err
+	}
+
+	*res = string(content)
 	return nil
 }

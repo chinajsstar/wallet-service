@@ -1,11 +1,11 @@
 package data
 
 const(
-	MethodServiceCenterRegister   = "ServiceCenter.Register"	// 服务向服务中心注册请求，对内
-	MethodServiceCenterUnRegister = "ServiceCenter.UnRegister"	// 服务向服务中心反注册请求，对内
-	MethodServiceCenterDispatch   = "ServiceCenter.Dispatch"	// 客户向服务中心发送请求，对外
-	MethodServiceNodePingpong     = "ServiceNode.Pingpong"		// 服务中心向服务发送心跳，对内
-	MethodServiceNodeCall         = "ServiceNode.Call"			// 服务中心向服务发送请求，对内
+	MethodCenterRegister   = "ServiceCenter.Register"	// 服务向服务中心注册请求，对内
+	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// 服务向服务中心反注册请求，对内
+	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// 客户向服务中心发送请求，对外
+	MethodNodePingpong     = "ServiceNode.Pingpong"		// 服务中心向服务发送心跳，对内
+	MethodNodeCall         = "ServiceNode.Call"			// 服务中心向服务发送请求，对内
 )
 
 const(
@@ -25,18 +25,24 @@ type ApiInfo struct{
 	Level 	int		`json:"level"`
 }
 // 注册信息
-type ServiceCenterRegisterData struct {
+type SrvRegisterData struct {
 	Version      string `json:"version"`    // service version
 	Srv          string `json:"srv"`		// service name
 	Addr         string `json:"addr"`		// service ip address
 	Functions []ApiInfo `json:"functions"`  // service functions
 }
 
-// 内部RPC结构
-type SrvDispatchData struct{
-	SrvArgv ServiceCenterDispatchData `json:"data"`
+// 内部请求的上下文数据
+type SrvRequestContext struct{
 	Api ApiInfo `json:"api"`
+	// others
 }
-type SrvDispatchAckData struct{
-	SrvAck ServiceCenterDispatchAckData `json:"data"`
+
+// 内部RPC结构，在center中转时，增加请求权限信息
+type SrvRequestData struct{
+	Data UserRequestData `json:"data"`
+	Context SrvRequestContext `json:"context"`
+}
+type SrvResponseData struct{
+	Data UserResponseData `json:"data"`
 }

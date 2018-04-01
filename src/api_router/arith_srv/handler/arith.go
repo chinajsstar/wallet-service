@@ -4,6 +4,7 @@ import (
 	"../../data"
 	"../../base/service"
 	"errors"
+	"fmt"
 )
 
 type Args struct {
@@ -15,6 +16,7 @@ type Arith int
 func (arith *Arith)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.CallNodeApi) error  {
 	regapi := func(name string, caller service.CallNodeApi, level int) error {
 		if (*apisfunc)[name] != nil {
+			fmt.Println("#error: api is already exist...", name)
 			return errors.New("api is already exist...")
 		}
 
@@ -30,6 +32,5 @@ func (arith *Arith)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]servic
 	return nil
 }
 
-func (arith *Arith)Add(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error{
-	return nil
+func (arith *Arith)Add(req *data.SrvRequestData, ack *data.SrvResponseData){
 }
