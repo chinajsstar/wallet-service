@@ -55,9 +55,9 @@ func (auth * Auth)getUserLevel(licenseKey string) (*user.UserLevel, error)  {
 	}()
 }
 
-func (auth * Auth)Init() error {
+func (auth * Auth)Init(dir string) error {
 	var err error
-	auth.privateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_wallet.pem")
+	auth.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -98,8 +98,6 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 			fmt.Println("#Error AuthData--", err.Error())
 			return err
 		}
-		fmt.Println("context1: ", req.Context.Api)
-		fmt.Println("context2: ", *ul)
 
 		if req.Context.Api.Level > ul.Level || ul.IsFrozen != 0{
 			fmt.Println("#Error AuthData--", err)

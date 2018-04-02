@@ -10,14 +10,11 @@ import (
 	"time"
 	"sync"
 	"strings"
+	"../base/config"
+	"../base/utils"
 )
 
-const ArithSrvName = "arith"
-const ArithSrvVersion = "v1"
-const (
-	GateWayAddr = "127.0.0.1:8081"
-	SrvAddr = "127.0.0.1:8090"
-)
+const ArithSrvConfig = "node.json"
 var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
@@ -30,21 +27,33 @@ func callArithFunction(req *data.SrvRequestData, res *data.SrvResponseData){
 		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
-	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *res)
+	//b1,_ := json.Marshal(*req)
+	//fmt.Println("callNodeApi req: ", string(b1))
+	//b,_ := json.Marshal(*res)
+	//fmt.Println("callNodeApi ack: ", string(b))
 }
 
 func main() {
+	var err error
+	cn := config.ConfigNode{}
+	if err = cn.Load(utils.GetRunDir()+"/config/"+ArithSrvConfig); err != nil{
+		err = cn.Load(utils.GetCurrentDir() + "/config/" + ArithSrvConfig)
+	}
+	if err != nil {
+		return
+	}
+	fmt.Println("config:", cn)
+
 	wg := &sync.WaitGroup{}
 
 	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(ArithSrvName, ArithSrvVersion)
-	nodeInstance.RegisterData.Addr = SrvAddr
+	nodeInstance, _:= service.NewServiceNode(cn.SrvName, cn.SrvVersion)
+	nodeInstance.RegisterData.Addr = cn.SrvAddr
 	arith := new(handler.Arith)
 	arith.RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
 	nodeInstance.Handler = callArithFunction
 
-	nodeInstance.ServiceCenterAddr = GateWayAddr
+	nodeInstance.ServiceCenterAddr = cn.CenterAddr
 	rpc.Register(nodeInstance)
 
 	// 启动节点服务

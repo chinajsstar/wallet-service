@@ -10,20 +10,16 @@ import (
 	"context"
 	"time"
 	"sync"
-	"../base/utils"
 	"io/ioutil"
 	"crypto/sha512"
 	"crypto"
 	"strings"
 	"sync/atomic"
+	"../base/config"
+	"../base/utils"
 )
 
-const AuthSrvName = "auth"
-const AuthSrvVersion = "v1"
-const (
-	GateWayAddr = "127.0.0.1:8081"
-	SrvAddr = "127.0.0.1:8002"
-)
+const AuthSrvConfig = "node.json"
 
 var g_apisMap = make(map[string]service.CallNodeApi)
 
@@ -37,32 +33,48 @@ func callAuthFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
 		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
-	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *res)
+	//fmt.Println("callNodeApi req: ", *req)
+	//fmt.Println("callNodeApi ack: ", *res)
 }
 
 func main() {
-	wg := &sync.WaitGroup{}
+	var err error
+	var workerdir string
 
-	handler.AuthInstance().Init()
+	cn := config.ConfigNode{}
+
+	workerdir = utils.GetRunDir()
+	if err = cn.Load(utils.GetRunDir()+"/config/"+AuthSrvConfig); err != nil{
+		err = cn.Load(utils.GetCurrentDir() + "/config/" + AuthSrvConfig)
+
+		workerdir = utils.GetCurrentDir()
+	}
+	if err != nil {
+		return
+	}
+	fmt.Println("config:", cn)
+
+	workerdir += "/worker"
+	handler.AuthInstance().Init(workerdir)
+
+	wg := &sync.WaitGroup{}
 
 	// 启动db
 	db.Init()
 
 	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(AuthSrvName, AuthSrvVersion)
-	nodeInstance.RegisterData.Addr = SrvAddr
+	nodeInstance, _:= service.NewServiceNode(cn.SrvName, cn.SrvVersion)
+	nodeInstance.RegisterData.Addr = cn.SrvAddr
 	handler.AuthInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
 	nodeInstance.Handler = callAuthFunction
 
-	nodeInstance.ServiceCenterAddr = GateWayAddr
+	nodeInstance.ServiceCenterAddr = cn.CenterAddr
 	rpc.Register(nodeInstance)
 
 	// 启动节点服务
 	ctx, cancel := context.WithCancel(context.Background())
 	nodeInstance.Start(ctx, wg)
 
-	var err error
 	var cipherData []byte
 
 	time.Sleep(time.Second*2)
@@ -97,31 +109,31 @@ func main() {
 
 			var runcounts int
 			var count, right int64
-			runcounts = 1000
+			runcounts = 1
 			count = 0
 			right = 0
 
 			testfunc := func(count *int64, right *int64, runcounts int64) {
-				//fmt.Println("原始数据：", len(data))
-				//fmt.Println(data)
+				fmt.Println("原始数据：", len(data))
+				fmt.Println(data)
 				// en
 				cipherData, err = utils.RsaEncrypt(data, pubKey, utils.RsaEncodeLimit2048)
 				if err != nil {
 					fmt.Println(err)
 				}
 
-				//fmt.Println("加密后数据：", len(cipherData))
-				//fmt.Println(cipherData)
+				fmt.Println("加密后数据：", len(cipherData))
+				fmt.Println(cipherData)
 
 				// de
-				//var originData []byte
-				_, err = utils.RsaDecrypt(cipherData, priKey, utils.RsaDecodeLimit2048)
+				var originData []byte
+				originData, err = utils.RsaDecrypt(cipherData, priKey, utils.RsaDecodeLimit2048)
 				if err != nil {
 					fmt.Println(err)
 				}
 
-				//fmt.Println("解密后数据：")
-				//fmt.Println(originData)
+				fmt.Println("解密后数据：")
+				fmt.Println(originData)
 
 				atomic.AddInt64(count, 1)
 				if  err == nil{

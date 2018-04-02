@@ -4,6 +4,7 @@ const(
 	MethodCenterRegister   = "ServiceCenter.Register"	// 服务向服务中心注册请求，对内
 	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// 服务向服务中心反注册请求，对内
 	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// 客户向服务中心发送请求，对外
+	MethodCenterPingpong   = "ServiceCenter.Pingpong"		// 服务中心向服务发送心跳，对内
 	MethodNodePingpong     = "ServiceNode.Pingpong"		// 服务中心向服务发送心跳，对内
 	MethodNodeCall         = "ServiceNode.Call"			// 服务中心向服务发送请求，对内
 )
@@ -16,7 +17,7 @@ const(
 	APILevel_admin = 100
 
 	// 创世管理员
-	APILevel_boss = 200
+	APILevel_genesis = 200
 )
 
 // API信息

@@ -48,14 +48,14 @@ func AccountInstance() *Account{
 }
 
 // 初始化
-func (s *Account)Init() error {
+func (s *Account)Init(dir string) error {
 	var err error
-	s.privateKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_wallet.pem")
+	s.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	s.serverPublicKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_wallet.pem")
+	s.serverPublicKey, err = ioutil.ReadFile(dir+"/public.pem")
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -76,7 +76,7 @@ func (s *Account)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.
 		return nil
 	}
 
-	if err := regapi("create", service.CallNodeApi(s.Create), data.APILevel_boss); err != nil {
+	if err := regapi("create", service.CallNodeApi(s.Create), data.APILevel_genesis); err != nil {
 		return err
 	}
 

@@ -43,12 +43,12 @@ func loadRsaKeys() error {
 		return err
 	}
 
-	g_server_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_wallet.pem")
+	g_server_pubkey, err = ioutil.ReadFile("/Users/henly.liu/wallet-service/src/api_router/account_srv/worker/public.pem")
 	if err != nil {
 		return err
 	}
 
-	g_admin_licensekey = "cd3616ef-1ce0-47d6-81e5-832904318c90"
+	g_admin_licensekey = "25143234-b958-44a8-a87f-5f0f4ef46eb5"
 
 	return nil
 }
@@ -317,6 +317,8 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 	}
 }
 
+
+
 // http rpc风格
 // curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"srv":"v1.arith", "function":"add","argv":"{\"a\":\"hello, \", \"b\":\"world\"}"}], "id": 1}' http://localhost:8080/rpc
 // curl -d '{
@@ -329,6 +331,9 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 // http restful风格
 // curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/restful/v1/arith/add
 func main() {
+	// 目录
+	fmt.Println("当前目录：", utils.GetCurrentDir())
+	fmt.Println("执行目录：", utils.GetRunDir())
 	// 加载服务器公钥
 	loadRsaKeys()
 

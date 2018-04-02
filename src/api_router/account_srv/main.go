@@ -6,7 +6,6 @@ import (
 	"../data"
 	"./handler"
 	"./db"
-	"../base/utils"
 	"fmt"
 	"context"
 	"time"
@@ -14,14 +13,14 @@ import (
 	"strings"
 	"./install"
 	"encoding/json"
+	"../base/config"
+	"../base/utils"
+	"errors"
+	"./user"
+	"os"
 )
 
-const AccountSrvName = "account"
-const AccountSrvVersion = "v1"
-const (
-	GateWayAddr = "127.0.0.1:8081"
-	SrvAddr = "127.0.0.1:8092"
-)
+const AccountSrvConfig = "node.json"
 var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
@@ -38,22 +37,118 @@ func callAuthFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
 	fmt.Println("callNodeApi ack: ", *res)
 }
 
+func installWallet(dir string) error {
+	var err error
+
+	fi, err := os.Open(dir+"/wallet.install")
+	if err == nil {
+		defer fi.Close()
+		fmt.Println("Wallet is installed!!!")
+		return nil
+	}
+
+	fmt.Println("Wallet is installing...")
+
+	newRsa := false
+	fmt.Println("1. create wallet rsa key...")
+	_, err = os.Open(dir+"/private.pem")
+	if err != nil {
+		newRsa = true
+	}
+	_, err = os.Open(dir+"/public.pem")
+	if err != nil {
+		newRsa = true
+	}
+	if newRsa{
+		pri := fmt.Sprintf(dir+"/private.pem")
+		pub := fmt.Sprintf(dir+"/public.pem")
+		err = utils.RsaGen(2048, pri, pub)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		fmt.Println("create wallet rsa key...done")
+	}else{
+		fmt.Println("create wallet rsa key...exist")
+	}
+
+	fmt.Println("2. create wallet web admin...")
+	uc, err := install.AddUser()
+	if err != nil {
+		fmt.Println("#error:",err)
+		return err
+	}
+	b, _ := json.Marshal(*uc)
+
+	var req data.SrvRequestData
+	var res data.SrvResponseData
+	req.Data.Argv.Message = string(b)
+
+	handler.AccountInstance().Create(&req, &res)
+	if res.Data.Err != data.NoErr {
+		fmt.Println("#error:", res.Data.ErrMsg)
+		return errors.New("创建admin失败")
+	}
+	fmt.Println("create wallet web admin...done")
+
+	uca := user.AckUserCreate{}
+	err = json.Unmarshal([]byte(res.Data.Value.Message), &uca)
+
+	fmt.Println("记录license key:", uca.LicenseKey)
+
+	fo, err := os.Create(dir+"/wallet.install")
+	if err != nil {
+		fmt.Println("#error:",err)
+		return err
+	}
+	defer fo.Close()
+	return nil
+}
+
 func main() {
-	wg := &sync.WaitGroup{}
+	var err error
+	var workerdir string
+
+	cn := config.ConfigNode{}
+
+	workerdir = utils.GetRunDir()
+	if err = cn.Load(utils.GetRunDir()+"/config/"+AccountSrvConfig); err != nil{
+		err = cn.Load(utils.GetCurrentDir() + "/config/" + AccountSrvConfig)
+		workerdir = utils.GetCurrentDir()
+	}
+	if err != nil {
+		return
+	}
+	fmt.Println("config:", cn)
+	workerdir += "/worker"
+	err = os.Mkdir(workerdir, os.ModePerm)
+	if err!=nil && os.IsExist(err)==false {
+		fmt.Println("#创建工作目录失败：", workerdir, "--", err)
+		return
+	}
+	fmt.Println("workerdir:", workerdir)
 
 	// 启动db
 	db.Init()
 
-	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(AccountSrvName, AccountSrvVersion)
+	err = installWallet(workerdir)
+	if err != nil {
+		fmt.Println("安装失败：", err)
+		return
+	}
 
-	nodeInstance.RegisterData.Addr = SrvAddr
+	wg := &sync.WaitGroup{}
+
+	// 创建节点
+	nodeInstance, _:= service.NewServiceNode(cn.SrvName, cn.SrvVersion)
+
+	nodeInstance.RegisterData.Addr = cn.SrvAddr
 	nodeInstance.Handler = callAuthFunction
 
-	nodeInstance.ServiceCenterAddr = GateWayAddr
+	nodeInstance.ServiceCenterAddr = cn.CenterAddr
 
 	// 注册API
-	handler.AccountInstance().Init()
+	handler.AccountInstance().Init(workerdir)
 	handler.AccountInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
 
 	rpc.Register(nodeInstance)
@@ -81,7 +176,7 @@ func main() {
 				fmt.Println("失败，",err)
 				continue
 			}
-			b, _ := json.Marshal(uc)
+			b, _ := json.Marshal(*uc)
 
 			var req data.SrvRequestData
 			var res data.SrvResponseData
@@ -96,7 +191,7 @@ func main() {
 				fmt.Println("失败", err)
 				continue
 			}
-			b, _ := json.Marshal(ul)
+			b, _ := json.Marshal(*ul)
 
 			var req data.SrvRequestData
 			var res data.SrvResponseData

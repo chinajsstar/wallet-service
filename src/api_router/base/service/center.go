@@ -115,6 +115,7 @@ func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
 					}
 
 					log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
+
 					go mi.rpcServer.ServeConn(conn)
 				}
 			}()
@@ -194,6 +195,15 @@ func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserRespo
 	return nil
 }
 
+func (mi *ServiceCenter) Pingpong(req *string, res * string) error {
+	if *req == "ping" {
+		*res = "pong"
+	}else{
+		*res = *req
+	}
+	return nil
+}
+
 func (mi *ServiceCenter) call(req *data.UserRequestData, res *data.UserResponseData) {
 	// 禁止直接调用auth
 	if req.Srv == "auth" {
@@ -252,7 +262,7 @@ func (mi *ServiceCenter) call(req *data.UserRequestData, res *data.UserResponseD
 
 func (mi *ServiceCenter) dispatchFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
 	versionSrvName := strings.ToLower(req.Data.Srv + "." + req.Data.Version)
-	fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Function)
+	//fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Function)
 
 	mi.Rwmu.RLock()
 	defer mi.Rwmu.RUnlock()
@@ -416,7 +426,7 @@ func (mi *ServiceCenter)startToKeepAlive(ctx context.Context) error{
 	go func(){
 		for ; ; {
 			timeout <- true
-			time.Sleep(time.Second*10)
+			time.Sleep(time.Second*60)
 		}
 	}()
 

@@ -27,7 +27,7 @@ func (arith *Arith)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]servic
 		return nil
 	}
 
-	if err := regapi("add", arith.Add, data.APILevel_boss); err != nil {
+	if err := regapi("add", arith.Add, data.APILevel_client); err != nil {
 		return err
 	}
 

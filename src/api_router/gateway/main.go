@@ -6,15 +6,27 @@ import (
 	"time"
 	"context"
 	"sync"
+	"../base/config"
+	"../base/utils"
 )
 
-const ServiceCenterName = "center"
+const ServiceCenterConfig = "center.json"
 
 func main() {
+	var err error
+	cc := config.ConfigCenter{}
+	if err = cc.Load(utils.GetRunDir()+"/config/"+ServiceCenterConfig); err != nil{
+		err = cc.Load(utils.GetCurrentDir() + "/config/" + ServiceCenterConfig)
+	}
+	if err != nil {
+		return
+	}
+	fmt.Println("config:", cc)
+
 	wg := &sync.WaitGroup{}
 
 	// 创建服务中心
-	centerInstance,_ := service.NewServiceCenter(ServiceCenterName, ":8080", ":8081")
+	centerInstance,_ := service.NewServiceCenter(cc.CenterName, ":"+cc.Port, ":"+cc.CenterPort)
 
 	// 启动服务中心
 	ctx, cancel := context.WithCancel(context.Background())

@@ -26,6 +26,8 @@ type ServiceNode struct{
 	ServiceCenterAddr string
 	// 等待
 	wg *sync.WaitGroup
+	// 中心
+	client *rpc.Client
 }
 
 // 生成一个服务节点
@@ -111,21 +113,54 @@ func (ni *ServiceNode) Pingpong(req *string, res * string) error {
 	}else{
 		*res = *req
 	}
-	return nil;
+	return nil
 }
 
 // 内部方法
 func (ni *ServiceNode)registToCenter() error{
-	var res string
-	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodCenterRegister, ni.RegisterData, &res)
+	if ni.client != nil {
+		ni.client.Close()
+		ni.client = nil
+	}
 
+	var err error
+	ni.client, err = rpc.Dial("tcp", ni.ServiceCenterAddr)
+	if err != nil {
+		log.Println("#registToCenter Error: ", err.Error())
+		return err
+	}
+
+	var res string
+	err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterRegister, ni.RegisterData, &res)
+	fmt.Println("Regist to center...", ni.RegisterData, ",error--", err)
+	if err != nil {
+		ni.client.Close()
+		ni.client = nil
+	}
 	return err
 }
 
 func (ni *ServiceNode)unRegistToCenter() error{
+	var err error
 	var res string
-	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodCenterUnRegister, ni.RegisterData, &res)
+	if ni.client != nil {
+		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterUnRegister, ni.RegisterData, &res)
+	}else{
+		err = nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodCenterUnRegister, ni.RegisterData, &res)
+	}
 
+	return err
+}
+
+func (ni *ServiceNode)doPingpong() error{
+	var err error
+	var res string
+
+	if ni.client != nil {
+		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterPingpong, "ping", &res)
+	}else{
+		err = errors.New("client is close")
+	}
 	return err
 }
 
@@ -138,11 +173,18 @@ func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
 			err := ni.registToCenter()
 			for {
 				if err == nil {
-					fmt.Println("Regist to center ok...", ni.RegisterData)
-					break
+					time.Sleep(time.Second*60)
+				}else{
+					time.Sleep(time.Second*5)
 				}
-				time.Sleep(time.Second*5)
-				fmt.Println("#Fail to regist to center...sleep 5")
+
+				if err == nil {
+					err = ni.doPingpong()
+				}else{
+					err = ni.registToCenter()
+				}
+
+				fmt.Println("keepalive...sleep")
 			}
 		}()
 
