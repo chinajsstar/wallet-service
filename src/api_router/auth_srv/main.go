@@ -10,39 +10,35 @@ import (
 	"context"
 	"time"
 	"sync"
-	"../utils"
+	"../base/utils"
 	"io/ioutil"
 	"crypto/sha512"
 	"crypto"
 	"strings"
+	"sync/atomic"
 )
 
 const AuthSrvName = "auth"
 const AuthSrvVersion = "v1"
 const (
 	GateWayAddr = "127.0.0.1:8081"
-	SrvAddr = "127.0.0.1:8091"
+	SrvAddr = "127.0.0.1:8002"
 )
 
-// 注册方法
-func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
-	var err error
-	switch strings.ToLower(req.Function) {
-	case "authdata":
-		err = handler.AuthInstance().AuthData(req, ack)
-		break
-	case "encryptdata":
-		err = handler.AuthInstance().EncryptData(req, ack)
-		break
-	}
+var g_apisMap = make(map[string]service.CallNodeApi)
 
-	if err != nil {
-		ack.Err = data.ErrAuthSrvIllegalData
-		ack.ErrMsg = data.ErrAuthSrvIllegalDataText
+// 注册方法
+func callAuthFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
+	h := g_apisMap[strings.ToLower(req.Data.Function)]
+	if h != nil {
+		h(req, res)
+	}else{
+		res.Data.Err = data.ErrSrvInternalErr
+		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
 	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *ack)
+	fmt.Println("callNodeApi ack: ", *res)
 }
 
 func main() {
@@ -56,7 +52,7 @@ func main() {
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(AuthSrvName, AuthSrvVersion)
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterFunction(new(handler.Auth))
+	handler.AuthInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
 	nodeInstance.Handler = callAuthFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr
@@ -80,48 +76,75 @@ func main() {
 			break;
 		}else if input == "rsatest" {
 			var priKey, pubKey []byte
-			priKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private.pem")
+			priKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_wallet.pem")
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
-			pubKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public.pem")
+			pubKey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_wallet.pem")
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
 			var data []byte
-			for i := 0; i < 1024; i++ {
+			for i := 0; i < 123; i++ {
 				data = append(data, byte(i))
 			}
 
-			fmt.Println("b:", time.Now())
-			for i := 0; i < 1; i++ {
-				fmt.Println("原始数据：", len(data))
-				fmt.Println(data)
+			// 测试次数
+			timeBegin := time.Now()
+
+			var runcounts int
+			var count, right int64
+			runcounts = 1000
+			count = 0
+			right = 0
+
+			testfunc := func(count *int64, right *int64, runcounts int64) {
+				//fmt.Println("原始数据：", len(data))
+				//fmt.Println(data)
 				// en
 				cipherData, err = utils.RsaEncrypt(data, pubKey, utils.RsaEncodeLimit2048)
 				if err != nil {
 					fmt.Println(err)
-					continue
 				}
 
-				fmt.Println("加密后数据：", len(cipherData))
-				fmt.Println(cipherData)
+				//fmt.Println("加密后数据：", len(cipherData))
+				//fmt.Println(cipherData)
 
 				// de
-				var originData []byte
-				originData, err = utils.RsaDecrypt(cipherData, priKey, utils.RsaDecodeLimit2048)
+				//var originData []byte
+				_, err = utils.RsaDecrypt(cipherData, priKey, utils.RsaDecodeLimit2048)
 				if err != nil {
 					fmt.Println(err)
-					continue
 				}
 
-				fmt.Println("解密后数据：")
-				fmt.Println(originData)
+				//fmt.Println("解密后数据：")
+				//fmt.Println(originData)
+
+				atomic.AddInt64(count, 1)
+				if  err == nil{
+					atomic.AddInt64(right, 1)
+				}else{
+					fmt.Println("#err:")
+				}
+
+				if atomic.CompareAndSwapInt64(count, runcounts, runcounts) {
+					cost := time.Now().Sub(timeBegin)
+					fmt.Println("结束时间：", time.Now())
+					fmt.Println("finish...", *count, "...right...", *right, "...cost...", cost)
+				}
 			}
-			fmt.Println("e:", time.Now())
+
+			for i := 0; i < runcounts; i++ {
+				go testfunc(&count, &right, int64(runcounts))
+				//testfunc(&count, &right, int64(runcounts))
+			}
+
+			cost := time.Now().Sub(timeBegin)
+			fmt.Println("结束时间：", time.Now())
+			fmt.Println("finish...", count, "...right...", right, "...cost...", cost)
 
 		}else if input == "rsatest2" {
 			var priKey, pubKey []byte

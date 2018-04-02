@@ -6,13 +6,14 @@ import (
 	"../data"
 	"./handler"
 	"./db"
-	"../utils"
+	"../base/utils"
 	"fmt"
 	"context"
 	"time"
 	"sync"
 	"strings"
 	"./install"
+	"encoding/json"
 )
 
 const AccountSrvName = "account"
@@ -21,58 +22,40 @@ const (
 	GateWayAddr = "127.0.0.1:8081"
 	SrvAddr = "127.0.0.1:8092"
 )
+var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
-func callAuthFunction(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData){
-	var err error
-	err = func() error{
-		var err error
-		switch strings.ToLower(req.Function) {
-		case "create":
-			err = handler.AccountInstance().Create(req, ack)
-			break
-		case "login":
-			err = handler.AccountInstance().Login(req, ack)
-			break
-		case "logout":
-			err = handler.AccountInstance().Logout(req, ack)
-			break
-		case "updatepassword":
-			err = handler.AccountInstance().UpdatePassword(req, ack)
-			break
-		case "listusers":
-			err = handler.AccountInstance().ListUsers(req, ack)
-			break
-		}
-
-		return err
-	}()
-
-	if err != nil {
-		fmt.Println(err)
-		ack.Err = data.ErrUserSrvRegister
-		ack.ErrMsg = data.ErrUserSrvRegisterText
+func callAuthFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
+	h := g_apisMap[strings.ToLower(req.Data.Function)]
+	if h != nil {
+		h(req, res)
+	}else{
+		res.Data.Err = data.ErrSrvInternalErr
+		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
 	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *ack)
+	fmt.Println("callNodeApi ack: ", *res)
 }
 
 func main() {
 	wg := &sync.WaitGroup{}
-
-	handler.AccountInstance().Init()
 
 	// 启动db
 	db.Init()
 
 	// 创建节点
 	nodeInstance, _:= service.NewServiceNode(AccountSrvName, AccountSrvVersion)
+
 	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.RegisterData.RegisterFunction(new(handler.Account))
 	nodeInstance.Handler = callAuthFunction
 
 	nodeInstance.ServiceCenterAddr = GateWayAddr
+
+	// 注册API
+	handler.AccountInstance().Init()
+	handler.AccountInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
+
 	rpc.Register(nodeInstance)
 
 	// 启动节点服务
@@ -98,20 +81,30 @@ func main() {
 				fmt.Println("失败，",err)
 				continue
 			}
+			b, _ := json.Marshal(uc)
 
-			ack, err:= handler.AccountInstance().CreateWebAdmin(uc)
-			fmt.Println("createadmin err:", err)
-			fmt.Println("createadmin ack:", ack)
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+
+			handler.AccountInstance().Create(&req, &res)
+			fmt.Println("createadmin err:", req)
+			fmt.Println("createadmin ack:", res)
 		}else if argv[0] == "loginadmin" {
 			ul, err := install.LoginUser()
 			if err != nil {
 				fmt.Println("失败", err)
 				continue
 			}
+			b, _ := json.Marshal(ul)
 
-			ack, err:= handler.AccountInstance().LoginWebAdmin(ul)
-			fmt.Println("loginadmin err:", err)
-			fmt.Println("loginadmin ack:", ack)
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+
+			handler.AccountInstance().Login(&req, &res)
+			fmt.Println("loginadmin err:", req)
+			fmt.Println("loginadmin ack:", res)
 		}
 	}
 

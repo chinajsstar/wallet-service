@@ -14,12 +14,12 @@ import (
 )
 
 // 服务节点回调接口
-type CallNodeApi func(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData)
+type CallNodeApi func(req *data.SrvRequestData, res *data.SrvResponseData)
 
 // 服务节点信息
 type ServiceNode struct{
 	// 注册的信息
-	RegisterData data.ServiceCenterRegisterData
+	RegisterData data.SrvRegisterData
 	// 回掉
 	Handler CallNodeApi
 	// 服务中心
@@ -91,16 +91,14 @@ func (ni *ServiceNode)Start(ctx context.Context, wg *sync.WaitGroup) error {
 
 // RPC 方法
 // 服务节点RPC--调用节点方法ServiceNodeInstance.Call
-func (ni *ServiceNode) Call(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	ack.Err = data.NoErr
-	ack.ErrMsg = ""
+func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	if ni.Handler != nil {
-		ni.Handler(req, ack)
+		ni.Handler(req, res)
 	}else{
-		fmt.Println("Error function call (no handler)--function=" , req.Function, ",argv=", req.Argv)
+		fmt.Println("Error function call (no handler)--function=" , req.Data.Function, ",argv=", req.Data.Argv)
 
-		ack.Err = data.ErrSrvInternalErr
-		ack.ErrMsg = data.ErrSrvInternalErrText
+		res.Data.Err = data.ErrSrvInternalErr
+		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
 	return nil
@@ -119,14 +117,14 @@ func (ni *ServiceNode) Pingpong(req *string, res * string) error {
 // 内部方法
 func (ni *ServiceNode)registToCenter() error{
 	var res string
-	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterRegister, ni.RegisterData, &res)
+	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodCenterRegister, ni.RegisterData, &res)
 
 	return err
 }
 
 func (ni *ServiceNode)unRegistToCenter() error{
 	var res string
-	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodServiceCenterUnRegister, ni.RegisterData, &res)
+	err := nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodCenterUnRegister, ni.RegisterData, &res)
 
 	return err
 }

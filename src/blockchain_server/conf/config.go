@@ -33,6 +33,15 @@ func (self *ClientConfig) Save() error {
 	return configer.Save()
 }
 
+func (self *ClientConfig) String() string {
+	return fmt.Sprintf(`
+	client config informations: %s,
+	rpc_url:			%s,
+	start_scan_block: 	%d,
+	confirmnumber: 		%d`,
+		self.Name, self.RPC_url, self.Start_scan_Blocknumber, self.TxConfirmNumber)
+}
+
 func (self *Configer) Save() error {
 	jsondata, _ := json.Marshal(configer)
 	err := ioutil.WriteFile(getConfigFilePath(), jsondata, os.ModePerm)
@@ -42,6 +51,18 @@ func (self *Configer) Save() error {
 	return nil
 }
 
+func (self *Configer)Trace() {
+	l4g.Trace(`
+	global config informations: 
+	crypte_key_file:			%s,
+	log_config_file:			%s,
+	log_path:					%s`,
+		self.Cryptofile, self.Log_conf_file, self.Log_path)
+
+	for _, c := range self.Clientconfig {
+		l4g.Trace(c.String())
+	}
+}
 func (self *Configer)ClientConfiger(coinname string) *ClientConfig{
 	return self.Clientconfig[coinname]
 }
@@ -59,7 +80,10 @@ func init () {
 	check(err)
 	err = json.Unmarshal(dat, &configer)
 	check(err)
+
 	l4g.LoadConfiguration(configer.Log_conf_file)
+
+	configer.Trace()
 }
 
 func GetConfiger() (*Configer) {

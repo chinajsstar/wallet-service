@@ -10,7 +10,7 @@ import (
 	"log"
 	"time"
 	"io/ioutil"
-	"../utils"
+	"../base/utils"
 	"crypto/sha512"
 	"crypto"
 	"encoding/base64"
@@ -19,7 +19,11 @@ import (
 	"../account_srv/user"
 	"../account_srv/install"
 	"errors"
+	"strconv"
 )
+
+const httpaddr = "127.0.0.1:8080"
+const httpaddr2 = "http://127.0.0.1:8070"
 
 var g_admin_prikey []byte
 var g_admin_pubkey []byte
@@ -44,7 +48,7 @@ func loadRsaKeys() error {
 		return err
 	}
 
-	g_admin_licensekey = "c9730876-6f26-4bcb-8e8e-38b384280644"
+	g_admin_licensekey = "cd3616ef-1ce0-47d6-81e5-832904318c90"
 
 	return nil
 }
@@ -56,7 +60,7 @@ const(
 	testFunction = "add"
 )
 
-func sendData(message, version, srv, function string) (*data.ServiceCenterDispatchAckData, []byte, error) {
+func sendData(message, version, srv, function string) (*data.UserResponseData, []byte, error) {
 	// 用户数据
 	var ud data.UserData
 	ud.LicenseKey = g_admin_licensekey
@@ -97,17 +101,117 @@ func sendData(message, version, srv, function string) (*data.ServiceCenterDispat
 	ud.Signature = base64.StdEncoding.EncodeToString(bsignature)
 
 	// 封装信息
-	dispatchData := data.ServiceCenterDispatchData{}
+	dispatchData := data.UserRequestData{}
 	dispatchData.Version = version
 	dispatchData.Srv = srv
 	dispatchData.Function = function
 	dispatchData.Argv = ud
 
 	////////////////////////////////////////////
-	fmt.Println("ok send msg:", dispatchData)
-	ackData := &data.ServiceCenterDispatchAckData{}
-	nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, ackData)
-	fmt.Println("ok get ack:", ackData)
+	//fmt.Println("ok send msg:", dispatchData)
+	ackData := &data.UserResponseData{}
+	nethelper.CallJRPCToHttpServer(httpaddr, "/wallet", data.MethodCenterDispatch, dispatchData, ackData)
+	//fmt.Println("ok get ack:", ackData)
+
+	if ackData.Err != data.NoErr {
+		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		return ackData, nil, err
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		return ackData, nil, err
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, g_server_pubkey)
+	if err != nil {
+		return ackData, nil, err
+	}
+
+	// 解密数据
+	d2, err := utils.RsaDecrypt(bencrypted2, g_admin_prikey, utils.RsaDecodeLimit2048)
+	if err != nil {
+		return ackData, nil, err
+	}
+
+	return ackData, d2, nil
+}
+
+func sendData2(message, version, srv, function string) (*data.UserResponseData, []byte, error) {
+	// 用户数据
+	var ud data.UserData
+	ud.LicenseKey = g_admin_licensekey
+
+	bencrypted, err := func() ([]byte, error) {
+		// 用我们的pub加密message ->encrypteddata
+		bencrypted, err := utils.RsaEncrypt([]byte(message), g_server_pubkey, utils.RsaEncodeLimit2048)
+		if err != nil {
+			return nil, err
+		}
+		return bencrypted, nil
+	}()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ud.Message = base64.StdEncoding.EncodeToString(bencrypted)
+
+	bsignature, err := func() ([]byte, error){
+		// 用自己的pri签名encrypteddata ->signature
+		var hashData []byte
+		hs := sha512.New()
+		hs.Write(bencrypted)
+		hashData = hs.Sum(nil)
+
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, g_admin_prikey)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		return bsignature, nil
+	}()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ud.Signature = base64.StdEncoding.EncodeToString(bsignature)
+
+	path := "/restful"
+	path += "/"+version
+	path += "/"+srv
+	path += "/"+function
+
+	b, err := json.Marshal(ud)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	body := string(b)
+
+	////////////////////////////////////////////
+	//fmt.Println("ok send msg:", dispatchData)
+	ackData := &data.UserResponseData{}
+
+	var res string
+	nethelper.CallToHttpServer(httpaddr2, path, body, &res)
+	//fmt.Println("ok get ack:", ackData)
+
+	err = json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	if ackData.Err != data.NoErr {
 		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
@@ -181,9 +285,9 @@ func DoTest2(client *rpc.Client, count *int64, right *int64, times int64){
 }
 
 func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
-	ackData := data.ServiceCenterDispatchAckData{}
+	ackData := data.UserResponseData{}
 
-	err := nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, params, &ackData)
+	err := nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodNodeCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil && ackData.Err==0{
@@ -198,8 +302,8 @@ func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
 }
 
 func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int64, times int64){
-	ackData := data.ServiceCenterDispatchAckData{}
-	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodServiceNodeCall, params, &ackData)
+	ackData := data.UserResponseData{}
+	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodNodeCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil && ackData.Err==0{
@@ -248,7 +352,7 @@ func main() {
 			return err
 		}
 
-		uca := user.UserLoginAck{}
+		uca := user.AckUserLogin{}
 		err = json.Unmarshal(d2, &uca)
 		if err != nil {
 			fmt.Println(err)
@@ -261,11 +365,11 @@ func main() {
 	}()
 	if err != nil {
 		fmt.Println("#err:", err)
-		return
+		//return
 	}
 
 	// 测试次数
-	const times = 100;
+	var runcounts = 100
 	var count, right int64
 	count = 0
 	right = 0
@@ -292,34 +396,50 @@ func main() {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(d))
 
+		}else if argv[0] == "d11" {
+			res, d, err := sendData2(testMessage, testVersion, testSrv, testFunction)
+			fmt.Println("err==", err)
+			fmt.Println("res==", *res)
+			fmt.Println("data==", string(d))
+
 		}else if argv[0] == "d2" {
 
 			var ud data.UserData
 			ud.Message = testMessage
 
-			dispatchData := data.ServiceCenterDispatchData{}
+			dispatchData := data.UserRequestData{}
 			dispatchData.Version = testVersion
 			dispatchData.Srv = testSrv
 			dispatchData.Function = testFunction
 			dispatchData.Argv = ud
 
-			ackData := data.ServiceCenterDispatchAckData{}
-			nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, dispatchData, &ackData)
+			ackData := data.UserResponseData{}
+			nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodNodeCall, dispatchData, &ackData)
 			fmt.Println("ack==", ackData)
 		}else if argv[0] == "d3" {
+
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
 
 			var ud data.UserData
 			ud.Message = testMessage
 
-			dispatchData := data.ServiceCenterDispatchData{}
+			dispatchData := data.UserRequestData{}
 			dispatchData.Version = testVersion
 			dispatchData.Srv = testSrv
 			dispatchData.Function = testFunction
 			dispatchData.Argv = ud
-			for i := 0; i < times; i++ {
-				go DoTestTcp(dispatchData, &count, &right, times)
+			for i := 0; i < runcounts; i++ {
+				go DoTestTcp(dispatchData, &count, &right, int64(runcounts))
 			}
 		} else if argv[0] == "d33" {
+
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
 
 			client, err := rpc.Dial("tcp", "127.0.0.1:8090")
 			if err != nil {
@@ -330,19 +450,28 @@ func main() {
 			var ud data.UserData
 			ud.Message = testMessage
 
-			dispatchData := data.ServiceCenterDispatchData{}
+			dispatchData := data.UserRequestData{}
 			dispatchData.Version = testVersion
 			dispatchData.Srv = testSrv
 			dispatchData.Function = testFunction
 			dispatchData.Argv = ud
-			for i := 0; i < times*times*2; i++ {
-				go DoTestTcp2(client, dispatchData, &count, &right, times*times*2)
+			for i := 0; i < runcounts; i++ {
+				go DoTestTcp2(client, dispatchData, &count, &right, int64(runcounts))
 			}
 		}else if argv[0] == "d4" {
-			for i := 0; i < times; i++ {
-				go DoTest(&count, &right, times)
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
+
+			for i := 0; i < runcounts; i++ {
+				go DoTest(&count, &right, int64(runcounts))
 			}
 		} else if argv[0] == "d44" {
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
 
 			addr := "127.0.0.1:8080"
 			log.Println("Call JRPC to Http server...", addr)
@@ -352,8 +481,8 @@ func main() {
 				log.Println("Error: ", err.Error())
 				continue
 			}
-			for i := 0; i < times*times*2; i++ {
-				go DoTest2(client, &count, &right, times*times*2)
+			for i := 0; i < runcounts; i++ {
+				go DoTest2(client, &count, &right, int64(runcounts))
 			}
 		}else if argv[0] == "rsagen"{
 			u, err := uuid.NewV4()
@@ -392,7 +521,7 @@ func main() {
 			}
 			fmt.Println(string(d2))
 
-			uca := user.UserCreateAck{}
+			uca := user.AckUserCreate{}
 			err = json.Unmarshal(d2, &uca)
 			if err != nil {
 				fmt.Println(err)
@@ -420,7 +549,7 @@ func main() {
 			}
 			fmt.Println(string(d2))
 
-			uca := user.UserLoginAck{}
+			uca := user.AckUserLogin{}
 			err = json.Unmarshal(d2, &uca)
 			if err != nil {
 				fmt.Println(err)
@@ -448,7 +577,7 @@ func main() {
 			}
 			fmt.Println(string(d2))
 
-			uca := user.UserListAck{}
+			uca := user.AckUserList{}
 			err = json.Unmarshal(d2, &uca)
 			if err != nil {
 				fmt.Println(err)

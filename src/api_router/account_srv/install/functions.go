@@ -9,10 +9,10 @@ import (
 	"strconv"
 )
 
-func AddUser() (*user.UserCreate, error) {
+func AddUser() (*user.ReqUserCreate, error) {
 	var input string
 
-	uc := &user.UserCreate{}
+	uc := &user.ReqUserCreate{}
 
 	fmt.Println("输入用户名: ")
 	fmt.Scanln(&input)
@@ -25,6 +25,10 @@ func AddUser() (*user.UserCreate, error) {
 	fmt.Println("输入邮箱: ")
 	fmt.Scanln(&input)
 	uc.Email = input
+
+	fmt.Println("输入权限: ")
+	fmt.Scanln(&input)
+	uc.Level, _ = strconv.Atoi(input)
 
 	fmt.Println("输入公钥文件路径: ")
 	fmt.Scanln(&input)
@@ -78,10 +82,10 @@ func AddUser() (*user.UserCreate, error) {
 	return uc, nil
 }
 
-func LoginUser() (*user.UserLogin, error) {
+func LoginUser() (*user.ReqUserLogin, error) {
 	var input string
 
-	uc := &user.UserLogin{}
+	uc := &user.ReqUserLogin{}
 
 	fmt.Println("用户名，电话，邮箱填一个: ")
 	fmt.Println("输入用户名: ")
@@ -110,11 +114,11 @@ func LoginUser() (*user.UserLogin, error) {
 	return uc, nil
 }
 
-func ListUsers() (*user.UserList, error) {
+func ListUsers() (*user.ReqUserList, error) {
 	var err error
 	var input string
 
-	uc := &user.UserList{}
+	uc := &user.ReqUserList{}
 
 	fmt.Println("输入上次最小id，默认填-1: ")
 	fmt.Scanln(&input)

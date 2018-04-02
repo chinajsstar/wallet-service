@@ -53,10 +53,12 @@ func main() {
 	/*********添加监控地址示例*********/
 	rcaCmd := types.NewRechargeAddressCmd("message id of monitor recharge address command", types.Chain_eth,
 		[]string{accs[0].Address, tmp_toaddress})
-	clientManager.InsertRechargeAddress(rcaCmd)
+
+	if err := clientManager.InsertRechargeAddress(rcaCmd); err!=nil {
+		l4g.Error("insert recharge address  error:%s", err.Error())
+	}
 
 	/*********创建监控充币地址channael*********/
-	rcTxChannel := make(types.RechargeTxChannel)
 	watch_address_channel := make(chan bool)
 	// 开启监控goroutine
 	go func(ctx context.Context, channel types.RechargeTxChannel) {
@@ -64,17 +66,23 @@ func main() {
 		for !exit {
 			select {
 			case rct := <-channel:{
-				fmt.Printf("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
-				watch_address_channel <- true
+				l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+
+				if rct.Tx.State == types.Tx_state_unconfirmed || rct.Tx.State==types.Tx_state_confirmed || rct.Err!=nil {
+					watch_address_channel <- true
+					if rct.Err!=nil {
+						l4g.Error("Recharge Transaction error message:%s", rct.Err.Error())
+					}
+				}
 			}
 			case <-ctx.Done():{
-				fmt.Println("RechangeTx context done, because : ", ctx.Err())
+				l4g.Trace("RechangeTx context done, because : ", ctx.Err())
 				watch_address_channel <- true
 				exit = true
 			}
 			}
 		}
-	}(ctx, rcTxChannel)
+	}(ctx, txRechChannel)
 
 	/*********监控提币交易的channel*********/
 	txok_channel := make(chan bool)
@@ -117,8 +125,10 @@ func main() {
 		l4g.Trace("SendTransaction from :%s to:%s", crypto.PubkeyToAddress(key.PublicKey).String(), tmp_toaddress)
 	}
 
-	txCmd := types.NewTxCmd("message id of transaction command", types.Chain_eth, tmp_account.PrivateKey, tmp_toaddress, 1)
-	clientManager.SendTx(txCmd)
+	if false {
+		txCmd := types.NewTxCmd("message id of transaction command", types.Chain_eth, tmp_account.PrivateKey, tmp_toaddress, 1)
+		clientManager.SendTx(txCmd)
+	}
 
 	if ok := <-txok_channel; ok ||!ok {
 		l4g.Trace("transaction gorouine already exited!")

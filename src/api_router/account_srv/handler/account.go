@@ -7,10 +7,12 @@ import (
 	"crypto/rand"
 	"io/ioutil"
 	"../user"
+	"../../base/service"
 	"encoding/base64"
 	"golang.org/x/crypto/bcrypt"
 	"encoding/json"
 	"github.com/satori/go.uuid"
+	"errors"
 )
 
 const (
@@ -62,245 +64,236 @@ func (s *Account)Init() error {
 	return nil
 }
 
-// 创建Web管理员账号
-func (s *Account) CreateWebAdmin(din *user.UserCreate) (*user.UserCreateAck, error) {
-	// password
-	salt := random(16)
-	h, err := bcrypt.GenerateFromPassword([]byte(x+salt+din.Password), 10)
-	if err != nil {
-		return nil, err
-	}
-	pp := base64.StdEncoding.EncodeToString(h)
+func (s *Account)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.CallNodeApi) error  {
+	regapi := func(name string, caller service.CallNodeApi, level int) error {
+		if (*apisfunc)[name] != nil {
+			fmt.Println("#error: api is already exist...", name)
+			return errors.New("api is already exist...")
+		}
 
-	// licencekey
-	u, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
-	licenseKey := u.String()
-
-	// db
-	err = db.Create(din, licenseKey, salt, pp)
-	if err != nil {
-		return nil, err
+		*apis = append(*apis, data.ApiInfo{name, level})
+		(*apisfunc)[name] = caller
+		return nil
 	}
 
-	// to ack
-	dout := &user.UserCreateAck{}
-	dout.LicenseKey = licenseKey
-	dout.ServerPublicKey = string(s.serverPublicKey)
-
-	return dout, err
-}
-
-// 登入Web管理员账号
-func (s *Account) LoginWebAdmin(din *user.UserLogin) (*user.UserLoginAck, error) {
-	dout, salt, hashed, err := db.ReadPassword(din.UserName, din.Phone, din.Email)
-	if err != nil {
-		return nil, err
+	if err := regapi("create", service.CallNodeApi(s.Create), data.APILevel_boss); err != nil {
+		return err
 	}
 
-	hh, err := base64.StdEncoding.DecodeString(hashed)
-	if err != nil {
-		return nil, err
+	if err := regapi("listusers", service.CallNodeApi(s.ListUsers), data.APILevel_admin); err != nil {
+		return err
 	}
 
-	if err := bcrypt.CompareHashAndPassword(hh, []byte(x+salt+din.Password)); err != nil {
-		return nil, err
+	if err := regapi("login", service.CallNodeApi(s.Login), data.APILevel_admin); err != nil {
+		return err
 	}
 
-	// TODO: add session
-	// save session
-	/*
-	sess := &account.Session{
-		Id:       random(128),
-		Username: username,
-		Created:  time.Now().Unix(),
-		Expires:  time.Now().Add(time.Hour * 24 * 7).Unix(),
+	if err := regapi("updatepassword", service.CallNodeApi(s.UpdatePassword), data.APILevel_admin); err != nil {
+		return err
 	}
 
-	if err := db.CreateSession(sess); err != nil {
-		return errors.InternalServerError("go.micro.srv.user.Login", err.Error())
-	}
-	rsp.Session = sess
-	*/
-
-	return dout, nil
+	return nil
 }
 
 // 创建账号
-func (s *Account) Create(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	// from req
-	din := user.UserCreate{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
-	if err != nil {
+func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
+	err := func() error {
+		// from req
+		din := user.ReqUserCreate{}
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
+		if err != nil {
+			return err
+		}
+
+		// password
+		salt := random(16)
+		h, err := bcrypt.GenerateFromPassword([]byte(x+salt+din.Password), 10)
+		if err != nil {
+			return err
+		}
+		pp := base64.StdEncoding.EncodeToString(h)
+
+		// licencekey
+		u, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		licenseKey := u.String()
+
+		// db
+		err = db.Create(&din, licenseKey, salt, pp)
+		if err != nil {
+			return err
+		}
+
+		// to ack
+		dout := user.AckUserCreate{}
+		dout.LicenseKey = licenseKey
+		dout.ServerPublicKey = string(s.serverPublicKey)
+
+		d, err := json.Marshal(dout)
+		if err != nil {
+			db.DeleteByLicenseKey(dout.LicenseKey)
+			return err
+		}
+
+		res.Data.Value.Message = string(d)
 		return err
-	}
+	}()
 
-	// password
-	salt := random(16)
-	h, err := bcrypt.GenerateFromPassword([]byte(x+salt+din.Password), 10)
 	if err != nil {
-		return err
+		res.Data.Err = data.ErrAccountSrvRegister
+		res.Data.ErrMsg = data.ErrAccountSrvRegisterText
 	}
-	pp := base64.StdEncoding.EncodeToString(h)
-
-	// licencekey
-	u, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
-	licenseKey := u.String()
-
-	// db
-	err = db.Create(&din, licenseKey, salt, pp)
-	if err != nil {
-		return err
-	}
-
-	// to ack
-	dout := user.UserCreateAck{}
-	dout.LicenseKey = licenseKey
-	dout.ServerPublicKey = string(s.serverPublicKey)
-
-	d, err := json.Marshal(dout)
-	if err != nil {
-		db.DeleteByLicenseKey(dout.LicenseKey)
-		return err
-	}
-
-	ack.Value.Message = string(d)
-	return err
 }
 
 // 登入
-func (s *Account) Login(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	// from req
-	din := user.UserLogin{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
+func (s *Account) Login(req *data.SrvRequestData, res *data.SrvResponseData) {
+	err := func()error{
+		// from req
+		din := user.ReqUserLogin{}
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
+		if err != nil {
+			return err
+		}
+
+		dout, salt, hashed, err := db.ReadPassword(din.UserName, din.Phone, din.Email)
+		if err != nil {
+			return err
+		}
+
+		hh, err := base64.StdEncoding.DecodeString(hashed)
+		if err != nil {
+			return err
+		}
+
+		if err := bcrypt.CompareHashAndPassword(hh, []byte(x+salt+din.Password)); err != nil {
+			return err
+		}
+
+		// TODO: add session
+		// save session
+		/*
+		sess := &account.Session{
+			Id:       random(128),
+			Username: username,
+			Created:  time.Now().Unix(),
+			Expires:  time.Now().Add(time.Hour * 24 * 7).Unix(),
+		}
+
+		if err := db.CreateSession(sess); err != nil {
+			return errors.InternalServerError("go.micro.srv.user.Login", err.Error())
+		}
+		rsp.Session = sess
+		*/
+
+		// to ack
+		data, err := json.Marshal(dout)
+		if err != nil {
+			return err
+		}
+
+		res.Data.Value.Message = string(data)
+		return nil
+	}()
+
 	if err != nil {
-		return err
+		res.Data.Err = data.ErrAccountSrvLogin
+		res.Data.ErrMsg = data.ErrAccountSrvLoginText
 	}
-
-	dout, salt, hashed, err := db.ReadPassword(din.UserName, din.Phone, din.Email)
-	if err != nil {
-		return err
-	}
-
-	hh, err := base64.StdEncoding.DecodeString(hashed)
-	if err != nil {
-		return err
-	}
-
-	if err := bcrypt.CompareHashAndPassword(hh, []byte(x+salt+din.Password)); err != nil {
-		return err
-	}
-
-	// TODO: add session
-	// save session
-	/*
-	sess := &account.Session{
-		Id:       random(128),
-		Username: username,
-		Created:  time.Now().Unix(),
-		Expires:  time.Now().Add(time.Hour * 24 * 7).Unix(),
-	}
-
-	if err := db.CreateSession(sess); err != nil {
-		return errors.InternalServerError("go.micro.srv.user.Login", err.Error())
-	}
-	rsp.Session = sess
-	*/
-
-	// to ack
-	data, err := json.Marshal(dout)
-	if err != nil {
-		// 删除
-		return err
-	}
-
-	ack.Value.Message = string(data)
-	return nil
 }
 
 // 登陆
-func (s *Account) Logout(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
+func (s *Account) Logout(req *data.SrvRequestData, res *data.SrvResponseData)  {
 	// TODO: 登出session处理
 	//return db.DeleteSession(req.SessionId)
-	return nil
+	return
 }
 
 // 更新密码
-func (s * Account) UpdatePassword(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error  {
-	// from req
-	din := user.UserUpdatePassword{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
+func (s * Account) UpdatePassword(req *data.SrvRequestData, res *data.SrvResponseData) {
+	err := func() error {
+		// from req
+		din := user.ReqUserUpdatePassword{}
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
+		if err != nil {
+			return err
+		}
+
+		d, salt, hashed, err := db.ReadPassword(din.UserName, din.Phone, din.Email)
+		if err != nil {
+			return err
+		}
+
+		hh, err := base64.StdEncoding.DecodeString(hashed)
+		if err != nil {
+			return err
+		}
+
+		if err := bcrypt.CompareHashAndPassword(hh, []byte(x+salt+din.OldPassword)); err != nil {
+			return err
+		}
+
+		// reset new
+		newSalt := random(16)
+		h, err := bcrypt.GenerateFromPassword([]byte(x+newSalt+din.NewPassword), 10)
+		if err != nil {
+			return err
+		}
+		pp := base64.StdEncoding.EncodeToString(h)
+
+		if err := db.UpdatePassword(d.Id, newSalt, pp); err != nil {
+			return err
+		}
+
+		// to ack
+		dout := user.AckUserUpdatePassword{Status:"ok"}
+		data, err := json.Marshal(dout)
+		if err != nil {
+			// 写回去
+			db.UpdatePassword(d.Id, salt, hashed)
+			return err
+		}
+
+		res.Data.Value.Message = string(data)
+		return nil
+	}()
+
 	if err != nil {
-		return err
+		res.Data.Err = data.ErrAccountSrvUpdatePassword
+		res.Data.ErrMsg = data.ErrAccountSrvUpdatePasswordText
 	}
-
-	d, salt, hashed, err := db.ReadPassword(din.UserName, din.Phone, din.Email)
-	if err != nil {
-		return err
-	}
-
-	hh, err := base64.StdEncoding.DecodeString(hashed)
-	if err != nil {
-		return err
-	}
-
-	if err := bcrypt.CompareHashAndPassword(hh, []byte(x+salt+din.OldPassword)); err != nil {
-		return err
-	}
-
-	// reset new
-	newSalt := random(16)
-	h, err := bcrypt.GenerateFromPassword([]byte(x+newSalt+din.NewPassword), 10)
-	if err != nil {
-		return err
-	}
-	pp := base64.StdEncoding.EncodeToString(h)
-
-	if err := db.UpdatePassword(d.Id, newSalt, pp); err != nil {
-		return err
-	}
-
-	// to ack
-	dout := user.UserUpdatePasswordAck{Status:"ok"}
-	data, err := json.Marshal(dout)
-	if err != nil {
-		// 写回去
-		db.UpdatePassword(d.Id, salt, hashed)
-		return err
-	}
-
-	ack.Value.Message = string(data)
-	return nil
 }
 
 // 获取用户列表
 // 登入
-func (s *Account) ListUsers(req *data.ServiceCenterDispatchData, ack *data.ServiceCenterDispatchAckData) error {
-	// from req
-	din := user.UserList{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &din)
+func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData) {
+	err := func() error {
+		// from req
+		din := user.ReqUserList{}
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
+		if err != nil {
+			return err
+		}
+
+		const listnum = 10
+		dout, err := db.ListUsers(din.Id, listnum)
+		if err != nil {
+			return err
+		}
+
+		// to ack
+		data, err := json.Marshal(dout)
+		if err != nil {
+			return err
+		}
+
+		res.Data.Value.Message = string(data)
+		return nil
+	}()
+
 	if err != nil {
-		return err
+		res.Data.Err = data.ErrAccountSrvListUsers
+		res.Data.ErrMsg = data.ErrAccountSrvListUsersText
 	}
-
-	const listnum = 10
-
-	dout, err := db.ListUsers(din.Id)
-	if err != nil {
-		return err
-	}
-
-	// to ack
-	data, err := json.Marshal(dout)
-	if err != nil {
-		return err
-	}
-
-	ack.Value.Message = string(data)
-	return nil
 }

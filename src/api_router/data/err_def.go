@@ -4,9 +4,16 @@ package data
 const(
 	// 0-1000 通用
 	NoErr 						= 0				// no error
-	ErrCall						= 1				// call error,调用错误
+	ErrData						= 1
+	ErrDataText					= "数据错误"
 
-	ErrNotFindAuth				= 2
+	ErrCall						= 2
+	ErrCallText					= "内部调用错误"
+
+	ErrIllegalCall				= 3
+	ErrIllegalCallText			= "非法调用错误"
+
+	ErrNotFindAuth				= 4
 	ErrNotFindAuthText			= "没有找到验证服务"
 
 	ErrNotFindSrv				= 100
@@ -22,8 +29,13 @@ const(
 	ErrAuthSrvIllegalData 		= 1001
 	ErrAuthSrvIllegalDataText 	= "非法数据"
 
-	// 2001-3000 user_srv使用
-	ErrUserSrvRegister			= 2001
-	ErrUserSrvRegisterText		= "用户注册失败"
-
+	// 2001-3000 account_srv使用
+	ErrAccountSrvRegister		= 2001
+	ErrAccountSrvRegisterText	= "用户注册失败"
+	ErrAccountSrvLogin			= 2002
+	ErrAccountSrvLoginText		= "用户登陆失败"
+	ErrAccountSrvUpdatePassword			= 2003
+	ErrAccountSrvUpdatePasswordText		= "用户修改密码失败"
+	ErrAccountSrvListUsers			= 2004
+	ErrAccountSrvListUsersText		= "用户获取列表失败"
 )

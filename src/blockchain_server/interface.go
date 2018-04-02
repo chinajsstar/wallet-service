@@ -15,7 +15,6 @@ type ChainClient interface {
 	// from is a crypted private key
 	SendTx(privkey string, transfer *types.Transfer) error
 	Tx(tx_hash string)(*types.Transfer, error)
-	//TxRecipt(ctx context.Context, tx_hash string)(*types.Transfer, error)
 	BlockHeight() (uint64)
 	InsertRechageAddress(address []string)
 
