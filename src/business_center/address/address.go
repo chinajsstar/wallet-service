@@ -34,14 +34,14 @@ func (addr *Address) loadAaddress() {
 	defer c.Close()
 
 	for symbolName := range addr.symbolNameMap {
-		jsonInfo, err := redis.Strings(c.Do("smembers", symbolName+"_user_addr"))
+		jsonInfo, err := redis.Strings(c.Do("hvals", "user_address_"+symbolName))
 		if err != nil {
 			return
 		}
 
 		var addrs []string
 		for _, jsonInfo := range jsonInfo {
-			var userAddr def.UserAssetAddress
+			var userAddr def.UserAddress
 			json.Unmarshal([]byte(jsonInfo), &userAddr)
 			addrs = append(addrs, userAddr.Address)
 		}
@@ -77,7 +77,7 @@ func (addr *Address) AllocationAddress(req string, ack *string) error {
 	symbolName := reqInfo.Params.Symbol
 
 	//查询剩余的地址
-	idleNumber, err := redis.Int(c.Do("scard", symbolName+"_unuse_addr"))
+	idleNumber, err := redis.Int(c.Do("scard", "free_address_"+symbolName))
 	if err != nil {
 		fmt.Printf("AllocationAddress Redis Scard Error: %s\n", err.Error())
 		return err
@@ -91,7 +91,7 @@ func (addr *Address) AllocationAddress(req string, ack *string) error {
 		}
 	}
 
-	accounts, err := redis.Strings(c.Do("spop", symbolName+"_unuse_addr", reqInfo.Params.Count))
+	accounts, err := redis.Strings(c.Do("spop", "free_address_"+symbolName, reqInfo.Params.Count))
 	if err != nil {
 		fmt.Printf("AllocationAddress Redis SPOP Error : %s/n", err.Error())
 		return err
@@ -107,21 +107,55 @@ func (addr *Address) AllocationAddress(req string, ack *string) error {
 		}
 		addrs = append(addrs, acc.Address)
 
-		var userAddr def.UserAssetAddress
+		var userAddr def.UserAddress
 		userAddr.UserID = reqInfo.UserID
 		userAddr.AssetID = symbolID
 		userAddr.Address = acc.Address
+		userAddr.PrivateKey = acc.PrivateKey
 		userAddr.Enabled = true
-		userAddr.CreateTime = time.Now().Format("2006-01-02 15:04:05")
+		userAddr.CreateTime = uint64(time.Now().Unix())
 		jsonInfo, err := json.Marshal(userAddr)
 		if err != nil {
-			fmt.Printf("AllocationAddress UserAssetAddress Marshal Error : %s/n", err.Error())
+			fmt.Printf("AllocationAddress UserAddress Marshal Error : %s/n", err.Error())
 			return err
 		}
-		c.Do("sadd", symbolName+"_user_addr", jsonInfo)
+		c.Do("hset", "user_address_"+symbolName, acc.Address, jsonInfo)
 	}
 
 	if len(addrs) > 0 {
+		//创建资金帐户
+		nowUnix := uint64(time.Now().Unix())
+		acc := &def.UserAccount{}
+		acc.UserID = reqInfo.UserID
+		acc.AssetID = symbolID
+		acc.AvailableAmount = 0
+		acc.FrozenAmount = 0
+		acc.CreateTime = nowUnix
+		acc.UpdateTime = nowUnix
+		jsonInfo, _ := json.Marshal(acc)
+
+		for {
+			c.Do("watch", "user_account")
+			a, err := redis.Int(c.Do("hexists", "user_account", reqInfo.UserID+"_"+symbolName))
+			if err != nil {
+				return err
+			}
+			if a == 0 {
+				c.Do("multi")
+				c.Do("hset", "user_account", reqInfo.UserID+"_"+symbolName, jsonInfo)
+				reply, err := c.Do("exec")
+				if err != nil {
+					return err
+				}
+				if reply != nil {
+					break
+				}
+			} else {
+				c.Do("unwatch", "user_account")
+				break
+			}
+		}
+
 		rcaCmd := types.NewRechargeAddressCmd("message id", symbolName, addrs)
 		addr.wallet.InsertRechargeAddress(rcaCmd)
 	}
@@ -157,7 +191,7 @@ func (addr *Address) generateAddress(c redis.Conn, symbolName string, count int)
 			fmt.Printf("generateAddress Marshal Error : %s\n", err.Error())
 			return err
 		}
-		c.Do("sadd", symbolName+"_unuse_addr", jsonInfo)
+		c.Do("sadd", "free_address_"+symbolName, jsonInfo)
 	}
 	return nil
 }
