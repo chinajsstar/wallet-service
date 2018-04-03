@@ -11,6 +11,7 @@ import (
 	"net/rpc"
 	"time"
 	"errors"
+	"net"
 )
 
 // 服务节点回调接口
@@ -26,7 +27,10 @@ type ServiceNode struct{
 	ServiceCenterAddr string
 	// 等待
 	wg *sync.WaitGroup
-	// 中心
+	// 连接组管理
+	clientGroup *ConnectionGroup
+
+	// 注册到gateway的rpc客户端
 	client *rpc.Client
 }
 
@@ -36,6 +40,7 @@ func NewServiceNode(srvName string, versionName string) (*ServiceNode, error){
 
 	serviceNode.RegisterData.Srv = srvName
 	serviceNode.RegisterData.Version = versionName
+	serviceNode.clientGroup = NewConnectionGroup()
 
 	return serviceNode, nil
 }
@@ -71,7 +76,13 @@ func (ni *ServiceNode)Start(ctx context.Context, wg *sync.WaitGroup) error {
 					}
 
 					log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
-					go rpc.ServeConn(conn)
+					rc := ni.clientGroup.Register(conn)
+
+					go func() {
+						go rpc.ServeConn(rc)
+						<- rc.Done
+						log.Println("Tcp server close a client: ", conn.RemoteAddr())
+					}()
 				}
 			}()
 
@@ -106,36 +117,31 @@ func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData)
 	return nil
 }
 
-// 服务节点RPC--与服务中心心跳
-func (ni *ServiceNode) Pingpong(req *string, res * string) error {
-	if *req == "ping" {
-		*res = "pong"
-	}else{
-		*res = *req
+// 内部方法
+func (ni *ServiceNode)connectToCenter() (*Connection, error){
+	var err error
+
+	conn, err := net.Dial("tcp", ni.ServiceCenterAddr)
+	if err != nil {
+		log.Println("#connectToCenter Error: ", err.Error())
+		return nil, err
 	}
-	return nil
+
+	cn := &Connection{}
+	cn.Cg = nil
+	cn.Conn = conn
+	cn.Done = make(chan bool)
+
+	return cn, err
 }
 
-// 内部方法
 func (ni *ServiceNode)registToCenter() error{
-	if ni.client != nil {
-		ni.client.Close()
-		ni.client = nil
-	}
-
 	var err error
-	ni.client, err = rpc.Dial("tcp", ni.ServiceCenterAddr)
-	if err != nil {
-		log.Println("#registToCenter Error: ", err.Error())
-		return err
-	}
-
 	var res string
-	err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterRegister, ni.RegisterData, &res)
-	fmt.Println("Regist to center...", ni.RegisterData, ",error--", err)
-	if err != nil {
-		ni.client.Close()
-		ni.client = nil
+	if ni.client != nil {
+		err = ni.client.Call(data.MethodCenterRegister, ni.RegisterData, &res)
+	}else{
+		errors.New("connection is closed")
 	}
 	return err
 }
@@ -152,39 +158,33 @@ func (ni *ServiceNode)unRegistToCenter() error{
 	return err
 }
 
-func (ni *ServiceNode)doPingpong() error{
-	var err error
-	var res string
-
-	if ni.client != nil {
-		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterPingpong, "ping", &res)
-	}else{
-		err = errors.New("client is close")
-	}
-	return err
-}
-
 func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
 	go func() {
 		ni.wg.Add(1)
 		defer ni.wg.Done()
 
 		go func() {
-			err := ni.registToCenter()
+			err := errors.New("not connect")
+			var cn *Connection
 			for {
-				if err == nil {
-					time.Sleep(time.Second*60)
-				}else{
-					time.Sleep(time.Second*5)
+				if err != nil {
+					log.Println("Tcp client connect...")
+					cn, err = ni.connectToCenter()
 				}
 
 				if err == nil {
-					err = ni.doPingpong()
-				}else{
-					err = ni.registToCenter()
+					ni.client = rpc.NewClient(cn)
+
+					ni.registToCenter()
+
+					log.Println("Tcp client connected...")
+					<-cn.Done
+					log.Println("Tcp client close... ")
+
+					err = errors.New("not connect")
 				}
 
-				fmt.Println("keepalive...sleep")
+				time.Sleep(time.Second*5)
 			}
 		}()
 

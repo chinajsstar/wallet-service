@@ -1,12 +1,12 @@
 package data
 
 const(
-	MethodCenterRegister   = "ServiceCenter.Register"	// 服务向服务中心注册请求，对内
-	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// 服务向服务中心反注册请求，对内
-	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// 客户向服务中心发送请求，对外
-	MethodCenterPingpong   = "ServiceCenter.Pingpong"		// 服务中心向服务发送心跳，对内
-	MethodNodePingpong     = "ServiceNode.Pingpong"		// 服务中心向服务发送心跳，对内
-	MethodNodeCall         = "ServiceNode.Call"			// 服务中心向服务发送请求，对内
+	MethodCenterRegister   = "ServiceCenter.Register"	// 节点向服务中心注册请求
+	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// 节点向服务中心反注册请求
+
+	MethodCenterPush   	   = "ServiceCenter.Push"		// 节点向服务中心推送消息
+	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// 节点向服务中心发送请求
+	MethodNodeCall         = "ServiceNode.Call"			// 服务中心向节点发送请求
 )
 
 const(

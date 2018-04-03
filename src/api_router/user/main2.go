@@ -1,16 +1,15 @@
 package main
 
 import (
-	"golang.org/x/net/websocket"
+	//"golang.org/x/net/websocket"
 	"fmt"
 	"net/http"
 	"strings"
 	"../base/utils"
-	"sync"
-	"net/rpc/jsonrpc"
-	"net/rpc"
 	rpc2 "github.com/ethereum/go-ethereum/rpc"
-	"net"
+	"sync"
+	"golang.org/x/net/websocket"
+	"net/rpc"
 )
 
 ///
@@ -60,6 +59,7 @@ func (r *rpcRequest) Write(p []byte) (n int, err error) {
 
 // Close implements the io.ReadWriteCloser Close method.
 func (r *rpcRequest) Close() error {
+	//r.conn.Close()
 	r.done <- true
 	return nil
 }
@@ -72,8 +72,10 @@ func newRPCRequest(conn *websocket.Conn, d string) *rpcRequest {
 func (ws *WsServer)handleData(conn *websocket.Conn, data string) {
 	rpcReq := newRPCRequest(conn, data)
 
+	//jsonrpc.ServeConn(rpcReq)
+	go rpc.ServeConn(rpcReq)
 	// go and wait
-	go rpc.ServeCodec(jsonrpc.NewServerCodec(rpcReq))
+	//go rpc.ServeCodec(jsonrpc.NewServerCodec(rpcReq))
 	<-rpcReq.done
 }
 
@@ -143,7 +145,7 @@ func StartWsClient() *websocket.Conn {
 	}(conn)
 	return conn
 }
-
+/*
 func StartWsServer2() (*rpc2.Server, net.Listener) {
 	startServer := func(addr string) (*rpc2.Server, net.Listener) {
 		srv := rpc2.NewServer()
@@ -169,9 +171,11 @@ func StartWsClient2() *rpc2.Client {
 	}
 	return client
 }
+*/
 
 func main() {
 	// Start a server and corresponding client.
+
 
 	//var srv *rpc2.Server
 	//var l net.Listener
@@ -190,11 +194,11 @@ func main() {
 		if argv[0]=="q"{
 			break
 		} else if argv[0] == "w" {
-			//go StartWsServer()
-			_, _ = StartWsServer2()
+			go StartWsServer()
+			//_, _ = StartWsServer2()
 		}else if argv[0] == "c" {
-			//conn = StartWsClient()
-			client = StartWsClient2()
+			conn = StartWsClient()
+			//client = StartWsClient2()
 		}else if argv[0] == "s" {
 			if(conn != nil){
 				conn.Write([]byte(argv[1]))

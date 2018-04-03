@@ -6,7 +6,6 @@ import (
 	"net/rpc"
 	"sync"
 	"fmt"
-	"time"
 	"sync/atomic"
 )
 
@@ -15,8 +14,6 @@ type SrvNode struct{
 
 	Rwmu sync.RWMutex
 	Client *rpc.Client
-
-	LastOperationTime time.Time
 }
 
 // 内部方法
@@ -31,7 +28,6 @@ func (srvNode *SrvNode)openClient() error{
 			return err
 		}
 
-		srvNode.LastOperationTime = time.Now()
 		srvNode.Client = client
 	}
 
@@ -57,6 +53,7 @@ func (srvNode *SrvNode)sendData(method string, params interface{}, res interface
 	return nethelper.CallJRPCToTcpServerOnClient(srvNode.Client, method, params, res)
 }
 
+//////////////////////////////////////////////////////////////////
 type SrvNodeGroup struct{
 	Srv	string
 	Rwmu sync.RWMutex
@@ -124,7 +121,7 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 	}
 
 	var srvNode *SrvNode
-	srvNode = sng.getNode()
+	srvNode = sng.getFreeNode()
 	if srvNode == nil{
 		res.Data.Err = data.ErrNotFindSrv
 		res.Data.ErrMsg = data.ErrNotFindSrvText
@@ -155,7 +152,7 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 	return
 }
 
-func (sng *SrvNodeGroup) getNode() *SrvNode {
+func (sng *SrvNodeGroup) getFreeNode() *SrvNode {
 	// TODO:根据算法获取空闲的
 	// NOTE:go map 多次range会从随机位置开始迭代
 	/*
@@ -174,31 +171,4 @@ func (sng *SrvNodeGroup) getNode() *SrvNode {
 
 	index := sng.index % length
 	return sng.nodes[index]
-}
-
-func (sng *SrvNodeGroup)KeepAlive() {
-	// 是否有断开连接
-	var rgQuit []data.SrvRegisterData
-
-	func(){
-		sng.Rwmu.RLock()
-		defer sng.Rwmu.RUnlock()
-
-		var res string
-		for _, b := range sng.AddrMapSrvNode{
-			if b.Client != nil{
-				b.LastOperationTime = time.Now()
-				res = ""
-				err := b.sendData(data.MethodNodePingpong, "ping", &res)
-				if err != nil || res != "pong" {
-					rgQuit = append(rgQuit, b.RegisterData)
-				}
-			}
-		}
-	}()
-
-	// 去掉断开的
-	for _, v := range rgQuit {
-		sng.UnRegisterNode(&v)
-	}
 }

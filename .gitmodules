@@ -28,3 +28,6 @@
 [submodule "src/github.com/garyburd/redigo"]
 	path = src/github.com/garyburd/redigo
 	url = https://github.com/garyburd/redigo.git
+[submodule "src/golang.org/x/net"]
+	path = src/golang.org/x/net
+	url = https://go.googlesource.com/net

@@ -12,46 +12,43 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
-	"net/rpc/jsonrpc"
-	"io"
-	"bytes"
 	"net"
-	"time"
 )
 
 type ServiceCenter struct{
 	// 名称
 	name string
 
-	// rpc服务
-	rpcServer *rpc.Server
-
 	// http
 	httpPort string
 
-	// tcp
-	tcpPort string
+	// center
+	centerPort string
 
 	// 节点信息
-	Rwmu sync.RWMutex
+	rwmu                       sync.RWMutex
 	SrvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
-	ApiInfo map[string]*data.ApiInfo
+	ApiInfo                    map[string]*data.ApiInfo
 
 	// 等待
 	wg *sync.WaitGroup
+
+	// 连接组管理
+	clientGroup *ConnectionGroup
 }
 
 // 生成一个服务中心
-func NewServiceCenter(rootName string, httpPort string, tcpPort string) (*ServiceCenter, error){
+func NewServiceCenter(rootName string, httpPort string, centerPort string) (*ServiceCenter, error){
 	serviceCenter := &ServiceCenter{}
 
 	serviceCenter.name = rootName
 	serviceCenter.httpPort = httpPort
-	serviceCenter.tcpPort = tcpPort
-	serviceCenter.rpcServer = rpc.NewServer()
-	serviceCenter.rpcServer.Register(serviceCenter)
+	serviceCenter.centerPort = centerPort
+	rpc.Register(serviceCenter)
 
 	serviceCenter.SrvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
+
+	serviceCenter.clientGroup = NewConnectionGroup()
 
 	return serviceCenter, nil
 }
@@ -60,9 +57,7 @@ func NewServiceCenter(rootName string, httpPort string, tcpPort string) (*Servic
 func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
 	mi.wg = wg
 
-	mi.rpcServer.HandleHTTP("/wallet", "/wallet_debug")
-	http.Handle("/rpc", http.HandlerFunc(mi.handleRpc))
-	http.Handle("/restful/", http.HandlerFunc(mi.handleRestful))
+	http.Handle("/wallet/", http.HandlerFunc(mi.handleWallet))
 
 	// http server
 	err := func() error {
@@ -95,8 +90,8 @@ func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
 
 	// tcp server
 	err = func() error {
-		log.Println("Start Tcp server on ", mi.tcpPort)
-		listener, err := nethelper.CreateTcpServer(mi.tcpPort)
+		log.Println("Start Tcp server on ", mi.centerPort)
+		listener, err := nethelper.CreateTcpServer(mi.centerPort)
 		if err != nil {
 			log.Println("#ListenTCP Error: ", err.Error())
 			return err
@@ -115,8 +110,14 @@ func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
 					}
 
 					log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
+					rc := mi.clientGroup.Register(conn)
 
-					go mi.rpcServer.ServeConn(conn)
+					go func() {
+						go rpc.ServeConn(rc)
+						<- rc.Done
+						log.Println("Tcp server close a client: ", conn.RemoteAddr())
+					}()
+
 				}
 			}()
 
@@ -133,8 +134,8 @@ func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
 // RPC 方法
 // 服务中心方法--注册到服务中心
 func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error {
-	mi.Rwmu.Lock()
-	defer mi.Rwmu.Unlock()
+	mi.rwmu.Lock()
+	defer mi.rwmu.Unlock()
 
 	versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
 	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
@@ -159,8 +160,8 @@ func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error 
 
 // 服务中心方法--注册到服务中心
 func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) error {
-	mi.Rwmu.Lock()
-	defer mi.Rwmu.Unlock()
+	mi.rwmu.Lock()
+	defer mi.rwmu.Unlock()
 
 	versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
 	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
@@ -185,7 +186,7 @@ func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserRespo
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	mi.call(req, res)
+	mi.innerCall(req, res)
 
 	// 确保错误的情况下，没有实际数据
 	if res.Err != data.NoErr {
@@ -195,16 +196,33 @@ func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserRespo
 	return nil
 }
 
-func (mi *ServiceCenter) Pingpong(req *string, res * string) error {
-	if *req == "ping" {
-		*res = "pong"
-	}else{
-		*res = *req
+// 内部调用
+func (mi *ServiceCenter) innerCall(req *data.UserRequestData, res *data.UserResponseData) {
+	api := mi.getApiInfo(req)
+	if api == nil {
+		res.Err = data.ErrNotFindSrv
+		res.ErrMsg = data.ErrNotFindSrvText
+		fmt.Println("#Error: ", res.ErrMsg)
+		return
 	}
-	return nil
+
+	// 请求具体服务
+	var rpcSrv data.SrvRequestData
+	rpcSrv.Data = *req
+	rpcSrv.Context.Api = *api
+	var rpcSrvRes data.SrvResponseData
+	if mi.doFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
+		// 失败
+		*res = rpcSrvRes.Data
+		return
+	}
+
+	// 返回
+	*res = rpcSrvRes.Data
 }
 
-func (mi *ServiceCenter) call(req *data.UserRequestData, res *data.UserResponseData) {
+// 用户调用
+func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserResponseData) {
 	// 禁止直接调用auth
 	if req.Srv == "auth" {
 		res.Err = data.ErrIllegalCall
@@ -238,7 +256,7 @@ func (mi *ServiceCenter) call(req *data.UserRequestData, res *data.UserResponseD
 	rpcSrv.Context.Api = *api
 	rpcSrv.Data.Argv.Message = rpcAuthRes.Data.Value.Message
 	var rpcSrvRes data.SrvResponseData
-	if mi.dispatchFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
+	if mi.doFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
 		// 失败
 		*res = rpcSrvRes.Data
 		return
@@ -260,12 +278,12 @@ func (mi *ServiceCenter) call(req *data.UserRequestData, res *data.UserResponseD
 	*res = reqEncryptedRes.Data
 }
 
-func (mi *ServiceCenter) dispatchFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceCenter) doFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
 	versionSrvName := strings.ToLower(req.Data.Srv + "." + req.Data.Version)
 	//fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Function)
 
-	mi.Rwmu.RLock()
-	defer mi.Rwmu.RUnlock()
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
 
 	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
 	if srvNodeGroup == nil{
@@ -284,7 +302,7 @@ func (mi *ServiceCenter) authData(req *data.SrvRequestData, res *data.SrvRespons
 	reqAuth.Data.Function = "AuthData"
 	reqAuthRes := data.SrvResponseData{}
 
-	mi.dispatchFunction(&reqAuth, &reqAuthRes)
+	mi.doFunction(&reqAuth, &reqAuthRes)
 
 	*res = reqAuthRes
 }
@@ -296,73 +314,32 @@ func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResp
 
 	reqEncRes := data.SrvResponseData{}
 
-	mi.dispatchFunction(&reqEnc, &reqEncRes)
+	mi.doFunction(&reqEnc, &reqEncRes)
 
 	*res = reqEncRes
 }
 
 func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
-	mi.Rwmu.RLock()
-	defer mi.Rwmu.RUnlock()
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
 
 	name := strings.ToLower(req.Srv + "." + req.Version + "." + req.Function)
 	return mi.ApiInfo[name]
 }
 
-// http 处理
-// rpcRequest represents a RPC request.
-// rpcRequest implements the io.ReadWriteCloser interface.
-type rpcRequest struct {
-	r    io.Reader     // holds the JSON formated RPC request
-	rw   io.ReadWriter // holds the JSON formated RPC response
-	done chan bool     // signals then end of the RPC request
-}
+func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) {
+	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
+	//defer req.Body.Close()
 
-// Read implements the io.ReadWriteCloser Read method.
-func (r *rpcRequest) Read(p []byte) (n int, err error) {
-	return r.r.Read(p)
-}
-
-// Write implements the io.ReadWriteCloser Write method.
-func (r *rpcRequest) Write(p []byte) (n int, err error) {
-	return r.rw.Write(p)
-}
-
-// Close implements the io.ReadWriteCloser Close method.
-func (r *rpcRequest) Close() error {
-	r.done <- true
-	return nil
-}
-
-// NewRPCRequest returns a new rpcRequest.
-func newRPCRequest(r io.Reader) *rpcRequest {
-	var buf bytes.Buffer
-	done := make(chan bool)
-	return &rpcRequest{r, &buf, done}
-}
-func (mi *ServiceCenter) handleRpc(w http.ResponseWriter, req *http.Request) {
-	log.Println("Http server Accept a rpc client: ", req.RemoteAddr)
-	defer req.Body.Close()
-
-	w.Header().Set("Content-Type", "application/json")
-	rpcReq := newRPCRequest(req.Body)
-
-	// go and wait
-	go mi.rpcServer.ServeCodec(jsonrpc.NewServerCodec(rpcReq))
-	<-rpcReq.done
-
-	io.Copy(w, rpcReq.rw)
-}
-func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request) {
-	log.Println("Http server Accept a rest client: ", req.RemoteAddr)
-	defer req.Body.Close()
+	mi.wg.Add(1)
+	defer mi.wg.Done()
 
 	resData := data.UserResponseData{}
 	func (){
-		fmt.Println("path=", req.URL.Path)
+		//fmt.Println("path=", req.URL.Path)
 
 		path := req.URL.Path
-		path = strings.Replace(path, "restful", "", -1)
+		path = strings.Replace(path, "wallet", "", -1)
 		path = strings.TrimLeft(path, "/")
 		path = strings.TrimRight(path, "/")
 
@@ -374,8 +351,8 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 			return
 		}
 
-		body := string(b)
-		fmt.Println("body=", body)
+		//body := string(b)
+		//fmt.Println("body=", body)
 
 		// 重组rpc结构json
 		reqData := data.UserRequestData{}
@@ -402,7 +379,7 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 			}
 		}
 
-		mi.Dispatch(&reqData, &resData)
+		mi.userCall(&reqData, &resData)
 	}()
 
 	// write back http
@@ -410,41 +387,4 @@ func (mi *ServiceCenter) handleRestful(w http.ResponseWriter, req *http.Request)
 	b, _ := json.Marshal(resData)
 	w.Write(b)
 	return
-}
-
-func (mi *ServiceCenter)keepAlive(){
-	mi.Rwmu.RLock()
-	defer mi.Rwmu.RUnlock()
-
-	for _, v := range mi.SrvNodeNameMapSrvNodeGroup{
-		v.KeepAlive()
-	}
-}
-
-func (mi *ServiceCenter)startToKeepAlive(ctx context.Context) error{
-	timeout := make(chan bool)
-	go func(){
-		for ; ; {
-			timeout <- true
-			time.Sleep(time.Second*60)
-		}
-	}()
-
-	go func() {
-		mi.wg.Add(1)
-		defer mi.wg.Done()
-
-		for ; ; {
-			select{
-			case <-ctx.Done():
-				fmt.Println("Keep alive quit...")
-				return
-			case <-timeout:
-				mi.keepAlive()
-			}
-		}
-
-	}()
-
-	return  nil
 }
