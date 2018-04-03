@@ -29,12 +29,11 @@ func (busi *Business) InitAndStart() error {
 	busi.ctx, busi.cancel = context.WithCancel(context.Background())
 	busi.wallet = service.NewClientManager()
 	busi.address = &address.Address{}
-	busi.address.Init(busi.wallet)
 
 	//实例化以太坊客户端
 	client, err := eth.NewClient()
 	if err != nil {
-		fmt.Printf("create client:%s error:%s\n", types.Chain_eth, err.Error())
+		fmt.Printf("InitAndStart NewClient %s Error : %s\n", types.Chain_eth, err.Error())
 		return err
 	}
 	busi.wallet.AddClient(client)
@@ -44,7 +43,9 @@ func (busi *Business) InitAndStart() error {
 
 	busi.wallet.SubscribeTxRecharge(rechargeChannel)
 	busi.wallet.SubscribeTxCmdState(cmdTxChannel)
+
 	busi.ntc = notice.NewNotice(busi.ctx, rechargeChannel, cmdTxChannel)
+	busi.address.Init(busi.wallet)
 	busi.ntc.Start()
 	busi.wallet.Start()
 
