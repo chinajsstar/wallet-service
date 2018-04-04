@@ -26,7 +26,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	// 创建服务中心
-	centerInstance,_ := service.NewServiceCenter(cc.CenterName, ":"+cc.Port, ":"+cc.CenterPort)
+	centerInstance,_ := service.NewServiceCenter(cc.CenterName, ":"+cc.Port, ":"+cc.WsPort, ":"+cc.CenterPort)
 
 	// 启动服务中心
 	ctx, cancel := context.WithCancel(context.Background())

@@ -1,7 +1,14 @@
 package data
 
-// 定义用户请求和应答数据结构
+// API Gateway层定义用户请求和应答数据结构
 //
+
+// 用户输入输出功能号
+type UserMethod struct {
+	Version     string `json:"version"`   // 版本号
+	Srv     	string `json:"srv"`	  	  // 服务名称
+	Function  	string `json:"function"`  // 服务功能
+}
 
 // 用户输入输出信息，作为请求和应答的实际信息;
 // 当作为用户请求时，需要用户对数据进行加密签名，服务器来解析验证
@@ -13,18 +20,17 @@ type UserData struct {
 }
 
 // 用户请求数据
-// json like: {"version":"v1", "srv":"arith", "function":"add", "argv":{...}}
+// json like: {"method":"", "argv":{...}}
 type UserRequestData struct{
-	Version     string `json:"version"`   // 版本号
-	Srv     	string `json:"srv"`	  	  // 服务名称
-	Function  	string `json:"function"`  // 服务功能
-	Argv 		UserData `json:"argv"` 	  // UserData
+	Method		UserMethod 	`json:"method"`	// 功能
+	Argv 		UserData 	`json:"argv"` 	// 参数
 }
 
-// 用户应答信息
-// json like: {"err":0, "errmsg":"", "value":{...}}
+// 用户应答/推送信息
+// json like: {"method":"", "err":0, "errmsg":"", "value":{...}}
 type UserResponseData struct{
-	Err     int    `json:"err"`     // 错误码
-	ErrMsg  string `json:"errmsg"`  // 错误信息
-	Value   UserData `json:"value"` // UserData
+	Method		UserMethod 	`json:"method"`	// 功能
+	Err     	int    		`json:"err"`    // 错误码
+	ErrMsg  	string 		`json:"errmsg"` // 错误信息
+	Value   	UserData 	`json:"value"` 	// 结果
 }

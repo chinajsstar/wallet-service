@@ -25,7 +25,7 @@ var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
 func callAuthFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
-	h := g_apisMap[strings.ToLower(req.Data.Function)]
+	h := g_apisMap[strings.ToLower(req.Data.Method.Function)]
 	if h != nil {
 		h(req, res)
 	}else{

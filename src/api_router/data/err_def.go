@@ -25,6 +25,9 @@ const(
 	ErrSrvInternalErr           = 102
 	ErrSrvInternalErrText		= "服务内部错误"
 
+	ErrPush           			= 103
+	ErrPushText					= "推送错误"
+
 	// 1001-2000 auth_srv使用
 	ErrAuthSrvIllegalData 		= 1001
 	ErrAuthSrvIllegalDataText 	= "非法数据"

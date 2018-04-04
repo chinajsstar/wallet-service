@@ -12,6 +12,7 @@ import (
 	"strings"
 	"../base/config"
 	"../base/utils"
+	"strconv"
 )
 
 const ArithSrvConfig = "node.json"
@@ -19,7 +20,7 @@ var g_apisMap = make(map[string]service.CallNodeApi)
 
 // 注册方法
 func callArithFunction(req *data.SrvRequestData, res *data.SrvResponseData){
-	h := g_apisMap[strings.ToLower(req.Data.Function)]
+	h := g_apisMap[strings.ToLower(req.Data.Method.Function)]
 	if h != nil {
 		h(req, res)
 	}else{
@@ -31,6 +32,24 @@ func callArithFunction(req *data.SrvRequestData, res *data.SrvResponseData){
 	//fmt.Println("callNodeApi req: ", string(b1))
 	//b,_ := json.Marshal(*res)
 	//fmt.Println("callNodeApi ack: ", string(b))
+}
+
+func testPush(node *service.ServiceNode)  {
+	for i := 0; i < 50; i++ {
+		time.Sleep(time.Second*5)
+
+		pData := data.UserResponseData{}
+		pData.Method.Version = "v1"
+		pData.Method.Srv = "arith"
+		pData.Method.Function = "sub"
+		pData.Value.LicenseKey = "e85d1e4f-5190-4edd-b459-a4b1a4b86764"
+		pData.Value.Message = "abcd=" + strconv.Itoa(i)
+
+		res := data.UserResponseData{}
+		node.Push(&pData, &res)
+
+		fmt.Println(res)
+	}
 }
 
 func main() {
@@ -59,6 +78,9 @@ func main() {
 	// 启动节点服务
 	ctx, cancel := context.WithCancel(context.Background())
 	nodeInstance.Start(ctx, wg)
+
+	// 启动推送
+	go testPush(nodeInstance)
 
 	time.Sleep(time.Second*2)
 	for ; ;  {

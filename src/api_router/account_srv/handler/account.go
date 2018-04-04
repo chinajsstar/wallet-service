@@ -84,7 +84,7 @@ func (s *Account)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.
 		return err
 	}
 
-	if err := regapi("login", service.CallNodeApi(s.Login), data.APILevel_admin); err != nil {
+	if err := regapi("login", service.CallNodeApi(s.Login), data.APILevel_client); err != nil {
 		return err
 	}
 

@@ -108,13 +108,35 @@ func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData)
 	if ni.Handler != nil {
 		ni.Handler(req, res)
 	}else{
-		fmt.Println("Error function call (no handler)--function=" , req.Data.Function, ",argv=", req.Data.Argv)
+		fmt.Println("Error function call (no handler)--function=" , req.Data.Method.Function, ",argv=", req.Data.Argv)
 
 		res.Data.Err = data.ErrSrvInternalErr
 		res.Data.ErrMsg = data.ErrSrvInternalErrText
 	}
 
 	return nil
+}
+
+// diaptch
+func (ni *ServiceNode) Dispatch(req *data.UserRequestData, res *data.UserResponseData) error {
+	var err error
+	if ni.client != nil {
+		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterDispatch, req, res)
+	}else{
+		err = nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodCenterDispatch, req, res)
+	}
+	return err
+}
+
+// push
+func (ni *ServiceNode) Push(req *data.UserResponseData, res *data.UserResponseData) error {
+	var err error
+	if ni.client != nil {
+		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterPush, req, res)
+	}else{
+		err = nethelper.CallJRPCToTcpServer(ni.ServiceCenterAddr, data.MethodCenterPush, req, res)
+	}
+	return err
 }
 
 // 内部方法

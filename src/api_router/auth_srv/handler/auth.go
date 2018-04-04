@@ -158,10 +158,12 @@ func (auth *Auth)EncryptData(req *data.SrvRequestData, res *data.SrvResponseData
 			return err
 		}
 
+		// 加密数据不需要判断权限
+		/*
 		if req.Context.Api.Level > ul.Level || ul.IsFrozen != 0{
 			fmt.Println("#Error AuthData--", err.Error())
 			return errors.New("没权限或者被冻结")
-		}
+		}*/
 
 		// 加密
 		bencrypted, err := func() ([]byte, error){

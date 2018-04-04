@@ -15,41 +15,60 @@ import (
 	"crypto"
 	"encoding/base64"
 	"strings"
-	"github.com/satori/go.uuid"
 	"../account_srv/user"
 	"../account_srv/install"
 	"errors"
 	"strconv"
+	"golang.org/x/net/websocket"
 )
 
+const wsaddrGateway = "ws://127.0.0.1:8088/ws"
 const tcpaddrGateway = "127.0.0.1:8081"
 const httpaddrGateway = "http://127.0.0.1:8080"
 const httpaddrNigix = "http://127.0.0.1:8070"
 
-var g_admin_prikey []byte
-var g_admin_pubkey []byte
-var g_admin_licensekey string
+var G_admin_prikey []byte
+var G_admin_pubkey []byte
+var G_admin_licensekey string
 
-var g_server_pubkey []byte
+var G_henly_prikey []byte
+var G_henly_pubkey []byte
+var G_henly_licensekey string
 
-func loadRsaKeys() error {
+var G_server_pubkey []byte
+
+var wsconn *websocket.Conn
+
+func LoadRsaKeys() error {
 	var err error
-	g_admin_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_admin.pem")
+	G_admin_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_admin.pem")
 	if err != nil {
 		return err
 	}
 
-	g_admin_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_admin.pem")
+	G_admin_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_admin.pem")
 	if err != nil {
 		return err
 	}
 
-	g_server_pubkey, err = ioutil.ReadFile("/Users/henly.liu/wallet-service/src/api_router/account_srv/worker/public.pem")
+	G_henly_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_henly.pem")
 	if err != nil {
 		return err
 	}
 
-	g_admin_licensekey = "25143234-b958-44a8-a87f-5f0f4ef46eb5"
+	G_henly_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_henly.pem")
+	if err != nil {
+		return err
+	}
+
+	G_server_pubkey, err = ioutil.ReadFile("/Users/henly.liu/wallet-service/src/api_router/account_srv/worker/public.pem")
+	if err != nil {
+		return err
+	}
+
+	G_admin_licensekey = "25143234-b958-44a8-a87f-5f0f4ef46eb5"
+
+	G_henly_licensekey = "e85d1e4f-5190-4edd-b459-a4b1a4b86764"
 
 	return nil
 }
@@ -64,11 +83,11 @@ const(
 func sendData2(addr, message, version, srv, function string) (*data.UserResponseData, []byte, error) {
 	// 用户数据
 	var ud data.UserData
-	ud.LicenseKey = g_admin_licensekey
+	ud.LicenseKey = G_admin_licensekey
 
 	bencrypted, err := func() ([]byte, error) {
 		// 用我们的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(message), g_server_pubkey, utils.RsaEncodeLimit2048)
+		bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey, utils.RsaEncodeLimit2048)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +106,7 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 		hs.Write(bencrypted)
 		hashData = hs.Sum(nil)
 
-		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, g_admin_prikey)
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, G_admin_prikey)
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
@@ -147,13 +166,13 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 	hs.Write([]byte(bencrypted2))
 	hashData = hs.Sum(nil)
 
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, g_server_pubkey)
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
 	if err != nil {
 		return ackData, nil, err
 	}
 
 	// 解密数据
-	d2, err := utils.RsaDecrypt(bencrypted2, g_admin_prikey, utils.RsaDecodeLimit2048)
+	d2, err := utils.RsaDecrypt(bencrypted2, G_admin_prikey, utils.RsaDecodeLimit2048)
 	if err != nil {
 		return ackData, nil, err
 	}
@@ -237,7 +256,7 @@ func main() {
 	fmt.Println("当前目录：", utils.GetCurrentDir())
 	fmt.Println("执行目录：", utils.GetRunDir())
 	// 加载服务器公钥
-	loadRsaKeys()
+	LoadRsaKeys()
 
 	fmt.Println("Please first to login: ")
 	err := func() error {
@@ -315,9 +334,9 @@ func main() {
 			ud.Message = testMessage
 
 			dispatchData := data.UserRequestData{}
-			dispatchData.Version = testVersion
-			dispatchData.Srv = testSrv
-			dispatchData.Function = testFunction
+			dispatchData.Method.Version = testVersion
+			dispatchData.Method.Srv = testSrv
+			dispatchData.Method.Function = testFunction
 			dispatchData.Argv = ud
 
 			ackData := data.UserResponseData{}
@@ -334,9 +353,9 @@ func main() {
 			ud.Message = testMessage
 
 			dispatchData := data.UserRequestData{}
-			dispatchData.Version = testVersion
-			dispatchData.Srv = testSrv
-			dispatchData.Function = testFunction
+			dispatchData.Method.Version = testVersion
+			dispatchData.Method.Srv = testSrv
+			dispatchData.Method.Function = testFunction
 			dispatchData.Argv = ud
 			for i := 0; i < runcounts; i++ {
 				go DoTestTcp(&dispatchData, &count, &right, int64(runcounts))
@@ -358,9 +377,9 @@ func main() {
 			ud.Message = testMessage
 
 			dispatchData := data.UserRequestData{}
-			dispatchData.Version = testVersion
-			dispatchData.Srv = testSrv
-			dispatchData.Function = testFunction
+			dispatchData.Method.Version = testVersion
+			dispatchData.Method.Srv = testSrv
+			dispatchData.Method.Function = testFunction
 			dispatchData.Argv = ud
 			for i := 0; i < runcounts; i++ {
 				go DoTestTcp2(client, dispatchData, &count, &right, int64(runcounts))
@@ -392,22 +411,22 @@ func main() {
 				go DoTest2(&count, &right, int64(runcounts))
 			}
 		}else if argv[0] == "rsagen"{
-			u, err := uuid.NewV4()
-			if err != nil {
-				fmt.Println("#uuid create failed")
+			user := ""
+			if len(argv) < 2{
+				fmt.Println("输入名称")
 				continue
 			}
-			uuid := u.String()
+			user = argv[1]
 
-			pri := fmt.Sprintf("/Users/henly.liu/workspace/private_%s.pem", uuid)
-			pub := fmt.Sprintf("/Users/henly.liu/workspace/public_%s.pem", uuid)
+			pri := fmt.Sprintf("/Users/henly.liu/workspace/private_%s.pem", user)
+			pub := fmt.Sprintf("/Users/henly.liu/workspace/public_%s.pem", user)
 			err = utils.RsaGen(2048, pri, pub)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
-			fmt.Println("rsagen ok, uuid-", uuid)
+			fmt.Println("rsagen ok, user-", user)
 		}else if argv[0] == "test_adduser"{
 			m, err := install.AddUser()
 			if err != nil {
@@ -492,6 +511,187 @@ func main() {
 			}
 
 			fmt.Println("list users ack: ", uca)
+		}else if argv[0] == "ws"{
+			startWsClient()
+		}else if argv[0] == "wslogin"{
+			m, err := install.LoginUser()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			d, err := json.Marshal(m)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			var ud data.UserData
+			ud.LicenseKey = G_henly_licensekey
+			encryptRequestData(string(d), G_henly_prikey, &ud)
+
+			dispatchData := data.UserRequestData{}
+			dispatchData.Method.Version = "v1"
+			dispatchData.Method.Srv = "account"
+			dispatchData.Method.Function = "login"
+			dispatchData.Argv = ud
+
+			d, err = json.Marshal(dispatchData)
+
+			if wsconn != nil {
+				websocket.Message.Send(wsconn, string(d))
+			}
 		}
 	}
+}
+
+func startWsClient() *websocket.Conn {
+	conn, err := websocket.Dial(wsaddrGateway, "", "test://wallet/")
+	if err != nil {
+		fmt.Println("#error", err)
+		return nil
+	}
+
+	go func(conn *websocket.Conn) {
+		for ; ; {
+			var data string
+			err := websocket.Message.Receive(conn, &data)
+			if err != nil {
+				fmt.Println("read failed:", err)
+				break
+			}
+
+			pData, err:= decryptPushData(data, G_henly_prikey)
+			if pData != nil{
+				fmt.Println("pData:", pData)
+			}else{
+				fmt.Println("read:", data)
+			}
+		}
+	}(conn)
+
+	wsconn = conn
+	return conn
+}
+
+func encryptRequestData(message string, prikey []byte, userData *data.UserData) (error) {
+	// 用户数据
+	bencrypted, err := func() ([]byte, error) {
+		// 用我们的pub加密message ->encrypteddata
+		bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey, utils.RsaEncodeLimit2048)
+		if err != nil {
+			return nil, err
+		}
+		return bencrypted, nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	userData.Message = base64.StdEncoding.EncodeToString(bencrypted)
+
+	bsignature, err := func() ([]byte, error) {
+		// 用自己的pri签名encrypteddata ->signature
+		var hashData []byte
+		hs := sha512.New()
+		hs.Write(bencrypted)
+		hashData = hs.Sum(nil)
+
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, prikey)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		return bsignature, nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	userData.Signature = base64.StdEncoding.EncodeToString(bsignature)
+
+	return nil
+}
+
+func decryptResponseData(res string, prikey []byte) (*data.UserResponseData, error) {
+	ackData := &data.UserResponseData{}
+	err := json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, err
+	}
+
+	if ackData.Err != data.NoErr {
+		return ackData, errors.New("# got err: " + ackData.ErrMsg)
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		return ackData, err
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 解密数据
+	d, err := utils.RsaDecrypt(bencrypted2, prikey, utils.RsaDecodeLimit2048)
+	if err != nil {
+		return ackData, err
+	}
+	ackData.Value.Message = string(d)
+
+	return ackData, nil
+}
+
+func decryptPushData(res string, prikey []byte) (*data.UserResponseData, error) {
+	ackData := &data.UserResponseData{}
+	err := json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, err
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		return ackData, err
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 解密数据
+	d, err := utils.RsaDecrypt(bencrypted2, prikey, utils.RsaDecodeLimit2048)
+	if err != nil {
+		return ackData, err
+	}
+	ackData.Value.Message = string(d)
+
+	return ackData, nil
 }

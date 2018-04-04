@@ -41,9 +41,9 @@ type SrvRequestContext struct{
 
 // 内部RPC结构，在center中转时，增加请求权限信息
 type SrvRequestData struct{
-	Data UserRequestData `json:"data"`
-	Context SrvRequestContext `json:"context"`
+	Data UserRequestData 		`json:"data"`
+	Context SrvRequestContext 	`json:"context"`
 }
 type SrvResponseData struct{
-	Data UserResponseData `json:"data"`
+	Data UserResponseData 		`json:"data"`
 }

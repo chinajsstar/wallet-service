@@ -3,129 +3,132 @@ package main
 import (
 	//"golang.org/x/net/websocket"
 	"fmt"
-	"net/http"
 	"strings"
 	"../base/utils"
-	rpc2 "github.com/ethereum/go-ethereum/rpc"
-	"sync"
 	"golang.org/x/net/websocket"
-	"net/rpc"
+	"../base/service"
+	"../data"
+	"../account_srv/install"
+	"encoding/json"
+	"encoding/base64"
+	"crypto/sha512"
+	"crypto"
+	"errors"
+	"io/ioutil"
 )
 
-///
-type Args struct {
-	A string `json:"a"`
-	B string `json:"b"`
-}
-type Arith int
+var G_admin_prikey2 []byte
+var G_admin_pubkey2 []byte
+var G_admin_licensekey2 string
 
-func (arith *Arith)Add(args *Args, ) string  {
-	fmt.Println("args:", args)
-	return "ok"
-}
-///
+var G_server_pubkey2 []byte
 
-type WsConn struct{
+func LoadRsaKeys2() error {
+	var err error
+	G_admin_prikey2, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_admin.pem")
+	if err != nil {
+		return err
+	}
 
-}
+	G_admin_pubkey2, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_admin.pem")
+	if err != nil {
+		return err
+	}
 
-type WsServer struct{
-	rwmu sync.RWMutex
-	users map[*websocket.Conn]string
-	clients map[*websocket.Conn]*WsConn
-}
+	G_server_pubkey2, err = ioutil.ReadFile("/Users/henly.liu/wallet-service/src/api_router/account_srv/worker/public.pem")
+	if err != nil {
+		return err
+	}
 
-// http 处理
-// rpcRequest represents a RPC request.
-// rpcRequest implements the io.ReadWriteCloser interface.
-type rpcRequest struct {
-	data string     // holds the JSON formated RPC request
-	conn *websocket.Conn // holds the JSON formated RPC response
-	done chan bool     // signals then end of the RPC request
-}
+	G_admin_licensekey2 = "25143234-b958-44a8-a87f-5f0f4ef46eb5"
 
-// Read implements the io.ReadWriteCloser Read method.
-func (r *rpcRequest) Read(p []byte) (n int, err error) {
-	p = []byte(r.data)
-	l := len(p)
-	fmt.Println(r.data)
-	return l, nil
-}
-
-// Write implements the io.ReadWriteCloser Write method.
-func (r *rpcRequest) Write(p []byte) (n int, err error) {
-	return r.conn.Write(p)
-}
-
-// Close implements the io.ReadWriteCloser Close method.
-func (r *rpcRequest) Close() error {
-	//r.conn.Close()
-	r.done <- true
 	return nil
 }
 
-// NewRPCRequest returns a new rpcRequest.
-func newRPCRequest(conn *websocket.Conn, d string) *rpcRequest {
-	done := make(chan bool)
-	return &rpcRequest{d, conn, done}
-}
-func (ws *WsServer)handleData(conn *websocket.Conn, data string) {
-	rpcReq := newRPCRequest(conn, data)
-
-	//jsonrpc.ServeConn(rpcReq)
-	go rpc.ServeConn(rpcReq)
-	// go and wait
-	//go rpc.ServeCodec(jsonrpc.NewServerCodec(rpcReq))
-	<-rpcReq.done
-}
-
-func (ws *WsServer)closeConn(conn *websocket.Conn) {
-	delete(ws.users, conn)
-}
-
-func (ws *WsServer)handleWebSocket(conn *websocket.Conn) {
-
-	for {
-		//判断是否重复连接
-		if _, ok := ws.users[conn]; !ok {
-			ws.users[conn] = "user"
-			fmt.Println("a user is come in...")
-		}
-
-		fmt.Println("开始解析数据...")
-		var data string
-		err := websocket.Message.Receive(conn, &data)
-		fmt.Println("data：", data, ",len", len(data))
-		ws.handleData(conn, data)
-
+func encryptData(message string, userData *data.UserData) (error) {
+	// 用户数据
+	bencrypted, err := func() ([]byte, error) {
+		// 用我们的pub加密message ->encrypteddata
+		bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey2, utils.RsaEncodeLimit2048)
 		if err != nil {
-			//移除出错的链接
-			ws.closeConn(conn)
-			fmt.Println("接收出错...")
-			break
+			return nil, err
 		}
+		return bencrypted, nil
+	}()
+	if err != nil {
+		return err
 	}
-}
-func (ws *WsServer)Start() error{
-	rpc.Register(new(Arith))
-	ws.users = make(map[*websocket.Conn]string)
-	ws.clients = make(map[*websocket.Conn]*WsConn)
 
-	//绑定socket方法
-	http.Handle("/ws", websocket.Handler(ws.handleWebSocket))
-	//开始监听
-	err := http.ListenAndServe(":8400", nil)
-	fmt.Println("err:", err)
+	userData.Message = base64.StdEncoding.EncodeToString(bencrypted)
 
-	return err
+	bsignature, err := func() ([]byte, error) {
+		// 用自己的pri签名encrypteddata ->signature
+		var hashData []byte
+		hs := sha512.New()
+		hs.Write(bencrypted)
+		hashData = hs.Sum(nil)
+
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, G_admin_prikey2)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		return bsignature, nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	userData.Signature = base64.StdEncoding.EncodeToString(bsignature)
+
+	return nil
 }
-func StartWsServer()  {
-	wss := &WsServer{}
-	wss.Start()
+
+func decryptData(res string) (*data.UserResponseData, error) {
+	ackData := &data.UserResponseData{}
+	err := json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, err
+	}
+
+	if ackData.Err != data.NoErr {
+		return ackData, errors.New("# got err: " + ackData.ErrMsg)
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		return ackData, err
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey2)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 解密数据
+	_, err = utils.RsaDecrypt(bencrypted2, G_admin_prikey2, utils.RsaDecodeLimit2048)
+	if err != nil {
+		return ackData, err
+	}
+
+	return ackData, nil
 }
 
 func StartWsClient() *websocket.Conn {
-	conn, err := websocket.Dial("ws://127.0.0.1:8400/ws", "", "test://wallet/")
+	conn, err := websocket.Dial("ws://127.0.0.1:8040/ws", "", "test://wallet/")
 	if err != nil {
 		fmt.Println("#error", err)
 		return nil
@@ -173,15 +176,11 @@ func StartWsClient2() *rpc2.Client {
 }
 */
 
+var wsServer = service.NewWsServer()
 func main() {
 	// Start a server and corresponding client.
-
-
-	//var srv *rpc2.Server
-	//var l net.Listener
-	var client *rpc2.Client
-
 	////
+	LoadRsaKeys2()
 	var conn *websocket.Conn
 
 	for ; ; {
@@ -194,24 +193,40 @@ func main() {
 		if argv[0]=="q"{
 			break
 		} else if argv[0] == "w" {
-			go StartWsServer()
-			//_, _ = StartWsServer2()
+			go wsServer.Start(":8040")
 		}else if argv[0] == "c" {
 			conn = StartWsClient()
-			//client = StartWsClient2()
 		}else if argv[0] == "s" {
 			if(conn != nil){
 				conn.Write([]byte(argv[1]))
 			}
-		} else if argv[0] == "ss" {
-			var res string
-			args := &Args{}
-			args.A ="a"
-			args.B = "b"
-			if client != nil{
-				client.Call(&res, "arith_add", args)
+		}else if argv[0] == "login" {
+			m, err := install.LoginUser()
+			if err != nil {
+				fmt.Println(err)
+				continue
 			}
-			fmt.Println(res)
+
+			d, err := json.Marshal(m)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			var ud data.UserData
+			encryptData(string(d), &ud)
+
+			dispatchData := data.UserRequestData{}
+			dispatchData.Version = "v1"
+			dispatchData.Srv = "account"
+			dispatchData.Function = "login"
+			dispatchData.Argv = ud
+
+			d, err = json.Marshal(dispatchData)
+
+			if conn != nil && err == nil{
+				conn.Write(d)
+			}
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 
 type ConfigCenter struct{
 	Port string `json:"port"`
+	WsPort string `json:"ws_port"`
 	CenterName string `json:"center_name"`
 	CenterPort string `json:"center_port"`
 }
