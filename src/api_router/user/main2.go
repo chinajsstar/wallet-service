@@ -217,9 +217,9 @@ func main() {
 			encryptData(string(d), &ud)
 
 			dispatchData := data.UserRequestData{}
-			dispatchData.Version = "v1"
-			dispatchData.Srv = "account"
-			dispatchData.Function = "login"
+			dispatchData.Method.Version = "v1"
+			dispatchData.Method.Srv = "account"
+			dispatchData.Method.Function = "login"
 			dispatchData.Argv = ud
 
 			d, err = json.Marshal(dispatchData)

@@ -9,117 +9,127 @@ import (
 	"sync/atomic"
 )
 
+// a service node
 type SrvNode struct{
-	RegisterData data.SrvRegisterData
+	registerData data.SrvRegisterData 	// register data
 
-	Rwmu sync.RWMutex
-	Client *rpc.Client
+	rwmu sync.RWMutex					// read/write lock
+	client *rpc.Client					// client
 }
 
-// 内部方法
-func (srvNode *SrvNode)openClient() error{
-	srvNode.Rwmu.Lock()
-	defer srvNode.Rwmu.Unlock()
+// try to connect service node
+func (srvNode *SrvNode)connect() error{
+	srvNode.rwmu.Lock()
+	defer srvNode.rwmu.Unlock()
 
-	if srvNode.Client == nil{
-		client, err := rpc.Dial("tcp", srvNode.RegisterData.Addr)
+	if srvNode.client == nil{
+		client, err := rpc.Dial("tcp", srvNode.registerData.Addr)
 		if err != nil {
-			fmt.Println("Error Open client: ", err.Error())
+			fmt.Println("#Error connect srv node: ", err.Error())
 			return err
 		}
 
-		srvNode.Client = client
+		srvNode.client = client
 	}
 
 	return nil
 }
 
-func (srvNode *SrvNode)closeClient() error{
-	srvNode.Rwmu.Lock()
-	defer srvNode.Rwmu.Unlock()
+// close service node
+func (srvNode *SrvNode)close() error{
+	srvNode.rwmu.Lock()
+	defer srvNode.rwmu.Unlock()
 
-	if srvNode.Client != nil{
-		srvNode.Client.Close()
-		srvNode.Client = nil
+	if srvNode.client != nil{
+		srvNode.client.Close()
+		srvNode.client = nil
 	}
 
 	return nil
 }
 
-func (srvNode *SrvNode)sendData(method string, params interface{}, res interface{}) error {
-	srvNode.Rwmu.RLock()
-	defer srvNode.Rwmu.RUnlock()
+// call service node
+func (srvNode *SrvNode)call(method string, params interface{}, res interface{}) error {
+	srvNode.rwmu.RLock()
+	defer srvNode.rwmu.RUnlock()
 
-	return nethelper.CallJRPCToTcpServerOnClient(srvNode.Client, method, params, res)
+	return nethelper.CallJRPCToTcpServerOnClient(srvNode.client, method, params, res)
 }
 
-//////////////////////////////////////////////////////////////////
+// service node group
 type SrvNodeGroup struct{
-	Srv	string
-	Rwmu sync.RWMutex
+	srv	string							// service name
 
-	AddrMapSrvNode map[string]*SrvNode
+	rwmu sync.RWMutex					// read/write lock
+	addrMapSrvNode map[string]*SrvNode	// service node map
 
-	index int64
-	nodes []*SrvNode
+	index int64							// index for use
+	nodes []*SrvNode					// service nodes [] for use
 }
 
+// register a service node
 func (sng *SrvNodeGroup) RegisterNode(reg *data.SrvRegisterData) error {
-	sng.Rwmu.Lock()
-	defer sng.Rwmu.Unlock()
+	sng.rwmu.Lock()
+	defer sng.rwmu.Unlock()
 
-	if sng.AddrMapSrvNode == nil {
+	if sng.addrMapSrvNode == nil {
 		sng.index = 0
-		sng.Srv = reg.Srv
-		sng.AddrMapSrvNode = make(map[string]*SrvNode)
+		sng.srv = reg.Srv
+		sng.addrMapSrvNode = make(map[string]*SrvNode)
 	}
 
-	if sng.AddrMapSrvNode[reg.Addr] == nil {
-		sng.AddrMapSrvNode[reg.Addr] = &SrvNode{RegisterData:*reg, Client:nil}
+	srvNode := sng.addrMapSrvNode[reg.Addr]
+	if srvNode == nil {
+		srvNode = &SrvNode{registerData:*reg, client:nil}
+		sng.addrMapSrvNode[reg.Addr] = srvNode
 	}
 
-	sng.nodes = append(sng.nodes, sng.AddrMapSrvNode[reg.Addr])
+	sng.nodes = append(sng.nodes, srvNode)
 
-	fmt.Println("srv-", sng.Srv, ",register node-", reg.Addr, ",all-", len(sng.AddrMapSrvNode))
+	fmt.Println("srv-", sng.srv, ",register node-", reg.Addr, ",all-", len(sng.addrMapSrvNode))
 	return nil
 }
 
+// unregister a service node
 func (sng *SrvNodeGroup) UnRegisterNode(reg *data.SrvRegisterData) error {
-	sng.Rwmu.Lock()
-	defer sng.Rwmu.Unlock()
+	sng.rwmu.Lock()
+	defer sng.rwmu.Unlock()
 
-	if sng.AddrMapSrvNode == nil{
+	if sng.addrMapSrvNode == nil{
 		return nil
 	}
 
-	srvNode := sng.AddrMapSrvNode[reg.Addr]
+	srvNode := sng.addrMapSrvNode[reg.Addr]
+	delete(sng.addrMapSrvNode, reg.Addr)
 
 	for i, v := range sng.nodes {
 		if v == srvNode {
 			sng.nodes = append(sng.nodes[:i], sng.nodes[i+1:]...)
+			break
 		}
 	}
 
 	if srvNode != nil {
-		srvNode.closeClient()
+		srvNode.close()
 	}
-	delete(sng.AddrMapSrvNode, reg.Addr)
 
-
-	fmt.Println("srv-", sng.Srv, ",unregister node-", reg.Addr, ",all-", len(sng.AddrMapSrvNode))
+	fmt.Println("srv-", sng.srv, ",unregister node-", reg.Addr, ",all-", len(sng.addrMapSrvNode))
 	return nil
 }
 
+// dispatch a request to service node
 func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvResponseData) {
-	sng.Rwmu.RLock()
-	defer sng.Rwmu.RUnlock()
+	sng.rwmu.RLock()
+	defer sng.rwmu.RUnlock()
 
-	if sng.AddrMapSrvNode == nil || len(sng.AddrMapSrvNode) == 0 {
+	// check has srv nodes
+	if sng.addrMapSrvNode == nil || len(sng.addrMapSrvNode) == 0 {
 		res.Data.Err = data.ErrNotFindSrv
 		res.Data.ErrMsg = data.ErrNotFindSrvText
 		return
 	}
 
+	// get a free srv node
 	var srvNode *SrvNode
 	srvNode = sng.getFreeNode()
 	if srvNode == nil{
@@ -128,30 +138,31 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 		return
 	}
 
-	// 检查是否连接
-	if srvNode.Client == nil {
-		srvNode.openClient()
+	// check client is nil
+	if srvNode.client == nil {
+		srvNode.connect()
 	}
 
-	// 发送数据
-	if srvNode.Client != nil {
-		err := srvNode.sendData(data.MethodNodeCall, req, res)
+	// call
+	if srvNode.client != nil {
+		err := srvNode.call(data.MethodNodeCall, req, res)
 		if err != nil {
 			fmt.Println("#Call srv failed...", err)
 
-			srvNode.closeClient()
+			srvNode.close()
 
-			res.Data.Err = data.ErrCall
-			res.Data.ErrMsg = data.ErrCallText
+			res.Data.Err = data.ErrCallFailed
+			res.Data.ErrMsg = data.ErrCallFailedText
 		}
 	}else{
-		res.Data.Err = data.ErrClientConn
-		res.Data.ErrMsg = data.ErrClientConnText
+		res.Data.Err = data.ErrConnectSrvFailed
+		res.Data.ErrMsg = data.ErrConnectSrvFailedText
 	}
 
 	return
 }
 
+// get a free node by index
 func (sng *SrvNodeGroup) getFreeNode() *SrvNode {
 	// TODO:根据算法获取空闲的
 	// NOTE:go map 多次range会从随机位置开始迭代

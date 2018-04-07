@@ -7,9 +7,12 @@ import (
 	"fmt"
 )
 
+// Trace and monitor request
+// TODO: not finish, not useful
+
 type ApiRequest struct {
-	VersionApi string	// 跟踪的api
-	Id string			// 唯一id
+	VersionApi string	// api
+	Id string			// uuid
 }
 
 func (ar ApiRequest) BuildUuid() error {

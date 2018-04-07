@@ -5,6 +5,7 @@ import (
 	"net/rpc"
 	"../../data"
 	"../nethelper"
+	"../config"
 	"log"
 	"encoding/json"
 	"fmt"
@@ -12,17 +13,17 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
-	"net"
 	"golang.org/x/net/websocket"
 	"errors"
 )
 
 type WsClient struct{
+	// ws client license key
 	licenseKey string
 }
 
 type ServiceCenter struct{
-	// 名称
+	// name
 	name string
 
 	// http
@@ -34,33 +35,36 @@ type ServiceCenter struct{
 	// center
 	centerPort string
 
-	// 节点信息
+	// srv nodes
 	rwmu                       sync.RWMutex
 	SrvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
 	ApiInfo                    map[string]*data.ApiInfo
 
-	// ws 节点信息
+	// websocket
 	rwmuws sync.RWMutex
-	// 已验证用户
+	// valid clients
 	licenseKey2wsClients map[string]*websocket.Conn
 	wsClients map[*websocket.Conn]*WsClient
 
-	// 等待
-	wg *sync.WaitGroup
+	// wait group
+	wg sync.WaitGroup
 
-	// 连接组管理
+	// connection group
 	clientGroup *ConnectionGroup
 }
 
-// 生成一个服务中心
-func NewServiceCenter(rootName string, httpPort, wsPort, centerPort string) (*ServiceCenter, error){
+// new a center
+func NewServiceCenter(confPath string) (*ServiceCenter, error){
+	cfgCenter := config.ConfigCenter{}
+	if err := cfgCenter.Load(confPath); err != nil{
+		return nil, err
+	}
 	serviceCenter := &ServiceCenter{}
 
-	serviceCenter.name = rootName
-	serviceCenter.httpPort = httpPort
-	serviceCenter.wsPort = wsPort
-	serviceCenter.centerPort = centerPort
-	rpc.Register(serviceCenter)
+	serviceCenter.name = cfgCenter.CenterName
+	serviceCenter.httpPort = ":"+cfgCenter.Port
+	serviceCenter.wsPort = ":"+cfgCenter.WsPort
+	serviceCenter.centerPort = ":"+cfgCenter.CenterPort
 
 	serviceCenter.SrvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
 
@@ -72,120 +76,29 @@ func NewServiceCenter(rootName string, httpPort, wsPort, centerPort string) (*Se
 	return serviceCenter, nil
 }
 
-// 启动服务中心
-func (mi *ServiceCenter)Start(ctx context.Context, wg *sync.WaitGroup) error{
-	mi.wg = wg
-
-	// http server
-	http.Handle("/wallet/", http.HandlerFunc(mi.handleWallet))
-	err := func() error {
-		log.Println("Start Http server on ", mi.httpPort)
-		listener, err := net.Listen("tcp", mi.httpPort)
-		if err != nil {
-			fmt.Println("#Http listen Error:", err.Error())
-			return err
-		}
-		go func() {
-			mi.wg.Add(1)
-			defer mi.wg.Done()
-
-			log.Println("Http server routine running... ")
-			srv := http.Server{Handler:nil}
-			go srv.Serve(listener)
-
-			<-ctx.Done()
-			listener.Close()
-
-			log.Println("Http server routine stoped... ")
-		}()
-
-		return nil
-	}()
-	if err != nil {
+// start the service center
+func StartCenter(ctx context.Context, mi *ServiceCenter) error{
+	if err := mi.startHttpServer(ctx); err != nil {
 		return err
 	}
 
-	// websocket
-	http.Handle("/ws", websocket.Handler(mi.handleWebSocket))
-	err = func() error {
-		log.Println("Start ws server on ", mi.wsPort)
-		/*
-		listener, err := net.Listen("tcp", mi.wsPort)
-		if err != nil {
-			fmt.Println("#Http listen Error:", err.Error())
-			return err
-		}*/
-
-		go func() {
-			//mi.wg.Add(1)
-			//defer mi.wg.Done()
-
-			log.Println("ws server routine running... ")
-			err := http.ListenAndServe(mi.wsPort, nil)
-			if err != nil {
-				fmt.Println("#Error:", err)
-				return
-			}
-			//srv := http.Server{Handler:nil}
-			//go srv.Serve(listener)
-
-			//<-ctx.Done()
-			//listener.Close()
-
-			log.Println("ws server routine stoped... ")
-		}()
-
-		return nil
-	}()
-	if err != nil {
+	if err := mi.startWsServer(ctx); err != nil {
 		return err
 	}
 
-	// tcp server
-	err = func() error {
-		log.Println("Start Tcp server on ", mi.centerPort)
-		listener, err := nethelper.CreateTcpServer(mi.centerPort)
-		if err != nil {
-			log.Println("#ListenTCP Error: ", err.Error())
-			return err
-		}
-		go func() {
-			mi.wg.Add(1)
-			defer mi.wg.Done()
+	if err := mi.startTcpServer(ctx); err != nil {
+		return err
+	}
 
-			log.Println("Tcp server routine running... ")
-			go func(){
-				for{
-					conn, err := listener.Accept();
-					if err != nil {
-						log.Println("Error: ", err.Error())
-						continue
-					}
-
-					log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
-					rc := mi.clientGroup.Register(conn)
-
-					go func() {
-						go rpc.ServeConn(rc)
-						<- rc.Done
-						log.Println("Tcp server close a client: ", conn.RemoteAddr())
-					}()
-
-				}
-			}()
-
-			<- ctx.Done()
-			log.Println("Tcp server routine stoped... ")
-		}()
-
-		return nil
-	}()
-
-	return err
+	return nil
 }
 
-// RPC 方法
-// 服务中心方法--注册到服务中心
+// Stop the service center
+func StopCenter(mi *ServiceCenter)  {
+	mi.wg.Wait()
+}
+
+// RPC -- register
 func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error {
 	mi.rwmu.Lock()
 	defer mi.rwmu.Unlock()
@@ -211,7 +124,7 @@ func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error 
 	return err
 }
 
-// 服务中心方法--注册到服务中心
+// RPC -- unregister
 func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) error {
 	mi.rwmu.Lock()
 	defer mi.rwmu.Unlock()
@@ -234,14 +147,14 @@ func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) erro
 	return err
 }
 
-// 派发命令
+// RPC -- dispatch
 func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
 	mi.innerCall(req, res)
 
-	// 确保错误的情况下，没有实际数据
+	// make sure no data if err
 	if res.Err != data.NoErr {
 		res.Value.Message = ""
 		res.Value.Signature = ""
@@ -249,14 +162,14 @@ func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserRespo
 	return nil
 }
 
-// 推送命令
+// RPC -- dispatch
 func (mi *ServiceCenter) Push(req *data.UserResponseData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
 	mi.pushCall(req, res)
 
-	// 确保错误的情况下，没有实际数据
+	// make sure no data if err
 	if res.Err != data.NoErr {
 		res.Value.Message = ""
 		res.Value.Signature = ""
@@ -264,7 +177,86 @@ func (mi *ServiceCenter) Push(req *data.UserResponseData, res *data.UserResponse
 	return nil
 }
 
-// 内部调用
+// start http server
+func (mi *ServiceCenter) startHttpServer(ctx context.Context) error {
+	// http
+	log.Println("Start http server on ", mi.httpPort)
+
+	http.Handle("/wallet/", http.HandlerFunc(mi.handleWallet))
+
+	go func() {
+		log.Println("Http server routine running... ")
+		err := http.ListenAndServe(mi.httpPort, nil)
+		if err != nil {
+			fmt.Println("#Error:", err)
+			return
+		}
+	}()
+
+	return nil
+}
+
+// start websocket server
+func (mi *ServiceCenter) startWsServer(ctx context.Context) error {
+	// websocket
+	log.Println("Start ws server on ", mi.wsPort)
+
+	http.Handle("/ws", websocket.Handler(mi.handleWebSocket))
+
+	go func() {
+		log.Println("ws server routine running... ")
+		err := http.ListenAndServe(mi.wsPort, nil)
+		if err != nil {
+			fmt.Println("#Error:", err)
+			return
+		}
+	}()
+
+	return nil
+}
+
+// start tcp server
+func (mi *ServiceCenter) startTcpServer(ctx context.Context) error {
+	log.Println("Start Tcp server on ", mi.centerPort)
+
+	listener, err := nethelper.CreateTcpServer(mi.centerPort)
+	if err != nil {
+		log.Println("#ListenTCP Error: ", err.Error())
+		return err
+	}
+	go func() {
+		mi.wg.Add(1)
+		defer mi.wg.Done()
+
+		log.Println("Tcp server routine running... ")
+		go func(){
+			for{
+				conn, err := listener.Accept();
+				if err != nil {
+					log.Println("Error: ", err.Error())
+					continue
+				}
+
+				log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
+				rc := mi.clientGroup.Register(conn)
+
+				go func() {
+					go rpc.ServeConn(rc)
+					<- rc.Done
+					log.Println("Tcp server close a client: ", conn.RemoteAddr())
+				}()
+
+			}
+		}()
+
+		<- ctx.Done()
+		log.Println("Tcp server routine stoped... ")
+	}()
+
+	return nil
+}
+
+// inner call by srv node
 func (mi *ServiceCenter) innerCall(req *data.UserRequestData, res *data.UserResponseData) {
 	api := mi.getApiInfo(req)
 	if api == nil {
@@ -274,31 +266,30 @@ func (mi *ServiceCenter) innerCall(req *data.UserRequestData, res *data.UserResp
 		return
 	}
 
-	// 请求具体服务
+	// call function
 	var rpcSrv data.SrvRequestData
 	rpcSrv.Data = *req
 	rpcSrv.Context.Api = *api
 	var rpcSrvRes data.SrvResponseData
 	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
-		// 失败
 		*res = rpcSrvRes.Data
 		return
 	}
 
-	// 返回
 	*res = rpcSrvRes.Data
 }
 
-// 用户调用
+// user call by user
 func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserResponseData) {
-	// 禁止直接调用auth
+	// can not call auth service
 	if req.Method.Srv == "auth" {
-		res.Err = data.ErrIllegalCall
-		res.ErrMsg = data.ErrIllegalCallText
+		res.Err = data.ErrIllegallyCall
+		res.ErrMsg = data.ErrIllegallyCallText
 		fmt.Println("#Error: ", res.ErrMsg)
 		return
 	}
 
+	// find api
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
@@ -307,73 +298,67 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 		return
 	}
 
-	// 验证数据
+	// decode and verify data
 	var rpcAuth data.SrvRequestData
 	rpcAuth.Data = *req
 	rpcAuth.Context.Api = *api
 	var rpcAuthRes data.SrvResponseData
 	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Data.Err != data.NoErr{
-		// 失败
 		*res = rpcAuthRes.Data
 		return
 	}
 
-	// 请求具体服务
+	// call real srv
 	var rpcSrv data.SrvRequestData
 	rpcSrv.Data = *req
 	rpcSrv.Context.Api = *api
 	rpcSrv.Data.Argv.Message = rpcAuthRes.Data.Value.Message
 	var rpcSrvRes data.SrvResponseData
 	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
-		// 失败
 		*res = rpcSrvRes.Data
 		return
 	}
 
-	// 打包数据
+	// encode and sign data
 	var reqEncrypted data.SrvRequestData
 	reqEncrypted.Data = *req
 	reqEncrypted.Context.Api = *api
 	reqEncrypted.Data.Argv.Message = rpcSrvRes.Data.Value.Message
 	var reqEncryptedRes data.SrvResponseData
 	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
-		// 失败
 		*res = reqEncryptedRes.Data
 		return
 	}
 
-	// 返回
 	*res = reqEncryptedRes.Data
 }
 
-// 推送调用
+// push call by srv node
 func (mi *ServiceCenter) pushCall(req *data.UserResponseData, res *data.UserResponseData) {
-	// 打包数据
+	// encode and sign data
 	var reqEncrypted data.SrvRequestData
 	reqEncrypted.Data.Method = req.Method
 	reqEncrypted.Data.Argv = req.Value
 	var reqEncryptedRes data.SrvResponseData
 	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
-		// 失败
 		*res = reqEncryptedRes.Data
 		return
 	}
 
-	// 推送数据
+	// push data to user
 	userPushData := data.UserResponseData{}
 	userPushData.Method = req.Method
 	userPushData.Value = reqEncryptedRes.Data.Value
-
-	// 推送
 	err := mi.pushWsData(&userPushData)
 	if err != nil {
-		res.Err = data.ErrPush
-		res.ErrMsg = data.ErrPushText
+		res.Err = data.ErrPushDataFailed
+		res.ErrMsg = data.ErrPushDataFailedText
 	}else{
 		res.Err = data.NoErr
 	}
 }
 
+// auth data
 func (mi *ServiceCenter) authData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	reqAuth := *req
 	reqAuth.Data.Method.Srv = "auth"
@@ -385,6 +370,7 @@ func (mi *ServiceCenter) authData(req *data.SrvRequestData, res *data.SrvRespons
 	*res = reqAuthRes
 }
 
+// package data
 func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	reqEnc := *req
 	reqEnc.Data.Method.Srv = "auth"
@@ -397,9 +383,10 @@ func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResp
 	*res = reqEncRes
 }
 
+//  call a srv node
 func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
 	versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
-	//fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Function)
+	fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Method.Function)
 
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
@@ -423,6 +410,7 @@ func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
 	return mi.ApiInfo[name]
 }
 
+// http handler
 func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) {
 	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	//defer req.Body.Close()
@@ -442,25 +430,25 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 		b, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			fmt.Println("#Error, handleRestful: ", err.Error())
-			resData.Err = data.ErrData
-			resData.ErrMsg = data.ErrDataText
+			resData.Err = data.ErrDataCorrupted
+			resData.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 
 		//body := string(b)
 		//fmt.Println("body=", body)
 
-		// 重组rpc结构json
+		// make data
 		reqData := data.UserRequestData{}
 		err = json.Unmarshal(b, &reqData.Argv);
 		if err != nil {
 			fmt.Println("#Error, handleRestful: ", err.Error())
-			resData.Err = data.ErrData
-			resData.ErrMsg = data.ErrDataText
+			resData.Err = data.ErrDataCorrupted
+			resData.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 
-		// 分割参数
+		// get method
 		paths := strings.Split(path, "/")
 		for i := 0; i < len(paths); i++ {
 			if i == 0 {
@@ -486,11 +474,10 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 	return
 }
 
-// ws
+// ws handler
 func (mi *ServiceCenter)handleWebSocket(conn *websocket.Conn) {
 	for {
-		// 连接...
-		fmt.Println("开始解析数据...")
+		fmt.Println("ws handle data...")
 		var err error
 		var data string
 		err = websocket.Message.Receive(conn, &data)
@@ -498,12 +485,10 @@ func (mi *ServiceCenter)handleWebSocket(conn *websocket.Conn) {
 			err = mi.handleWsData(conn, data)
 		}
 
-		fmt.Println("data:", data)
-
 		if err != nil {
 			//移除出错的链接
 			mi.removeWsClient(conn)
-			fmt.Println("读取数据出错...", err)
+			fmt.Println("ws read failed, remove client...", err)
 			break
 		}
 	}
@@ -518,7 +503,7 @@ func (mi *ServiceCenter)addWsClient(conn *websocket.Conn, client *WsClient) erro
 	mi.wsClients[conn] = client
 	mi.licenseKey2wsClients[client.licenseKey] = conn
 
-	fmt.Println("ws client = ", len(mi.wsClients))
+	fmt.Println("add, ws client = ", len(mi.wsClients))
 	return err
 }
 
@@ -541,7 +526,7 @@ func (mi *ServiceCenter)removeWsClient(conn *websocket.Conn) error{
 		delete(mi.licenseKey2wsClients, licenseKey)
 	}
 
-	fmt.Println("ws client = ", len(mi.wsClients))
+	fmt.Println("remove, ws client = ", len(mi.wsClients))
 	return err
 }
 
@@ -549,7 +534,7 @@ func (mi *ServiceCenter)handleWsData(conn *websocket.Conn, msg string) error{
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	// 只处理登陆登出，其他的消息推送
+	// only handle login request
 	resData := data.UserResponseData{}
 	err := func () error {
 		// 重组rpc结构json
@@ -557,24 +542,24 @@ func (mi *ServiceCenter)handleWsData(conn *websocket.Conn, msg string) error{
 		err := json.Unmarshal([]byte(msg), &reqData);
 		if err != nil {
 			fmt.Println("#Error, handlews: ", err.Error())
-			resData.Err = data.ErrData
-			resData.ErrMsg = data.ErrDataText
+			resData.Err = data.ErrDataCorrupted
+			resData.ErrMsg = data.ErrDataCorruptedText
 			return err
 		}
 		resData.Method = reqData.Method
 
 		if reqData.Method.Srv != "account" {
-			fmt.Println("#Error, handlews: 非法")
-			resData.Err = data.ErrIllegalCall
-			resData.ErrMsg = data.ErrIllegalCallText
-			return errors.New("非法调用")
+			fmt.Println("#Error, handlews: illegally call: ", reqData.Method)
+			resData.Err = data.ErrIllegallyCall
+			resData.ErrMsg = data.ErrIllegallyCallText
+			return errors.New(resData.ErrMsg)
 		}
 
 		if reqData.Method.Function != "login" && reqData.Method.Function != "logout" {
-			fmt.Println("#Error, handlews: 非法")
-			resData.Err = data.ErrIllegalCall
-			resData.ErrMsg = data.ErrIllegalCallText
-			return errors.New("非法调用")
+			fmt.Println("#Error, handlews: illegally call: ", reqData.Method)
+			resData.Err = data.ErrIllegallyCall
+			resData.ErrMsg = data.ErrIllegallyCallText
+			return errors.New(resData.ErrMsg)
 		}
 
 		mi.userCall(&reqData, &resData)

@@ -61,14 +61,18 @@ func LoadRsaKeys() error {
 		return err
 	}
 
-	G_server_pubkey, err = ioutil.ReadFile("/Users/henly.liu/wallet-service/src/api_router/account_srv/worker/public.pem")
+	appDir, _:= utils.GetAppDir()
+	appDir += "/SuperWallet"
+
+	accountDir := appDir + "/account"
+	G_server_pubkey, err = ioutil.ReadFile(accountDir + "/public.pem")
 	if err != nil {
 		return err
 	}
 
-	G_admin_licensekey = "25143234-b958-44a8-a87f-5f0f4ef46eb5"
+	G_admin_licensekey = "f3a608c1-b251-4494-a8c7-3c6d14b011f5"
 
-	G_henly_licensekey = "e85d1e4f-5190-4edd-b459-a4b1a4b86764"
+	G_henly_licensekey = "719101fe-93a0-44e5-909b-84a6e7fcb132"
 
 	return nil
 }
@@ -133,12 +137,12 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 	body := string(b)
 
 	////////////////////////////////////////////
-	//fmt.Println("ok send msg:", dispatchData)
+	fmt.Println("ok send msg:", body)
 	ackData := &data.UserResponseData{}
 
 	var res string
 	nethelper.CallToHttpServer(addr, path, body, &res)
-	//fmt.Println("ok get ack:", ackData)
+	fmt.Println("ok get ack:", res)
 
 	err = json.Unmarshal([]byte(res), &ackData)
 	if err != nil {
@@ -253,13 +257,19 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 // curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/wallet/v1/arith/add
 func main() {
 	// 目录
-	fmt.Println("当前目录：", utils.GetCurrentDir())
-	fmt.Println("执行目录：", utils.GetRunDir())
+	curDir, _ := utils.GetCurrentDir()
+	runDir, _ := utils.GetRunDir()
+	fmt.Println("当前目录：", curDir)
+	fmt.Println("执行目录：", runDir)
 	// 加载服务器公钥
-	LoadRsaKeys()
+	err := LoadRsaKeys()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	fmt.Println("Please first to login: ")
-	err := func() error {
+	err = func() error {
 		m, err := install.LoginUser()
 		if err != nil {
 			fmt.Println(err)

@@ -12,7 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"encoding/json"
 	"github.com/satori/go.uuid"
-	"errors"
 )
 
 const (
@@ -64,35 +63,22 @@ func (s *Account)Init(dir string) error {
 	return nil
 }
 
-func (s *Account)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.CallNodeApi) error  {
-	regapi := func(name string, caller service.CallNodeApi, level int) error {
-		if (*apisfunc)[name] != nil {
-			fmt.Println("#error: api is already exist...", name)
-			return errors.New("api is already exist...")
-		}
+func (s * Account)GetApiGroup()(map[string]service.NodeApi){
+	nam := make(map[string]service.NodeApi)
 
-		*apis = append(*apis, data.ApiInfo{name, level})
-		(*apisfunc)[name] = caller
-		return nil
-	}
+	apiInfo := data.ApiInfo{Name:"create", Level:data.APILevel_genesis}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Create, ApiInfo:apiInfo}
 
-	if err := regapi("create", service.CallNodeApi(s.Create), data.APILevel_genesis); err != nil {
-		return err
-	}
+	apiInfo = data.ApiInfo{Name:"listusers", Level:data.APILevel_admin}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.ListUsers, ApiInfo:apiInfo}
 
-	if err := regapi("listusers", service.CallNodeApi(s.ListUsers), data.APILevel_admin); err != nil {
-		return err
-	}
+	apiInfo = data.ApiInfo{Name:"login", Level:data.APILevel_client}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Login, ApiInfo:apiInfo}
 
-	if err := regapi("login", service.CallNodeApi(s.Login), data.APILevel_client); err != nil {
-		return err
-	}
+	apiInfo = data.ApiInfo{Name:"updatepassword", Level:data.APILevel_admin}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdatePassword, ApiInfo:apiInfo}
 
-	if err := regapi("updatepassword", service.CallNodeApi(s.UpdatePassword), data.APILevel_admin); err != nil {
-		return err
-	}
-
-	return nil
+	return nam
 }
 
 // 创建账号
@@ -142,8 +128,8 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 	}()
 
 	if err != nil {
-		res.Data.Err = data.ErrAccountSrvRegister
-		res.Data.ErrMsg = data.ErrAccountSrvRegisterText
+		res.Data.Err = data.ErrAccountSrvRegisterFailed
+		res.Data.ErrMsg = data.ErrAccountSrvRegisterFailedText
 	}
 }
 

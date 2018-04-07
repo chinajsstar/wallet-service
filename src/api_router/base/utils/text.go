@@ -2,6 +2,7 @@ package utils
 
 import "fmt"
 
+// Scan input to string with '\n' with end line
 func ScanLine() string {
 	var c byte
 	var err error

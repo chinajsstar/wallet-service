@@ -5,34 +5,32 @@ import (
 	"fmt"
 	"time"
 	"context"
-	"sync"
-	"../base/config"
 	"../base/utils"
+	"net/rpc"
 )
 
-const ServiceCenterConfig = "center.json"
+const ServiceGatewayConfig = "gateway.json"
 
 func main() {
-	var err error
-	cc := config.ConfigCenter{}
-	if err = cc.Load(utils.GetRunDir()+"/config/"+ServiceCenterConfig); err != nil{
-		err = cc.Load(utils.GetCurrentDir() + "/config/" + ServiceCenterConfig)
-	}
-	if err != nil {
+	appDir, _:= utils.GetAppDir()
+	appDir += "/SuperWallet"
+
+	cfgPath := appDir + "/" + ServiceGatewayConfig
+	fmt.Println("config path:", cfgPath)
+
+	// create service center
+	centerInstance, err := service.NewServiceCenter(cfgPath)
+	if centerInstance == nil || err != nil {
+		fmt.Println("#create service center failed:", err)
 		return
 	}
-	fmt.Println("config:", cc)
+	rpc.Register(centerInstance)
 
-	wg := &sync.WaitGroup{}
-
-	// 创建服务中心
-	centerInstance,_ := service.NewServiceCenter(cc.CenterName, ":"+cc.Port, ":"+cc.WsPort, ":"+cc.CenterPort)
-
-	// 启动服务中心
+	// start service center
 	ctx, cancel := context.WithCancel(context.Background())
-	centerInstance.Start(ctx, wg)
+	service.StartCenter(ctx, centerInstance)
 
-	time.Sleep(time.Second*2)
+	time.Sleep(time.Second*1)
 	for ; ;  {
 		fmt.Println("Input 'quit' to quit...")
 		var input string
@@ -45,7 +43,7 @@ func main() {
 	}
 
 	fmt.Println("Waiting all routine quit...")
-	wg.Wait()
+	service.StopCenter(centerInstance)
 	fmt.Println("All routine is quit...")
 }
 

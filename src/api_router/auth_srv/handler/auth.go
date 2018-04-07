@@ -68,26 +68,16 @@ func (auth * Auth)Init(dir string) error {
 	return nil
 }
 
-func (auth *Auth)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.CallNodeApi) error  {
-	regapi := func(name string, caller service.CallNodeApi, level int) error {
-		if (*apisfunc)[name] != nil {
-			return errors.New("api is already exist...")
-		}
+func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
+	nam := make(map[string]service.NodeApi)
 
-		*apis = append(*apis, data.ApiInfo{name, level})
-		(*apisfunc)[name] = caller
-		return nil
-	}
+	apiInfo := data.ApiInfo{Name:"authdata", Level:data.APILevel_client}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:auth.AuthData, ApiInfo:apiInfo}
 
-	if err := regapi("authdata", service.CallNodeApi(auth.AuthData), data.APILevel_client); err != nil {
-		return err
-	}
+	apiInfo = data.ApiInfo{Name:"encryptdata", Level:data.APILevel_client}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:auth.EncryptData, ApiInfo:apiInfo}
 
-	if err := regapi("encryptdata", service.CallNodeApi(auth.EncryptData), data.APILevel_client); err != nil {
-		return err
-	}
-
-	return nil
+	return nam
 }
 
 // 验证数据

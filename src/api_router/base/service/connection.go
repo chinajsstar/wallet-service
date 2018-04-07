@@ -6,10 +6,13 @@ import (
 	"sync"
 )
 
+// Tcp server manager connections
+
+// wrap the real connection
 type Connection struct {
-	Cg *ConnectionGroup // connection group
-	Conn io.ReadWriteCloser 	// holds the JSON formated RPC response
-	Done chan bool 		// signals then end of the RPC request
+	Cg *ConnectionGroup 		// connection group
+	Conn io.ReadWriteCloser 	// the real connection object
+	Done chan bool 				// signals then end of the RPC request
 }
 
 // Read implements the io.ReadWriteCloser Read method.
@@ -37,11 +40,13 @@ func (r *Connection) Close() error {
 	return nil
 }
 
+// Connection group
 type ConnectionGroup struct{
-	rwmu sync.RWMutex
-	connections map[*Connection]struct{}
+	rwmu sync.RWMutex						// read/write lock
+	connections map[*Connection]struct{}	// connections
 }
 
+// New connection group
 func NewConnectionGroup() *ConnectionGroup {
 	cg := &ConnectionGroup{}
 	cg.connections = make(map[*Connection]struct{})
@@ -49,6 +54,7 @@ func NewConnectionGroup() *ConnectionGroup {
 	return cg
 }
 
+// register to group
 func (cg *ConnectionGroup)Register(conn io.ReadWriteCloser) *Connection {
 	cn := &Connection{}
 	cn.Cg = cg
@@ -60,16 +66,17 @@ func (cg *ConnectionGroup)Register(conn io.ReadWriteCloser) *Connection {
 
 	cg.connections[cn] = struct {}{}
 
-	fmt.Println("connection count = ", len(cg.connections))
+	fmt.Println("add, connection count = ", len(cg.connections))
 
 	return cn
 }
 
+// remove connection
 func (cg *ConnectionGroup)remove(cn *Connection)  {
 	cg.rwmu.Lock()
 	defer cg.rwmu.Unlock()
 
 	delete(cg.connections, cn)
 
-	fmt.Println("connection count = ", len(cg.connections))
+	fmt.Println("remove, connection count = ", len(cg.connections))
 }

@@ -1,49 +1,56 @@
 package data
 
-const(
-	MethodCenterRegister   = "ServiceCenter.Register"	// 节点向服务中心注册请求
-	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// 节点向服务中心反注册请求
+// /////////////////////////////////////////////////////
+// internal api gateway and service RPC data define
+// /////////////////////////////////////////////////////
 
-	MethodCenterPush   	   = "ServiceCenter.Push"		// 节点向服务中心推送消息
-	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// 节点向服务中心发送请求
-	MethodNodeCall         = "ServiceNode.Call"			// 服务中心向节点发送请求
+const(
+	MethodCenterRegister   = "ServiceCenter.Register"	// srv node register to center
+	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// srv node unregister to center
+
+	MethodCenterPush   	   = "ServiceCenter.Push"		// srv node push data to center
+	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// srv node dispatch a request to center
+	MethodNodeCall         = "ServiceNode.Call"			// center call a srv node function
 )
 
 const(
-	// 一般用户
+	// client
 	APILevel_client = 0
 
-	// 一般后台管理员
+	// common administrator
 	APILevel_admin = 100
 
-	// 创世管理员
+	// genesis administrator
 	APILevel_genesis = 200
 )
 
-// API信息
+// API info
 type ApiInfo struct{
-	Name 	string 	`json:"name"`
-	Level 	int		`json:"level"`
+	Name 	string 	`json:"name"`    	// api name
+	Level 	int		`json:"level"`		// api level, refer APILevel_*
 }
-// 注册信息
+
+// register data
 type SrvRegisterData struct {
-	Version      string `json:"version"`    // service version
-	Srv          string `json:"srv"`		// service name
-	Addr         string `json:"addr"`		// service ip address
-	Functions []ApiInfo `json:"functions"`  // service functions
+	Version      string `json:"version"`    // srv version
+	Srv          string `json:"srv"`		// srv name
+	Addr         string `json:"addr"`		// srv ip address
+	Functions []ApiInfo `json:"functions"`  // srv functions
 }
 
-// 内部请求的上下文数据
-type SrvRequestContext struct{
-	Api ApiInfo `json:"api"`
-	// others
+// srv context
+type SrvContext struct{
+	Api ApiInfo `json:"api"`	// api info
+	// future...
 }
 
-// 内部RPC结构，在center中转时，增加请求权限信息
+// rpc srv request data
 type SrvRequestData struct{
-	Data UserRequestData 		`json:"data"`
-	Context SrvRequestContext 	`json:"context"`
+	Context SrvContext 		`json:"context"`	// api info
+	Data 	UserRequestData `json:"data"`		// user request data
 }
+
+// rpc srv response data
 type SrvResponseData struct{
-	Data UserResponseData 		`json:"data"`
+	Data 	UserResponseData `json:"data"`		// user response data
 }

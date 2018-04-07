@@ -1,4 +1,4 @@
-package service
+package nethelper
 
 import (
 	"sync"
@@ -10,7 +10,7 @@ import (
 type WsServer struct{
 	rwmu sync.RWMutex
 
-	// 已验证用户
+	// valid clients
 	clients map[*websocket.Conn]struct{}
 }
 
@@ -22,9 +22,9 @@ func NewWsServer() *WsServer {
 }
 
 func (ws *WsServer)Start(addr string) error{
-	//绑定socket方法
+	//bind socket
 	http.Handle("/ws", websocket.Handler(ws.handleWebSocket))
-	//开始监听
+	//listen
 	err := http.ListenAndServe(addr, nil)
 	if err != nil {
 		fmt.Println("#Error:", err)
@@ -59,14 +59,17 @@ func (ws *WsServer)remove(conn *websocket.Conn) error{
 
 func (ws *WsServer)handleData(conn *websocket.Conn, data string) error{
 	fmt.Println("data：", data, ",len", len(data))
+	if data == "hi" {
+		// add client
+		ws.add(conn)
+	}
 
 	return nil
 }
 
 func (ws *WsServer)handleWebSocket(conn *websocket.Conn) {
 	for {
-		// 连接...
-		fmt.Println("开始解析数据...")
+		fmt.Println("handle a conn...")
 		var err error
 		var data string
 		err = websocket.Message.Receive(conn, &data)
@@ -76,9 +79,9 @@ func (ws *WsServer)handleWebSocket(conn *websocket.Conn) {
 
 		fmt.Println("err: ", err)
 		if err != nil {
-			//移除出错的链接
+			// remove client
 			ws.remove(conn)
-			fmt.Println("读取数据出错...")
+			fmt.Println("read filed...")
 			break
 		}
 	}

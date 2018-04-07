@@ -21,7 +21,7 @@ var (
 
 	accountQ = map[string]string{
 		"delete": "DELETE from %s.%s where id = ?",
-		"deletebylicensekey": "DELETE from %s.%s where license_key = ?",
+		"deleteByLicenseKey": "DELETE from %s.%s where license_key = ?",
 		"create": `INSERT into %s.%s (
 				user_name, phone, email, 
 				salt, password, google_auth, 
@@ -112,7 +112,7 @@ func Delete(id int) error {
 }
 
 func DeleteByLicenseKey(licenseKey string) error {
-	_, err := st["deletebylicensekey"].Exec(licenseKey)
+	_, err := st["deleteByLicenseKey"].Exec(licenseKey)
 	return err
 }
 

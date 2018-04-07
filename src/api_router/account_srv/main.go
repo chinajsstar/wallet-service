@@ -9,33 +9,16 @@ import (
 	"fmt"
 	"context"
 	"time"
-	"sync"
 	"strings"
 	"./install"
 	"encoding/json"
-	"../base/config"
 	"../base/utils"
 	"errors"
 	"./user"
 	"os"
 )
 
-const AccountSrvConfig = "node.json"
-var g_apisMap = make(map[string]service.CallNodeApi)
-
-// 注册方法
-func callAuthFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
-	h := g_apisMap[strings.ToLower(req.Data.Method.Function)]
-	if h != nil {
-		h(req, res)
-	}else{
-		res.Data.Err = data.ErrSrvInternalErr
-		res.Data.ErrMsg = data.ErrSrvInternalErrText
-	}
-
-	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *res)
-}
+const AccountSrvConfig = "account.json"
 
 func installWallet(dir string) error {
 	var err error
@@ -106,56 +89,44 @@ func installWallet(dir string) error {
 }
 
 func main() {
-	var err error
-	var workerdir string
+	appDir, _:= utils.GetAppDir()
+	appDir += "/SuperWallet"
 
-	cn := config.ConfigNode{}
-
-	workerdir = utils.GetRunDir()
-	if err = cn.Load(utils.GetRunDir()+"/config/"+AccountSrvConfig); err != nil{
-		err = cn.Load(utils.GetCurrentDir() + "/config/" + AccountSrvConfig)
-		workerdir = utils.GetCurrentDir()
-	}
-	if err != nil {
-		return
-	}
-	fmt.Println("config:", cn)
-	workerdir += "/worker"
-	err = os.Mkdir(workerdir, os.ModePerm)
+	accountDir := appDir + "/account"
+	err := os.MkdirAll(accountDir, os.ModePerm)
 	if err!=nil && os.IsExist(err)==false {
-		fmt.Println("#创建工作目录失败：", workerdir, "--", err)
+		fmt.Println("#Error create account dir：", accountDir, "--", err)
 		return
 	}
-	fmt.Println("workerdir:", workerdir)
 
-	// 启动db
+	// start db
 	db.Init()
 
-	err = installWallet(workerdir)
+	err = installWallet(accountDir)
 	if err != nil {
-		fmt.Println("安装失败：", err)
+		fmt.Println("#Error install：", err)
 		return
 	}
 
-	wg := &sync.WaitGroup{}
+	// init
+	handler.AccountInstance().Init(accountDir)
 
-	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(cn.SrvName, cn.SrvVersion)
-
-	nodeInstance.RegisterData.Addr = cn.SrvAddr
-	nodeInstance.Handler = callAuthFunction
-
-	nodeInstance.ServiceCenterAddr = cn.CenterAddr
-
-	// 注册API
-	handler.AccountInstance().Init(workerdir)
-	handler.AccountInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
-
+	// create service node
+	cfgPath := appDir + "/" + AccountSrvConfig
+	fmt.Println("config path:", cfgPath)
+	nodeInstance, err := service.NewServiceNode(cfgPath)
+	if nodeInstance == nil || err != nil{
+		fmt.Println("#create service node failed:", err)
+		return
+	}
 	rpc.Register(nodeInstance)
 
-	// 启动节点服务
+	// register APIs
+	service.RegisterNodeApi(nodeInstance, handler.AccountInstance())
+
+	// start service node
 	ctx, cancel := context.WithCancel(context.Background())
-	nodeInstance.Start(ctx, wg)
+	service.StartNode(ctx, nodeInstance)
 
 	time.Sleep(time.Second*2)
 	for ; ;  {
@@ -204,6 +175,6 @@ func main() {
 	}
 
 	fmt.Println("Waiting all routine quit...")
-	wg.Wait()
+	service.StopNode(nodeInstance)
 	fmt.Println("All routine is quit...")
 }
