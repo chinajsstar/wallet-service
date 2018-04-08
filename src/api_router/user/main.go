@@ -15,36 +15,64 @@ import (
 	"crypto"
 	"encoding/base64"
 	"strings"
-	"github.com/satori/go.uuid"
 	"../account_srv/user"
 	"../account_srv/install"
 	"errors"
+	"strconv"
+	"golang.org/x/net/websocket"
 )
 
-var g_admin_prikey []byte
-var g_admin_pubkey []byte
-var g_admin_licensekey string
+const wsaddrGateway = "ws://127.0.0.1:8088/ws"
+const tcpaddrGateway = "127.0.0.1:8081"
+const httpaddrGateway = "http://127.0.0.1:8080"
+const httpaddrNigix = "http://127.0.0.1:8070"
 
-var g_server_pubkey []byte
+var G_admin_prikey []byte
+var G_admin_pubkey []byte
+var G_admin_licensekey string
 
-func loadRsaKeys() error {
+var G_henly_prikey []byte
+var G_henly_pubkey []byte
+var G_henly_licensekey string
+
+var G_server_pubkey []byte
+
+var wsconn *websocket.Conn
+
+func LoadRsaKeys() error {
 	var err error
-	g_admin_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_admin.pem")
+	G_admin_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_admin.pem")
 	if err != nil {
 		return err
 	}
 
-	g_admin_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_admin.pem")
+	G_admin_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_admin.pem")
 	if err != nil {
 		return err
 	}
 
-	g_server_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_wallet.pem")
+	G_henly_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_henly.pem")
 	if err != nil {
 		return err
 	}
 
-	g_admin_licensekey = "c9730876-6f26-4bcb-8e8e-38b384280644"
+	G_henly_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_henly.pem")
+	if err != nil {
+		return err
+	}
+
+	appDir, _:= utils.GetAppDir()
+	appDir += "/SuperWallet"
+
+	accountDir := appDir + "/account"
+	G_server_pubkey, err = ioutil.ReadFile(accountDir + "/public.pem")
+	if err != nil {
+		return err
+	}
+
+	G_admin_licensekey = "f3a608c1-b251-4494-a8c7-3c6d14b011f5"
+
+	G_henly_licensekey = "719101fe-93a0-44e5-909b-84a6e7fcb132"
 
 	return nil
 }
@@ -56,14 +84,14 @@ const(
 	testFunction = "add"
 )
 
-func sendData(message, version, srv, function string) (*data.ServiceCenterDispatchAckData, []byte, error) {
+func sendData2(addr, message, version, srv, function string) (*data.UserResponseData, []byte, error) {
 	// 用户数据
 	var ud data.UserData
-	ud.LicenseKey = g_admin_licensekey
+	ud.LicenseKey = G_admin_licensekey
 
 	bencrypted, err := func() ([]byte, error) {
 		// 用我们的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(message), g_server_pubkey, utils.RsaEncodeLimit2048)
+		bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey, utils.RsaEncodeLimit2048)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +110,7 @@ func sendData(message, version, srv, function string) (*data.ServiceCenterDispat
 		hs.Write(bencrypted)
 		hashData = hs.Sum(nil)
 
-		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, g_admin_prikey)
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, G_admin_prikey)
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
@@ -96,18 +124,30 @@ func sendData(message, version, srv, function string) (*data.ServiceCenterDispat
 
 	ud.Signature = base64.StdEncoding.EncodeToString(bsignature)
 
-	// 封装信息
-	dispatchData := data.ServiceCenterDispatchData{}
-	dispatchData.Version = version
-	dispatchData.Srv = srv
-	dispatchData.Function = function
-	dispatchData.Argv = ud
+	path := "/wallet"
+	path += "/"+version
+	path += "/"+srv
+	path += "/"+function
+
+	b, err := json.Marshal(ud)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	body := string(b)
 
 	////////////////////////////////////////////
-	fmt.Println("ok send msg:", dispatchData)
-	ackData := &data.ServiceCenterDispatchAckData{}
-	nethelper.CallJRPCToHttpServer("127.0.0.1:8080", "/wallet", data.MethodServiceCenterDispatch, dispatchData, ackData)
-	fmt.Println("ok get ack:", ackData)
+	fmt.Println("ok send msg:", body)
+	ackData := &data.UserResponseData{}
+
+	var res string
+	nethelper.CallToHttpServer(addr, path, body, &res)
+	fmt.Println("ok get ack:", res)
+
+	err = json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	if ackData.Err != data.NoErr {
 		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
@@ -130,13 +170,13 @@ func sendData(message, version, srv, function string) (*data.ServiceCenterDispat
 	hs.Write([]byte(bencrypted2))
 	hashData = hs.Sum(nil)
 
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, g_server_pubkey)
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
 	if err != nil {
 		return ackData, nil, err
 	}
 
 	// 解密数据
-	d2, err := utils.RsaDecrypt(bencrypted2, g_admin_prikey, utils.RsaDecodeLimit2048)
+	d2, err := utils.RsaDecrypt(bencrypted2, G_admin_prikey, utils.RsaDecodeLimit2048)
 	if err != nil {
 		return ackData, nil, err
 	}
@@ -147,7 +187,7 @@ func sendData(message, version, srv, function string) (*data.ServiceCenterDispat
 var timeBegin,timeEnd time.Time
 
 func DoTest(count *int64, right *int64, times int64){
-	_, d, err := sendData(testMessage, testVersion, testSrv, testFunction)
+	_, d, err := sendData2(httpaddrGateway, testMessage, testVersion, testSrv, testFunction)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil{
@@ -163,8 +203,8 @@ func DoTest(count *int64, right *int64, times int64){
 	}
 }
 
-func DoTest2(client *rpc.Client, count *int64, right *int64, times int64){
-	_, d, err := sendData(testMessage, testVersion, testSrv, testFunction)
+func DoTest2(count *int64, right *int64, times int64){
+	_, d, err := sendData2(httpaddrGateway, testMessage, testVersion, testSrv, testFunction)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil{
@@ -181,9 +221,9 @@ func DoTest2(client *rpc.Client, count *int64, right *int64, times int64){
 }
 
 func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
-	ackData := data.ServiceCenterDispatchAckData{}
+	ackData := data.UserResponseData{}
 
-	err := nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, params, &ackData)
+	err := nethelper.CallJRPCToTcpServer(tcpaddrGateway, data.MethodCenterDispatch, params, &ackData)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil && ackData.Err==0{
@@ -198,8 +238,8 @@ func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
 }
 
 func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int64, times int64){
-	ackData := data.ServiceCenterDispatchAckData{}
-	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodServiceNodeCall, params, &ackData)
+	ackData := data.UserResponseData{}
+	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodCenterDispatch, params, &ackData)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil && ackData.Err==0{
@@ -213,23 +253,23 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 	}
 }
 
-// http rpc风格
-// curl -d '{"method":"ServiceCenter.Dispatch", "params":[{"srv":"v1.arith", "function":"add","argv":"{\"a\":\"hello, \", \"b\":\"world\"}"}], "id": 1}' http://localhost:8080/rpc
-// curl -d '{
-// "method":"ServiceCenter.Dispatch",
-// "params":[{"srv":"v1.arith", "function":"add", "argv":"{\"a\":\"hello, \", \"b\":\"world\"}}],
-// "id": 1
-// }'
-// http://localhost:8080/rpc
-
-// http restful风格
-// curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/restful/v1/arith/add
+// http
+// curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/wallet/v1/arith/add
 func main() {
+	// 目录
+	curDir, _ := utils.GetCurrentDir()
+	runDir, _ := utils.GetRunDir()
+	fmt.Println("当前目录：", curDir)
+	fmt.Println("执行目录：", runDir)
 	// 加载服务器公钥
-	loadRsaKeys()
+	err := LoadRsaKeys()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	fmt.Println("Please first to login: ")
-	err := func() error {
+	err = func() error {
 		m, err := install.LoginUser()
 		if err != nil {
 			fmt.Println(err)
@@ -242,13 +282,13 @@ func main() {
 			return err
 		}
 
-		_, d2, err := sendData(string(d), "v1", "account", "login")
+		_, d2, err := sendData2(httpaddrGateway, string(d), "v1", "account", "login")
 		if err != nil {
 			fmt.Println(err)
 			return err
 		}
 
-		uca := user.UserLoginAck{}
+		uca := user.AckUserLogin{}
 		err = json.Unmarshal(d2, &uca)
 		if err != nil {
 			fmt.Println(err)
@@ -261,11 +301,11 @@ func main() {
 	}()
 	if err != nil {
 		fmt.Println("#err:", err)
-		return
+		//return
 	}
 
 	// 测试次数
-	const times = 100;
+	var runcounts = 100
 	var count, right int64
 	count = 0
 	right = 0
@@ -288,40 +328,56 @@ func main() {
 			fmt.Println("I do quit")
 			break;
 		}else if argv[0] == "d1" {
-			_, d, err := sendData(testMessage, testVersion, testSrv, testFunction)
+			_, d, err := sendData2(httpaddrGateway, testMessage, testVersion, testSrv, testFunction)
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(d))
+
+		}else if argv[0] == "d11" {
+			res, d, err := sendData2(httpaddrNigix, testMessage, testVersion, testSrv, testFunction)
+			fmt.Println("err==", err)
+			fmt.Println("res==", *res)
+			fmt.Println("data==", string(d))
 
 		}else if argv[0] == "d2" {
 
 			var ud data.UserData
 			ud.Message = testMessage
 
-			dispatchData := data.ServiceCenterDispatchData{}
-			dispatchData.Version = testVersion
-			dispatchData.Srv = testSrv
-			dispatchData.Function = testFunction
+			dispatchData := data.UserRequestData{}
+			dispatchData.Method.Version = testVersion
+			dispatchData.Method.Srv = testSrv
+			dispatchData.Method.Function = testFunction
 			dispatchData.Argv = ud
 
-			ackData := data.ServiceCenterDispatchAckData{}
-			nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodServiceNodeCall, dispatchData, &ackData)
+			ackData := data.UserResponseData{}
+			nethelper.CallJRPCToTcpServer("127.0.0.1:8090", data.MethodNodeCall, dispatchData, &ackData)
 			fmt.Println("ack==", ackData)
 		}else if argv[0] == "d3" {
+
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
 
 			var ud data.UserData
 			ud.Message = testMessage
 
-			dispatchData := data.ServiceCenterDispatchData{}
-			dispatchData.Version = testVersion
-			dispatchData.Srv = testSrv
-			dispatchData.Function = testFunction
+			dispatchData := data.UserRequestData{}
+			dispatchData.Method.Version = testVersion
+			dispatchData.Method.Srv = testSrv
+			dispatchData.Method.Function = testFunction
 			dispatchData.Argv = ud
-			for i := 0; i < times; i++ {
-				go DoTestTcp(dispatchData, &count, &right, times)
+			for i := 0; i < runcounts; i++ {
+				go DoTestTcp(&dispatchData, &count, &right, int64(runcounts))
 			}
 		} else if argv[0] == "d33" {
 
-			client, err := rpc.Dial("tcp", "127.0.0.1:8090")
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
+
+			client, err := rpc.Dial("tcp", tcpaddrGateway)
 			if err != nil {
 				log.Println("Error: ", err.Error())
 				continue
@@ -330,20 +386,29 @@ func main() {
 			var ud data.UserData
 			ud.Message = testMessage
 
-			dispatchData := data.ServiceCenterDispatchData{}
-			dispatchData.Version = testVersion
-			dispatchData.Srv = testSrv
-			dispatchData.Function = testFunction
+			dispatchData := data.UserRequestData{}
+			dispatchData.Method.Version = testVersion
+			dispatchData.Method.Srv = testSrv
+			dispatchData.Method.Function = testFunction
 			dispatchData.Argv = ud
-			for i := 0; i < times*times*2; i++ {
-				go DoTestTcp2(client, dispatchData, &count, &right, times*times*2)
+			for i := 0; i < runcounts; i++ {
+				go DoTestTcp2(client, dispatchData, &count, &right, int64(runcounts))
 			}
 		}else if argv[0] == "d4" {
-			for i := 0; i < times; i++ {
-				go DoTest(&count, &right, times)
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
+
+			for i := 0; i < runcounts; i++ {
+				go DoTest(&count, &right, int64(runcounts))
 			}
 		} else if argv[0] == "d44" {
-
+			runcounts = 100
+			if len(argv) > 1 {
+				runcounts, _ = strconv.Atoi(argv[1])
+			}
+/*
 			addr := "127.0.0.1:8080"
 			log.Println("Call JRPC to Http server...", addr)
 
@@ -351,27 +416,27 @@ func main() {
 			if err != nil {
 				log.Println("Error: ", err.Error())
 				continue
-			}
-			for i := 0; i < times*times*2; i++ {
-				go DoTest2(client, &count, &right, times*times*2)
+			}*/
+			for i := 0; i < runcounts; i++ {
+				go DoTest2(&count, &right, int64(runcounts))
 			}
 		}else if argv[0] == "rsagen"{
-			u, err := uuid.NewV4()
-			if err != nil {
-				fmt.Println("#uuid create failed")
+			user := ""
+			if len(argv) < 2{
+				fmt.Println("输入名称")
 				continue
 			}
-			uuid := u.String()
+			user = argv[1]
 
-			pri := fmt.Sprintf("/Users/henly.liu/workspace/private_%s.pem", uuid)
-			pub := fmt.Sprintf("/Users/henly.liu/workspace/public_%s.pem", uuid)
+			pri := fmt.Sprintf("/Users/henly.liu/workspace/private_%s.pem", user)
+			pub := fmt.Sprintf("/Users/henly.liu/workspace/public_%s.pem", user)
 			err = utils.RsaGen(2048, pri, pub)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
-			fmt.Println("rsagen ok, uuid-", uuid)
+			fmt.Println("rsagen ok, user-", user)
 		}else if argv[0] == "test_adduser"{
 			m, err := install.AddUser()
 			if err != nil {
@@ -385,14 +450,14 @@ func main() {
 				continue
 			}
 
-			_, d2, err := sendData(string(d), "v1", "account", "create")
+			_, d2, err := sendData2(httpaddrGateway, string(d), "v1", "account", "create")
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 			fmt.Println(string(d2))
 
-			uca := user.UserCreateAck{}
+			uca := user.AckUserCreate{}
 			err = json.Unmarshal(d2, &uca)
 			if err != nil {
 				fmt.Println(err)
@@ -413,14 +478,14 @@ func main() {
 				continue
 			}
 
-			_, d2, err := sendData(string(d), "v1", "account", "login")
+			_, d2, err := sendData2(httpaddrGateway, string(d), "v1", "account", "login")
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 			fmt.Println(string(d2))
 
-			uca := user.UserLoginAck{}
+			uca := user.AckUserLogin{}
 			err = json.Unmarshal(d2, &uca)
 			if err != nil {
 				fmt.Println(err)
@@ -441,14 +506,14 @@ func main() {
 				continue
 			}
 
-			_, d2, err := sendData(string(d), "v1", "account", "listusers")
+			_, d2, err := sendData2(httpaddrGateway, string(d), "v1", "account", "listusers")
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 			fmt.Println(string(d2))
 
-			uca := user.UserListAck{}
+			uca := user.AckUserList{}
 			err = json.Unmarshal(d2, &uca)
 			if err != nil {
 				fmt.Println(err)
@@ -456,6 +521,187 @@ func main() {
 			}
 
 			fmt.Println("list users ack: ", uca)
+		}else if argv[0] == "ws"{
+			startWsClient()
+		}else if argv[0] == "wslogin"{
+			m, err := install.LoginUser()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			d, err := json.Marshal(m)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			var ud data.UserData
+			ud.LicenseKey = G_henly_licensekey
+			encryptRequestData(string(d), G_henly_prikey, &ud)
+
+			dispatchData := data.UserRequestData{}
+			dispatchData.Method.Version = "v1"
+			dispatchData.Method.Srv = "account"
+			dispatchData.Method.Function = "login"
+			dispatchData.Argv = ud
+
+			d, err = json.Marshal(dispatchData)
+
+			if wsconn != nil {
+				websocket.Message.Send(wsconn, string(d))
+			}
 		}
 	}
+}
+
+func startWsClient() *websocket.Conn {
+	conn, err := websocket.Dial(wsaddrGateway, "", "test://wallet/")
+	if err != nil {
+		fmt.Println("#error", err)
+		return nil
+	}
+
+	go func(conn *websocket.Conn) {
+		for ; ; {
+			var data string
+			err := websocket.Message.Receive(conn, &data)
+			if err != nil {
+				fmt.Println("read failed:", err)
+				break
+			}
+
+			pData, err:= decryptPushData(data, G_henly_prikey)
+			if pData != nil{
+				fmt.Println("pData:", pData)
+			}else{
+				fmt.Println("read:", data)
+			}
+		}
+	}(conn)
+
+	wsconn = conn
+	return conn
+}
+
+func encryptRequestData(message string, prikey []byte, userData *data.UserData) (error) {
+	// 用户数据
+	bencrypted, err := func() ([]byte, error) {
+		// 用我们的pub加密message ->encrypteddata
+		bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey, utils.RsaEncodeLimit2048)
+		if err != nil {
+			return nil, err
+		}
+		return bencrypted, nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	userData.Message = base64.StdEncoding.EncodeToString(bencrypted)
+
+	bsignature, err := func() ([]byte, error) {
+		// 用自己的pri签名encrypteddata ->signature
+		var hashData []byte
+		hs := sha512.New()
+		hs.Write(bencrypted)
+		hashData = hs.Sum(nil)
+
+		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, prikey)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		return bsignature, nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	userData.Signature = base64.StdEncoding.EncodeToString(bsignature)
+
+	return nil
+}
+
+func decryptResponseData(res string, prikey []byte) (*data.UserResponseData, error) {
+	ackData := &data.UserResponseData{}
+	err := json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, err
+	}
+
+	if ackData.Err != data.NoErr {
+		return ackData, errors.New("# got err: " + ackData.ErrMsg)
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		return ackData, err
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 解密数据
+	d, err := utils.RsaDecrypt(bencrypted2, prikey, utils.RsaDecodeLimit2048)
+	if err != nil {
+		return ackData, err
+	}
+	ackData.Value.Message = string(d)
+
+	return ackData, nil
+}
+
+func decryptPushData(res string, prikey []byte) (*data.UserResponseData, error) {
+	ackData := &data.UserResponseData{}
+	err := json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, err
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		return ackData, err
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
+	if err != nil {
+		return ackData, err
+	}
+
+	// 解密数据
+	d, err := utils.RsaDecrypt(bencrypted2, prikey, utils.RsaDecodeLimit2048)
+	if err != nil {
+		return ackData, err
+	}
+	ackData.Value.Message = string(d)
+
+	return ackData, nil
 }

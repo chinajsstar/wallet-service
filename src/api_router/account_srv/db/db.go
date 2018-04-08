@@ -21,17 +21,17 @@ var (
 
 	accountQ = map[string]string{
 		"delete": "DELETE from %s.%s where id = ?",
-		"deletebylicensekey": "DELETE from %s.%s where license_key = ?",
+		"deleteByLicenseKey": "DELETE from %s.%s where license_key = ?",
 		"create": `INSERT into %s.%s (
 				user_name, phone, email, 
 				salt, password, google_auth, 
-				license_key, public_key,
+				license_key, public_key, level,
 				last_login_time, last_login_ip, last_login_mac,
 				create_time, update_time,
 				time_zone, country, language) 
 				values (?, ?, ?, 
 				?, ?, ?,
-				?, ?,
+				?, ?, ?,
 				?, ?, ?,
 				?, ?,
 				?, ?, ?)`,
@@ -41,9 +41,9 @@ var (
 		"level":         	      "UPDATE %s.%s set level = ? where id = ?",
 		"readProfile":            "SELECT id, license_key, user_name, phone, email from %s.%s where id = ?",
 		"readPassword":           "SELECT salt, password from %s.%s where id = ?",
-		"searchUsername":         "SELECT id, user_name, phone, email, salt, password from %s.%s where user_name = ? limit ? offset ?",
-		"searchPhone":         	  "SELECT id, user_name, phone, email, salt, password from %s.%s where phone = ? limit ? offset ?",
-		"searchEmail":            "SELECT id, user_name, phone, email, salt, password from %s.%s where email = ? limit ? offset ?",
+		"searchUsername":         "SELECT id, license_key, user_name, phone, email, salt, password from %s.%s where user_name = ? limit ? offset ?",
+		"searchPhone":         	  "SELECT id, license_key, user_name, phone, email, salt, password from %s.%s where phone = ? limit ? offset ?",
+		"searchEmail":            "SELECT id, license_key, user_name, phone, email, salt, password from %s.%s where email = ? limit ? offset ?",
 
 		"listUsers":              "SELECT id, license_key, user_name, phone, email from %s.%s where id < ? order by id desc limit ?",
 		"listUsers2":             "SELECT id, license_key, user_name, phone, email from %s.%s order by id desc limit ?",
@@ -93,13 +93,13 @@ func Init() {
 	}
 }
 
-func Create(user *user.UserCreate, licenseKey string, salt string, password string) error {
+func Create(user *user.ReqUserCreate, licenseKey string, salt string, password string) error {
 	var datetime = time.Now().Local()
 	datetime.Format(time.RFC3339)
 	_, err := st["create"].Exec(
 		user.UserName, user.Phone, user.Email,
 		salt, password, user.GoogleAuth,
-		licenseKey, user.PublicKey,
+		licenseKey, user.PublicKey, user.Level,
 		datetime, "", "",
 		datetime, datetime,
 		user.TimeZone, user.Country, user.Language)
@@ -112,7 +112,7 @@ func Delete(id int) error {
 }
 
 func DeleteByLicenseKey(licenseKey string) error {
-	_, err := st["deletebylicensekey"].Exec(licenseKey)
+	_, err := st["deleteByLicenseKey"].Exec(licenseKey)
 	return err
 }
 
@@ -136,7 +136,7 @@ func Level(id int, level int) error {
 	return err
 }
 
-func ReadPassword(userName, phone, email string) (*user.UserLoginAck, string, string, error) {
+func ReadPassword(userName, phone, email string) (*user.AckUserLogin, string, string, error) {
 	var r *sql.Rows
 	var err error
 
@@ -165,8 +165,8 @@ func ReadPassword(userName, phone, email string) (*user.UserLoginAck, string, st
 	}
 
 	var salt, pass string
-	user := &user.UserLoginAck{}
-	if err := r.Scan(&user.Id, &user.UserName, &user.Phone, &user.Email, &salt, &pass); err != nil {
+	user := &user.AckUserLogin{}
+	if err := r.Scan(&user.Id, &user.LicenseKey, &user.UserName, &user.Phone, &user.Email, &salt, &pass); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, "", "", errors.New("not found")
 		}
@@ -179,14 +179,14 @@ func ReadPassword(userName, phone, email string) (*user.UserLoginAck, string, st
 	return user, salt, pass, nil
 }
 
-func ListUsers(id int) (*user.UserListAck, error) {
+func ListUsers(id int, num int) (*user.AckUserList, error) {
 	var r *sql.Rows
 	var err error
 
 	if id < 0 {
-		r, err = st["listUsers2"].Query(10)
+		r, err = st["listUsers2"].Query(num)
 	}else{
-		r, err = st["listUsers"].Query(id, 10)
+		r, err = st["listUsers"].Query(id, num)
 	}
 
 	if err != nil {
@@ -194,7 +194,7 @@ func ListUsers(id int) (*user.UserListAck, error) {
 	}
 	defer r.Close()
 
-	ul := &user.UserListAck{}
+	ul := &user.AckUserList{}
 	for r.Next()  {
 		up := user.UserProfile{}
 		if err := r.Scan(&up.Id, &up.LicenseKey, &up.UserName, &up.Phone, &up.Email); err != nil {

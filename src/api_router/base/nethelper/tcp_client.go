@@ -9,7 +9,7 @@ import (
 // @parameter: addr string, like "127.0.0.1:8080"
 // @parameter: method string
 // @parameter: params interface{}
-// @parameter: res *string
+// @parameter: res interface{}
 // @return: error
 func CallJRPCToTcpServer(addr string, method string, params interface{}, res interface{}) error {
 	client, err := rpc.Dial("tcp", addr)
@@ -27,7 +27,7 @@ func CallJRPCToTcpServer(addr string, method string, params interface{}, res int
 // @parameter: addr string, like "127.0.0.1:8080"
 // @parameter: method string
 // @parameter: params interface{}
-// @parameter: res *string
+// @parameter: res interface{}
 // @return: error
 func CallJRPCToTcpServerOnClient(client *rpc.Client, method string, params interface{}, res interface{}) error {
 	err := client.Call(method, params, res)

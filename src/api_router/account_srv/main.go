@@ -6,69 +6,127 @@ import (
 	"../data"
 	"./handler"
 	"./db"
-	"../base/utils"
 	"fmt"
 	"context"
 	"time"
-	"sync"
 	"strings"
 	"./install"
+	"encoding/json"
+	"../base/utils"
 	"errors"
+	"./user"
+	"os"
 )
 
-const AccountSrvName = "account"
-const AccountSrvVersion = "v1"
-const (
-	GateWayAddr = "127.0.0.1:8081"
-	SrvAddr = "127.0.0.1:8092"
-)
-var g_apisMap = make(map[string]service.CallNodeApi)
+const AccountSrvConfig = "account.json"
 
-// 注册方法
-func callAuthFunction(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error {
+func installWallet(dir string) error {
 	var err error
-	h := g_apisMap[strings.ToLower(req.SrvArgv.Function)]
-	if h != nil {
-		err = h(req, ack)
-	}else{
-		err = errors.New("not find api")
+
+	fi, err := os.Open(dir+"/wallet.install")
+	if err == nil {
+		defer fi.Close()
+		fmt.Println("Wallet is installed!!!")
+		return nil
 	}
 
+	fmt.Println("Wallet is installing...")
+
+	newRsa := false
+	fmt.Println("1. create wallet rsa key...")
+	_, err = os.Open(dir+"/private.pem")
 	if err != nil {
-		fmt.Println(err)
-		ack.SrvAck.Err = data.ErrUserSrvRegister
-		ack.SrvAck.ErrMsg = data.ErrUserSrvRegisterText
+		newRsa = true
+	}
+	_, err = os.Open(dir+"/public.pem")
+	if err != nil {
+		newRsa = true
+	}
+	if newRsa{
+		pri := fmt.Sprintf(dir+"/private.pem")
+		pub := fmt.Sprintf(dir+"/public.pem")
+		err = utils.RsaGen(2048, pri, pub)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		fmt.Println("create wallet rsa key...done")
+	}else{
+		fmt.Println("create wallet rsa key...exist")
 	}
 
-	fmt.Println("callNodeApi req: ", *req)
-	fmt.Println("callNodeApi ack: ", *ack)
+	fmt.Println("2. create wallet web admin...")
+	uc, err := install.AddUser()
+	if err != nil {
+		fmt.Println("#error:",err)
+		return err
+	}
+	b, _ := json.Marshal(*uc)
 
-	return err
+	var req data.SrvRequestData
+	var res data.SrvResponseData
+	req.Data.Argv.Message = string(b)
+
+	handler.AccountInstance().Create(&req, &res)
+	if res.Data.Err != data.NoErr {
+		fmt.Println("#error:", res.Data.ErrMsg)
+		return errors.New("创建admin失败")
+	}
+	fmt.Println("create wallet web admin...done")
+
+	uca := user.AckUserCreate{}
+	err = json.Unmarshal([]byte(res.Data.Value.Message), &uca)
+
+	fmt.Println("记录license key:", uca.LicenseKey)
+
+	fo, err := os.Create(dir+"/wallet.install")
+	if err != nil {
+		fmt.Println("#error:",err)
+		return err
+	}
+	defer fo.Close()
+	return nil
 }
 
 func main() {
-	wg := &sync.WaitGroup{}
+	appDir, _:= utils.GetAppDir()
+	appDir += "/SuperWallet"
 
-	// 启动db
+	accountDir := appDir + "/account"
+	err := os.MkdirAll(accountDir, os.ModePerm)
+	if err!=nil && os.IsExist(err)==false {
+		fmt.Println("#Error create account dir：", accountDir, "--", err)
+		return
+	}
+
+	// start db
 	db.Init()
 
-	// 创建节点
-	nodeInstance, _:= service.NewServiceNode(AccountSrvName, AccountSrvVersion)
+	err = installWallet(accountDir)
+	if err != nil {
+		fmt.Println("#Error install：", err)
+		return
+	}
 
-	nodeInstance.RegisterData.Addr = SrvAddr
-	nodeInstance.Handler = callAuthFunction
+	// init
+	handler.AccountInstance().Init(accountDir)
 
-	nodeInstance.ServiceCenterAddr = GateWayAddr
-
-	// 注册API
-	handler.AccountInstance().Init()
-	handler.AccountInstance().RegisterApi(&nodeInstance.RegisterData.Functions, &g_apisMap)
-
+	// create service node
+	cfgPath := appDir + "/" + AccountSrvConfig
+	fmt.Println("config path:", cfgPath)
+	nodeInstance, err := service.NewServiceNode(cfgPath)
+	if nodeInstance == nil || err != nil{
+		fmt.Println("#create service node failed:", err)
+		return
+	}
 	rpc.Register(nodeInstance)
 
-	// 启动节点服务
+	// register APIs
+	service.RegisterNodeApi(nodeInstance, handler.AccountInstance())
+
+	// start service node
 	ctx, cancel := context.WithCancel(context.Background())
-	nodeInstance.Start(ctx, wg)
+	service.StartNode(ctx, nodeInstance)
 
 	time.Sleep(time.Second*2)
 	for ; ;  {
@@ -89,24 +147,34 @@ func main() {
 				fmt.Println("失败，",err)
 				continue
 			}
+			b, _ := json.Marshal(*uc)
 
-			ack, err:= handler.AccountInstance().CreateWebAdmin(uc)
-			fmt.Println("createadmin err:", err)
-			fmt.Println("createadmin ack:", ack)
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+
+			handler.AccountInstance().Create(&req, &res)
+			fmt.Println("createadmin err:", req)
+			fmt.Println("createadmin ack:", res)
 		}else if argv[0] == "loginadmin" {
 			ul, err := install.LoginUser()
 			if err != nil {
 				fmt.Println("失败", err)
 				continue
 			}
+			b, _ := json.Marshal(*ul)
 
-			ack, err:= handler.AccountInstance().LoginWebAdmin(ul)
-			fmt.Println("loginadmin err:", err)
-			fmt.Println("loginadmin ack:", ack)
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+
+			handler.AccountInstance().Login(&req, &res)
+			fmt.Println("loginadmin err:", req)
+			fmt.Println("loginadmin ack:", res)
 		}
 	}
 
 	fmt.Println("Waiting all routine quit...")
-	wg.Wait()
+	service.StopNode(nodeInstance)
 	fmt.Println("All routine is quit...")
 }

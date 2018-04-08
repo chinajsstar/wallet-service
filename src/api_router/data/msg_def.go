@@ -1,27 +1,38 @@
 package data
 
-// 对外结构
-// 用户输入输出信息，作为请求和应答的实际信息
-// 用户数据
+// /////////////////////////////////////////////////////
+// API Gateway layer data define for users
+// /////////////////////////////////////////////////////
+
+// input/output method
+type UserMethod struct {
+	Version     string `json:"version"`   // srv version
+	Srv     	string `json:"srv"`	  	  // srv name
+	Function  	string `json:"function"`  // srv function
+}
+
+// input/output data/value
+// when input data, user encode and sign data, server decode and verify;
+// when output value, server encode and sign data, user decode and verify;
 type UserData struct {
-	LicenseKey string `json:"license_key"` 	// 用户标示
-	Message    string `json:"message"`		// 数据
-	Signature  string `json:"signature"`	// 签名
+	// user unique license key
+	LicenseKey string `json:"license_key"`
+	// message = origin data -> rsa encode -> base64
+	Message    string `json:"message"`
+	// signature = origin data -> sha512 -> rsa sign -> base64
+	Signature  string `json:"signature"`
 }
 
-// 请求信息，作为请求数据
-// json like: {"version":"v1", "srv":"arith", "function":"add", "argv":{...}}
-type ServiceCenterDispatchData struct{
-	Version     string `json:"version"`   // 版本号
-	Srv     	string `json:"srv"`	  	  // 服务名称
-	Function  	string `json:"function"`  // 服务功能
-	Argv 		UserData `json:"argv"` 	  // UserData
+// user request data
+type UserRequestData struct{
+	Method		UserMethod 	`json:"method"`	// request method
+	Argv 		UserData 	`json:"argv"` 	// request argument
 }
 
-// 应答信息，作为应答数据
-// json like: {"err":0, "errmsg":"", "value":{...}}
-type ServiceCenterDispatchAckData struct{
-	Err     int    `json:"err"`     // 错误码
-	ErrMsg  string `json:"errmsg"`  // 错误信息
-	Value   UserData `json:"value"` // UserData
+// user response/push data
+type UserResponseData struct{
+	Method		UserMethod 	`json:"method"`	// response/push method
+	Err     	int    		`json:"err"`    // error code
+	ErrMsg  	string 		`json:"errmsg"` // error message
+	Value   	UserData 	`json:"value"` 	// response/push data
 }

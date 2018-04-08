@@ -12,22 +12,25 @@ import (
 )
 
 const(
-	// rsa加解密限制
-	RsaEncodeLimit1024 = 1024 / 8 - 11
-	RsaDecodeLimit1024 = 1024 / 8
-	RsaEncodeLimit2048 = 2048 / 8 - 11
-	RsaDecodeLimit2048 = 2048 / 8
+	// rsa encode/decode bytes length limited, according to secret key bits
+	RsaBits1024 = 1024
+	RsaBits2048 = 2048
+	RsaEncodeLimit1024 = RsaBits1024 / 8 - 11
+	RsaDecodeLimit1024 = RsaBits1024 / 8
+	RsaEncodeLimit2048 = RsaBits2048 / 8 - 11
+	RsaDecodeLimit2048 = RsaBits2048 / 8
 )
 
+// Generate Rsa secret key with pem format
 func RsaGen(bits int, priPath string, pubPath string) error {
-	// pri
+	// generate pri
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil{
 		return err
 	}
 	derStream := x509.MarshalPKCS1PrivateKey(privateKey)
 	block := &pem.Block{
-		Type:"私钥",
+		Type:"RSA PRIVATE KEY",
 		Bytes:derStream,
 	}
 
@@ -41,14 +44,14 @@ func RsaGen(bits int, priPath string, pubPath string) error {
 		return err
 	}
 
-	// pub
+	// build public
 	publicKey := &privateKey.PublicKey
 	derPkix, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {
 		return err
 	}
 	block = &pem.Block{
-		Type:"公钥",
+		Type:"RSA PUBLIC KEY",
 		Bytes:derPkix,
 	}
 	file, err = os.Create(pubPath)
@@ -64,20 +67,20 @@ func RsaGen(bits int, priPath string, pubPath string) error {
 	return nil
 }
 
+// Rsa encode origin data with pem format public key
 func RsaEncrypt(originData []byte, pubKey []byte, limit int)([]byte, error){
 	block, _ := pem.Decode(pubKey)
 	if block == nil {
-		return nil, errors.New("pub key error")
+		return nil, errors.New("decode public key error")
 	}
 
 	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
-
 	pub := pubInterface.(*rsa.PublicKey)
 
-	// 分段加密
+	// we need encode by sections according limited bytes
 	length := len(originData)
 
 	cnt := length/limit
@@ -110,10 +113,11 @@ func RsaEncrypt(originData []byte, pubKey []byte, limit int)([]byte, error){
 	return bytes.Join(s, []byte("")), nil
 }
 
+// Rsa decode cipher data with pem format private key
 func RsaDecrypt(cipherData []byte, priKey []byte, limit int)([]byte, error){
 	block, _ := pem.Decode(priKey)
 	if block == nil {
-		return nil, errors.New("pri key error")
+		return nil, errors.New("decode private key error")
 	}
 
 	priInterface, err := x509.ParsePKCS1PrivateKey(block.Bytes)
@@ -121,7 +125,7 @@ func RsaDecrypt(cipherData []byte, priKey []byte, limit int)([]byte, error){
 		return nil, err
 	}
 
-	// 分段解密
+	// we need decode by sections according limited bytes
 	length := len(cipherData)
 
 	cnt := length/limit
@@ -154,10 +158,11 @@ func RsaDecrypt(cipherData []byte, priKey []byte, limit int)([]byte, error){
 	return bytes.Join(s, []byte("")), nil
 }
 
+// Rsa signature hash data with pem format private key
 func RsaSign(hash crypto.Hash, hashData []byte, priKey []byte)([]byte, error){
 	block, _ := pem.Decode(priKey)
 	if block == nil {
-		return nil, errors.New("pri key error")
+		return nil, errors.New("decode private key error")
 	}
 
 	priInterface, err := x509.ParsePKCS1PrivateKey(block.Bytes)
@@ -168,10 +173,11 @@ func RsaSign(hash crypto.Hash, hashData []byte, priKey []byte)([]byte, error){
 	return rsa.SignPKCS1v15(rand.Reader, priInterface, hash, hashData)
 }
 
+// Rsa verify signature data with pem public key and hash data
 func RsaVerify(hash crypto.Hash, hashData []byte, signData []byte, pubKey []byte)(error){
 	block, _ := pem.Decode(pubKey)
 	if block == nil {
-		return errors.New("pub key error")
+		return errors.New("decode public key error")
 	}
 
 	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)

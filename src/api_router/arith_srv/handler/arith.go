@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"api_router/data"
+	"../../data"
 	"../../base/service"
-	"errors"
+	"encoding/json"
+	"strconv"
 )
 
 type Args struct {
@@ -12,24 +13,28 @@ type Args struct {
 }
 type Arith int
 
-func (arith *Arith)RegisterApi(apis *[]data.ApiInfo, apisfunc *map[string]service.CallNodeApi) error  {
-	regapi := func(name string, caller service.CallNodeApi, level int) error {
-		if (*apisfunc)[name] != nil {
-			return errors.New("api is already exist...")
-		}
+func (arith *Arith)GetApiGroup()(map[string]service.NodeApi){
+	nam := make(map[string]service.NodeApi)
 
-		*apis = append(*apis, data.ApiInfo{name, level})
-		(*apisfunc)[name] = service.CallNodeApi(caller)
-		return nil
-	}
+	apiInfo := data.ApiInfo{Name:"add", Level:data.APILevel_client}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:arith.Add, ApiInfo:apiInfo}
 
-	if err := regapi("add", arith.Add, data.APILevel_boss); err != nil {
-		return err
-	}
-
-	return nil
+	return nam
 }
 
-func (arith *Arith)Add(req *data.SrvDispatchData, ack *data.SrvDispatchAckData) error{
-	return nil
+func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
+	res.Data.Err = data.NoErr
+
+	// from req
+	din := Args{}
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
+	if err != nil {
+		res.Data.Err = data.ErrDataCorrupted
+		res.Data.ErrMsg = data.ErrDataCorruptedText
+		return
+	}
+
+	res.Data.Value.Message = strconv.Itoa(din.A+din.B)
+	res.Data.Value.Signature = ""
+	res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
 }

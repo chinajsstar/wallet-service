@@ -1,42 +1,56 @@
 package data
 
+// /////////////////////////////////////////////////////
+// internal api gateway and service RPC data define
+// /////////////////////////////////////////////////////
+
 const(
-	MethodServiceCenterRegister   = "ServiceCenter.Register"	// 服务向服务中心注册请求，对内
-	MethodServiceCenterUnRegister = "ServiceCenter.UnRegister"	// 服务向服务中心反注册请求，对内
-	MethodServiceCenterDispatch   = "ServiceCenter.Dispatch"	// 客户向服务中心发送请求，对外
-	MethodServiceNodePingpong     = "ServiceNode.Pingpong"		// 服务中心向服务发送心跳，对内
-	MethodServiceNodeCall         = "ServiceNode.Call"			// 服务中心向服务发送请求，对内
+	MethodCenterRegister   = "ServiceCenter.Register"	// srv node register to center
+	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// srv node unregister to center
+
+	MethodCenterPush   	   = "ServiceCenter.Push"		// srv node push data to center
+	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// srv node dispatch a request to center
+	MethodNodeCall         = "ServiceNode.Call"			// center call a srv node function
 )
 
 const(
-	// 一般用户
+	// client
 	APILevel_client = 0
 
-	// 一般后台管理员
+	// common administrator
 	APILevel_admin = 100
 
-	// 创世管理员
-	APILevel_boss = 200
+	// genesis administrator
+	APILevel_genesis = 200
 )
 
-// API信息
+// API info
 type ApiInfo struct{
-	Name 	string 	`json:"name"`
-	Level 	int		`json:"level"`
-}
-// 注册信息
-type ServiceCenterRegisterData struct {
-	Version      string `json:"version"`    // service version
-	Srv          string `json:"srv"`		// service name
-	Addr         string `json:"addr"`		// service ip address
-	Functions []ApiInfo `json:"functions"`  // service functions
+	Name 	string 	`json:"name"`    	// api name
+	Level 	int		`json:"level"`		// api level, refer APILevel_*
 }
 
-// 内部RPC结构
-type SrvDispatchData struct{
-	SrvArgv ServiceCenterDispatchData `json:"data"`
-	Api ApiInfo `json:"api"`
+// register data
+type SrvRegisterData struct {
+	Version      string `json:"version"`    // srv version
+	Srv          string `json:"srv"`		// srv name
+	Addr         string `json:"addr"`		// srv ip address
+	Functions []ApiInfo `json:"functions"`  // srv functions
 }
-type SrvDispatchAckData struct{
-	SrvAck ServiceCenterDispatchAckData `json:"data"`
+
+// srv context
+type SrvContext struct{
+	Api ApiInfo `json:"api"`	// api info
+	// future...
+}
+
+// rpc srv request data
+type SrvRequestData struct{
+	Context SrvContext 		`json:"context"`	// api info
+	Data 	UserRequestData `json:"data"`		// user request data
+}
+
+// rpc srv response data
+type SrvResponseData struct{
+	Data 	UserResponseData `json:"data"`		// user response data
 }

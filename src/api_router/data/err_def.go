@@ -1,29 +1,92 @@
 package data
 
-// 错误码
+// error code and message
 const(
-	// 0-1000 通用
-	NoErr 						= 0				// no error
-	ErrCall						= 1				// call error,调用错误
+	// /////////////////////////////////////////////////////
+	// 0-1000 common errors
+	// /////////////////////////////////////////////////////
+	// no error
+	NoErr 						= 0
 
-	ErrNotFindAuth				= 2
-	ErrNotFindAuthText			= "没有找到验证服务"
+	// data corrupted
+	ErrDataCorrupted			= 1
+	ErrDataCorruptedText		= "data corrupted"
 
+	// call failed
+	ErrCallFailed				= 2
+	ErrCallFailedText			= "call failed"
+
+	// illegally call
+	ErrIllegallyCall			= 3
+	ErrIllegallyCallText		= "illegally call"
+
+	// not find auth service
+	ErrNotFindAuth				= 4
+	ErrNotFindAuthText			= "not find auth service"
+
+	// not find service
 	ErrNotFindSrv				= 100
-	ErrNotFindSrvText			= "没有找到服务"
+	ErrNotFindSrvText			= "not find service"
 
-	ErrClientConn				= 101
-	ErrClientConnText 			= "服务连接异常"
+	// not find function
+	ErrNotFindFunction			= 101
+	ErrNotFindFunctionText		= "not find function"
 
-	ErrSrvInternalErr           = 102
-	ErrSrvInternalErrText		= "服务内部错误"
+	// connect service failed
+	ErrConnectSrvFailed			= 102
+	ErrConnectSrvFailedText 	= "connect service failed"
 
-	// 1001-2000 auth_srv使用
-	ErrAuthSrvIllegalData 		= 1001
-	ErrAuthSrvIllegalDataText 	= "非法数据"
+	// push data failed
+	ErrPushDataFailed           = 103
+	ErrPushDataFailedText		= "push data failed"
 
-	// 2001-3000 user_srv使用
-	ErrUserSrvRegister			= 2001
-	ErrUserSrvRegisterText		= "用户注册失败"
+	// /////////////////////////////////////////////////////
+	// 1001-2000 account_srv errors
+	// /////////////////////////////////////////////////////
+	// register - user register failed
+	ErrAccountSrvRegisterFailed			= 1001
+	ErrAccountSrvRegisterFailedText		= "user register failed"
 
+	// register - user name is repeated
+	ErrAccountSrvUsernameRepeated		= 1002
+	ErrAccountSrvUsernameRepeatedText	= "user name is repeated"
+
+	// register - user phone is repeated
+	ErrAccountSrvPhoneRepeated			= 1003
+	ErrAccountSrvPhoneRepeatedText		= "user phone is repeated"
+
+	// register - user email is repeated
+	ErrAccountSrvEmailRepeated			= 1004
+	ErrAccountSrvEmailRepeatedText		= "user email is repeated"
+
+	// login - login failed
+	ErrAccountSrvLogin					= 1101
+	ErrAccountSrvLoginText				= "user login failed"
+
+	// login - no user
+	ErrAccountSrvNoUser					= 1102
+	ErrAccountSrvNoUserText				= "no user"
+
+	// login - wrong password
+	ErrAccountSrvWrongPassword			= 1103
+	ErrAccountSrvWrongPasswordText		= "wrong password"
+
+	// updatepassword - failed
+	ErrAccountSrvUpdatePassword			= 1201
+	ErrAccountSrvUpdatePasswordText		= "update password failed"
+
+	// listusers - failed
+	ErrAccountSrvListUsers				= 1301
+	ErrAccountSrvListUsersText			= "list users failed"
+
+	// /////////////////////////////////////////////////////
+	// 2001-3000 auth_srv errors
+	// /////////////////////////////////////////////////////
+	// illegal data
+	ErrAuthSrvIllegalData 			= 2001
+	ErrAuthSrvIllegalDataText 		= "illegal data"
+
+	// no permission api
+	ErrAuthSrvNoPermissionApi 		= 2002
+	ErrAuthSrvNoPermissionApiText 	= "no permission api"
 )
