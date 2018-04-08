@@ -66,10 +66,19 @@ func (s *Account)Init(dir string) error {
 func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
+	var b []byte
+	var err error
+
 	apiInfo := data.ApiInfo{Name:"create", Level:data.APILevel_genesis}
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Create, ApiInfo:apiInfo}
 
 	apiInfo = data.ApiInfo{Name:"listusers", Level:data.APILevel_admin}
+	rul := user.ReqUserList{}
+	rul.Id = -1
+	b, err = json.Marshal(rul)
+	if err != nil{
+		apiInfo.Example = string(b)
+	}
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.ListUsers, ApiInfo:apiInfo}
 
 	apiInfo = data.ApiInfo{Name:"login", Level:data.APILevel_client}

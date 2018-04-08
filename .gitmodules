@@ -31,3 +31,18 @@
 [submodule "src/golang.org/x/net"]
 	path = src/golang.org/x/net
 	url = https://go.googlesource.com/net
+[submodule "src/github.com/btcsuite/btcd"]
+	path = src/github.com/btcsuite/btcd
+	url = https://github.com/btcsuite/btcd.git
+[submodule "src/github.com/btcsuite/btcutil"]
+	path = src/github.com/btcsuite/btcutil
+	url = https://github.com/btcsuite/btcutil.git
+[submodule "src/github.com/btcsuite/btclog"]
+	path = src/github.com/btcsuite/btclog
+	url = https://github.com/btcsuite/btclog.git
+[submodule "src/github.com/btcsuite/go-socks"]
+	path = src/github.com/btcsuite/go-socks
+	url = https://github.com/btcsuite/go-socks.git
+[submodule "src/github.com/btcsuite/websocket"]
+	path = src/github.com/btcsuite/websocket
+	url = https://github.com/btcsuite/websocket.git

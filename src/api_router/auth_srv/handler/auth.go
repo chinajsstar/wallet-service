@@ -89,7 +89,7 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 			return err
 		}
 
-		if req.Context.Api.Level > ul.Level || ul.IsFrozen != 0{
+		if req.Context.ApiLever > ul.Level || ul.IsFrozen != 0{
 			fmt.Println("#Error AuthData--", err)
 			return errors.New("没权限或者被冻结")
 		}

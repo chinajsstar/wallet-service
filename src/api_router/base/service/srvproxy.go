@@ -117,6 +117,20 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.SrvRegisterData) error {
 	return nil
 }
 
+// list all service node
+func (sng *SrvNodeGroup) ListSrv(nodes *[]data.SrvRegisterData) {
+	sng.rwmu.RLock()
+	defer sng.rwmu.RUnlock()
+
+	if sng.addrMapSrvNode == nil{
+		return
+	}
+
+	for _, v := range sng.addrMapSrvNode {
+		*nodes = append(*nodes, v.registerData)
+	}
+}
+
 // dispatch a request to service node
 func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvResponseData) {
 	sng.rwmu.RLock()

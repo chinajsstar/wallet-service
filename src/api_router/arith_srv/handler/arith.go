@@ -17,6 +17,7 @@ func (arith *Arith)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	apiInfo := data.ApiInfo{Name:"add", Level:data.APILevel_client}
+	apiInfo.Example = "{\"a\":1,\"b\":1}"
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:arith.Add, ApiInfo:apiInfo}
 
 	return nam
