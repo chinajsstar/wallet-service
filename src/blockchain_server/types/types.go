@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"blockchain_server/conf"
 )
 
 //-32700	Parse error	Invalid JSON was received by the server.
@@ -20,6 +19,7 @@ type Account struct {
 
 const (
 	Tx_state_unkown = iota
+	Tx_state_notfound
 	Tx_state_commited             	// transaction was sended(call SendTransaction)
 	Tx_state_pending				// pending Transaction on node
 	Tx_state_mined					// transaction mined on a block!!
@@ -33,12 +33,23 @@ const (
 	NetCmdCode_failed
 )
 
+type Token struct {
+	Name     string `json:"name"`
+	Address  string `json:"address"`
+	Symbol   string `json:"symbol"`
+	Decimals uint8  `json:"decimals,string,omitempty"`
+}
 
+func (self *Token) String() string {
+	return fmt.Sprintf(`
+		name:%-8s, symbol:%-8s, decimals:%-8d, address:%s`,
+		self.Name, self.Symbol, self.Decimals, self.Address)
+}
 
-type CmdTx struct {
+type CmdSendTx struct {
 	NetCmd
-	Chiperkey string
-	Tx        *Transfer
+	Chiperkey 	string
+	Tx       	*Transfer
 }
 
 type CmdNewAccounts struct {
@@ -57,10 +68,16 @@ type CmdqueryTx struct {
 	Hash string
 }
 
+type CmdqueryBalance struct {
+	NetCmd
+	Address	string
+	Token	*string
+}
+
 type NetCmdChannel chan interface{}
 type CmdqTxChannel chan *CmdqueryTx
 type RechargeTxChannel chan *RechargeTx
-type CmdTxChannel chan *CmdTx
+type CmdTxChannel chan *CmdSendTx
 type TxChannel chan *Transfer
 type TxState int
 
@@ -75,15 +92,17 @@ type Transfer struct {
 	Tx_hash             string
 	From                string
 	To                  string
-	Value               uint64
+	Value               uint64	// 交易金额
 	Gase                uint64
 	Gaseprice           uint64
-	Total				uint64
+	GasUsed             uint64
+	Total               uint64	// 总花费金额
 	State               TxState
-	OnBlock             uint64
-	PresentBlock        uint64
-	Confirmationsnumber uint64
-	Time                uint64 //TODO
+	InBlock             uint64	// 所在块高
+	ConfirmatedHeight   uint64	// 确认块高
+	Confirmationsnumber uint64	// 需要的确认数
+	Time                uint64
+	Token               *Token
 	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
 }
 
@@ -120,7 +139,18 @@ func TxStateString(state TxState) string {
 	}
 }
 
+func (tx* Transfer) IsTokenTx() bool {
+	return !(tx.Token==nil)
+}
+
 func (tx *Transfer)String() string {
+	var token_str string
+	if tx.IsTokenTx() {
+		token_str = tx.Token.String()
+	}else {
+		token_str = "not a token"
+	}
+
 	return fmt.Sprintf(`
 	TX      %s
 	From:   %s
@@ -128,15 +158,16 @@ func (tx *Transfer)String() string {
 	State:  %s
 	Value:  %d
 	gasfee: %d 
-	OnBlock:%d
-	CurrentBlock: %d`,
+	InBlock:%d
+	CurrentBlock: %d
+	Token information: %s`,
 		tx.Tx_hash,
 		tx.From,
 		tx.To,
 		TxStateString(tx.State),
 		tx.Value,
 		tx.Minerfee(),
-		tx.OnBlock, tx.PresentBlock)
+		tx.InBlock, tx.ConfirmatedHeight, token_str)
 }
 
 type NotFound struct {
@@ -168,30 +199,5 @@ type NetCmd struct  {
 
 func NewNetCmdErr(code int32, message string, data interface{}) *NetCmdErr {
 	return &NetCmdErr{Code:code, Message:message, Data:data}
-}
-
-func NewQueryTxCmd(msgId, coinname, hash string) *CmdqueryTx {
-	return &CmdqueryTx{
-		NetCmd:NetCmd{MsgId:msgId, Coinname:coinname, Method:"get_transaction", Result:nil, Error:nil},
-		Hash: hash}
-}
-
-func NewAccountCmd(msgId, coinname string, amount uint32) *CmdNewAccounts {
-	return &CmdNewAccounts{
-		NetCmd:NetCmd{MsgId: msgId, Coinname:coinname, Method:"new_account", Result:nil, Error:nil},
-		Amount:amount}
-}
-
-func NewTxCmd(msgId, coinname, chiperKey, to string, amount uint64) (*CmdTx) {
-	return &CmdTx{ NetCmd:NetCmd{MsgId: msgId, Coinname:coinname, Method:"send_transaction", Result:nil, Error:nil},
-		Chiperkey:chiperKey, Tx:&Transfer{To: to, Value:amount,
-		Confirmationsnumber: config.GetConfiger().Clientconfig[coinname].TxConfirmNumber,
-		OnBlock:0, PresentBlock:0}}
-}
-
-func NewRechargeAddressCmd(msgId, coin string, address []string) (*CmdRechargeAddress) {
-	return &CmdRechargeAddress{
-		NetCmd:NetCmd{MsgId: msgId, Coinname: coin, Method:"watch_addresses", Result:nil, Error:nil},
-		Addresses:address }
 }
 

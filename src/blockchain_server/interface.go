@@ -14,11 +14,13 @@ type ChainClient interface {
 	NewAccount()(*types.Account, error)
 	// from is a crypted private key
 	SendTx(privkey string, transfer *types.Transfer) error
-	Tx(tx_hash string)(*types.Transfer, error)
+	UpdateTx(tx *types.Transfer) error
 	BlockHeight() (uint64)
-	InsertRechageAddress(address []string)
-
 	SubscribeRechageTx(txRechChannel types.RechargeTxChannel)
+
+	InsertRechageAddress(address []string)
+	GetBalance(address string, tokenname *string) (uint64, error)
+	Tx(tx_hash string)(*types.Transfer, error)
 
 	Start() error
 	Stop()

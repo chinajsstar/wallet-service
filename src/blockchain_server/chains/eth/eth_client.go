@@ -11,19 +11,20 @@ import (
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
-	"blockchain_server/utils"
 	"sort"
 	"github.com/ethereum/go-ethereum"
 	"sync"
 	"sync/atomic"
 	"strings"
+	"fmt"
+	"blockchain_server/chains/eth/token"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 type Client struct {
 	c                *ethclient.Client
 	addresslist      SortedString
-	//pendingTxChannel chan *types.Transfer
-	// TODO:由于blockheight被两个routine使用, 应该加上同步!!
 	blockHeight      uint64
 	scanblock        uint64
 	rctChannel       types.RechargeTxChannel
@@ -33,6 +34,15 @@ type Client struct {
 	address_locker   *sync.RWMutex
 
 	rechargelist	 types.RechargeTxChannel
+
+	confirm_count	 uint16
+
+	// TODO:后面支持动态增加ERC20代币的时候, 这个map应该改成协程同步的!
+	// TODO:这个map中保存的token, 实际上是config中的指针, 并通过abi更新了相关字段信息
+	// TODO:这个token应该要重新写会到config文件中去
+	tokens 			map[string]* types.Token
+	erc20ABI		abi.ABI
+	erc20Token		map[string]*token.Token
 }
 
 type SortedString []string
@@ -43,7 +53,8 @@ func insertByOrder(strSorted SortedString, s string) {
 	}
 	s = strings.ToLower(s)
 	index := sort.SearchStrings(strSorted, s)
-	if strSorted[index]!=s {
+
+	if index>=len(strSorted) || strSorted[index]!=s {
 		strSorted = append(strSorted[:index], append([]string{s}, strSorted[index:]...)...)
 	}
 }
@@ -85,12 +96,47 @@ func NewClient() (*Client, error) {
 func  (self *Client) init() {
 	self.addresslist = make([]string, 0, 512)
 	atomic.StoreUint64(&self.blockHeight, self.getBlockHeight())
-	self.scanblock = config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber
+
+	configer := config.GetConfiger().Clientconfig[types.Chain_eth]
+
+	self.scanblock = configer.Start_scan_Blocknumber
+	self.confirm_count = uint16(configer.TxConfirmNumber)
+
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
 	self.address_locker = new(sync.RWMutex)
 	// 如果为0, 则默认从最新的开始扫描
 	if self.scanblock==0 {
 		self.scanblock = self.blockHeight
+	}
+
+	self.tokens = make(map[string]*types.Token, 128)
+	l4g.Trace("----------------Init %s Token-----------------")
+	// create configed tokens
+	self.erc20Token = make(map[string]*token.Token)
+
+	for symbol, tk := range configer.Tokens {
+		tmp_tk, err := token.NewToken(common.HexToAddress(tk.Address), self.c)
+
+		if err!= nil {
+			l4g.Trace("Create Token instance(%s) error:%s", symbol, err.Error())
+			continue
+		}
+
+		tk.Name, err = tmp_tk.Name(nil)
+		if err!=nil { continue }
+		tk.Decimals, _ = tmp_tk.Decimals(nil)
+		tk.Symbol, _ = tmp_tk.Symbol(nil)
+
+		self.erc20Token[tk.Name] = tmp_tk
+		l4g.Trace("Token information: {%s}", tk.String())
+
+		self.tokens[strings.ToLower(tk.Address)] = tk
+	}
+
+	var err error
+	if self.erc20ABI, err = abi.JSON(strings.NewReader(token.TokenABI)); err!=nil {
+		// TODO:here may should print error message and exit process
+		l4g.Error("Create erc20 token abi error:%s", err.Error())
 	}
 }
 
@@ -120,6 +166,11 @@ func (self *Client)SubscribeRechageTx(txRechChannel types.RechargeTxChannel) {
 	self.rctChannel = txRechChannel
 }
 
+func isTxToken(tx *types.Transfer) bool {
+	if tx==nil {return false}
+	return tx.Token!=nil
+}
+
 // from is a crypted private key
 func (self *Client)SendTx(chiperKey string, tx *types.Transfer) error {
 	key, err := ParseChiperkey(chiperKey)
@@ -127,66 +178,114 @@ func (self *Client)SendTx(chiperKey string, tx *types.Transfer) error {
 		return err
 	}
 	tx.From = crypto.PubkeyToAddress(key.PublicKey).String()
-	etx, err := self.newEthTx(tx)
-	if err!=nil {
-		return err
-	}
 
-	//l4g.Trace("tx.gas=%d, tx.gasprice=%d, tx.value=%d, tx.cost=%d\n", etx.Gas(), etx.GasPrice().Uint64(), etx.Value().Uint64(), etx.Cost().Uint64())
+	if isTxToken(tx) {
+		tk := self.erc20Token[tx.Token.Name]
+		if tk==nil {
+			return fmt.Errorf("Not supported token(%s) Transaction:%s", tx.Token.Name, tx.String() )
+		}
+		opts := bind.NewKeyedTransactor(key)
+		tmpTx, err := tk.Transfer(opts, common.HexToAddress(tx.To), big.NewInt(10))
+		if err!=nil {
+			l4g.Trace("SendTransactrion error:%s", err.Error())
+			return err
+		}
+		err = self.updateTxWithTx(tx, tmpTx)
+		if err!=nil {
+			l4g.Trace("updateTxWithTx error, message:%s", err.Error())
+		}
+		l4g.Trace("Tx information:%s", tx.String())
+	} else {
+		etx, err := self.newEthTx(tx)
+		if err!=nil { return err }
 
-	//signer := etypes.NewEIP155Signer()
+		// chainID := big.NewInt(CHAIN_ID)
+		// signer := types.NewEIP155Signer(chainID)
+		signer := etypes.HomesteadSigner{}
+		signedTx, err := etypes.SignTx(etx, signer, key)
 
-	//l4g.Trace("transaction from address:%s\n", crypto.PubkeyToAddress(key.PublicKey).String())
+		if err!=nil {
+			l4g.Error("sign Transaction error:%s", err.Error())
+			return err
+		}
 
-	//types.SignTx(tx, types.NewEIP155Signer(chainID), key.PrivateKey)
-	// return types.SignTx(tx, types.HomesteadSigner{}, key.PrivateKey)
+		l4g.Trace("eth Transaction information:%s", etx.String())
 
-	chainId := big.NewInt(15)
-	signedTx, err := etypes.SignTx(etx, etypes.NewEIP155Signer(chainId), key)
-
-	if err!=nil {
-		l4g.Error("sign Transaction error:%s", err.Error())
-		return err
-	}
-
-	l4g.Trace("eth Transaction information:%s", etx.String())
-
-	tx.Tx_hash = signedTx.Hash().String()
-	tx.State = types.Tx_state_unkown
-
-	if err:=self.c.SendTransaction(context.TODO(), signedTx); err!=nil {
-		l4g.Trace("Transaction gas * price + value = %d",  signedTx.Cost().Uint64())
-		l4g.Error("SendTransaction error: %s", err.Error())
-		return err
+		tx.Tx_hash = signedTx.Hash().String()
+		tx.State = types.Tx_state_unkown
+		if err:=self.c.SendTransaction(context.TODO(), signedTx); err!=nil {
+			l4g.Trace("Transaction gas * price + value = %d",  signedTx.Cost().Uint64())
+			l4g.Error("SendTransaction error: %s", err.Error())
+			return err
+		}
 	}
 	tx.State = types.Tx_state_commited
 	return nil
 }
 
+func (self *Client)GetBalance(addstr string, tokenname *string) (uint64, error){
+	address := common.HexToAddress(addstr)
+	var bl uint64 = 0
+	if tokenname==nil {
+		if balance, err := self.c.BalanceAt(self.ctx, address, nil); err!=nil {
+			return 0, err
+		} else { bl = balance.Uint64() }
+	} else {
+		tmp_Token := self.tokens[*tokenname]
+		if nil==tmp_Token {
+			return 0, fmt.Errorf("GetBalance, Not Supported assert type!")
+		}
+		tk := self.erc20Token[tmp_Token.Address]
+		if nil==tk {
+			return 0, fmt.Errorf("GetBalance, Not Supported assert type!")
+		}
+		if balance, err := tk.BalanceOf(nil, address); err!=nil {
+			return 0, fmt.Errorf("Get Token[%s] Balance of %s error, message:%s",
+				*tokenname, addstr, err.Error()  )
+		}else {bl = balance.Uint64()}
+	}
+	return bl, nil
 
+}
+
+// TODO: 创建出来的tx,如果是token的话, 交易总是失败, 目前发送Token不用这个方法, 后面再检查
 func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
-	//ctx, cancel := context.WithCancel(context.Background())
-	//defer cancel()
-	gaslimit := uint64(0x2fefd8)
-	gasprice, err := self.c.SuggestGasPrice(context.TODO())
-	if err!=nil {
-		return nil, err
+
+	from  := common.HexToAddress(tx.From)
+	to 	  := common.HexToAddress(tx.To)
+	value := big.NewInt(int64(tx.Value))
+	var input []byte = nil
+
+	// if tx.Token field not nil, then create erc20 token transaction
+	// for erc20 Token Trasanction, 'to' address is contract address
+	// and reciver address is packed to []byte 'input'
+	if tx.Token!=nil {
+		var err error
+		if input, err = self.erc20ABI.Pack("transfer", to, value); err!=nil {
+			l4g.Error("Create erc20 transaction error, message:%s", err.Error())
+			return nil, err
+		}
+
+		value = value.SetInt64(0)
+		to = common.HexToAddress(tx.Token.Address)
 	}
 
-	address := common.HexToAddress(tx.From)
-	nonce, err := self.c.PendingNonceAt(context.TODO(), address)
+	// gas limit
+	msg := ethereum.CallMsg{From: from, To: &to, Value:value, Data: input}
+	gaslimit, err := self.c.EstimateGas(context.TODO(), msg)
+	if err!=nil { return nil, err }
+
+	// gas price
+	gasprice, err := self.c.SuggestGasPrice(context.TODO())
+	if err!=nil {return nil, err}
+
+	// nonce
+	nonce, err := self.c.PendingNonceAt(context.TODO(), common.HexToAddress(tx.From))
 	if nil!= err {
 		return nil, err
 	}
 
-	//l4g.Trace("^^^^^^^^^^^^^^^^^^\n" +
-	//	"getPendingNonce at (%s) returns nonce : %d\n" +
-	//	"^^^^^^^^^^^^^^^^^^",
-	//	tx.From, nonce)
-
-	//tx := types.NewTransaction(nonce, toaddress, amount, uint64(gaslimit), gasprice, nil)
-	//fmt.Printf("tx.amount ; %d, tx.realamount :%d\n", tx.Value, big.NewInt(int64(tx.Value)))
-	return etypes.NewTransaction(nonce, address, big.NewInt(int64(tx.Value)), gaslimit, gasprice, nil), nil
+	return etypes.NewTransaction(nonce, to, value, gaslimit, gasprice, input), nil
 }
 
 func (self Client) getBlockHeight() uint64 {
@@ -202,9 +301,39 @@ func (self *Client) BlockHeight() uint64 {
 	return atomic.LoadUint64(&self.blockHeight)
 }
 
+//func (self *Client)updateTxWithTx(transfer *types.Transfer, transaction *etypes.Transaction) bool {
+//	var state types.TxState
+//
+//	if inblock ==0 {
+//		state = types.Tx_state_pending
+//	} else if lastblock-inblock >= config.GetConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
+//		state = types.Tx_state_confirmed
+//	} else {
+//		state = types.Tx_state_mined
+//	}
+//
+//	// TODO: 这里检查tx.To()是否为nil, 如果为空,则tx为一个合约的交易,
+//	// TODO: 就需要调用TransactionReceipt(), 来获取合约的详细信息
+//
+//	tmp_tx := &types.Transfer{
+//		Tx_hash:           tx.Hash().String(),
+//		From:              tx.From(),
+//		To :               tx.To().String(),
+//		Value:             tx.Value().Uint64(),
+//		Gase :             tx.Gas(),
+//		Gaseprice:         tx.GasPrice().Uint64(),
+//		Total :            tx.Cost().Uint64(),
+//		blockNumber:       inblock,
+//		ConfirmatedHeight: lastblock,
+//		State:             state,
+//	}
+//}
+
+// 如果是合约的交易, 需要使用TransactionReceipt来获取合约地址名称等!
 func (self *Client)Tx(tx_hash string)(*types.Transfer, error) {
 	hash := common.HexToHash(tx_hash)
-	tx, blocknumber, err := self.c.TransactionByHash(self.ctx, hash)
+	tx, err := self.c.TransactionByHash(self.ctx, hash)
+
 	if err!= nil {
 		if err==ethereum.NotFound {
 			return nil, types.NewTxNotFoundErr(tx_hash)
@@ -212,33 +341,9 @@ func (self *Client)Tx(tx_hash string)(*types.Transfer, error) {
 		return nil, err
 	}
 
-	var big_blocknumber *big.Int = nil
-	if blocknumber!=nil {
-		big_blocknumber , _ = utils.Hex_string_to_big_int(*blocknumber)
-	} else {
-		big_blocknumber = big.NewInt(0)
+	height := atomic.LoadUint64(&self.blockHeight)
+	return self.toTx(tx, height),nil
 	}
-
-	tmp_tx := txToTx(tx, big_blocknumber.Uint64(), atomic.LoadUint64(&self.blockHeight))
-
-	if tmp_tx.State==types.Tx_state_confirmed {
-		// 当状态变更为确认时, 需要确认是否交易已经上链, 但是由于矿工费太少,
-		// 交易并没有生效, 并且还浪费了矿工费, 这种情况一般不会发生!
-		rctTx, err := self.c.TransactionReceipt(self.ctx, hash)
-		if err!=nil {
-			l4g.Error("Query Receipt Transaction error message:%s", err.Error())
-
-		} else {
-			// gasused > gas , 矿工费被白收, 交易失效!
-			if rctTx.GasUsed >= tx.Gas() {
-				tmp_tx.State = types.Tx_state_unconfirmed
-			}
-		}
-	}
-
-	return tmp_tx, nil
-
-}
 
 func (self *Client) beginSubscribeBlockHaders() error {
 	header_chan := make(chan *etypes.Header)
@@ -300,17 +405,15 @@ func (self *Client) beginScanBlock() error {
 			txs := block.Transactions()
 
 			for _, tx := range txs {
-				l4g.Trace( "transaction onblock : %d, tx information:%s", block.NumberU64(),
-					tx.String())
+				l4g.Trace( "transaction onblock : %d, tx information:%s", block.NumberU64(), tx.String())
 
-				l4g.Trace("recharge tx to(%s)", tx.To().String())
-				if !self.hasAddress(tx.To().String()) {
-					continue
+				to := tx.To()
+				if to==nil { continue }
+
+				if tk:=self.tokens[to.String()]; tk!=nil || self.hasAddress(to.String()) {
+					tmp_tx := self.toTx(tx, block.NumberU64())
+					self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}
 				}
-
-				// TODO : check if tx.TO().String() hax prefix "0x" originally
-				l4g.Trace("Transaction to address in wallet storage: %s", tx.To().String())
-				self.rctChannel <- &types.RechargeTx{types.Chain_eth, txToTx(tx,  block.NumberU64(), height), nil}
 			}
 
 			self.scanblock++
@@ -321,7 +424,7 @@ func (self *Client) beginScanBlock() error {
 				goto endfor
 			}
 			default: {
-				time.Sleep(time.Second * 5)
+				time.Sleep(time.Second * 1)
 			}
 			}
 
@@ -337,29 +440,123 @@ func (self *Client) hasAddress(address string) bool {
 	return self.addresslist.containString(address)
 }
 
-func txToTx(tx *etypes.Transaction, inblock uint64, lastblock uint64) *types.Transfer {
-	var state types.TxState
+func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
+	height := atomic.LoadUint64(&self.blockHeight)
 
-	if inblock ==0 {
+	receipt, err := self.c.TransactionReceipt(self.ctx, common.HexToHash(tx.Tx_hash))
+	if err!=nil {
+		l4g.Error("Update Transaction(%s) with Receipt error : %s", tx.Tx_hash, err.Error())
+		return err
+	}
+
+	tx.GasUsed = receipt.GasUsed
+	//if receipt.Status==etypes.ReceiptStatusFailed ||
+	if tx.GasUsed > tx.Gase {
+		tx.State = types.Tx_state_unconfirmed
+	} else {
+		if height - tx.InBlock > config.GetConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
+			tx.State = types.Tx_state_confirmed
+			tx.ConfirmatedHeight = height
+		} else {
+			tx.State = types.Tx_state_mined
+		}
+	}
+	return nil
+}
+
+// 使用srcTx更新destTx, 如果为空, 则使用TransactionByHash获取最新的tx
+// 如果使用了已经存在的Transaction来更新Transfer, 程序不会从网络去获取Transaction, 不会检查txhash是否存在!
+// 则无法判断Transaction是否被分叉的问题
+func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transaction) error {
+	height := atomic.LoadUint64(&self.blockHeight)
+	// if input srcTx is nil, try to get transaction from network node
+	if srcTx ==nil {
+		var err error
+		srcTx, err = self.c.TransactionByHash(self.ctx, common.HexToHash(destTx.Tx_hash))
+		if err!=nil {
+			if err == ethereum.NotFound {
+				// 如果之前的状态为已经上块, 现在又找不到了, 说明可能被分叉了
+				// 把状态设置为unconfirmed
+				if destTx.State==types.Tx_state_mined || destTx.State==types.Tx_state_confirmed {
+					destTx.State=types.Tx_state_unconfirmed
+				} else {
+					// 可能为交易才被提交, 这里不做任何处理
+					return types.NewTxNotFoundErr(destTx.Tx_hash)
+				}
+			}
+		}
+	}
+
+	var state types.TxState
+	if srcTx.Inblock==0 {
 		state = types.Tx_state_pending
-	} else if lastblock-inblock >= config.GetConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
+	} else if uint16(height-srcTx.Inblock) > self.confirm_count {
 		state = types.Tx_state_confirmed
 	} else {
 		state = types.Tx_state_mined
 	}
 
-	return &types.Transfer{
-		Tx_hash:      tx.Hash().String(),
-		From:         tx.From(),
-		To :          tx.To().String(),
-		Value:        tx.Value().Uint64(),
-		Gase :        tx.Gas(),
-		Gaseprice:    tx.GasPrice().Uint64(),
-		Total :       tx.Cost().Uint64(),
-		OnBlock:      inblock,
-		PresentBlock: lastblock,
-		State:        state,
+	to := srcTx.To()
+	if to!=nil {
+		// 则检查to是否为已经注册的ERC20 Token合约地址
+		// 如果确定为合约地址, 需要把destTx.to设置为接收代币的地址, 并为其设置token成员
+
+		// the data field like this,
+		// for a token Transaction, the 32-73 bytes of Data feild means reciver's address, like following input data:
+		// 0xa9059cbb000000000000000000000000 498d8306dd26ab45d8b7dd4f07a40d2c744f54bc 000000000000000000000000000000000000000000000000000000000000000a
+		to_string := strings.ToLower(to.String())
+		if tk := self.tokens[to_string]; tk!=nil {
+			destTx.To = fmt.Sprintf("0x%x", srcTx.Data()[16:36])
+			// TODO:why use the following express cause process crush!!
+			// destTx.To = "0x" + hex.EncodeToString(recevier_to)
+			destTx.Token = tk
+		} else { // else just set destTx.To as reciver's address
+			destTx.To = to.String()
+		}
 	}
+
+	destTx.Tx_hash = srcTx.Hash().String()
+	destTx.From = srcTx.From()
+	destTx.Value = srcTx.Value().Uint64()
+	destTx.Gase = srcTx.Gas()
+	destTx.Gaseprice = srcTx.GasPrice().Uint64()
+	destTx.Total = srcTx.Cost().Uint64()
+	destTx.InBlock = srcTx.Inblock
+	destTx.State = state
+
+	if state==types.Tx_state_confirmed {
+		if err := self.updateTxWithReceipt(destTx); err==nil {
+			if destTx.State==types.Tx_state_confirmed {
+				destTx.ConfirmatedHeight = height
+			}
+		}
+	}
+
+	return nil
+}
+
+func (self *Client) UpdateTx(tx *types.Transfer) error {
+	if nil== tx || len(tx.Tx_hash)==0 {return fmt.Errorf("Invalid paramater!")}
+
+	if tx.State==types.Tx_state_confirmed {
+		if err:=self.updateTxWithReceipt(tx); err!=nil {
+			return err
+		}
+		return nil
+	} else { // tx.State==types.Tx_state_commited, Tx_state_pending, tx_state_unkown, tx_state_notfound
+		if err:=self.updateTxWithTx(tx, nil); err!=nil {
+			return err
+		}
+		return nil
+	}
+
+}
+
+func (self *Client) toTx(tx *etypes.Transaction, height uint64) *types.Transfer {
+	tmpTx := &types.Transfer{Tx_hash:tx.Hash().String()}
+	self.updateTxWithTx(tmpTx, tx)
+
+	return tmpTx
 }
 
 func (self *Client) InsertRechageAddress(address []string) {
@@ -398,3 +595,4 @@ func (self *Client) Stop() {
 	//close(self.pendingTxChannel)
 
 }
+

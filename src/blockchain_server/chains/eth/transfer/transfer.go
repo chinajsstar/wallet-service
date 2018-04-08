@@ -243,7 +243,7 @@ package transfer
 //			// out of gas, not confirmed!
 //			if recepit.GasUsed >= self.tx.Gas() {
 //				self.state = wtypes.Tx_state_unconfirmed
-//				return ErrorTxUnconfirmed{transactionHash: recepit.TxHash.Str(),
+//				return ErrorTxUnconfirmed{transactionHash: recepit.TxHash.String(),
 //					gasUsed: recepit.GasUsed, gas: self.tx.Gas()}
 //			}
 //			self.confirmed_number = 1

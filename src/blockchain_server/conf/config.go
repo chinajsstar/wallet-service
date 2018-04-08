@@ -7,6 +7,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"fmt"
 	"os"
+	"blockchain_server/types"
 )
 
 var (
@@ -19,6 +20,7 @@ type ClientConfig struct {
 	RPC_url                string `json:"rpc_url"`
 	Start_scan_Blocknumber uint64 `json:"start_sacn_blocknumber,string,omitempty"`
 	TxConfirmNumber        uint64 `json:"confirmnumber,string,omitempty"`
+	Tokens				   map[string]*types.Token `json:Tokens`
 }
 
 type Configer struct {
@@ -33,13 +35,18 @@ func (self *ClientConfig) Save() error {
 	return configer.Save()
 }
 
+
 func (self *ClientConfig) String() string {
-	return fmt.Sprintf(`
+	str := fmt.Sprintf(`
 	client config informations: %s,
 	rpc_url:			%s,
 	start_scan_block: 	%d,
 	confirmnumber: 		%d`,
 		self.Name, self.RPC_url, self.Start_scan_Blocknumber, self.TxConfirmNumber)
+	for _, value := range self.Tokens {
+		str += value.String()
+	}
+	return str
 }
 
 func (self *Configer) Save() error {
