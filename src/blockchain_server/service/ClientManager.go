@@ -260,8 +260,7 @@ endfor:
 	如果doneChannel参数为空, 此函数为阻塞模式, 直接返回查询结果
 	如果doneChannel有值, 则此函数会立即返回0, nil, 并通过doneChanne通知外部,
 	如果doneChannel触发值为true, 表示查询成功, 通过CmdqueryBalance.Result可以获取资产余额
-	如果doneChannel触发值为false, 表示查询失败, 通过CmdQueryBalance.Error获取失败信息!
-*/
+	如果doneChannel触发值为false, 表示查询失败, 通过CmdQueryBalance.Error获取失败信息! */
 func (self *ClientManager)GetBalance(ctx context.Context, cmdBalance *types.CmdqueryBalance, doneChannel chan bool) (uint64, error) {
 	if nil==cmdBalance {
 		return 0, fmt.Errorf("GetBalance error, Invalid paramater!")
@@ -323,6 +322,9 @@ func (self *ClientManager) trackTxState(clientName string,
 	instance := self.clients[clientName]
 
 beginCheckState:
+	//if tx.State==types.Tx_state_commited || tx.State==types.Tx_state_pending {
+	//
+	//}
 	tx.State = types.Tx_state_commited
 	curBlockHeight := instance.BlockHeight()
 	// check for Transaction mined state
@@ -373,12 +375,9 @@ beginCheckState:
 		tx.ConfirmatedHeight = curBlockHeight
 	}
 
+	//l4g.Trace("Track Transaction, state changed, Transaction infromation:%s", tx.String())
 
-	l4g.Trace("Track Transaction, state changed, Transaction infromation:%s",
-		tx.String())
 	tx_channel<-tx
-
-
 endfor:
 	l4g.Trace("********stop trace transaction(%s)", tx.Tx_hash)
 }

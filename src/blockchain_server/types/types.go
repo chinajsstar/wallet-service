@@ -159,7 +159,7 @@ func (tx *Transfer)String() string {
 	Value:  %d
 	gasfee: %d 
 	InBlock:%d
-	CurrentBlock: %d
+	ConfirmtedBlockHeight: %d
 	Token information: %s`,
 		tx.Tx_hash,
 		tx.From,

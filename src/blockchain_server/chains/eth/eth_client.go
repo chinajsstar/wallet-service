@@ -23,26 +23,25 @@ import (
 )
 
 type Client struct {
-	c                *ethclient.Client
-	addresslist      SortedString
-	blockHeight      uint64
-	scanblock        uint64
-	rctChannel       types.RechargeTxChannel
 	ctx				 context.Context
 	ctx_canncel		 context.CancelFunc
 
+	c                *ethclient.Client
+	addresslist      SortedString		// 监控地址列表
+	blockHeight      uint64				// 当前区块高度
+	scanblock        uint64             // 起始扫描高度
+
+	//rctChannel 发送的充值 被Client.Manager.loopRechargeTxMessage 接收到
+	rctChannel       types.RechargeTxChannel
 	address_locker   *sync.RWMutex
-
-	rechargelist	 types.RechargeTxChannel
-
-	confirm_count	 uint16
+	confirm_count	 uint16				// 交易确认数
 
 	// TODO:后面支持动态增加ERC20代币的时候, 这个map应该改成协程同步的!
 	// TODO:这个map中保存的token, 实际上是config中的指针, 并通过abi更新了相关字段信息
 	// TODO:这个token应该要重新写会到config文件中去
-	tokens 			map[string]* types.Token
+	tokens 			map[string]*types.Token // address->types.Token
+	erc20Token		map[string]*token.Token // symbol ->token.Token
 	erc20ABI		abi.ABI
-	erc20Token		map[string]*token.Token
 }
 
 type SortedString []string
@@ -75,13 +74,6 @@ func (self *Client)unlock() {
 }
 
 func NewClient() (*Client, error) {
-	//ctx, _ := context.WithTimeout(context.Background(), time.Second * 5)
-	//rpc_client, err := rpc.DialContext(ctx, config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
-	//if err!=nil {
-	//	return nil, err
-	//}
-	//client := ethclient.NewClient(rpc_client)
-
 	client, err := ethclient.Dial(config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
 	if nil!=err {
 		l4g.Error("create eth client error! message:%s", err.Error())
@@ -94,17 +86,24 @@ func NewClient() (*Client, error) {
 }
 
 func  (self *Client) init() {
+	// self.ctx must 
+	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
+
 	self.addresslist = make([]string, 0, 512)
 	atomic.StoreUint64(&self.blockHeight, self.getBlockHeight())
 
 	configer := config.GetConfiger().Clientconfig[types.Chain_eth]
 
 	self.scanblock = configer.Start_scan_Blocknumber
+	// if start block number==0, then, begin with current block height
+	if self.scanblock==0 {
+		self.scanblock = self.getBlockHeight()
+	}
+
 	self.confirm_count = uint16(configer.TxConfirmNumber)
 
-	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
 	self.address_locker = new(sync.RWMutex)
-	// 如果为0, 则默认从最新的开始扫描
+	// 如果为0, 则默认从最新的块开始扫描
 	if self.scanblock==0 {
 		self.scanblock = self.blockHeight
 	}
@@ -127,7 +126,7 @@ func  (self *Client) init() {
 		tk.Decimals, _ = tmp_tk.Decimals(nil)
 		tk.Symbol, _ = tmp_tk.Symbol(nil)
 
-		self.erc20Token[tk.Name] = tmp_tk
+		self.erc20Token[tk.Symbol] = tmp_tk
 		l4g.Trace("Token information: {%s}", tk.String())
 
 		self.tokens[strings.ToLower(tk.Address)] = tk
@@ -226,26 +225,25 @@ func (self *Client)SendTx(chiperKey string, tx *types.Transfer) error {
 func (self *Client)GetBalance(addstr string, tokenname *string) (uint64, error){
 	address := common.HexToAddress(addstr)
 	var bl uint64 = 0
-	if tokenname==nil {
+	if tokenname==nil || strings.Trim(*tokenname, " ")=="" {
 		if balance, err := self.c.BalanceAt(self.ctx, address, nil); err!=nil {
 			return 0, err
 		} else { bl = balance.Uint64() }
 	} else {
-		tmp_Token := self.tokens[*tokenname]
-		if nil==tmp_Token {
+		tmpToken := self.erc20Token[*tokenname]
+		if nil== tmpToken {
 			return 0, fmt.Errorf("GetBalance, Not Supported assert type!")
 		}
-		tk := self.erc20Token[tmp_Token.Address]
-		if nil==tk {
+		//tmpToken := self.erc20Token[tmpToken.Address]
+		if nil== tmpToken {
 			return 0, fmt.Errorf("GetBalance, Not Supported assert type!")
 		}
-		if balance, err := tk.BalanceOf(nil, address); err!=nil {
+		if balance, err := tmpToken.BalanceOf(nil, address); err!=nil {
 			return 0, fmt.Errorf("Get Token[%s] Balance of %s error, message:%s",
 				*tokenname, addstr, err.Error()  )
 		}else {bl = balance.Uint64()}
 	}
 	return bl, nil
-
 }
 
 // TODO: 创建出来的tx,如果是token的话, 交易总是失败, 目前发送Token不用这个方法, 后面再检查
@@ -340,10 +338,8 @@ func (self *Client)Tx(tx_hash string)(*types.Transfer, error) {
 		}
 		return nil, err
 	}
-
-	height := atomic.LoadUint64(&self.blockHeight)
-	return self.toTx(tx, height),nil
-	}
+	return self.toTx(tx),nil
+}
 
 func (self *Client) beginSubscribeBlockHaders() error {
 	header_chan := make(chan *etypes.Header)
@@ -368,11 +364,9 @@ func (self *Client) beginSubscribeBlockHaders() error {
 				atomic.StoreUint64(&self.blockHeight, header.Number.Uint64())
 				l4g.Trace("get new block(%s) height:%d",
 					header.Hash().String(), atomic.LoadUint64(&self.blockHeight))
-
 			}
 			}
 		}
-
 	endfor:
 		l4g.Trace("Will stop subscribe block header!")
 	}(header_chan)
@@ -385,7 +379,10 @@ func (self *Client) beginScanBlock() error {
 		for {
 			height := atomic.LoadUint64(&self.blockHeight)
 
+			// following express to make sure blockchain are not forked
+			// height <= (self.scanblock-self.confirm_count)
 			if nil==self.addresslist || len(self.addresslist)==0 ||
+				//height <= self.scanblock - uint64(self.confirm_count) ||
 				height <= self.scanblock ||
 				self.rctChannel == nil {
 				l4g.Trace("Recharge channel is nil, or block height(%d)==scanblock(%d), or addresslit is empty!", height, self.scanblock)
@@ -405,13 +402,23 @@ func (self *Client) beginScanBlock() error {
 			txs := block.Transactions()
 
 			for _, tx := range txs {
-				l4g.Trace( "transaction onblock : %d, tx information:%s", block.NumberU64(), tx.String())
-
 				to := tx.To()
 				if to==nil { continue }
 
-				if tk:=self.tokens[to.String()]; tk!=nil || self.hasAddress(to.String()) {
-					tmp_tx := self.toTx(tx, block.NumberU64())
+				var reciver common.Address
+
+				// 如果to 为token地址, 则reciver应该为Data()中的第16-36字节
+				if tk:=self.tokens[strings.ToLower(to.String())]; tk!=nil {
+					reciver = common.BytesToAddress(tx.Data()[16:36])
+				} else {
+					reciver = *to
+				}
+
+				if  self.hasAddress(strings.ToLower(reciver.String())) ||
+					self.hasAddress(strings.ToLower(tx.From())) {
+
+					tmp_tx := self.toTx(tx)
+					// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
 					self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}
 				}
 			}
@@ -427,7 +434,6 @@ func (self *Client) beginScanBlock() error {
 				time.Sleep(time.Second * 1)
 			}
 			}
-
 		}
 	endfor:
 	}()
@@ -468,6 +474,10 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 // 如果使用了已经存在的Transaction来更新Transfer, 程序不会从网络去获取Transaction, 不会检查txhash是否存在!
 // 则无法判断Transaction是否被分叉的问题
 func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transaction) error {
+	if destTx.Confirmationsnumber==0 {
+		destTx.Confirmationsnumber = uint64(self.confirm_count)
+	}
+
 	height := atomic.LoadUint64(&self.blockHeight)
 	// if input srcTx is nil, try to get transaction from network node
 	if srcTx ==nil {
@@ -498,20 +508,18 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 
 	to := srcTx.To()
 	if to!=nil {
-		// 则检查to是否为已经注册的ERC20 Token合约地址
-		// 如果确定为合约地址, 需要把destTx.to设置为接收代币的地址, 并为其设置token成员
-
 		// the data field like this,
 		// for a token Transaction, the 32-73 bytes of Data feild means reciver's address, like following input data:
 		// 0xa9059cbb000000000000000000000000 498d8306dd26ab45d8b7dd4f07a40d2c744f54bc 000000000000000000000000000000000000000000000000000000000000000a
+
+		// 则检查to是否为已经注册的ERC20 Token合约地址
+		// 如果确定为合约地址, 需要把destTx.to设置为接收代币的地址, 并为其设置token成员
 		to_string := strings.ToLower(to.String())
 		if tk := self.tokens[to_string]; tk!=nil {
 			destTx.To = fmt.Sprintf("0x%x", srcTx.Data()[16:36])
-			// TODO:why use the following express cause process crush!!
-			// destTx.To = "0x" + hex.EncodeToString(recevier_to)
 			destTx.Token = tk
-		} else { // else just set destTx.To as reciver's address
-			destTx.To = to.String()
+		}else {// or just set destTx.To with to.String()
+			destTx.To = strings.ToLower(to.String())
 		}
 	}
 
@@ -552,7 +560,7 @@ func (self *Client) UpdateTx(tx *types.Transfer) error {
 
 }
 
-func (self *Client) toTx(tx *etypes.Transaction, height uint64) *types.Transfer {
+func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
 	tmpTx := &types.Transfer{Tx_hash:tx.Hash().String()}
 	self.updateTxWithTx(tmpTx, tx)
 
@@ -586,11 +594,8 @@ func (self *Client) InsertRechageAddress(address []string) {
 
 func (self *Client) Stop() {
 	self.ctx_canncel()
-
 	atomic.StoreUint64(&config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber, atomic.LoadUint64(&self.blockHeight))
-
-	config.GetConfiger().Save()
-
+	// config.GetConfiger().Save()
 	//close(self.rctChannel)
 	//close(self.pendingTxChannel)
 

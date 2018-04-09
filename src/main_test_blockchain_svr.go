@@ -45,12 +45,14 @@ func main() {
 	done_watchaddress := make(chan bool)
 	done_sendTx := make(chan bool)
 
-	//go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{tmp_toaddress,}, done_watchaddress)
+	token := "ZToken"
+	if false {
+		go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{tmp_toaddress,}, done_watchaddress)
+		go testSendTokenTx(ctx, clientManager, tmp_account.PrivateKey, tmp_toaddress, types.Chain_eth,
+			nil, 10, done_sendTx)
+	}
 
-	//token := "ZToken"
-	go testSendTokenTx(ctx, clientManager, tmp_account.PrivateKey, tmp_toaddress, types.Chain_eth,
-		nil, 10, done_sendTx)
-
+	testGetBalance(clientManager, tmp_toaddress, token)
 
 	select {
 	case <-done_sendTx:{
@@ -91,7 +93,7 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 				} else {
 					l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
 					if rct.Tx.State==types.Tx_state_confirmed || rct.Tx.State==types.Tx_state_unconfirmed {
-						watch_address_channel <- true
+						// watch_address_channel <- true
 					}
 				}
 			}
@@ -137,7 +139,7 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager, 
 					l4g.Trace("Transaction Command Channel is closed!")
 					txok_channel <- false
 				} else {
-					fmt.Printf("Transaction state changed, transaction information:%s\n",
+					l4g.Trace("Transaction state changed, transaction information:%s\n",
 						cmdTx.Tx.String())
 
 					if cmdTx.Tx.State == types.Tx_state_confirmed {
@@ -163,8 +165,26 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager, 
 		cancel()
 	}
 	}
-
 	done <- true
-
 }
 
+
+func testGetBalance(manager *service.ClientManager, address string, tokenname string) {
+	cmd_balance := service.NewQueryBalanceCmd("getbalance message id", types.Chain_eth, address, nil)
+	cmd_balance_token := service.NewQueryBalanceCmd("getbalance message id", types.Chain_eth, address, &tokenname)
+
+	l4g.Trace("------------------")
+	if balance, err := manager.GetBalance(context.TODO(), cmd_balance,nil);err==nil {
+		l4g.Trace("balance(%s) = %d", address, balance)
+	}else {
+		l4g.Error("error : %s", err.Error())
+	}
+
+	l4g.Trace("------------------")
+	if balance, err := manager.GetBalance(context.TODO(), cmd_balance_token, nil);err==nil {
+		l4g.Trace("%s balance(%s) = %d", tokenname, address, balance)
+	}else {
+		l4g.Error("error : %s", err.Error())
+	}
+
+}
