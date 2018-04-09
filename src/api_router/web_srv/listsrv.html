@@ -1,0 +1,18 @@
+<html>  
+        <head>  
+        </head>  
+        <body>  
+            <div>  
+                <ul>
+                    {{range .}}  
+                        <li>
+                            <a href="/getapi?srv={{.Srv}}">
+                                服务名称: {{.Srv}} 版本号: {{.Version}} 服务地址: {{.Addr}}
+                            </a>
+                        </li>
+                        <br/>  
+                    {{end}}  
+                </ul>
+            </div>  
+        </body>  
+</html>

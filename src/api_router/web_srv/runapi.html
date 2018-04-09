@@ -1,0 +1,16 @@
+<html>  
+        <head>  
+        </head>  
+        <body>  
+            <div>
+                {{with .}}
+                    <p>错误码：{{.Err}}</p>
+                    <p>错误信息：{{.ErrMsg}}</p>
+                    {{with .Value}}
+                        <p>结果：</p>
+                        <p>{{ .Message}}</p>
+                    {{end}}
+                {{end}}
+            </div>  
+        </body>  
+</html>

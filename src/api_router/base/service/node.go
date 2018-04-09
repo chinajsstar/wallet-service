@@ -114,6 +114,17 @@ func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData)
 }
 
 // dispatch a request to center
+func (ni *ServiceNode) ListSrv(req *data.UserRequestData, res *data.UserResponseData) error {
+	var err error
+	if ni.client != nil {
+		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterListSrv, req, res)
+	}else{
+		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterListSrv, req, res)
+	}
+	return err
+}
+
+// dispatch a request to center
 func (ni *ServiceNode) Dispatch(req *data.UserRequestData, res *data.UserResponseData) error {
 	var err error
 	if ni.client != nil {

@@ -8,6 +8,7 @@ const(
 	MethodCenterRegister   = "ServiceCenter.Register"	// srv node register to center
 	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// srv node unregister to center
 
+	MethodCenterListSrv    = "ServiceCenter.ListSrv"	// srv node list srv data to center
 	MethodCenterPush   	   = "ServiceCenter.Push"		// srv node push data to center
 	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// srv node dispatch a request to center
 	MethodNodeCall         = "ServiceNode.Call"			// center call a srv node function
@@ -28,6 +29,7 @@ const(
 type ApiInfo struct{
 	Name 	string 	`json:"name"`    	// api name
 	Level 	int		`json:"level"`		// api level, refer APILevel_*
+	Example string  `json:"example"`	// api example string
 }
 
 // register data
@@ -40,7 +42,7 @@ type SrvRegisterData struct {
 
 // srv context
 type SrvContext struct{
-	Api ApiInfo `json:"api"`	// api info
+	ApiLever int `json:"apilevel"`	// api info level
 	// future...
 }
 

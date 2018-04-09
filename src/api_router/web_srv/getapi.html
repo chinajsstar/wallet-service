@@ -1,0 +1,28 @@
+<html>  
+        <head>  
+        </head>  
+        <body>  
+            <div>
+                {{with .}}
+                {{$srvname := .Srv}}
+                {{$srvversion := .Version}}
+                <p>{{.Srv}}--{{.Version}}<p>  
+                        <ul>
+                            {{range .Functions}}  
+                                <li>
+                                    <p>
+                                        API名称: {{.Name}} API权限: {{.Level}}
+                                    </p>
+                                    <p>测试数据</p>
+                                    <form action="/runapi?srv={{$srvname}}&ver={{$srvversion}}&func={{.Name}}" method="POST">  
+                                        <input style="width:100%" type="text" name="argv" value={{.Example}}></input><br/>  
+                                        <input type="submit" value="submit"/>  
+                                    </form>
+                                </li>
+                                <br/>  
+                            {{end}}  
+                        </ul>
+                {{end}}
+            </div>  
+        </body>  
+</html>

@@ -551,6 +551,24 @@ func main() {
 			if wsconn != nil {
 				websocket.Message.Send(wsconn, string(d))
 			}
+		}else if argv[0] == "newaddress"{
+			s := "{\"user_id\":\"0001\",\"method\":\"new_address\",\"params\":{\"id\":\"1\",\"symbol\":\"eth\",\"count\":10}}"
+
+			_, d2, err := sendData2(httpaddrGateway, s, "v1", "xxxx", "new_address")
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			fmt.Println(string(d2))
+
+			uca := user.AckUserList{}
+			err = json.Unmarshal(d2, &uca)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			fmt.Println("new address ack: ", uca)
 		}
 	}
 }

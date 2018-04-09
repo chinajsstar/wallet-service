@@ -100,51 +100,111 @@ func StopCenter(mi *ServiceCenter)  {
 
 // RPC -- register
 func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error {
-	mi.rwmu.Lock()
-	defer mi.rwmu.Unlock()
+	err := func()error {
+		mi.rwmu.Lock()
+		defer mi.rwmu.Unlock()
 
-	versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
-	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-	if srvNodeGroup == nil {
-		srvNodeGroup = &SrvNodeGroup{}
-		mi.SrvNodeNameMapSrvNodeGroup[versionSrvName] = srvNodeGroup
-	}
-
-	err := srvNodeGroup.RegisterNode(reg)
-	if err == nil {
-		if mi.ApiInfo == nil {
-			mi.ApiInfo = make(map[string]*data.ApiInfo)
+		versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
+		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+		if srvNodeGroup == nil {
+			srvNodeGroup = &SrvNodeGroup{}
+			mi.SrvNodeNameMapSrvNodeGroup[versionSrvName] = srvNodeGroup
 		}
 
-		for _, v := range reg.Functions{
-			mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &data.ApiInfo{v.Name, v.Level}
+		err := srvNodeGroup.RegisterNode(reg)
+		if err == nil {
+			if mi.ApiInfo == nil {
+				mi.ApiInfo = make(map[string]*data.ApiInfo)
+			}
+
+			for _, v := range reg.Functions{
+				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &data.ApiInfo{v.Name, v.Level, v.Example}
+			}
 		}
-	}
+
+		return err
+	}()
+
+	// add node to websrv
+	func(){
+		var webreq data.SrvRequestData
+		var webres data.SrvResponseData
+		webreq.Data.Method.Srv = "web"
+		webreq.Data.Method.Version = "v1"
+		webreq.Data.Method.Function = "addnode"
+
+		b, _ := json.Marshal(*reg)
+		webreq.Data.Argv.Message = string(b)
+		mi.callFunction(&webreq, &webres)
+	}()
 
 	return err
 }
 
 // RPC -- unregister
 func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) error {
-	mi.rwmu.Lock()
-	defer mi.rwmu.Unlock()
+	err := func() error {
+		mi.rwmu.Lock()
+		defer mi.rwmu.Unlock()
 
-	versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
-	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-	if srvNodeGroup == nil {
-		return nil
-	}
+		versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
+		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+		if srvNodeGroup == nil {
+			return nil
+		}
 
-	err := srvNodeGroup.UnRegisterNode(reg)
-	if err == nil {
-		if mi.ApiInfo != nil {
-			for _, v := range reg.Functions{
-				delete(mi.ApiInfo, strings.ToLower(versionSrvName+"."+v.Name))
+		err := srvNodeGroup.UnRegisterNode(reg)
+		if err == nil {
+			if mi.ApiInfo != nil {
+				for _, v := range reg.Functions{
+					delete(mi.ApiInfo, strings.ToLower(versionSrvName+"."+v.Name))
+				}
 			}
 		}
-	}
+		return err
+	}()
+
+	// remove node to websrv
+	func(){
+		var webreq data.SrvRequestData
+		var webres data.SrvResponseData
+		webreq.Data.Method.Srv = "web"
+		webreq.Data.Method.Version = "v1"
+		webreq.Data.Method.Function = "removenode"
+
+		b, _ := json.Marshal(*reg)
+		webreq.Data.Argv.Message = string(b)
+		mi.callFunction(&webreq, &webres)
+	}()
 
 	return err
+}
+
+// RPC -- listsrv
+func (mi *ServiceCenter) ListSrv(req *data.UserRequestData, res *data.UserResponseData) error {
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
+
+	var nodes []data.SrvRegisterData
+	for _, v := range mi.SrvNodeNameMapSrvNodeGroup{
+		v.ListSrv(&nodes)
+	}
+
+	b, err := json.Marshal(nodes)
+	if err != nil {
+		res.Err = data.ErrDataCorrupted
+		res.Value.Message = ""
+		res.Value.Signature = ""
+		return nil
+	}
+	res.Value.Message = string(b)
+
+	// make sure no data if err
+	if res.Err != data.NoErr {
+		res.Value.Message = ""
+		res.Value.Signature = ""
+	}
+	return nil
 }
 
 // RPC -- dispatch
@@ -162,7 +222,7 @@ func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserRespo
 	return nil
 }
 
-// RPC -- dispatch
+// RPC -- push
 func (mi *ServiceCenter) Push(req *data.UserResponseData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
@@ -244,6 +304,7 @@ func (mi *ServiceCenter) startTcpServer(ctx context.Context) error {
 					go rpc.ServeConn(rc)
 					<- rc.Done
 					log.Println("Tcp server close a client: ", conn.RemoteAddr())
+					// TODO:异常退出时，需要调用UnRegister
 				}()
 
 			}
@@ -269,7 +330,7 @@ func (mi *ServiceCenter) innerCall(req *data.UserRequestData, res *data.UserResp
 	// call function
 	var rpcSrv data.SrvRequestData
 	rpcSrv.Data = *req
-	rpcSrv.Context.Api = *api
+	rpcSrv.Context.ApiLever = api.Level
 	var rpcSrvRes data.SrvResponseData
 	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
 		*res = rpcSrvRes.Data
@@ -301,7 +362,7 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	// decode and verify data
 	var rpcAuth data.SrvRequestData
 	rpcAuth.Data = *req
-	rpcAuth.Context.Api = *api
+	rpcAuth.Context.ApiLever = api.Level
 	var rpcAuthRes data.SrvResponseData
 	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Data.Err != data.NoErr{
 		*res = rpcAuthRes.Data
@@ -311,7 +372,7 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	// call real srv
 	var rpcSrv data.SrvRequestData
 	rpcSrv.Data = *req
-	rpcSrv.Context.Api = *api
+	rpcSrv.Context.ApiLever = api.Level
 	rpcSrv.Data.Argv.Message = rpcAuthRes.Data.Value.Message
 	var rpcSrvRes data.SrvResponseData
 	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
@@ -322,7 +383,7 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	// encode and sign data
 	var reqEncrypted data.SrvRequestData
 	reqEncrypted.Data = *req
-	reqEncrypted.Context.Api = *api
+	reqEncrypted.Context.ApiLever = api.Level
 	reqEncrypted.Data.Argv.Message = rpcSrvRes.Data.Value.Message
 	var reqEncryptedRes data.SrvResponseData
 	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
