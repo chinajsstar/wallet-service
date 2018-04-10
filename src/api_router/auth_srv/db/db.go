@@ -25,7 +25,7 @@ var (
 	st = map[string]*sql.Stmt{}
 )
 
-func Init() {
+func init() {
 	var d *sql.DB
 	var err error
 
@@ -44,6 +44,11 @@ func Init() {
 	if d, err = sql.Open("mysql", url+"/"); err != nil {
 		log.Fatal(err)
 	}
+	// http://www.01happy.com/golang-go-sql-drive-mysql-connection-pooling/
+	d.SetMaxOpenConns(2000)
+	d.SetMaxIdleConns(1000)
+	d.Ping()
+
 	if _, err := d.Exec("CREATE DATABASE IF NOT EXISTS " + database); err != nil {
 		log.Fatal(err)
 	}

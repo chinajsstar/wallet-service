@@ -5,7 +5,6 @@ import (
 	"../base/service"
 	"../base/utils"
 	"./handler"
-	"./db"
 	"fmt"
 	"context"
 	"time"
@@ -19,9 +18,6 @@ func main() {
 
 	accountDir := appDir + "/account"
 	handler.AuthInstance().Init(accountDir)
-
-	// start db
-	db.Init()
 
 	// create service node
 	cfgPath := appDir + "/" + AuthSrvConfig

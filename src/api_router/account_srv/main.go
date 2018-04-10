@@ -5,7 +5,6 @@ import (
 	"../base/service"
 	"../data"
 	"./handler"
-	"./db"
 	"fmt"
 	"context"
 	"time"
@@ -98,9 +97,6 @@ func main() {
 		fmt.Println("#Error create account dir：", accountDir, "--", err)
 		return
 	}
-
-	// start db
-	db.Init()
 
 	err = installWallet(accountDir)
 	if err != nil {

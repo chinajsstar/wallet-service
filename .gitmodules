@@ -46,3 +46,6 @@
 [submodule "src/github.com/btcsuite/websocket"]
 	path = src/github.com/btcsuite/websocket
 	url = https://github.com/btcsuite/websocket.git
+[submodule "src/github.com/btcsuite/btcwallet"]
+	path = src/github.com/btcsuite/btcwallet
+	url = https://github.com/btcsuite/btcwallet.git
