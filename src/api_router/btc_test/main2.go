@@ -46,7 +46,7 @@ func main()  {
 			fmt.Println(addr.String())
 			fmt.Println(addr.EncodeAddress())
 			fmt.Println(addr.ScriptAddress())
-		}else if argv[0] == "newaccount" {
+		}else if argv[0] == "newaddr2" {
 			addr, err := cc.NewAccount()
 			if err != nil {
 				fmt.Println("err:", err)

@@ -11,10 +11,9 @@ import (
 	"context"
 	"encoding/json"
 	"blockchain_server/types"
-	"github.com/btcsuite/btcd/btcec"
-	"errors"
 	"github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcutil"
 )
 
 type BTCClient struct{
@@ -115,31 +114,42 @@ func (c *BTCClient) NewAccount()(*types.Account, error) {
 		return nil, err
 	}
 
+	//netParams := &chaincfg.MainNetParams
+	netParams := &chaincfg.RegressionNetParams
+
 	// Generate a new master node using the seed.
-	key, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
+	key, err := hdkeychain.NewMaster(seed, netParams)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
 	}
 
-	curve := btcec.S256()
-	priv, err := btcec.NewPrivateKey(curve)
+	//curve := btcec.S256()
+	//priv, err := btcec.NewPrivateKey(curve)
+	//if err != nil {
+	//	fmt.Println("%s: error:", err)
+	//	return nil, err
+	//}
+	//if !curve.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
+	//	fmt.Println("%s: public key invalid")
+	//	return nil, errors.New("public key is invaild")
+	//}
+
+	priv, err := key.ECPrivKey()
 	if err != nil {
-		fmt.Println("%s: error:", err)
+		fmt.Println("err:", err)
 		return nil, err
 	}
-	if !curve.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
-		fmt.Println("%s: public key invalid")
-		return nil, errors.New("public key is invaild")
-	}
 
-	bb, err := key.Address(&chaincfg.MainNetParams)
+	wif, err := btcutil.NewWIF(priv, netParams, true)
 
-	fmt.Printf("account.privatekey:	%s\n", priv.D.String())
+	bb, err := key.Address(netParams)
+
+	fmt.Printf("account.privatekey:	%s\n", wif.String())
 	fmt.Printf("account.publickey:	%s\n", bb.String())
 	//fmt.Printf("account.address:	%s\n", account.Address)
 
-	account := types.Account{}
+	account := types.Account{PrivateKey:wif.String(), Address:bb.String()}
 	return &account, nil
 }
 

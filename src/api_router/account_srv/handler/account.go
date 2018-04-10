@@ -76,11 +76,12 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	rul := user.ReqUserList{}
 	rul.Id = -1
 	b, err = json.Marshal(rul)
-	if err != nil{
+	if err == nil{
 		apiInfo.Example = string(b)
 	}
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.ListUsers, ApiInfo:apiInfo}
 
+	apiInfo.Example = ""
 	apiInfo = data.ApiInfo{Name:"login", Level:data.APILevel_client}
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Login, ApiInfo:apiInfo}
 

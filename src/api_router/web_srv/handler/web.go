@@ -106,6 +106,7 @@ func (self *Web)AddNode(req *data.SrvRequestData, res *data.SrvResponseData){
 
 	self.nodes = append(self.nodes, &din)
 	fmt.Println("add, nodes:", len(self.nodes))
+	fmt.Println("node:", din)
 
 	res.Data.Value.Message = ""
 	res.Data.Value.Signature = ""
