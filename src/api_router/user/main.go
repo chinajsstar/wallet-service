@@ -137,12 +137,12 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 	body := string(b)
 
 	////////////////////////////////////////////
-	fmt.Println("ok send msg:", body)
+	//fmt.Println("ok send msg:", body)
 	ackData := &data.UserResponseData{}
 
 	var res string
 	nethelper.CallToHttpServer(addr, path, body, &res)
-	fmt.Println("ok get ack:", res)
+	//fmt.Println("ok get ack:", res)
 
 	err = json.Unmarshal([]byte(res), &ackData)
 	if err != nil {
@@ -150,6 +150,7 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 	}
 
 	if ackData.Err != data.NoErr {
+		fmt.Println("err: ", ackData.Err, "-msg: ", ackData.ErrMsg)
 		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
 	}
 

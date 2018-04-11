@@ -11,9 +11,10 @@ import (
 	"context"
 	"encoding/json"
 	"blockchain_server/types"
-	"github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcd/btcec"
+	"errors"
 )
 
 type BTCClient struct{
@@ -107,35 +108,35 @@ func (c *BTCClient) Name() string {
 }
 
 func (c *BTCClient) NewAccount()(*types.Account, error) {
-	// Generate a random seed at the recommended length.
-	seed, err := hdkeychain.GenerateSeed(hdkeychain.RecommendedSeedLen)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	//netParams := &chaincfg.MainNetParams
-	netParams := &chaincfg.RegressionNetParams
-
-	// Generate a new master node using the seed.
-	key, err := hdkeychain.NewMaster(seed, netParams)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	//curve := btcec.S256()
-	//priv, err := btcec.NewPrivateKey(curve)
+	//// Generate a random seed at the recommended length.
+	//seed, err := hdkeychain.GenerateSeed(hdkeychain.RecommendedSeedLen)
 	//if err != nil {
-	//	fmt.Println("%s: error:", err)
+	//	fmt.Println(err)
 	//	return nil, err
 	//}
-	//if !curve.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
-	//	fmt.Println("%s: public key invalid")
-	//	return nil, errors.New("public key is invaild")
+	//
+	//netParams := &chaincfg.MainNetParams
+	netParams := &chaincfg.RegressionNetParams
+	//
+	//// Generate a new master node using the seed.
+	//key, err := hdkeychain.NewMaster(seed, netParams)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return nil, err
 	//}
 
-	priv, err := key.ECPrivKey()
+	curve := btcec.S256()
+	priv, err := btcec.NewPrivateKey(curve)
+	if err != nil {
+		fmt.Println("%s: error:", err)
+		return nil, err
+	}
+	if !curve.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
+		fmt.Println("%s: public key invalid")
+		return nil, errors.New("public key is invaild")
+	}
+
+	//priv, err := key.ECPrivKey()
 	if err != nil {
 		fmt.Println("err:", err)
 		return nil, err
@@ -143,7 +144,9 @@ func (c *BTCClient) NewAccount()(*types.Account, error) {
 
 	wif, err := btcutil.NewWIF(priv, netParams, true)
 
-	bb, err := key.Address(netParams)
+	//bb, err := key.Address(netParams)
+	pkHash := btcutil.Hash160(priv.PubKey().SerializeCompressed())
+	bb , err := btcutil.NewAddressPubKeyHash(pkHash, netParams)
 
 	fmt.Printf("account.privatekey:	%s\n", wif.String())
 	fmt.Printf("account.publickey:	%s\n", bb.String())

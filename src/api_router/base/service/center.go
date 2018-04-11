@@ -304,9 +304,8 @@ func (mi *ServiceCenter) startTcpServer(ctx context.Context) error {
 					go rpc.ServeConn(rc)
 					<- rc.Done
 					log.Println("Tcp server close a client: ", conn.RemoteAddr())
-					// TODO:异常退出时，需要调用UnRegister
+					// TODO:异常退出时，需要调用UnRegister, srvnodegroup自己调用
 				}()
-
 			}
 		}()
 
@@ -446,21 +445,37 @@ func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResp
 
 //  call a srv node
 func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
-	versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
-	fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Method.Function)
+	var err error
+	var nodeAddr string
 
-	mi.rwmu.RLock()
-	defer mi.rwmu.RUnlock()
+	func() {
+		versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
+		fmt.Println("Center dispatch function...", versionSrvName, ".", req.Data.Method.Function)
 
-	srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-	if srvNodeGroup == nil{
-		res.Data.Err = data.ErrNotFindSrv
-		res.Data.ErrMsg = data.ErrNotFindSrvText
-		fmt.Println("#Error: Center dispatch function...", res.Data.ErrMsg)
-		return
+		mi.rwmu.RLock()
+		defer mi.rwmu.RUnlock()
+
+		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+		if srvNodeGroup == nil{
+			res.Data.Err = data.ErrNotFindSrv
+			res.Data.ErrMsg = data.ErrNotFindSrvText
+			fmt.Println("#Error: Center dispatch function...", res.Data.ErrMsg)
+			err = errors.New(res.Data.ErrMsg)
+			return
+		}
+
+		nodeAddr, err = srvNodeGroup.Dispatch(req, res)
+	}()
+
+	// failed, remove this node
+	if err != nil && nodeAddr != ""{
+		regData := data.SrvRegisterData{}
+		regData.Srv = req.Data.Method.Srv
+		regData.Version = req.Data.Method.Version
+		regData.Addr = nodeAddr
+		var rs string
+		mi.UnRegister(&regData, &rs)
 	}
-
-	srvNodeGroup.Dispatch(req, res)
 }
 
 func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
