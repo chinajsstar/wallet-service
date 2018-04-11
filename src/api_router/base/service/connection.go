@@ -1,9 +1,9 @@
 package service
 
 import (
-	"fmt"
 	"io"
 	"sync"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // Tcp server manager connections
@@ -66,7 +66,7 @@ func (cg *ConnectionGroup)Register(conn io.ReadWriteCloser) *Connection {
 
 	cg.connections[cn] = struct {}{}
 
-	fmt.Println("add, connection count = ", len(cg.connections))
+	l4g.Debug("add, connection count = %d", len(cg.connections))
 
 	return cn
 }
@@ -78,5 +78,5 @@ func (cg *ConnectionGroup)remove(cn *Connection)  {
 
 	delete(cg.connections, cn)
 
-	fmt.Println("remove, connection count = ", len(cg.connections))
+	l4g.Debug("remove, connection count = %d", len(cg.connections))
 }

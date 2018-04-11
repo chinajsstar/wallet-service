@@ -4,14 +4,14 @@ import (
 	"../../data"
 	"../../base/service"
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"html/template"
 	"../../base/utils"
 	"io/ioutil"
 	"net/url"
 	"strings"
+	l4g "github.com/alecthomas/log4go"
+	"fmt"
 )
 
 var G_henly_prikey []byte
@@ -67,82 +67,19 @@ func (self *Web)Init(srvNode *service.ServiceNode) error {
 		return err
 	}
 
-	if len(self.nodes) == 0 {
-		var req data.UserRequestData
-		var res data.UserResponseData
-		if err := self.srvNode.ListSrv(&req, &res); err == nil && res.Err == data.NoErr{
-			json.Unmarshal([]byte(res.Value.Message), &self.nodes)
-		}
-
-		fmt.Println(res)
-	}
-
 	return nil
 }
 
 func (self *Web)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"addnode", Level:data.APILevel_admin}
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:self.AddNode, ApiInfo:apiInfo}
-
-	apiInfo = data.ApiInfo{Name:"removenode", Level:data.APILevel_admin}
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:self.RemoveNode, ApiInfo:apiInfo}
-
 	return nam
-}
-
-func (self *Web)AddNode(req *data.SrvRequestData, res *data.SrvResponseData){
-	res.Data.Err = data.NoErr
-
-	// from req
-	din := data.SrvRegisterData{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
-	if err != nil {
-		res.Data.Err = data.ErrDataCorrupted
-		res.Data.ErrMsg = data.ErrDataCorruptedText
-		return
-	}
-
-	self.nodes = append(self.nodes, &din)
-	fmt.Println("add, nodes:", len(self.nodes))
-	fmt.Println("node:", din)
-
-	res.Data.Value.Message = ""
-	res.Data.Value.Signature = ""
-	res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
-}
-
-func (self *Web)RemoveNode(req *data.SrvRequestData, res *data.SrvResponseData){
-	res.Data.Err = data.NoErr
-
-	// from req
-	din := data.SrvRegisterData{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
-	if err != nil {
-		res.Data.Err = data.ErrDataCorrupted
-		res.Data.ErrMsg = data.ErrDataCorruptedText
-		return
-	}
-
-	for i := 0 ; i < len(self.nodes); i++ {
-		if self.nodes[i].Addr == din.Addr {
-			self.nodes = append(self.nodes[:i], self.nodes[i+1:]...)
-			break
-		}
-	}
-
-	fmt.Println("remove, nodes:", len(self.nodes))
-
-	res.Data.Value.Message = ""
-	res.Data.Value.Signature = ""
-	res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
 }
 
 // start http server
 func (self *Web) startHttpServer() error {
 	// http
-	log.Println("Start http server on ", "8077")
+	l4g.Debug("Start http server on 8077")
 
 	//http.Handle("/", http.HandlerFunc(self.handleWeb))
 	http.Handle("/listsrv", http.HandlerFunc(self.handleListSrv))
@@ -150,10 +87,10 @@ func (self *Web) startHttpServer() error {
 	http.Handle("/runapi", http.HandlerFunc(self.handleRunApi))
 
 	go func() {
-		log.Println("Http server routine running... ")
+		l4g.Info("Http server routine running... ")
 		err := http.ListenAndServe(":8077", nil)
 		if err != nil {
-			fmt.Println("#Error:", err)
+			l4g.Crash("%s", err.Error())
 			return
 		}
 	}()
@@ -166,18 +103,16 @@ func (self *Web) handleListSrv(w http.ResponseWriter, req *http.Request) {
 	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	//defer req.Body.Close()
 
-	fmt.Println("path=", req.URL.Path)
-	fmt.Println("query=", req.URL.RawQuery)
+	//fmt.Println("path=", req.URL.Path)
+	//fmt.Println("query=", req.URL.RawQuery)
 
-	if len(self.nodes) == 0 {
-		var req data.UserRequestData
-		var res data.UserResponseData
-		if err := self.srvNode.ListSrv(&req, &res); err == nil && res.Err == data.NoErr{
-			json.Unmarshal([]byte(res.Value.Message), &self.nodes)
-		}
-
-		fmt.Println(res)
+	self.nodes = self.nodes[:0]
+	var ureq data.UserRequestData
+	var ures data.UserResponseData
+	if err := self.srvNode.ListSrv(&ureq, &ures); err == nil && ures.Err == data.NoErr{
+		json.Unmarshal([]byte(ures.Value.Message), &self.nodes)
 	}
+	l4g.Debug(ures)
 
 	// listsrv
 	curDir, _ := utils.GetCurrentDir()
@@ -195,8 +130,8 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	//defer req.Body.Close()
 
-	fmt.Println("path=", req.URL.Path)
-	fmt.Println("query=", req.URL.RawQuery)
+	//fmt.Println("path=", req.URL.Path)
+	//fmt.Println("query=", req.URL.RawQuery)
 
 	if len(self.nodes) == 0 {
 		var req data.UserRequestData
@@ -211,7 +146,7 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 	// getapi?srv
 	vv := req.URL.Query()
 	srvname := vv.Get("srv")
-	fmt.Println("srv=", srvname)
+	//fmt.Println("srv=", srvname)
 
 	srvNode := data.SrvRegisterData{}
 	for _, v := range self.nodes {
@@ -236,8 +171,8 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	//defer req.Body.Close()
 
-	fmt.Println("path=", req.URL.Path)
-	fmt.Println("query=", req.URL.RawQuery)
+	//fmt.Println("path=", req.URL.Path)
+	//fmt.Println("query=", req.URL.RawQuery)
 
 	example := ""
 	bb, err := ioutil.ReadAll(req.Body)
@@ -250,7 +185,7 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 			break
 		}
 	}
-	fmt.Println("argv", example)
+	//fmt.Println("argv", example)
 
 	if len(self.nodes) == 0 {
 		var req data.UserRequestData
@@ -269,9 +204,9 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 	ureq.Method.Srv = vv.Get("srv")
 	ureq.Method.Version = vv.Get("ver")
 	ureq.Method.Function = vv.Get("func")
-	fmt.Println("name=", ureq.Method.Srv)
-	fmt.Println("version=", ureq.Method.Version)
-	fmt.Println("function=", ureq.Method.Function)
+	//fmt.Println("name=", ureq.Method.Srv)
+	//fmt.Println("version=", ureq.Method.Version)
+	//fmt.Println("function=", ureq.Method.Function)
 
 	var ures data.UserResponseData
 	if example != ""{

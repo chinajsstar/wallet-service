@@ -5,9 +5,9 @@ import (
 	"../nethelper"
 	"net/rpc"
 	"sync"
-	"fmt"
 	"sync/atomic"
 	"errors"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // a service node
@@ -28,7 +28,7 @@ func (srvNode *SrvNode)connect() error{
 	if srvNode.client == nil{
 		client, err := rpc.Dial("tcp", srvNode.registerData.Addr)
 		if err != nil {
-			fmt.Println("#Error connect srv node: ", err.Error())
+			l4g.Error("connect srv node: %s", err.Error())
 			return err
 		}
 
@@ -94,7 +94,7 @@ func (sng *SrvNodeGroup) RegisterNode(reg *data.SrvRegisterData) error {
 
 	sng.nodes = append(sng.nodes, srvNode)
 
-	fmt.Println("srv-", sng.srv, ",register node-", reg.Addr, ",all-", len(sng.addrMapSrvNode))
+	l4g.Debug("reg-%s, all-%d", reg.String(), len(sng.addrMapSrvNode))
 	return nil
 }
 
@@ -121,7 +121,7 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.SrvRegisterData) error {
 		srvNode.close()
 	}
 
-	fmt.Println("srv-", sng.srv, ",unregister node-", reg.Addr, ",all-", len(sng.addrMapSrvNode))
+	l4g.Debug("unreg-%s, all-%d", reg.String(), len(sng.addrMapSrvNode))
 	return nil
 }
 
@@ -173,7 +173,7 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 	if srvNode.client != nil {
 		err = srvNode.call(data.MethodNodeCall, req, res)
 		if err != nil {
-			fmt.Println("#Call srv failed...", err)
+			l4g.Error("#Call srv:%s", err.Error())
 
 			res.Data.Err = data.ErrCallFailed
 			res.Data.ErrMsg = data.ErrCallFailedText

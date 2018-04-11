@@ -5,3 +5,4 @@ src/github.com.tar
 /logs/
 pkg/
 *.a
+*.log

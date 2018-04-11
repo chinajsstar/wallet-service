@@ -2,7 +2,7 @@ package nethelper
 
 import (
 	"net/rpc"
-	"log"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // Call a JRPC to Tcp server
@@ -14,7 +14,7 @@ import (
 func CallJRPCToTcpServer(addr string, method string, params interface{}, res interface{}) error {
 	client, err := rpc.Dial("tcp", addr)
 	if err != nil {
-		log.Println("#CallJRPCToTcpServer Error: ", err.Error())
+		l4g.Error("dial %s", err.Error())
 		return err
 	}
 	defer client.Close()
@@ -32,7 +32,7 @@ func CallJRPCToTcpServer(addr string, method string, params interface{}, res int
 func CallJRPCToTcpServerOnClient(client *rpc.Client, method string, params interface{}, res interface{}) error {
 	err := client.Call(method, params, res)
 	if err != nil {
-		log.Println("#CallJRPCToTcpServerOnClient Error: ", err.Error())
+		l4g.Error("call %s", err.Error())
 		return err
 	}
 

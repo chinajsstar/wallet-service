@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 	"../user"
 	_ "github.com/go-sql-driver/mysql"
+	l4g "github.com/alecthomas/log4go"
 )
 
 var (
@@ -58,18 +58,18 @@ func init() {
 
 	parts := strings.Split(Url, "/")
 	if len(parts) != 2 {
-		panic("Invalid database url")
+		l4g.Crash("Invalid database url")
 	}
 
 	if len(parts[1]) == 0 {
-		panic("Invalid database name")
+		l4g.Crash("Invalid database name")
 	}
 
 	url := parts[0]
 	database = parts[1]
 
 	if d, err = sql.Open("mysql", url+"/"); err != nil {
-		log.Fatal(err)
+		l4g.Crash(err.Error())
 	}
 	// http://www.01happy.com/golang-go-sql-drive-mysql-connection-pooling/
 	d.SetMaxOpenConns(2000)
@@ -77,14 +77,14 @@ func init() {
 	d.Ping()
 
 	if _, err := d.Exec("CREATE DATABASE IF NOT EXISTS " + database); err != nil {
-		log.Fatal(err)
+		l4g.Crash(err.Error())
 	}
 	d.Close()
 	if d, err = sql.Open("mysql", Url); err != nil {
-		log.Fatal(err)
+		l4g.Crash(err.Error())
 	}
 	if _, err = d.Exec(UsersSchema); err != nil {
-		log.Fatal(err)
+		l4g.Crash(err.Error())
 	}
 
 	db = d
@@ -92,14 +92,14 @@ func init() {
 	for query, statement := range accountQ {
 		prepared, err := db.Prepare(fmt.Sprintf(statement, database, "users"))
 		if err != nil {
-			log.Fatal(err)
+			l4g.Crash(err)
 		}
 		st[query] = prepared
 	}
 }
 
 func Create(user *user.ReqUserCreate, licenseKey string, salt string, password string) error {
-	var datetime = time.Now().Local()
+	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
 	_, err := st["create"].Exec(
 		user.UserName, user.Phone, user.Email,

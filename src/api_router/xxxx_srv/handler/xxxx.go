@@ -4,7 +4,7 @@ import (
 	"../../data"
 	"../../base/service"
 	"business_center/business"
-	"fmt"
+	l4g "github.com/alecthomas/log4go"
 )
 
 type Xxxx struct{
@@ -34,11 +34,11 @@ func (x *Xxxx)GetApiGroup()(map[string]service.NodeApi){
 func (x *Xxxx)NewAddress(req *data.SrvRequestData, res *data.SrvResponseData){
 	res.Data.Err = data.NoErr
 
-	fmt.Println("message: ", req.Data.Argv.Message)
+	l4g.Debug("message: %s", req.Data.Argv.Message)
 
 	var reply string
 	err := x.business.HandleMsg(req.Data.Argv.Message, &reply)
-	fmt.Println("reply: ", reply)
+	l4g.Debug("reply: %s", reply)
 
 	if err != nil {
 		res.Data.Err = data.ErrDataCorrupted

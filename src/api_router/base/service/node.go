@@ -5,7 +5,6 @@ import (
 	"../../data"
 	"../nethelper"
 	"../config"
-	"fmt"
 	"context"
 	"strings"
 	"log"
@@ -13,6 +12,7 @@ import (
 	"time"
 	"errors"
 	"net"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // node api interface
@@ -49,9 +49,7 @@ type ServiceNode struct{
 // New a service node
 func NewServiceNode(confPath string) (*ServiceNode, error){
 	cfgNode := config.ConfigNode{}
-	if err := cfgNode.Load(confPath); err != nil{
-		return nil, err
-	}
+	cfgNode.Load(confPath)
 
 	serviceNode := &ServiceNode{}
 
@@ -84,16 +82,10 @@ func RegisterNodeApi(ni *ServiceNode, nodeApiGroup NodeApiGroup) {
 }
 
 // Start the service node
-func StartNode(ctx context.Context, ni *ServiceNode) error {
-	if err := ni.startTcpServer(ctx); err != nil{
-		return err
-	}
+func StartNode(ctx context.Context, ni *ServiceNode) {
+	ni.startTcpServer(ctx)
 
-	if err := ni.startToServiceCenter(ctx); err != nil{
-		return err
-	}
-
-	return nil
+	ni.startToServiceCenter(ctx)
 }
 
 // Stop the service node
@@ -146,48 +138,44 @@ func (ni *ServiceNode) Push(req *data.UserResponseData, res *data.UserResponseDa
 	return err
 }
 
-func (ni *ServiceNode) startTcpServer(ctx context.Context) error {
+func (ni *ServiceNode) startTcpServer(ctx context.Context) {
 	s :=strings.Split(ni.registerData.Addr, ":")
 	if len(s) != 2{
-		fmt.Println("#Error: Node addr is not ip:port format")
-		return errors.New("#Addr is error format")
+		l4g.Crash("#Error: Node addr is not ip:port format")
 	}
 
 	listener, err := nethelper.CreateTcpServer(":"+s[1])
 	if err != nil {
-		log.Println("#ListenTCP Error: ", err.Error())
-		return err
+		l4g.Crash("%s", err.Error())
 	}
 
 	go func() {
 		ni.wg.Add(1)
 		defer ni.wg.Done()
 
-		log.Println("Tcp server routine running... ")
+		l4g.Debug("Tcp server routine running... ")
 		go func(){
 			for{
 				conn, err := listener.Accept();
 				if err != nil {
-					log.Println("Error: ", err.Error())
+					l4g.Error("%s", err.Error())
 					continue
 				}
 
-				log.Println("Tcp server Accept a client: ", conn.RemoteAddr())
+				l4g.Info("Tcp server Accept a client: %s", conn.RemoteAddr().String())
 				rc := ni.clientGroup.Register(conn)
 
 				go func() {
 					go rpc.ServeConn(rc)
 					<- rc.Done
-					log.Println("Tcp server close a client: ", conn.RemoteAddr())
+					l4g.Info("Tcp server close a client: %s", conn.RemoteAddr().String())
 				}()
 			}
 		}()
 
 		<- ctx.Done()
-		log.Println("Tcp server routine stoped... ")
+		l4g.Debug("Tcp server routine stoped... ")
 	}()
-
-	return nil
 }
 
 // 内部方法
@@ -196,7 +184,7 @@ func (ni *ServiceNode)connectToCenter() (*Connection, error){
 
 	conn, err := net.Dial("tcp", ni.serviceCenterAddr)
 	if err != nil {
-		log.Println("#connectToCenter Error: ", err.Error())
+		l4g.Error("%s", err.Error())
 		return nil, err
 	}
 
@@ -231,7 +219,7 @@ func (ni *ServiceNode)unRegistToCenter() error{
 	return err
 }
 
-func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
+func (ni *ServiceNode)startToServiceCenter(ctx context.Context) {
 	go func() {
 		ni.wg.Add(1)
 		defer ni.wg.Done()
@@ -241,7 +229,7 @@ func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
 			var cn *Connection
 			for {
 				if err != nil {
-					log.Println("Tcp client connect...")
+					l4g.Info("Tcp client connect...")
 					cn, err = ni.connectToCenter()
 				}
 
@@ -250,9 +238,9 @@ func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
 
 					ni.registToCenter()
 
-					log.Println("Tcp client connected...")
+					l4g.Info("Tcp client connected...")
 					<-cn.Done
-					log.Println("Tcp client close... ")
+					l4g.Info("Tcp client close... ")
 
 					err = errors.New("not connect")
 				}
@@ -263,8 +251,6 @@ func (ni *ServiceNode)startToServiceCenter(ctx context.Context) error {
 
 		<-ctx.Done()
 		ni.unRegistToCenter()
-		fmt.Println("UnRegist to center ok...", ni.registerData)
+		l4g.Info("UnRegist to center ok %s", ni.registerData.String())
 	}()
-
-	return nil
 }

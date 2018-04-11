@@ -1,10 +1,10 @@
 package nethelper
 
 import (
-	"log"
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // Do a post to Http server
@@ -17,14 +17,14 @@ func CallToHttpServer(addr string, path string, body string, res *string) error 
 
 	resp, err := http.Post(url, contentType, b2)
 	if err != nil {
-		log.Println("#CallToHttpServer Post failed:", err)
+		l4g.Error("Post failed: %s", err.Error())
 		return err
 	}
 	defer resp.Body.Close()
 
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("#CallToHttpServer Read failed:", err)
+		l4g.Error("Read failed: %s", err.Error())
 		return err
 	}
 

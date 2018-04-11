@@ -2,7 +2,7 @@ package nethelper
 
 import (
 	"net"
-	"log"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // Create a tcp server
@@ -11,13 +11,13 @@ import (
 func CreateTcpServer(port string) (*net.TCPListener, error){
 	addr, err := net.ResolveTCPAddr("tcp", port)
 	if err != nil {
-		log.Println("#CreateTcpServer Error: ", err.Error())
+		l4g.Error("%s", err.Error())
 		return nil, err
 	}
 
 	listener, err := net.ListenTCP("tcp", addr)
 	if err != nil {
-		log.Println("#CreateTcpServer Error: ", err.Error())
+		l4g.Error("%s", err.Error())
 		return nil, err
 	}
 

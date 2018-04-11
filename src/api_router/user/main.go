@@ -20,6 +20,7 @@ import (
 	"errors"
 	"strconv"
 	"golang.org/x/net/websocket"
+	l4g "github.com/alecthomas/log4go"
 )
 
 const wsaddrGateway = "ws://127.0.0.1:8088/ws"
@@ -257,15 +258,24 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 // http
 // curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/wallet/v1/arith/add
 func main() {
+	appDir, _:= utils.GetAppDir()
+	appDir += "/SuperWallet"
+
+	//l4g.LoadConfiguration(appDir + "/log.xml")
+	l4g.AddFilter("stdout", l4g.DEBUG, l4g.NewConsoleLogWriter())
+	l4g.Info("L4g Begin, the time is now: %s", time.Now().Format("15:04:05 MST 2006/01/02"))
+	defer l4g.Info("L4g End, the time is now: %s", time.Now().Format("15:04:05 MST 2006/01/02"))
+	defer l4g.Close()
+
 	// 目录
 	curDir, _ := utils.GetCurrentDir()
 	runDir, _ := utils.GetRunDir()
-	fmt.Println("当前目录：", curDir)
-	fmt.Println("执行目录：", runDir)
+	l4g.Info("当前目录：%s", curDir)
+	l4g.Info("执行目录：%s", runDir)
 	// 加载服务器公钥
 	err := LoadRsaKeys()
 	if err != nil {
-		fmt.Println(err)
+		l4g.Error("%s", err.Error())
 		return
 	}
 
@@ -273,36 +283,35 @@ func main() {
 	err = func() error {
 		m, err := install.LoginUser()
 		if err != nil {
-			fmt.Println(err)
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
 		d, err := json.Marshal(m)
 		if err != nil {
-			fmt.Println(err)
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
 		_, d2, err := sendData2(httpaddrGateway, string(d), "v1", "account", "login")
 		if err != nil {
-			fmt.Println(err)
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
 		uca := user.AckUserLogin{}
 		err = json.Unmarshal(d2, &uca)
 		if err != nil {
-			fmt.Println(err)
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
-		fmt.Println("login user ack: ", uca)
+		l4g.Info("Login ack: ", uca)
 
 		return nil
 	}()
 	if err != nil {
-		fmt.Println("#err:", err)
-		//return
+		l4g.Error("Login err: %s", err.Error())
 	}
 
 	// 测试次数
@@ -318,8 +327,6 @@ func main() {
 
 		argv := strings.Split(input, " ")
 
-
-		fmt.Println("Execute input command: ")
 		count = 0
 		right = 0
 		timeBegin = time.Now();
