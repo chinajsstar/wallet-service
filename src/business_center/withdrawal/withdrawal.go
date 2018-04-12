@@ -2,7 +2,6 @@ package withdrawal
 
 import (
 	"blockchain_server/service"
-	"blockchain_server/types"
 	"business_center/def"
 	"business_center/redispool"
 	"encoding/json"
@@ -53,8 +52,8 @@ func (r *Withdrawal) HandleWithdrawal(req string, ack *string) error {
 
 		c.Do("hset", "user_account", reqInfo.UserID+"_"+reqInfo.Params.Symbol, jsonInfo)
 
-		txCmd := types.NewTxCmd("message id", types.Chain_eth, "0x040cae69092e07c8c7f788ed072ec630e50f899588727bfc7855ff5c2a8c3dad2f30ad6538996baf3e2b35fb7f98d6218a20b60e1c57d1edfe5364e948c840b477143087ff6481053d5e504735961d756932998f587fc269e601bc32ca3b7cb8374355bb4d38491a260a0947e72e2c8228281380dad7d8a50f738ca89cc82410ebb7083e6ec79e1001443232e6bcd96450", "0x8128b33eb9d5b5fc975f42eb944a24292db09ec5", 10000000000000000000) //0x00f55b34Ae3Ec318fDE10846a74B4e40f6cc5614
-		r.wallet.SendTx(txCmd)
+		//txCmd := service.NewSendTxCmd("message id", types.Chain_eth, "0x040cae69092e07c8c7f788ed072ec630e50f899588727bfc7855ff5c2a8c3dad2f30ad6538996baf3e2b35fb7f98d6218a20b60e1c57d1edfe5364e948c840b477143087ff6481053d5e504735961d756932998f587fc269e601bc32ca3b7cb8374355bb4d38491a260a0947e72e2c8228281380dad7d8a50f738ca89cc82410ebb7083e6ec79e1001443232e6bcd96450", "0x8128b33eb9d5b5fc975f42eb944a24292db09ec5", 10000000000000000000) //0x00f55b34Ae3Ec318fDE10846a74B4e40f6cc5614
+		//r.wallet.SendTx(txCmd)
 	}
 
 	//查询商户帐户，判断能不能交易

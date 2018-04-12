@@ -43,10 +43,10 @@ func (a *Address) Run(ctx context.Context, wallet *service.ClientManager) {
 	a.wallet.SubscribeTxCmdState(a.cmdTxChannel)
 
 	//添加监控地址
-	//for _, v := range a.mapUserAddress {
-	//	rcaCmd := types.NewRechargeAddressCmd("", v.AssetName, []string{v.Address})
-	//	a.wallet.InsertRechargeAddress(rcaCmd)
-	//}
+	for _, v := range a.mapUserAddress {
+		rcaCmd := service.NewRechargeAddressCmd("", v.AssetName, []string{v.Address})
+		a.wallet.InsertRechargeAddress(rcaCmd)
+	}
 }
 
 func (a *Address) Stop() {
@@ -83,7 +83,7 @@ func (a *Address) AllocationAddress(req string, ack *string) error {
 		rspInfo.Result.Address = a.addUserAddress(mapUserAddress)
 
 		//添加监控地址
-		rcaCmd := types.NewRechargeAddressCmd("", assetProperty.Name, rspInfo.Result.Address)
+		rcaCmd := service.NewRechargeAddressCmd("message id", assetProperty.Name, rspInfo.Result.Address)
 		a.wallet.InsertRechargeAddress(rcaCmd)
 	}
 
@@ -99,7 +99,7 @@ func (a *Address) AllocationAddress(req string, ack *string) error {
 func (a *Address) generateAddress(userID string, userClass int,
 	assetID int, assetName string, count int) (map[string]*UserAddress, error) {
 	mapUserAddress := make(map[string]*UserAddress)
-	cmd := types.NewAccountCmd("", assetName, 1)
+	cmd := service.NewAccountCmd("", assetName, 1)
 
 	for i := 0; i < count; i++ {
 		accounts, err := a.wallet.NewAccounts(cmd)
@@ -159,7 +159,51 @@ func (a *Address) recvRechargeTxChannel() {
 			select {
 			case rct := <-channel:
 				{
-					fmt.Println(rct)
+					assetProperty, ok := a.mapAssetProperty[rct.Coin_name]
+					if !ok {
+						continue
+					}
+
+					switch rct.Tx.State {
+					case types.Tx_state_mined: //入块
+						{
+							var blockin TransactionBlockin
+							blockin.AssetID = assetProperty.ID
+							blockin.Hash = rct.Tx.Tx_hash
+							blockin.AssetName = assetProperty.Name
+							blockin.BlockinHeight = rct.Tx.InBlock
+							blockin.BlockinTime = int64(rct.Tx.Time)
+							blockin.OrderID = ""
+
+							a.transactionBegin(&blockin)
+						}
+					case types.Tx_state_commited: //确认
+						{
+							var state TransactionStatus
+							state.AssetID = assetProperty.ID
+							state.Hash = rct.Tx.Tx_hash
+							state.AssetName = assetProperty.Name
+							state.Status = 1
+							state.ConfirmHeight = rct.Tx.ConfirmatedHeight
+							state.ConfirmTime = int64(rct.Tx.Time)
+							state.UpdateTime = time.Now().Unix()
+
+							a.transactionFinish(&state)
+						}
+					case types.Tx_state_unconfirmed: //失败
+						{
+							var state TransactionStatus
+							state.AssetID = assetProperty.ID
+							state.Hash = rct.Tx.Tx_hash
+							state.AssetName = assetProperty.Name
+							state.Status = 2
+							state.ConfirmHeight = rct.Tx.ConfirmatedHeight
+							state.ConfirmTime = int64(rct.Tx.Time)
+							state.UpdateTime = time.Now().Unix()
+
+							a.transactionFinish(&state)
+						}
+					}
 				}
 			case <-ctx.Done():
 				{
@@ -179,15 +223,50 @@ func (a *Address) recvCmdTxChannel() {
 			select {
 			case cmdTx := <-channel:
 				{
-					fmt.Printf("Transaction state changed, transaction information:%s\n",
-						cmdTx.Tx.String())
-
-					if cmdTx.Tx.State == types.Tx_state_confirmed {
-						fmt.Println("Transaction is confirmed! success!!!")
+					assetProperty, ok := a.mapAssetProperty[cmdTx.Coinname]
+					if !ok {
+						continue
 					}
 
-					if cmdTx.Tx.State == types.Tx_state_unconfirmed {
-						fmt.Println("Transaction is unconfirmed! failed!!!!")
+					switch cmdTx.Tx.State {
+					case types.Tx_state_mined: //入块
+						{
+							var blockin TransactionBlockin
+							blockin.AssetID = assetProperty.ID
+							blockin.Hash = cmdTx.Tx.Tx_hash
+							blockin.AssetName = assetProperty.Name
+							blockin.BlockinHeight = cmdTx.Tx.InBlock
+							blockin.BlockinTime = int64(cmdTx.Tx.Time)
+							blockin.OrderID = cmdTx.NetCmd.MsgId
+
+							a.transactionBegin(&blockin)
+						}
+					case types.Tx_state_commited: //确认
+						{
+							var state TransactionStatus
+							state.AssetID = assetProperty.ID
+							state.Hash = cmdTx.Tx.Tx_hash
+							state.AssetName = assetProperty.Name
+							state.Status = 1
+							state.ConfirmHeight = cmdTx.Tx.ConfirmatedHeight
+							state.ConfirmTime = int64(cmdTx.Tx.Time)
+							state.UpdateTime = time.Now().Unix()
+
+							a.transactionFinish(&state)
+						}
+					case types.Tx_state_unconfirmed: //失败
+						{
+							var state TransactionStatus
+							state.AssetID = assetProperty.ID
+							state.Hash = cmdTx.Tx.Tx_hash
+							state.AssetName = assetProperty.Name
+							state.Status = 2
+							state.ConfirmHeight = cmdTx.Tx.ConfirmatedHeight
+							state.ConfirmTime = int64(cmdTx.Tx.Time)
+							state.UpdateTime = time.Now().Unix()
+
+							a.transactionFinish(&state)
+						}
 					}
 				}
 			case <-ctx.Done():
@@ -197,4 +276,12 @@ func (a *Address) recvCmdTxChannel() {
 			}
 		}
 	}(a.ctx, a.cmdTxChannel)
+}
+
+func (a *Address) transactionBegin(blockin *TransactionBlockin) {
+	fmt.Println(blockin)
+}
+
+func (a *Address) transactionFinish(status *TransactionStatus) {
+	fmt.Println(status)
 }
