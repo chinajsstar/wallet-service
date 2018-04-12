@@ -3,6 +3,8 @@ package notice
 import (
 	"blockchain_server/types"
 	"business_center/def"
+	"business_center/mysqlpool"
+	"business_center/redispool"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -37,17 +39,16 @@ func (ntc *Notice) Stop() {
 func (ntc *Notice) recvRechargeTxChannel() {
 	ntc.waitGroup.Add(1)
 	go func(ctx context.Context, channel types.RechargeTxChannel) {
-		c, err := redis.Dial("tcp", "127.0.0.1:6379")
-		if err != nil {
-			fmt.Printf("recvRechargeTxChannel Redis Dial Error: %s", err.Error())
-			return
-		}
+		c := redispool.Get()
 		defer c.Close()
 
 		for {
 			select {
 			case rct := <-channel:
 				{
+					a, _ := mysqlpool.QueryAllUserAddress()
+					v, ok := a[rct.Coin_name+"_"+rct.Tx.To]
+
 					userAddr, err := findUserAddress(c, rct.Coin_name, rct.Tx.To)
 					if err != nil {
 						fmt.Println(err.Error())
@@ -60,7 +61,7 @@ func (ntc *Notice) recvRechargeTxChannel() {
 						continue
 					}
 
-					var trans def.TransactionDetail
+					var trans def.TransDetail
 					trans.UserID = userAddr.UserID
 					trans.AssetID = userAddr.AssetID
 
@@ -164,7 +165,7 @@ func findUserAddress(c redis.Conn, assetID string, address string) (*def.UserAdd
 	return userAddress, nil
 }
 
-func findTransaction(c redis.Conn, txHash string) (*def.TransactionDetail, error) {
+func findTransaction(c redis.Conn, txHash string) (*def.TransDetail, error) {
 	r, err := c.Do("hget", "transaction", txHash)
 	if err != nil {
 		return nil, err
@@ -179,7 +180,7 @@ func findTransaction(c redis.Conn, txHash string) (*def.TransactionDetail, error
 		return nil, err
 	}
 
-	trans := new(def.TransactionDetail)
+	trans := new(def.TransDetail)
 	err = json.Unmarshal(reply, trans)
 	if err != nil {
 		return nil, err
