@@ -1,6 +1,10 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"crypto/md5"
+	"encoding/hex"
+)
 
 // Scan input to string with '\n' with end line
 func ScanLine() string {
@@ -16,4 +20,12 @@ func ScanLine() string {
 		}
 	}
 	return string(b)
+}
+
+func GetMd5Text(text string) string {
+	h := md5.New()
+	h.Write([]byte(text))
+	sum := h.Sum(nil)
+
+	return hex.EncodeToString(sum)
 }

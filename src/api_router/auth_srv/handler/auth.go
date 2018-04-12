@@ -13,6 +13,7 @@ import (
 	"sync"
 	"errors"
 	"../../account_srv/user"
+	l4g "github.com/alecthomas/log4go"
 )
 
 type Auth struct{
@@ -26,6 +27,16 @@ var defaultAuth = &Auth{}
 
 func AuthInstance() *Auth{
 	return defaultAuth
+}
+
+func (auth * Auth)Init(dir string) {
+	var err error
+	auth.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
+	if err != nil {
+		l4g.Crash(err)
+	}
+
+	auth.usersLicenseKey = make(map[string]*user.UserLevel)
 }
 
 func (auth * Auth)getUserLevel(licenseKey string) (*user.UserLevel, error)  {
@@ -55,19 +66,6 @@ func (auth * Auth)getUserLevel(licenseKey string) (*user.UserLevel, error)  {
 	}()
 }
 
-func (auth * Auth)Init(dir string) error {
-	var err error
-	auth.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	auth.usersLicenseKey = make(map[string]*user.UserLevel)
-
-	return nil
-}
-
 func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
@@ -85,24 +83,24 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	err := func() error{
 		ul, err := auth.getUserLevel(req.Data.Argv.LicenseKey)
 		if err != nil {
-			fmt.Println("#Error AuthData--", err.Error())
+			l4g.Error("(%s) failed: %s",req.Data.Argv.LicenseKey, err.Error())
 			return err
 		}
 
 		if req.Context.ApiLever > ul.Level || ul.IsFrozen != 0{
-			fmt.Println("#Error AuthData--", err)
-			return errors.New("没权限或者被冻结")
+			l4g.Error("(%s-%s) failed: no api level or frozen", req.Data.Argv.LicenseKey, req.Data.Method.Function)
+			return errors.New("no api level or frozen")
 		}
 
 		bencrypted, err := base64.StdEncoding.DecodeString(req.Data.Argv.Message)
 		if err != nil {
-			fmt.Println("#Error AuthData--", err.Error())
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
 		bsignature, err := base64.StdEncoding.DecodeString(req.Data.Argv.Signature)
 		if err != nil {
-			fmt.Println("#Error AuthData--", err.Error())
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
@@ -114,7 +112,7 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 
 		err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, []byte(ul.PublicKey))
 		if err != nil {
-			fmt.Println("#Error AuthData--", err.Error())
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
@@ -122,7 +120,7 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 		var originData []byte
 		originData, err = utils.RsaDecrypt(bencrypted, auth.privateKey, utils.RsaDecodeLimit2048)
 		if err != nil {
-			fmt.Println("#Error AuthData--", err.Error())
+			l4g.Error("%s", err.Error())
 			return err
 		}
 
@@ -144,7 +142,7 @@ func (auth *Auth)EncryptData(req *data.SrvRequestData, res *data.SrvResponseData
 	err := func() error{
 		ul, err := auth.getUserLevel(req.Data.Argv.LicenseKey)
 		if err != nil {
-			fmt.Println("#Error EncryptData--", err.Error())
+			l4g.Error("%s", err.Error())
 			return err
 		}
 

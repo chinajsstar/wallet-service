@@ -7,6 +7,7 @@ import (
 	"context"
 	"../base/utils"
 	"net/rpc"
+	l4g "github.com/alecthomas/log4go"
 )
 
 const ServiceGatewayConfig = "gateway.json"
@@ -15,13 +16,16 @@ func main() {
 	appDir, _:= utils.GetAppDir()
 	appDir += "/SuperWallet"
 
+	l4g.LoadConfiguration(appDir + "/log.xml")
+	defer l4g.Close()
+
 	cfgPath := appDir + "/" + ServiceGatewayConfig
 	fmt.Println("config path:", cfgPath)
 
 	// create service center
 	centerInstance, err := service.NewServiceCenter(cfgPath)
 	if centerInstance == nil || err != nil {
-		fmt.Println("#create service center failed:", err)
+		l4g.Error("Create service center failed: %s", err.Error())
 		return
 	}
 	rpc.Register(centerInstance)
@@ -42,8 +46,8 @@ func main() {
 		}
 	}
 
-	fmt.Println("Waiting all routine quit...")
+	l4g.Info("Waiting all routine quit...")
 	service.StopCenter(centerInstance)
-	fmt.Println("All routine is quit...")
+	l4g.Info("All routine is quit...")
 }
 

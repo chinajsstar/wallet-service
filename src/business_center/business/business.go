@@ -6,7 +6,7 @@ import (
 	"blockchain_server/types"
 	"business_center/address"
 	"business_center/def"
-	"business_center/notice"
+	"business_center/withdrawal"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,17 +18,18 @@ func NewBusinessSvr() *Business {
 }
 
 type Business struct {
-	wallet  *service.ClientManager
-	ctx     context.Context
-	cancel  context.CancelFunc
-	ntc     *notice.Notice
-	address *address.Address
+	wallet     *service.ClientManager
+	ctx        context.Context
+	cancel     context.CancelFunc
+	address    *address.Address
+	withdrawal *withdrawal.Withdrawal
 }
 
-func (busi *Business) InitAndStart() error {
-	busi.ctx, busi.cancel = context.WithCancel(context.Background())
-	busi.wallet = service.NewClientManager()
-	busi.address = &address.Address{}
+func (b *Business) InitAndStart() error {
+	b.ctx, b.cancel = context.WithCancel(context.Background())
+	b.wallet = service.NewClientManager()
+	b.address = &address.Address{}
+	b.withdrawal = &withdrawal.Withdrawal{}
 
 	//实例化以太坊客户端
 	client, err := eth.NewClient()
@@ -36,28 +37,21 @@ func (busi *Business) InitAndStart() error {
 		fmt.Printf("InitAndStart NewClient %s Error : %s\n", types.Chain_eth, err.Error())
 		return err
 	}
-	busi.wallet.AddClient(client)
+	b.wallet.AddClient(client)
 
-	rechargeChannel := make(types.RechargeTxChannel)
-	cmdTxChannel := make(types.CmdTxChannel)
-
-	busi.wallet.SubscribeTxRecharge(rechargeChannel)
-	busi.wallet.SubscribeTxCmdState(cmdTxChannel)
-
-	busi.ntc = notice.NewNotice(busi.ctx, rechargeChannel, cmdTxChannel)
-	busi.address.Init(busi.wallet)
-	busi.ntc.Start()
-	busi.wallet.Start()
+	b.address.Run(b.ctx, b.wallet)
+	b.withdrawal.Init(b.wallet)
+	b.wallet.Start()
 
 	return nil
 }
 
-func (busi *Business) Stop() {
-	busi.cancel()
-	busi.ntc.Stop()
+func (b *Business) Stop() {
+	b.cancel()
+	b.address.Stop()
 }
 
-func (busi *Business) HandleMsg(args string, reply *string) error {
+func (b *Business) HandleMsg(args string, reply *string) error {
 	var head def.ReqHead
 	err := json.Unmarshal([]byte(args), &head)
 	if err != nil {
@@ -68,10 +62,11 @@ func (busi *Business) HandleMsg(args string, reply *string) error {
 	switch head.Method {
 	case "new_address":
 		{
-			return busi.address.AllocationAddress(args, reply)
+			return b.address.AllocationAddress(args, reply)
 		}
 	case "withdrawal":
 		{
+			return b.withdrawal.HandleWithdrawal(args, reply)
 		}
 	}
 	return errors.New("invalid command")

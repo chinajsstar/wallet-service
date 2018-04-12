@@ -3,7 +3,7 @@ package config
 import (
 	"io/ioutil"
 	"encoding/json"
-	"fmt"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // srv node config
@@ -15,20 +15,16 @@ type ConfigNode struct{
 }
 
 // load srv node config from absolution path
-func (cn *ConfigNode)Load(absPath string) error {
+func (cn *ConfigNode)Load(absPath string) {
 	var err error
 	var data []byte
 	data, err = ioutil.ReadFile(absPath)
 	if err != nil {
-		fmt.Println("#Error: ", err)
-		return err
+		l4g.Crash(err)
 	}
 
 	err = json.Unmarshal(data, cn)
 	if err != nil {
-		fmt.Println("#Error: ", err)
-		return err
+		l4g.Crash(err)
 	}
-
-	return err
 }

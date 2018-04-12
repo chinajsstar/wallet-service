@@ -6,3 +6,4 @@ src/github.com.tar
 pkg/
 *.a
 bin/
+*.log

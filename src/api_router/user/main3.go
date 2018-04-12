@@ -9,6 +9,8 @@ import (
 	"strings"
 	"../base/utils"
 	"../base/service"
+	l4g "github.com/alecthomas/log4go"
+	"time"
 )
 
 type Args3 struct {
@@ -68,6 +70,9 @@ func main()  {
 	client1 = nil
 	client = nil
 
+	curDir, _ := utils.GetAppDir()
+	l4g.LoadConfiguration(curDir + "/superwallet/log.xml")
+
 	for ; ; {
 		fmt.Println("Please input command: ")
 		var input string
@@ -125,6 +130,11 @@ func main()  {
 			if client1 != nil {
 				client1.Call("Arith3.Add", &a, &res)
 			}
+		}else if argv[0] == "log"{
+			for i := 0; i < 1; i++ {
+				l4g.Debug("i am log debug: %d", i)
+			}
+			l4g.Close()
 		}
 	}
 }

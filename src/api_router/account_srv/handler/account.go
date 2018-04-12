@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"../db"
 	"../../data"
 	"crypto/rand"
@@ -12,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"encoding/json"
 	"github.com/satori/go.uuid"
+	l4g "github.com/alecthomas/log4go"
 )
 
 const (
@@ -47,20 +47,16 @@ func AccountInstance() *Account{
 }
 
 // 初始化
-func (s *Account)Init(dir string) error {
+func (s *Account)Init(dir string) {
 	var err error
 	s.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
 	if err != nil {
-		fmt.Println(err)
-		return err
+		l4g.Crash(err)
 	}
 	s.serverPublicKey, err = ioutil.ReadFile(dir+"/public.pem")
 	if err != nil {
-		fmt.Println(err)
-		return err
+		l4g.Crash(err)
 	}
-
-	return nil
 }
 
 func (s * Account)GetApiGroup()(map[string]service.NodeApi){
@@ -196,6 +192,7 @@ func (s *Account) Login(req *data.SrvRequestData, res *data.SrvResponseData) {
 	if err != nil {
 		res.Data.Err = data.ErrAccountSrvLogin
 		res.Data.ErrMsg = data.ErrAccountSrvLoginText
+		l4g.Error("%s", err.Error())
 	}
 }
 

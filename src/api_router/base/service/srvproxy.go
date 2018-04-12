@@ -5,8 +5,9 @@ import (
 	"../nethelper"
 	"net/rpc"
 	"sync"
-	"fmt"
 	"sync/atomic"
+	"errors"
+	l4g "github.com/alecthomas/log4go"
 )
 
 // a service node
@@ -15,6 +16,8 @@ type SrvNode struct{
 
 	rwmu sync.RWMutex					// read/write lock
 	client *rpc.Client					// client
+
+	//tcpPool pool.RpcPool
 }
 
 // try to connect service node
@@ -25,7 +28,7 @@ func (srvNode *SrvNode)connect() error{
 	if srvNode.client == nil{
 		client, err := rpc.Dial("tcp", srvNode.registerData.Addr)
 		if err != nil {
-			fmt.Println("#Error connect srv node: ", err.Error())
+			l4g.Error("connect srv node: %s", err.Error())
 			return err
 		}
 
@@ -84,9 +87,14 @@ func (sng *SrvNodeGroup) RegisterNode(reg *data.SrvRegisterData) error {
 		sng.addrMapSrvNode[reg.Addr] = srvNode
 	}
 
+	if srvNode != nil{
+		//factory    := func() (*rpc.Client, error) { return rpc.Dial("tcp", srvNode.registerData.Addr) }
+		//srvNode.tcpPool, _ = pool.NewRpcChannelPool(20, 50, factory)
+	}
+
 	sng.nodes = append(sng.nodes, srvNode)
 
-	fmt.Println("srv-", sng.srv, ",register node-", reg.Addr, ",all-", len(sng.addrMapSrvNode))
+	l4g.Debug("reg-%s, all-%d", reg.String(), len(sng.addrMapSrvNode))
 	return nil
 }
 
@@ -113,7 +121,7 @@ func (sng *SrvNodeGroup) UnRegisterNode(reg *data.SrvRegisterData) error {
 		srvNode.close()
 	}
 
-	fmt.Println("srv-", sng.srv, ",unregister node-", reg.Addr, ",all-", len(sng.addrMapSrvNode))
+	l4g.Debug("unreg-%s, all-%d", reg.String(), len(sng.addrMapSrvNode))
 	return nil
 }
 
@@ -132,15 +140,17 @@ func (sng *SrvNodeGroup) ListSrv(nodes *[]data.SrvRegisterData) {
 }
 
 // dispatch a request to service node
-func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvResponseData) (string,error) {
 	sng.rwmu.RLock()
 	defer sng.rwmu.RUnlock()
+
+	nodeAddr := ""
 
 	// check has srv nodes
 	if sng.addrMapSrvNode == nil || len(sng.addrMapSrvNode) == 0 {
 		res.Data.Err = data.ErrNotFindSrv
 		res.Data.ErrMsg = data.ErrNotFindSrvText
-		return
+		return nodeAddr, errors.New(res.Data.ErrMsg)
 	}
 
 	// get a free srv node
@@ -149,31 +159,37 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 	if srvNode == nil{
 		res.Data.Err = data.ErrNotFindSrv
 		res.Data.ErrMsg = data.ErrNotFindSrvText
-		return
+		return nodeAddr, errors.New(res.Data.ErrMsg)
 	}
 
+	// share on a client
 	// check client is nil
 	if srvNode.client == nil {
 		srvNode.connect()
 	}
 
 	// call
+	var err error
 	if srvNode.client != nil {
-		err := srvNode.call(data.MethodNodeCall, req, res)
+		err = srvNode.call(data.MethodNodeCall, req, res)
 		if err != nil {
-			fmt.Println("#Call srv failed...", err)
-
-			srvNode.close()
+			l4g.Error("#Call srv:%s", err.Error())
 
 			res.Data.Err = data.ErrCallFailed
 			res.Data.ErrMsg = data.ErrCallFailedText
+
+			nodeAddr = srvNode.registerData.Addr
+			err = errors.New(res.Data.ErrMsg)
 		}
 	}else{
 		res.Data.Err = data.ErrConnectSrvFailed
 		res.Data.ErrMsg = data.ErrConnectSrvFailedText
+
+		nodeAddr = srvNode.registerData.Addr
+		err = errors.New(res.Data.ErrMsg)
 	}
 
-	return
+	return nodeAddr, err
 }
 
 // get a free node by index

@@ -12,8 +12,8 @@ func TestHandleMsg(t *testing.T) {
 
 	svr := NewBusinessSvr()
 	svr.InitAndStart()
-	s := "{\"user_id\":\"0001\",\"method\":\"new_address\",\"params\":{\"id\":\"1\",\"symbol\":\"eth\",\"count\":10}}"
-	//s = "{\"user_id\":\"abc\",\"method\":\"withdrawal\",\"params\":{\"user_order_id\":\"1\",\"symbol\":\"eth\",\"amount\":1,\"to_address\":\"0x00000\",\"user_timestamp\":\"0xaaaaa\"}}"
+	s := "{\"user_id\":\"737205c4-af3c-426d-973d-165a0bf46c71\",\"method\":\"new_address\",\"params\":{\"id\":\"1\",\"symbol\":\"eth\",\"count\":3}}"
+	//s := "{\"user_id\":\"0001\",\"method\":\"withdrawal\",\"params\":{\"user_order_id\":\"1\",\"symbol\":\"eth\",\"amount\":1,\"to_address\":\"0x00000\",\"user_timestamp\":\"0xaaaaa\"}}"
 	var reply string
 	svr.HandleMsg(s, &reply)
 	fmt.Println(reply)

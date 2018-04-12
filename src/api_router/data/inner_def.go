@@ -1,5 +1,7 @@
 package data
 
+import "fmt"
+
 // /////////////////////////////////////////////////////
 // internal api gateway and service RPC data define
 // /////////////////////////////////////////////////////
@@ -55,4 +57,13 @@ type SrvRequestData struct{
 // rpc srv response data
 type SrvResponseData struct{
 	Data 	UserResponseData `json:"data"`		// user response data
+}
+
+//////////////////////////////////////////////////////////////////////
+func (urd UserRequestData)String() string {
+	return fmt.Sprintf("%s %s-%s-%s", urd.Argv.LicenseKey, urd.Method.Srv, urd.Method.Version, urd.Method.Function)
+}
+
+func (srd SrvRegisterData)String() string {
+	return fmt.Sprintf("%s-%s-%s", srd.Srv, srd.Version, srd.Addr)
 }
