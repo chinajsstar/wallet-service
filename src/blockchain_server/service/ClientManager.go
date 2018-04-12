@@ -238,22 +238,22 @@ func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
 			txCmd.Tx = tx
 			self.txCmdFeed.Send(txCmd)
 			if tx.State==types.Tx_state_confirmed || tx.State==types.Tx_state_unconfirmed {
-				goto endfor
+				goto break_for
 			}
 		}
 		case err := <-err_channel:{
 			txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 			self.txCmdFeed.Send(txCmd)
-			goto endfor
+			goto break_for
 		}
 		case <-self.ctx.Done():{
 			txCmd.Error = types.NewNetCmdErr(-32000, self.ctx.Err().Error(), nil)
 			self.txCmdFeed.Send(txCmd)
-			goto endfor
+			goto break_for
 		}
 		}
 	}
-endfor:
+break_for:
 }
 
 /* 查询地址中的资产余额, 使用 NewQueryBalanceCmd() 创建CmdqueryBalance对象, 作为参数传入.

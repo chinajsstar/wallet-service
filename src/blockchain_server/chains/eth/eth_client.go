@@ -46,15 +46,15 @@ type Client struct {
 
 type SortedString []string
 
-func insertByOrder(strSorted SortedString, s string) {
-	if !sort.StringsAreSorted(strSorted) {
-		sort.Strings(strSorted)
+func insertByOrder(strSorted *SortedString, s string) {
+	if !sort.StringsAreSorted(*strSorted) {
+		sort.Strings(*strSorted)
 	}
 	s = strings.ToLower(s)
-	index := sort.SearchStrings(strSorted, s)
+	index := sort.SearchStrings(*strSorted, s)
 
-	if index>=len(strSorted) || strSorted[index]!=s {
-		strSorted = append(strSorted[:index], append([]string{s}, strSorted[index:]...)...)
+	if index>=len(*strSorted) || (*strSorted)[index]!=s {
+		*strSorted = append((*strSorted)[:index], append([]string{s}, (*strSorted)[index:]...)...)
 	}
 }
 func (self SortedString)containString(s string) bool {
@@ -557,7 +557,6 @@ func (self *Client) UpdateTx(tx *types.Transfer) error {
 		}
 		return nil
 	}
-
 }
 
 func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
@@ -586,7 +585,7 @@ func (self *Client) InsertRechageAddress(address []string) {
 
 	for _, value := range address {
 		if !self.addresslist.containString(value) {
-			insertByOrder(self.addresslist, value)
+			insertByOrder(&self.addresslist, value)
 		}
 		l4g.Trace(value)
 	}
@@ -595,9 +594,8 @@ func (self *Client) InsertRechageAddress(address []string) {
 func (self *Client) Stop() {
 	self.ctx_canncel()
 	atomic.StoreUint64(&config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber, atomic.LoadUint64(&self.blockHeight))
-	// config.GetConfiger().Save()
+	config.GetConfiger().Save()
 	//close(self.rctChannel)
 	//close(self.pendingTxChannel)
-
 }
 

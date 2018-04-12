@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	configer Configer
-	fordebug = true
+	configer    Configer
+	DebugRuning = true
+	SaveConfiguarations = false
 )
 
 type ClientConfig struct {
@@ -50,6 +51,8 @@ func (self *ClientConfig) String() string {
 }
 
 func (self *Configer) Save() error {
+	if !SaveConfiguarations {return nil}
+
 	jsondata, _ := json.Marshal(configer)
 	err := ioutil.WriteFile(getConfigFilePath(), jsondata, os.ModePerm)
 	if err != nil {
@@ -98,9 +101,11 @@ func GetConfiger() (*Configer) {
 }
 
 func getConfigFilePath() string {
-	if fordebug {
+	if DebugRuning {
+		l4g.Trace("running as debug version!")
 		return "/Users/cengliang/code/wallet-service/src/blockchain_server/res/app_debug.config"
 	}
-	return utils.CurrentRuningFileDir() + "/../res/app.config"
+	l4g.Trace("running as release version!")
+	return utils.CurrentRuningFileDir() + "./../res/app.config"
 }
 
