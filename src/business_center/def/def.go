@@ -145,7 +145,7 @@ type TransactionBlockin struct {
 	AssetID       int                 `json:"asset_id"`
 	Hash          string              `json:"hash"`
 	AssetName     string              `json:"asset_name"`
-	BlockinHeight int64               `json:"blockin_height"`
+	BlockinHeight uint64              `json:"blockin_height"`
 	BlockinTime   int64               `json:"blockin_time"`
 	OrderID       string              `json:"order_id"`
 	Detail        []TransactionDetail `json:"detail"`
@@ -162,7 +162,7 @@ type TransactionStatus struct {
 	Hash          string `json:"hash"`
 	AssetName     string `json:"asset_name"`
 	Status        int    `json:"status"`
-	ConfirmHeight int64  `json:"confirm_height"`
+	ConfirmHeight uint64 `json:"confirm_height"`
 	ConfirmTime   int64  `json:"confirm_time"`
 	UpdateTime    int64  `json:"update_time"`
 }
