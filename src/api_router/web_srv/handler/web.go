@@ -13,8 +13,6 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"fmt"
 	"../../account_srv/user"
-	"crypto/md5"
-	"encoding/base64"
 )
 
 var G_henly_prikey []byte
@@ -43,7 +41,7 @@ func loadRsaKeys() error {
 		return err
 	}
 
-	G_henly_licensekey = "719101fe-93a0-44e5-909b-84a6e7fcb132"
+	G_henly_licensekey = "524faf3a-b6a0-42ce-9c49-9c07b66aa835"
 
 	return nil
 }
@@ -92,7 +90,7 @@ func (self *Web) startHttpServer() error {
 	http.Handle("/getapi", http.HandlerFunc(self.handleGetApi))
 	http.Handle("/runapi", http.HandlerFunc(self.handleRunApi))
 
-
+	http.Handle("/doc/", http.FileServer(http.Dir("template")))
 	http.Handle("/css/", http.FileServer(http.Dir("template")))
 	http.Handle("/js/", http.FileServer(http.Dir("template")))
 
@@ -328,23 +326,18 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 	ures := data.UserResponseData{}
 
 	func(){
-		err := r.ParseForm()
+		message := ""
+		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			ures.Err = 1
-			ures.ErrMsg = "参数错误"
+			ures.Err = data.ErrDataCorrupted
+			ures.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
+		message = string(bb)
+		fmt.Println("argv=", message)
 
 		ul := user.ReqUserLogin{}
-		ul.UserName  = r.FormValue("name")
-		ul.Password = r.FormValue("password")
-
-		// 密码md5
-		h := md5.New()
-		h.Write([]byte(ul.Password))
-		pw := h.Sum(nil)
-		// 密码base64
-		ul.Password = base64.StdEncoding.EncodeToString(pw)
+		json.Unmarshal(bb, &ul)
 
 		if ul.UserName == "" || ul.Password == ""{
 			ures.Err = 1
@@ -354,12 +347,11 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 
 		var ureq data.UserRequestData
 
-		b, _ := json.Marshal(ul)
 		ureq.Method.Srv = "account"
 		ureq.Method.Version = "v1"
 		ureq.Method.Function = "login"
 		ureq.Argv.Message = G_henly_licensekey
-		ureq.Argv.Message = string(b)
+		ureq.Argv.Message = message
 
 		if err := this.srvNode.Dispatch(&ureq, &ures); err != nil || ures.Err != data.NoErr{
 			//decryptUserData(&ures, G_henly_prikey)

@@ -71,9 +71,9 @@ func LoadRsaKeys() error {
 		return err
 	}
 
-	G_admin_licensekey = "f3a608c1-b251-4494-a8c7-3c6d14b011f5"
+	G_admin_licensekey = "4a871a62-1924-4a1b-b63a-d244774747e1"
 
-	G_henly_licensekey = "719101fe-93a0-44e5-909b-84a6e7fcb132"
+	G_henly_licensekey = "524faf3a-b6a0-42ce-9c49-9c07b66aa835"
 
 	return nil
 }
@@ -83,7 +83,7 @@ const(
 	testVersion = "v1"
 	testSrv = "arith"
 	testFunction = "add"
-	dev = true
+	dev = false
 )
 
 func sendData2(addr, message, version, srv, function string) (*data.UserResponseData, []byte, error) {

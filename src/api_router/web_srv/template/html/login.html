@@ -11,10 +11,10 @@
         <form data-type="formAction" action="/dologin" form-rediret="/index">
             <table>
                 <tr>
-                <td>用户名</td><td><input type="text" name="name"></input></td>
+                <td>用户名</td><td><input id="name" type="text" name="name"></input></td>
                 </tr>
                 <tr>
-                <td>密码</td><td><input type="password" name="password"></input></td>
+                <td>密码</td><td><input id="password" type="password" name="password"></input></td>
                 </tr>
                 <tr>
                     <td><input type="submit" value="登陆" style="width:100px;height:25px"></input></td>
@@ -22,5 +22,7 @@
             </table>
         </form>
     </body>
+    <script type="text/javascript" src="/js/md5.min.js" ></script>
+    <script type="text/javascript" src="/js/base64js.min.js" ></script>
     <script type="text/javascript" src="/js/base.js" ></script>
 </html>

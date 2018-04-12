@@ -3,10 +3,9 @@ package install
 import (
 	"fmt"
 	"io/ioutil"
-	"crypto/md5"
-	"encoding/base64"
 	"../user"
 	"strconv"
+	"../../base/utils"
 )
 
 func AddUser() (*user.ReqUserCreate, error) {
@@ -56,12 +55,7 @@ func AddUser() (*user.ReqUserCreate, error) {
 		pw2 = ""
 	}
 
-	// 密码md5
-	h := md5.New()
-	h.Write([]byte(pw1))
-	pw := h.Sum(nil)
-	// 密码base64
-	uc.Password = base64.StdEncoding.EncodeToString(pw)
+	uc.Password = utils.GetMd5Text(pw1)
 
 	fmt.Println("输入国家: ")
 	fmt.Scanln(&input)
@@ -104,12 +98,7 @@ func LoginUser() (*user.ReqUserLogin, error) {
 	fmt.Scanln(&input)
 	pw1 := input
 
-	// 密码md5
-	h := md5.New()
-	h.Write([]byte(pw1))
-	pw := h.Sum(nil)
-	// 密码base64
-	uc.Password = base64.StdEncoding.EncodeToString(pw)
+	uc.Password = utils.GetMd5Text(pw1)
 
 	return uc, nil
 }
