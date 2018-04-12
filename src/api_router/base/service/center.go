@@ -22,17 +22,8 @@ type WsClient struct{
 }
 
 type ServiceCenter struct{
-	// name
-	name string
-
-	// http
-	httpPort string
-
-	// websocket
-	wsPort string
-
-	// center
-	centerPort string
+	// config
+	cfgCenter config.ConfigCenter
 
 	// srv nodes
 	rwmu                       sync.RWMutex
@@ -54,15 +45,8 @@ type ServiceCenter struct{
 
 // new a center
 func NewServiceCenter(confPath string) (*ServiceCenter, error){
-	cfgCenter := config.ConfigCenter{}
-	cfgCenter.Load(confPath)
-
 	serviceCenter := &ServiceCenter{}
-
-	serviceCenter.name = cfgCenter.CenterName
-	serviceCenter.httpPort = ":"+cfgCenter.Port
-	serviceCenter.wsPort = ":"+cfgCenter.WsPort
-	serviceCenter.centerPort = ":"+cfgCenter.CenterPort
+	serviceCenter.cfgCenter.Load(confPath)
 
 	serviceCenter.SrvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
 
@@ -204,13 +188,13 @@ func (mi *ServiceCenter) Push(req *data.UserResponseData, res *data.UserResponse
 // start http server
 func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
 	// http
-	l4g.Debug("Start http server on %s", mi.httpPort)
+	l4g.Debug("Start http server on %s", mi.cfgCenter.Port)
 
 	http.Handle("/wallet/", http.HandlerFunc(mi.handleWallet))
 
 	go func() {
 		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(mi.httpPort, nil)
+		err := http.ListenAndServe(":"+mi.cfgCenter.Port, nil)
 		if err != nil {
 			l4g.Crash("%s", err.Error())
 		}
@@ -220,13 +204,13 @@ func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
 // start websocket server
 func (mi *ServiceCenter) startWsServer(ctx context.Context) {
 	// websocket
-	l4g.Debug("Start ws server on %s", mi.wsPort)
+	l4g.Debug("Start ws server on %s", mi.cfgCenter.WsPort)
 
 	http.Handle("/ws", websocket.Handler(mi.handleWebSocket))
 
 	go func() {
 		l4g.Info("ws server routine running... ")
-		err := http.ListenAndServe(mi.wsPort, nil)
+		err := http.ListenAndServe(":"+mi.cfgCenter.WsPort, nil)
 		if err != nil {
 			l4g.Crash("%s", err.Error())
 		}
@@ -235,9 +219,9 @@ func (mi *ServiceCenter) startWsServer(ctx context.Context) {
 
 // start tcp server
 func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
-	l4g.Debug("Start Tcp server on ", mi.centerPort)
+	l4g.Debug("Start Tcp server on ", mi.cfgCenter.CenterPort)
 
-	listener, err := nethelper.CreateTcpServer(mi.centerPort)
+	listener, err := nethelper.CreateTcpServer(":"+mi.cfgCenter.CenterPort)
 	if err != nil {
 		l4g.Crash("%s", err.Error())
 	}
@@ -442,8 +426,11 @@ func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
 
 // http handler
 func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) {
-	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
+	l4g.Debug("Http server Accept a client: %s", req.RemoteAddr)
 	//defer req.Body.Close()
+
+	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
+	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
 
 	mi.wg.Add(1)
 	defer mi.wg.Done()

@@ -83,6 +83,7 @@ const(
 	testVersion = "v1"
 	testSrv = "arith"
 	testFunction = "add"
+	dev = true
 )
 
 func sendData2(addr, message, version, srv, function string) (*data.UserResponseData, []byte, error) {
@@ -90,40 +91,44 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 	var ud data.UserData
 	ud.LicenseKey = G_admin_licensekey
 
-	bencrypted, err := func() ([]byte, error) {
-		// 用我们的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey, utils.RsaEncodeLimit2048)
+	if dev == false{
+		bencrypted, err := func() ([]byte, error) {
+			// 用我们的pub加密message ->encrypteddata
+			bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey, utils.RsaEncodeLimit2048)
+			if err != nil {
+				return nil, err
+			}
+			return bencrypted, nil
+		}()
 		if err != nil {
-			return nil, err
-		}
-		return bencrypted, nil
-	}()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	ud.Message = base64.StdEncoding.EncodeToString(bencrypted)
-
-	bsignature, err := func() ([]byte, error){
-		// 用自己的pri签名encrypteddata ->signature
-		var hashData []byte
-		hs := sha512.New()
-		hs.Write(bencrypted)
-		hashData = hs.Sum(nil)
-
-		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, G_admin_prikey)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
+			return nil, nil, err
 		}
 
-		return bsignature, nil
-	}()
-	if err != nil {
-		return nil, nil, err
-	}
+		ud.Message = base64.StdEncoding.EncodeToString(bencrypted)
 
-	ud.Signature = base64.StdEncoding.EncodeToString(bsignature)
+		bsignature, err := func() ([]byte, error){
+			// 用自己的pri签名encrypteddata ->signature
+			var hashData []byte
+			hs := sha512.New()
+			hs.Write(bencrypted)
+			hashData = hs.Sum(nil)
+
+			bsignature, err := utils.RsaSign(crypto.SHA512, hashData, G_admin_prikey)
+			if err != nil {
+				fmt.Println(err)
+				return nil, err
+			}
+
+			return bsignature, nil
+		}()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		ud.Signature = base64.StdEncoding.EncodeToString(bsignature)
+	}else{
+		ud.Message = message
+	}
 
 	path := "/wallet"
 	path += "/"+version
@@ -138,7 +143,7 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 	body := string(b)
 
 	////////////////////////////////////////////
-	//fmt.Println("ok send msg:", body)
+	fmt.Println("ok send msg:", body)
 	ackData := &data.UserResponseData{}
 
 	var res string
@@ -155,32 +160,37 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
 	}
 
-	// base64 decode
-	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
-	if err != nil {
-		return ackData, nil, err
-	}
+	var d2 []byte
+	if dev == false {
+		// base64 decode
+		bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+		if err != nil {
+			return ackData, nil, err
+		}
 
-	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
-	if err != nil {
-		return ackData, nil, err
-	}
+		bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+		if err != nil {
+			return ackData, nil, err
+		}
 
-	// 验证签名
-	var hashData []byte
-	hs := sha512.New()
-	hs.Write([]byte(bencrypted2))
-	hashData = hs.Sum(nil)
+		// 验证签名
+		var hashData []byte
+		hs := sha512.New()
+		hs.Write([]byte(bencrypted2))
+		hashData = hs.Sum(nil)
 
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
-	if err != nil {
-		return ackData, nil, err
-	}
+		err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
+		if err != nil {
+			return ackData, nil, err
+		}
 
-	// 解密数据
-	d2, err := utils.RsaDecrypt(bencrypted2, G_admin_prikey, utils.RsaDecodeLimit2048)
-	if err != nil {
-		return ackData, nil, err
+		// 解密数据
+		d2, err = utils.RsaDecrypt(bencrypted2, G_admin_prikey, utils.RsaDecodeLimit2048)
+		if err != nil {
+			return ackData, nil, err
+		}
+	}else{
+		d2 = []byte(ackData.Value.Message)
 	}
 
 	return ackData, d2, nil
@@ -256,7 +266,10 @@ func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int
 }
 
 // http
-// curl -d '{"argv":"{\"a\":2, \"b\":1}"}' http://localhost:8080/wallet/v1/arith/add
+// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"a\":2, \"b\":1}"}' http://localhost:8080/wallet/v1/arith/add
+// curl -d '{"a":2, "b":1}' http://localhost:8077/wallet/v1/arith/add
+// curl -d '{"user_name":"henly", "password":"123456"}' http://localhost:8077/wallet/v1/account/login
+// curl -d '{"id":-1}' http://localhost:8077/wallet/v1/account/listusers
 func main() {
 	appDir, _:= utils.GetAppDir()
 	appDir += "/SuperWallet"

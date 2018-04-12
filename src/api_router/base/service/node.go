@@ -102,6 +102,9 @@ func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData)
 		res.Data.Err = data.ErrNotFindFunction
 		res.Data.ErrMsg = data.ErrNotFindFunctionText
 	}
+	if res.Data.Err != data.NoErr {
+		l4g.Error("call failed: %s", res.Data.ErrMsg)
+	}
 	return nil
 }
 

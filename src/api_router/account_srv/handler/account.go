@@ -192,6 +192,7 @@ func (s *Account) Login(req *data.SrvRequestData, res *data.SrvResponseData) {
 	if err != nil {
 		res.Data.Err = data.ErrAccountSrvLogin
 		res.Data.ErrMsg = data.ErrAccountSrvLoginText
+		l4g.Error("%s", err.Error())
 	}
 }
 

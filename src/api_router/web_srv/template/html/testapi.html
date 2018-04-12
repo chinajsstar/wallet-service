@@ -1,0 +1,26 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>测试API页面</title>
+        <link rel="stylesheet" type="text/css" href="/css/main.css" />
+        <script type="text/javascript" src="/js/jquery.js" ></script>
+    </head>
+    <body>
+        <h1>测试API</h1>
+        <form data-type="testApiAction" action="/dotestapi">
+                <p>接口：</p><input id="method" style="width:100%" type="text" name="method"></input><br/>
+                <p>参数：</p><input id="argv" style="width:100%" type="text" name="argv"></input><br/>
+                <input type="submit" value="运行" style="width:100px;height:25px"></input>
+        </form>
+        <div>
+            <p>错误码: </p>
+            <p id="err"></p>
+            <p>错误信息: </p>
+            <p id="errmsg"></p>
+            <p>结果：</p>
+            <p id="message"></p>
+        </div> 
+    </body>
+    <script type="text/javascript" src="/js/base.js" ></script>
+</html>

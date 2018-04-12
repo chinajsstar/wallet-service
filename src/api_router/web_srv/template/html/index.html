@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>wallet user</title>
+        <link rel="stylesheet" type="text/css" href="/css/main.css" />
+        <script type="text/javascript" src="/js/jquery.js" ></script>
+    </head>
+    <body>
+        <div class="head">
+            <div><h1>登陆成功</h1></div>
+            <div>欢迎登陆，用户名：{{.UserName}} | 
+                <a id="logout2" href="#" onclick="delCookie2('name')">退出系统</a> | 
+                <a href="#" onclick="runDemo('/listsrv')">服务列表</a> | 
+                <a href="#" onclick="runDemo('/testapi')">测试API</a>
+            </div>
+        </div>
+        <script>
+            function runDemo(url)
+            {
+                window.location.href = url;
+            }
+            function getCookie2(name) 
+            { 
+                var arr,reg=new RegExp("(^| )"+name+"=([^;]*)(;|$)");
+            
+                if(arr=document.cookie.match(reg))
+                    return unescape(arr[2]); 
+                else 
+                    return null; 
+            } 
+            function delCookie2(name) 
+            { 
+                var exp = new Date(); 
+                exp.setTime(exp.getTime() - 1); 
+                var cval=getCookie2(name); 
+                if(cval!=null) 
+                    document.cookie= name + "="+cval+";expires="+exp.toGMTString(); 
+                
+                window.location.href = "/login";
+            }
+        </script>
+    </body>
+</html>
