@@ -50,5 +50,6 @@ func (cc *ConsulClient) Start() error {
 }
 
 func (cc *ConsulClient)Stop() error {
+	//cc.Agent().DisableServiceMaintenance(cc.Registration.ID)
 	return cc.Agent().ServiceDeregister(cc.Registration.ID)
 }

@@ -83,6 +83,12 @@ func main(){
 			if cc != nil{
 				cc.Start()
 				nodes = append(nodes, cc)
+
+				ss, err := cc.Agent().Services()
+				fmt.Println(err)
+				if err == nil {
+					fmt.Println(ss)
+				}
 			}
 		}else if argv[0] == "stop" {
 			for _, cc := range nodes  {
@@ -136,7 +142,7 @@ const (
 
 func testClient(name string)  {
 	c := clb.NewClb(consulHost, consulPort, clb.RoundRobin)
-	address, err := c.GetAddress(name + srvName)
+	address, err := c.GetAddress(name+srvName)
 	if err != nil {
 		log.Println(err)
 		return
