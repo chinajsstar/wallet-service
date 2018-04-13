@@ -11,7 +11,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 )
 
-const XxxxSrvConfig = "xxxx.json"
+const CobankSrvConfig = "cobank.json"
 
 func main() {
 	appDir, _:= utils.GetAppDir()
@@ -21,7 +21,7 @@ func main() {
 	defer l4g.Close()
 
 	// create service node
-	cfgPath := appDir + "/" + XxxxSrvConfig
+	cfgPath := appDir + "/" + CobankSrvConfig
 	fmt.Println("config path:", cfgPath)
 	nodeInstance, err:= service.NewServiceNode(cfgPath)
 	if nodeInstance == nil || err != nil{
@@ -31,12 +31,12 @@ func main() {
 	rpc.Register(nodeInstance)
 
 	// register apis
-	xxxx := handler.NewXxxx()
-	if err := xxxx.Init(); err != nil{
+	cobank := handler.NewCobank()
+	if err := cobank.Init(); err != nil{
 		l4g.Error("Init service node failed: %s", err.Error())
 		return
 	}
-	service.RegisterNodeApi(nodeInstance, xxxx)
+	service.RegisterNodeApi(nodeInstance, cobank)
 
 	// start ervice node
 	ctx, cancel := context.WithCancel(context.Background())

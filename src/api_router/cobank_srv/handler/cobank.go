@@ -7,21 +7,21 @@ import (
 	l4g "github.com/alecthomas/log4go"
 )
 
-type Xxxx struct{
+type Cobank struct{
 	business *business.Business
 }
 
-func NewXxxx() (*Xxxx) {
-	x := &Xxxx{}
+func NewCobank() (*Cobank) {
+	x := &Cobank{}
 	x.business = &business.Business{}
 	return x
 }
 
-func (x *Xxxx)Init() error {
+func (x *Cobank)Init() error {
 	return x.business.InitAndStart()
 }
 
-func (x *Xxxx)GetApiGroup()(map[string]service.NodeApi){
+func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	apiInfo := data.ApiInfo{Name:"new_address", Level:data.APILevel_client}
@@ -31,7 +31,7 @@ func (x *Xxxx)GetApiGroup()(map[string]service.NodeApi){
 	return nam
 }
 
-func (x *Xxxx)NewAddress(req *data.SrvRequestData, res *data.SrvResponseData){
+func (x *Cobank)NewAddress(req *data.SrvRequestData, res *data.SrvResponseData){
 	res.Data.Err = data.NoErr
 
 	l4g.Debug("message: %s", req.Data.Argv.Message)
