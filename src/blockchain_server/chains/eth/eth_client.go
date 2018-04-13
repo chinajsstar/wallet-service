@@ -11,7 +11,6 @@ import (
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
-	"sort"
 	"github.com/ethereum/go-ethereum"
 	"sync"
 	"sync/atomic"
@@ -20,6 +19,7 @@ import (
 	"blockchain_server/chains/eth/token"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"blockchain_server/utils"
 )
 
 type Client struct {
@@ -27,7 +27,7 @@ type Client struct {
 	ctx_canncel		 context.CancelFunc
 
 	c                *ethclient.Client
-	addresslist      SortedString		// 监控地址列表
+	addresslist      *utils.FoldedStrings// 监控地址列表
 	blockHeight      uint64				// 当前区块高度
 	scanblock        uint64             // 起始扫描高度
 
@@ -44,26 +44,6 @@ type Client struct {
 	erc20ABI		abi.ABI
 }
 
-type SortedString []string
-
-func insertByOrder(strSorted *SortedString, s string) {
-	if !sort.StringsAreSorted(*strSorted) {
-		sort.Strings(*strSorted)
-	}
-	s = strings.ToLower(s)
-	index := sort.SearchStrings(*strSorted, s)
-
-	if index>=len(*strSorted) || (*strSorted)[index]!=s {
-		*strSorted = append((*strSorted)[:index], append([]string{s}, (*strSorted)[index:]...)...)
-	}
-}
-func (self SortedString)containString(s string) bool {
-	s = strings.ToLower(s)
-	if index:=sort.SearchStrings(self, s); index>=0 && index<len(self) && self[index]==s {
-		return true
-	}
-	return false
-}
 
 func (self *Client)lock() {
 	self.address_locker.Lock()
@@ -89,7 +69,7 @@ func  (self *Client) init() {
 	// self.ctx must 
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
 
-	self.addresslist = make([]string, 0, 512)
+	self.addresslist = new(utils.FoldedStrings)
 	atomic.StoreUint64(&self.blockHeight, self.getBlockHeight())
 
 	configer := config.GetConfiger().Clientconfig[types.Chain_eth]
@@ -381,7 +361,7 @@ func (self *Client) beginScanBlock() error {
 
 			// following express to make sure blockchain are not forked
 			// height <= (self.scanblock-self.confirm_count)
-			if nil==self.addresslist || len(self.addresslist)==0 ||
+			if nil==self.addresslist || len(*self.addresslist)==0 ||
 				//height <= self.scanblock - uint64(self.confirm_count) ||
 				height <= self.scanblock ||
 				self.rctChannel == nil {
@@ -414,8 +394,8 @@ func (self *Client) beginScanBlock() error {
 					reciver = *to
 				}
 
-				if  self.hasAddress(strings.ToLower(reciver.String())) ||
-					self.hasAddress(strings.ToLower(tx.From())) {
+				if  self.hasAddress(reciver.String()) ||
+					self.hasAddress(tx.From()) {
 
 					tmp_tx := self.toTx(tx)
 					// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
@@ -443,7 +423,7 @@ func (self *Client) beginScanBlock() error {
 func (self *Client) hasAddress(address string) bool {
 	self.lock()
 	defer self.unlock()
-	return self.addresslist.containString(address)
+	return self.addresslist.Contains(address)
 }
 
 func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
@@ -516,10 +496,10 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 		// 如果确定为合约地址, 需要把destTx.to设置为接收代币的地址, 并为其设置token成员
 		to_string := strings.ToLower(to.String())
 		if tk := self.tokens[to_string]; tk!=nil {
-			destTx.To = fmt.Sprintf("0x%x", srcTx.Data()[16:36])
+			destTx.To = common.BytesToAddress(srcTx.Data()[16:36]).String()
 			destTx.Token = tk
 		}else {// or just set destTx.To with to.String()
-			destTx.To = strings.ToLower(to.String())
+			destTx.To = to.String()
 		}
 	}
 
@@ -566,26 +546,25 @@ func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
 	return tmpTx
 }
 
-func (self *Client) InsertRechageAddress(address []string) {
+func (self *Client) InsertRechargeAddress(address []string) {
 	self.lock()
 	defer self.unlock()
 
 	if self.addresslist ==nil {
-		self.addresslist = make([]string, 0, 512)
+		self.addresslist = new(utils.FoldedStrings)// utils.FoldedStrings(make(string[], 0, 512))
 	}
 
-	if len(self.addresslist)==0 {
+	if self.addresslist.Len()==0 {
 		for _, value := range address {
-			value = strings.ToLower(value)
-			self.addresslist = append(self.addresslist, value)
+			self.addresslist.Insert(value)
 		}
-		sort.Strings(self.addresslist)
+		self.addresslist.Sort()
 		return
 	}
 
 	for _, value := range address {
-		if !self.addresslist.containString(value) {
-			insertByOrder(&self.addresslist, value)
+		if !self.addresslist.Contains(value) {
+			self.addresslist.Insert(value)
 		}
 		l4g.Trace(value)
 	}

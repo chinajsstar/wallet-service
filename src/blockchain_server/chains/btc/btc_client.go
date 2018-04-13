@@ -15,6 +15,7 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcd/btcec"
 	"errors"
+	l4g "github.com/alecthomas/log4go"
 )
 
 type BTCClient struct{
@@ -88,7 +89,7 @@ func (c *BTCClient) Stop() {
 	if c.stopped == false{
 		c.Client.Shutdown()
 
-		fmt.Println("stop...")
+		l4g.Trace("stop...")
 		close(c.blockNotification)
 		close(c.walletNotification)
 
@@ -111,7 +112,7 @@ func (c *BTCClient) NewAccount()(*types.Account, error) {
 	//// Generate a random seed at the recommended length.
 	//seed, err := hdkeychain.GenerateSeed(hdkeychain.RecommendedSeedLen)
 	//if err != nil {
-	//	fmt.Println(err)
+	//	l4g.Trace(err)
 	//	return nil, err
 	//}
 	//
@@ -121,24 +122,24 @@ func (c *BTCClient) NewAccount()(*types.Account, error) {
 	//// Generate a new master node using the seed.
 	//key, err := hdkeychain.NewMaster(seed, netParams)
 	//if err != nil {
-	//	fmt.Println(err)
+	//	l4g.Trace(err)
 	//	return nil, err
 	//}
 
 	curve := btcec.S256()
 	priv, err := btcec.NewPrivateKey(curve)
 	if err != nil {
-		fmt.Println("%s: error:", err)
+		l4g.Trace("%s: error:", err)
 		return nil, err
 	}
 	if !curve.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
-		fmt.Println("%s: public key invalid")
+		l4g.Trace("%s: public key invalid")
 		return nil, errors.New("public key is invaild")
 	}
 
 	//priv, err := key.ECPrivKey()
 	if err != nil {
-		fmt.Println("err:", err)
+		l4g.Trace("err:", err)
 		return nil, err
 	}
 
@@ -168,7 +169,7 @@ func (c *BTCClient) handler(ctx context.Context) {
 	}
 
 	//bs := &waddrmgr.BlockStamp{Hash: *hash, Height: height}
-	fmt.Println("first height=", height)
+	l4g.Trace("first height=", height)
 
 out:
 	for {
@@ -185,7 +186,7 @@ out:
 					return
 				}
 
-				fmt.Println("new block, hash = ", blockHash)
+				l4g.Trace("new block, hash = ", blockHash)
 
 				// Get the current block count.
 				blockCount, err := c.GetBlockCount()
@@ -197,13 +198,13 @@ out:
 				// Get block by hash
 				hs, err := chainhash.NewHashFromStr(blockHash)
 				if err != nil {
-					fmt.Println("err:", err)
+					l4g.Trace("err:", err)
 					return
 				}
 				mb, err := c.GetBlock(hs)
 				b, err := json.Marshal(mb)
 
-				fmt.Println("block info:", string(b))
+				l4g.Trace("block info:", string(b))
 				return
 			}(n)
 
@@ -219,26 +220,26 @@ out:
 					return
 				}
 
-				fmt.Println("new txid, hash = ", txHash)
+				l4g.Trace("new txid, hash = ", txHash)
 
 				// Get ...
 				hs, err := chainhash.NewHashFromStr(txHash)
 				if err != nil {
-					fmt.Println("err:", err)
+					l4g.Trace("err:", err)
 					return
 				}
 				tx, err := c.GetRawTransaction(hs)
 
 				b, err := json.Marshal(tx)
 
-				fmt.Println("tx info:", string(b))
+				l4g.Trace("tx info:", string(b))
 				return
 			}(n)
 
 		//case c.currentBlock <- bs:
-		//	fmt.Println("new bs: ", c.currentBlock)
+		//	l4g.Trace("new bs: ", c.currentBlock)
 		case <-ctx.Done():
-			fmt.Println("ctx done...")
+			l4g.Trace("ctx done...")
 			break out
 		}
 	}
@@ -260,7 +261,7 @@ func (c *BTCClient)startHttpServer(ctx context.Context, addr string) error {
 		log.Println("Http server routine running... ")
 		err := http.ListenAndServe(addr, nil)
 		if err != nil {
-			fmt.Println("#Error:", err)
+			l4g.Trace("#Error:", err)
 			return
 		}
 	}()
@@ -272,7 +273,7 @@ func (c *BTCClient)startHttpServer(ctx context.Context, addr string) error {
 func (c *BTCClient)handleWalletNotify(w http.ResponseWriter, req *http.Request) {
 	vv := req.URL.Query();
 	data := vv.Get("data")
-	fmt.Println("txid=", data)
+	l4g.Trace("txid=", data)
 
 	c.walletNotification <- data
 }
@@ -281,7 +282,7 @@ func (c *BTCClient)handleWalletNotify(w http.ResponseWriter, req *http.Request) 
 func (c *BTCClient)handleBlockNotify(w http.ResponseWriter, req *http.Request) {
 	vv := req.URL.Query();
 	data := vv.Get("data")
-	fmt.Println("blockhash=", data)
+	l4g.Trace("blockhash=", data)
 
 	c.blockNotification <- data
 }
@@ -291,5 +292,5 @@ func (c *BTCClient)handleAlertNotify(w http.ResponseWriter, req *http.Request) {
 	vv := req.URL.Query();
 
 	data := vv.Get("data")
-	fmt.Println("alert=", data)
+	l4g.Trace("alert=", data)
 }

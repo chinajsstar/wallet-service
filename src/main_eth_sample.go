@@ -33,7 +33,7 @@ func main() {
 	defer cancel()
 
 	/*********批量创建账号示例*********/
-	if false {
+	if true {
 		accCmd := service.NewAccountCmd("message id", types.Chain_eth, 10)
 		var accs []*types.Account
 		accs, err = clientManager.NewAccounts(accCmd)
