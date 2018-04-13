@@ -400,11 +400,15 @@ func (self *Web) handleTestApi(w http.ResponseWriter, req *http.Request) {
 func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	//defer req.Body.Close()
-	cookie, err := req.Cookie("name")
-	if err != nil || cookie.Value == ""{
-		//http.Redirect(w, req, "/login", http.StatusFound)
-		//return
-	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
+	w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
+
+	//cookie, err := req.Cookie("name")
+	//if err != nil || cookie.Value == ""{
+	//	http.Redirect(w, req, "/login", http.StatusFound)
+	//	return
+	//}
 
 	var ures data.UserResponseData
 	func(){
