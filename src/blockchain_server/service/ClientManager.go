@@ -174,19 +174,13 @@ func (self *ClientManager) SubscribeTxRecharge(txRechageChannel types.RechargeTx
 	return subscribe
 }
 
-//func (slef *ClientManager) SubscribeRechargeTx(rctChannel types.RechargeTxChannel) *event.Subscription {
-//	for _, instance := range slef.clients {
-//		instance.SubscribeRechargeTx(rctChannel)
-//	}
-//}
-
 func (self *ClientManager) innerInsertRechargeAddress(coin string, addresses []string,
 	) (error) {
 	client := self.clients[coin]
 	if nil==client {
 		return fmt.Errorf("coin not supported:%s", coin)
 	}
-	client.InsertRechageAddress(addresses)
+	client.InsertRechargeAddress(addresses)
 	return nil
 }
 
