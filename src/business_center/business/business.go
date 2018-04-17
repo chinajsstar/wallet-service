@@ -1,13 +1,13 @@
 package business
 
 import (
+	"api_router/base/data"
 	"blockchain_server/chains/eth"
 	"blockchain_server/service"
 	"blockchain_server/types"
 	"business_center/address"
-	"business_center/def"
+	. "business_center/def"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -23,7 +23,7 @@ type Business struct {
 	address *address.Address
 }
 
-func (b *Business) InitAndStart() error {
+func (b *Business) InitAndStart(callback *PushMsgCallback) error {
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 	b.wallet = service.NewClientManager()
 	b.address = &address.Address{}
@@ -36,7 +36,7 @@ func (b *Business) InitAndStart() error {
 	}
 	b.wallet.AddClient(client)
 
-	b.address.Run(b.ctx, b.wallet)
+	b.address.Run(b.ctx, b.wallet, callback)
 	b.wallet.Start()
 
 	return nil
@@ -47,22 +47,15 @@ func (b *Business) Stop() {
 	b.address.Stop()
 }
 
-func (b *Business) HandleMsg(args string, reply *string) error {
-	var head def.ReqHead
-	err := json.Unmarshal([]byte(args), &head)
-	if err != nil {
-		fmt.Printf("HandleMsg Unmarshal Error: %s/n", err.Error())
-		return err
-	}
-
-	switch head.Method {
+func (b *Business) HandleMsg(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	switch req.Data.Method.Function {
 	case "new_address":
 		{
-			return b.address.AllocationAddress(args, reply)
+			return b.address.NewAddress(req, res)
 		}
 	case "withdrawal":
 		{
-			return b.address.Withdrawal(args, reply)
+			return b.address.Withdrawal(req, res)
 		}
 	}
 	return errors.New("invalid command")
