@@ -35,14 +35,15 @@ type ReqWithdrawal struct {
 		Symbol        string  `json:"symbol"`
 		Amount        float64 `json:"amount"`
 		ToAddress     string  `json:"to_address"`
-		UserTimestamp string  `json:"user_timestamp"`
+		UserTimestamp int64   `json:"user_timestamp"`
 	} `json:"params"`
 }
 
 type RspWithdrawal struct {
 	Result struct {
+		OrderID     string `json:"order_id"`
 		UserOrderID string `json:"user_order_id"`
-		Timestamp   string `json:"timestamp"`
+		Timestamp   int64  `json:"timestamp"`
 	} `json:"result"`
 	Status struct {
 		Code int    `json:"code"`
@@ -128,33 +129,33 @@ type AssetProperty struct {
 }
 
 type UserAddress struct {
-	UserID          string  `json:"user_id"`
-	UserClass       int     `json:"user_class"`
-	AssetID         int     `json:"asset_id"`
-	AssetName       string  `json:"asset_name"`
-	Address         string  `json:"address"`
-	PrivateKey      string  `json:"private_key"`
-	AvailableAmount float64 `json:"available_amount"`
-	FrozenAmount    float64 `json:"frozen_amount"`
-	Enabled         int     `json:"enabled"`
-	CreateTime      int64   `json:"create_time"`
-	UpdateTime      int64   `json:"update_time"`
+	UserID          string `json:"user_id"`
+	UserClass       int    `json:"user_class"`
+	AssetID         int    `json:"asset_id"`
+	AssetName       string `json:"asset_name"`
+	Address         string `json:"address"`
+	PrivateKey      string `json:"private_key"`
+	AvailableAmount int64  `json:"available_amount"`
+	FrozenAmount    int64  `json:"frozen_amount"`
+	Enabled         int    `json:"enabled"`
+	CreateTime      int64  `json:"create_time"`
+	UpdateTime      int64  `json:"update_time"`
 }
 
 type TransactionBlockin struct {
 	AssetID       int                 `json:"asset_id"`
 	Hash          string              `json:"hash"`
 	AssetName     string              `json:"asset_name"`
-	BlockinHeight uint64              `json:"blockin_height"`
+	BlockinHeight int64               `json:"blockin_height"`
 	BlockinTime   int64               `json:"blockin_time"`
 	OrderID       string              `json:"order_id"`
 	Detail        []TransactionDetail `json:"detail"`
 }
 
 type TransactionDetail struct {
-	Address   string  `json:"address"`
-	TransType string  `json:"trans_type"`
-	Amount    float64 `json:"amount"`
+	Address   string `json:"address"`
+	TransType string `json:"trans_type"`
+	Amount    int64  `json:"amount"`
 }
 
 type TransactionStatus struct {
@@ -162,7 +163,8 @@ type TransactionStatus struct {
 	Hash          string `json:"hash"`
 	AssetName     string `json:"asset_name"`
 	Status        int    `json:"status"`
-	ConfirmHeight uint64 `json:"confirm_height"`
+	ConfirmHeight int64  `json:"confirm_height"`
 	ConfirmTime   int64  `json:"confirm_time"`
 	UpdateTime    int64  `json:"update_time"`
+	OrderID       string `json:"order_id"`
 }
