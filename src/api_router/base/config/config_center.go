@@ -1,8 +1,6 @@
 package config
 
 import (
-	"io/ioutil"
-	"encoding/json"
 	l4g "github.com/alecthomas/log4go"
 )
 
@@ -16,15 +14,20 @@ type ConfigCenter struct{
 
 // load center config from absolution path
 func (cc *ConfigCenter)Load(absPath string) {
-	var err error
-	var data []byte
-	data, err = ioutil.ReadFile(absPath)
+	err := LoadJsonNode(absPath, "center", cc)
 	if err != nil {
 		l4g.Crashf("", err)
 	}
 
-	err = json.Unmarshal(data, cc)
-	if err != nil {
-		l4g.Crashf("", err)
-	}
+	//var err error
+	//var data []byte
+	//data, err = ioutil.ReadFile(absPath)
+	//if err != nil {
+	//	l4g.Crashf("", err)
+	//}
+	//
+	//err = json.Unmarshal(data, cc)
+	//if err != nil {
+	//	l4g.Crashf("", err)
+	//}
 }

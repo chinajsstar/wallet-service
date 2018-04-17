@@ -7,6 +7,7 @@ import (
 	"encoding/json" // for json get
 	"sync/atomic"
 	"net/rpc"
+	"net/http"
 	"log"
 	"time"
 	"io/ioutil"
@@ -307,6 +308,8 @@ func main() {
 		l4g.Error("Login err: %s", err.Error())
 	}
 
+	startHttpServer("7777")
+
 	// 测试次数
 	var runcounts = 100
 	var count, right int64
@@ -542,4 +545,74 @@ func main() {
 			fmt.Println("new address ack: ", uca)
 		}
 	}
+}
+
+// http handler
+func handleCheck(w http.ResponseWriter, req *http.Request) {
+	b, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+	fmt.Println(string(b))
+
+	ackData := data.UserResponseData{}
+	err = json.Unmarshal(b, &ackData.Value)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	// 解密数据
+	d2, err := utils.RsaDecrypt(bencrypted2, G_admin_prikey, utils.RsaDecodeLimit2048)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	fmt.Println(string(d2))
+	return
+}
+// start http server
+func startHttpServer(port string) error {
+	// http
+	log.Println("Start http server on ", port)
+
+	http.Handle("/wallet", http.HandlerFunc(handleCheck))
+
+	go func() {
+		log.Println("Http server routine running... ")
+		err := http.ListenAndServe(":"+port, nil)
+		if err != nil {
+			fmt.Println("#Error:", err)
+			return
+		}
+	}()
+
+	return nil
 }

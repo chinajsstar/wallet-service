@@ -1,6 +1,9 @@
 {
-	"srv_name":"cobank",
-    "srv_version":"v1",
-	"srv_addr":"127.0.0.1:8055",
-	"center_addr":"127.0.0.1:8081"
+	"node":
+	{
+		"srv_name": "cobank",
+		"srv_version": "v1",
+		"srv_addr": "127.0.0.1:8055",
+		"center_addr": "127.0.0.1:8081"
+	}
 }

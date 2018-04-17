@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 	l4g "github.com/alecthomas/log4go"
+	"../auth_srv/db"
 )
 
 const AuthSrvConfig = "auth.json"
@@ -20,11 +21,13 @@ func main() {
 	l4g.LoadConfiguration(appDir + "/log.xml")
 	defer l4g.Close()
 
+	cfgPath := appDir + "/" + AuthSrvConfig
+	db.Init(cfgPath)
+
 	accountDir := appDir + "/account"
 	handler.AuthInstance().Init(accountDir)
 
 	// create service node
-	cfgPath := appDir + "/" + AuthSrvConfig
 	fmt.Println("config path:", cfgPath)
 	nodeInstance, err := service.NewServiceNode(cfgPath)
 	if nodeInstance == nil || err != nil{

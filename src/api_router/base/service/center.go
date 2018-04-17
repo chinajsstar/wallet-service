@@ -62,7 +62,7 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 func StartCenter(ctx context.Context, mi *ServiceCenter) {
 	mi.startHttpServer(ctx)
 
-	mi.startWsServer(ctx)
+	//mi.startWsServer(ctx)
 
 	mi.startTcpServer(ctx)
 }
@@ -343,17 +343,26 @@ func (mi *ServiceCenter) pushCall(req *data.UserRequestData, res *data.UserRespo
 		return
 	}
 
+	// push encode and sign data
+	var reqPush data.SrvRequestData
+	reqPush.Data.Method = req.Method
+	reqPush.Data.Argv = reqEncryptedRes.Data.Value
+	var reqPushRes data.SrvResponseData
+
+	mi.callFunction(&reqPush, &reqPushRes)
+	*res = reqPushRes.Data
+
 	// push data to user
-	userPushData := data.UserResponseData{}
-	userPushData.Method = req.Method
-	userPushData.Value = reqEncryptedRes.Data.Value
-	err := mi.pushWsData(&userPushData)
-	if err != nil {
-		res.Err = data.ErrPushDataFailed
-		res.ErrMsg = data.ErrPushDataFailedText
-	}else{
-		res.Err = data.NoErr
-	}
+	//userPushData := data.UserResponseData{}
+	//userPushData.Method = req.Method
+	//userPushData.Value = reqEncryptedRes.Data.Value
+	//err := mi.pushWsData(&userPushData)
+	//if err != nil {
+	//	res.Err = data.ErrPushDataFailed
+	//	res.ErrMsg = data.ErrPushDataFailedText
+	//}else{
+	//	res.Err = data.NoErr
+	//}
 }
 
 // auth data

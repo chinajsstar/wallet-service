@@ -16,6 +16,7 @@ import (
 	"./user"
 	"os"
 	l4g "github.com/alecthomas/log4go"
+	"../account_srv/db"
 )
 
 const AccountSrvConfig = "account.json"
@@ -90,6 +91,9 @@ func main() {
 	l4g.LoadConfiguration(appDir + "/log.xml")
 	defer l4g.Close()
 
+	cfgPath := appDir + "/" + AccountSrvConfig
+	db.Init(cfgPath)
+
 	accountDir := appDir + "/account"
 	err := os.MkdirAll(accountDir, os.ModePerm)
 	if err!=nil && os.IsExist(err)==false {
@@ -107,7 +111,6 @@ func main() {
 	handler.AccountInstance().Init(accountDir)
 
 	// create service node
-	cfgPath := appDir + "/" + AccountSrvConfig
 	l4g.Info("config path: %s", cfgPath)
 	nodeInstance, err := service.NewServiceNode(cfgPath)
 	if nodeInstance == nil || err != nil{

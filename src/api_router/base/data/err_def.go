@@ -89,4 +89,11 @@ const(
 	// no permission api
 	ErrAuthSrvNoPermissionApi 		= 2002
 	ErrAuthSrvNoPermissionApiText 	= "no permission api"
+
+	// /////////////////////////////////////////////////////
+	// 3001-4000 push_srv errors
+	// /////////////////////////////////////////////////////
+	// illegal data
+	ErrPushSrvPushData 			= 3001
+	ErrPushSrvPushDataText 		= "push failed"
 )

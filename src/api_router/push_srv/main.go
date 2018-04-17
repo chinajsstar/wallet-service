@@ -9,9 +9,10 @@ import (
 	"context"
 	"time"
 	l4g "github.com/alecthomas/log4go"
+	"../push_srv/db"
 )
 
-const CobankSrvConfig = "cobank.json"
+const PushSrvConfig = "push.json"
 
 func main() {
 	appDir, _:= utils.GetAppDir()
@@ -20,10 +21,14 @@ func main() {
 	l4g.LoadConfiguration(appDir + "/log.xml")
 	defer l4g.Close()
 
+	cfgPath := appDir + "/" + PushSrvConfig
+	db.Init(cfgPath)
+
+	handler.PushInstance().Init()
+
 	// create service node
-	cfgPath := appDir + "/" + CobankSrvConfig
 	fmt.Println("config path:", cfgPath)
-	nodeInstance, err:= service.NewServiceNode(cfgPath)
+	nodeInstance, err := service.NewServiceNode(cfgPath)
 	if nodeInstance == nil || err != nil{
 		l4g.Error("Create service node failed: %s", err.Error())
 		return
@@ -31,14 +36,9 @@ func main() {
 	rpc.Register(nodeInstance)
 
 	// register apis
-	cobank := handler.NewCobank()
-	if err := cobank.Init(nodeInstance); err != nil{
-		l4g.Error("Init service node failed: %s", err.Error())
-		return
-	}
-	service.RegisterNodeApi(nodeInstance, cobank)
+	service.RegisterNodeApi(nodeInstance, handler.PushInstance())
 
-	// start ervice node
+	// start service node
 	ctx, cancel := context.WithCancel(context.Background())
 	service.StartNode(ctx, nodeInstance)
 
