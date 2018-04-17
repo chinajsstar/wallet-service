@@ -3,7 +3,7 @@ package main
 import (
 	"net/rpc"
 	"../base/service"
-	"../data"
+	"../base/data"
 	"./handler"
 	"fmt"
 	"context"

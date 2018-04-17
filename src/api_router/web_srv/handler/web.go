@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"../../data"
+	"../../base/data"
 	"../../base/service"
 	"encoding/json"
 	"net/http"

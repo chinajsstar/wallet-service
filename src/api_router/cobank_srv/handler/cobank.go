@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"../../data"
+	"../../base/data"
 	"../../base/service"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"

@@ -1,7 +1,7 @@
 package service
 
 import (
-	"../../data"
+	"../data"
 	"../nethelper"
 	"net/rpc"
 	"sync"

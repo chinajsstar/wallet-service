@@ -2,7 +2,7 @@ package handler
 
 import (
 	"../db"
-	"../../data"
+	"../../base/data"
 	"crypto/rand"
 	"io/ioutil"
 	"../user"

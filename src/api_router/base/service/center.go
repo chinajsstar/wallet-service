@@ -3,7 +3,7 @@ package service
 import (
 	"sync"
 	"net/rpc"
-	"../../data"
+	"../data"
 	"../nethelper"
 	"../config"
 	"encoding/json"
@@ -171,7 +171,7 @@ func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserRespo
 }
 
 // RPC -- push
-func (mi *ServiceCenter) Push(req *data.UserResponseData, res *data.UserResponseData) error {
+func (mi *ServiceCenter) Push(req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -332,11 +332,11 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 }
 
 // push call by srv node
-func (mi *ServiceCenter) pushCall(req *data.UserResponseData, res *data.UserResponseData) {
+func (mi *ServiceCenter) pushCall(req *data.UserRequestData, res *data.UserResponseData) {
 	// encode and sign data
 	var reqEncrypted data.SrvRequestData
 	reqEncrypted.Data.Method = req.Method
-	reqEncrypted.Data.Argv = req.Value
+	reqEncrypted.Data.Argv = req.Argv
 	var reqEncryptedRes data.SrvResponseData
 	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
 		*res = reqEncryptedRes.Data

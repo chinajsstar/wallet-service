@@ -4,7 +4,7 @@ import (
 	"net/rpc"
 	"../base/service"
 	"../base/utils"
-	"../data"
+	"../base/data"
 	"./handler"
 	"fmt"
 	"context"
@@ -19,12 +19,12 @@ func testPush(node *service.ServiceNode)  {
 	for i := 0; i < 50; i++ {
 		time.Sleep(time.Second*5)
 
-		pData := data.UserResponseData{}
+		pData := data.UserRequestData{}
 		pData.Method.Version = "v1"
 		pData.Method.Srv = "arith"
 		pData.Method.Function = "sub"
-		pData.Value.LicenseKey = "719101fe-93a0-44e5-909b-84a6e7fcb132"
-		pData.Value.Message = "abcd=" + strconv.Itoa(i)
+		pData.Argv.LicenseKey = "719101fe-93a0-44e5-909b-84a6e7fcb132"
+		pData.Argv.Message = "abcd=" + strconv.Itoa(i)
 
 		res := data.UserResponseData{}
 		node.Push(&pData, &res)

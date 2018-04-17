@@ -2,7 +2,7 @@ package service
 
 import (
 	"sync"
-	"../../data"
+	"../data"
 	"../nethelper"
 	"../config"
 	"context"
@@ -131,7 +131,7 @@ func (ni *ServiceNode) Dispatch(req *data.UserRequestData, res *data.UserRespons
 }
 
 // push a data to center
-func (ni *ServiceNode) Push(req *data.UserResponseData, res *data.UserResponseData) error {
+func (ni *ServiceNode) Push(req *data.UserRequestData, res *data.UserResponseData) error {
 	var err error
 	if ni.client != nil {
 		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterPush, req, res)

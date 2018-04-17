@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"../db"
 	"../../base/utils"
-	"../../data"
+	"../../base/data"
 	"../../base/service"
 	"crypto/sha512"
 	"crypto"
