@@ -26,7 +26,8 @@ func init() {
 }
 
 func QueryAllUserProperty() (map[string]*UserProperty, error) {
-	rows, err := db.Query("select user_id, user_name, user_class from user_property;")
+	rows, err := db.Query("select user_id, user_name, user_class" +
+		" from user_property;")
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,8 @@ func QueryAllUserProperty() (map[string]*UserProperty, error) {
 }
 
 func QueryAllAssetProperty() (map[string]*AssetProperty, error) {
-	rows, err := db.Query("select id, name, full_name, confirmation_num from asset_property;")
+	rows, err := db.Query("select id, name, full_name, confirmation_num" +
+		" from asset_property;")
 	if err != nil {
 		return nil, err
 	}
@@ -58,12 +60,12 @@ func QueryAllAssetProperty() (map[string]*AssetProperty, error) {
 }
 
 func QueryAllUserAddress() (map[string]*UserAddress, error) {
-	sql := "select a.user_id, b.user_class, a.asset_id, c.name as asset_name, a.address, a.private_key, "
-	sql += "a.available_amount, a.frozen_amount, a.enabled, a.create_time, a.update_time from user_address a "
-	sql += "left join user_property b on a.user_id = b.user_id "
-	sql += "left join asset_property c on a.asset_id = c.id;"
-
-	rows, err := db.Query(sql)
+	rows, err := db.Query("select a.user_id, b.user_class, a.asset_id, c.name as asset_name, a.address, a.private_key, " +
+		"a.available_amount, a.frozen_amount, a.enabled, " +
+		"unix_timestamp(a.create_time), unix_timestamp(a.update_time)" +
+		" from user_address a " +
+		"left join user_property b on a.user_id = b.user_id " +
+		"left join asset_property c on a.asset_id = c.id;")
 	if err != nil {
 		return nil, err
 	}
@@ -78,4 +80,16 @@ func QueryAllUserAddress() (map[string]*UserAddress, error) {
 	}
 
 	return mapUserAddress, nil
+}
+
+func QueryUserAccount(userID string, assetID string) *UserAccount {
+	row := db.QueryRow("select user_id, asset_id, available_amount, frozen_amount, "+
+		" unix_timestamp(create_time), unix_timestamp(update_time)"+
+		" from user_account where user_id = ? and asset_id = ?;", userID, assetID)
+	if row != nil {
+		ua := new(UserAccount)
+		row.Scan(&ua.UserID, &ua.AssetID, &ua.AvailableAmount, &ua.FrozenAmount, &ua.CreateTime, &ua.UpdateTime)
+		return ua
+	}
+	return nil
 }
