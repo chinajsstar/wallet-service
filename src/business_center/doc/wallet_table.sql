@@ -116,6 +116,19 @@ CREATE TABLE `user_address` (
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- ----------------------------
+-- Table structure for `user_address`
+-- ----------------------------
+DROP TABLE IF EXISTS `pay_address`;
+CREATE TABLE `pay_address` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `asset_id` int(11) NOT NULL,
+  `address` varchar(255) NOT NULL DEFAULT '',
+  `private_key` varchar(400) NOT NULL DEFAULT '',
+  PRIMARY KEY (`asset_id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 
 -- ----------------------------
 -- Table structure for `transaction_status`
@@ -140,12 +153,6 @@ CREATE TABLE `transaction_status` (
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-
-transaction_create
-transaction_result
-transaction_detail
-
-
 -- ----------------------------
 -- Table structure for `transaction_flow`
 -- ----------------------------
@@ -155,11 +162,11 @@ CREATE TABLE `transaction_flow` (
   `asset_id` varchar(255) NOT NULL,
   `hash` varchar(255) DEFAULT NULL,
   `address` varchar(255) NOT NULL,
-  `trans_type` varchar(255) NOT NULL, COMMENT 'to or from'
+  `trans_type` varchar(255) NOT NULL COMMENT 'to or from',
   `amount` double NOT NULL,
   `wallet_fee` double DEFAULT NULL COMMENT '手续费',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id_UNIQUE` (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
