@@ -196,7 +196,7 @@ func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
 		l4g.Info("Http server routine running... ")
 		err := http.ListenAndServe(":"+mi.cfgCenter.Port, nil)
 		if err != nil {
-			l4g.Crash("%s", err.Error())
+			l4g.Crashf("", err)
 		}
 	}()
 }
@@ -212,7 +212,7 @@ func (mi *ServiceCenter) startWsServer(ctx context.Context) {
 		l4g.Info("ws server routine running... ")
 		err := http.ListenAndServe(":"+mi.cfgCenter.WsPort, nil)
 		if err != nil {
-			l4g.Crash("%s", err.Error())
+			l4g.Crashf("", err)
 		}
 	}()
 }
@@ -223,7 +223,7 @@ func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
 
 	listener, err := nethelper.CreateTcpServer(":"+mi.cfgCenter.CenterPort)
 	if err != nil {
-		l4g.Crash("%s", err.Error())
+		l4g.Crashf("", err)
 	}
 	go func() {
 		mi.wg.Add(1)

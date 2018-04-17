@@ -33,18 +33,18 @@ func (auth * Auth)Init(dir string) {
 	var err error
 	auth.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
 	if err != nil {
-		l4g.Crash(err)
+		l4g.Crashf("", err)
 	}
 
 	auth.usersLicenseKey = make(map[string]*user.UserLevel)
 }
 
-func (auth * Auth)getUserLevel(licenseKey string) (*user.UserLevel, error)  {
+func (auth * Auth)getUserLevel(userId string) (*user.UserLevel, error)  {
 	ul := func() *user.UserLevel{
 		auth.rwmu.RLock()
 		defer auth.rwmu.RUnlock()
 
-		return auth.usersLicenseKey[licenseKey]
+		return auth.usersLicenseKey[userId]
 	}()
 	if ul != nil {
 		return ul,nil
@@ -54,11 +54,11 @@ func (auth * Auth)getUserLevel(licenseKey string) (*user.UserLevel, error)  {
 		auth.rwmu.Lock()
 		defer auth.rwmu.Unlock()
 
-		ul := auth.usersLicenseKey[licenseKey]
+		ul := auth.usersLicenseKey[userId]
 		if ul != nil {
 			return ul, nil
 		}
-		ul, err := db.ReadUserLevel(licenseKey)
+		ul, err := db.ReadUserLevel(userId)
 		if err != nil {
 			return nil, err
 		}

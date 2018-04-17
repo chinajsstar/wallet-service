@@ -54,7 +54,7 @@ func installWallet(dir string) error {
 	}
 
 	l4g.Info("2. Create wallet genesis admin...")
-	uc, err := install.AddUser()
+	uc, err := install.AddUser(true)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func main() {
 			cancel()
 			break;
 		}else if argv[0] == "createuser" {
-			uc, err := install.AddUser()
+			uc, err := install.AddUser(false)
 			if err != nil {
 				l4g.Error("createuser failed: %s",err.Error())
 				continue

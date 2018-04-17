@@ -105,7 +105,7 @@ func (self *Web) startHttpServer() error {
 		l4g.Info("Http server routine running... ")
 		err := http.ListenAndServe(":8077", nil)
 		if err != nil {
-			l4g.Crash("%s", err.Error())
+			l4g.Crashf("", err)
 			return
 		}
 	}()

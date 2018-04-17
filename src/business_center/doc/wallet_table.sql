@@ -30,10 +30,10 @@ CREATE TABLE `user_property` (
 -- ----------------------------
 -- Records of `user`
 -- ----------------------------
-INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('795b587d-2ee7-4979-832d-5d0ea64205d5', '超级钱包', 1, now(), now());
-INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('737205c4-af3c-426d-973d-165a0bf46c71', '商户1', 0, now(), now());
-INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('f223c88b-102a-485d-a5da-f96bb55f0bdf', '商户2', 0, now(), now());
-INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('3adda5a7-ab90-453d-a18a-dc608ac22553', '商户3', 0, now(), now());
+--INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('795b587d-2ee7-4979-832d-5d0ea64205d5', '超级钱包', 1, now(), now());
+--INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('737205c4-af3c-426d-973d-165a0bf46c71', '商户1', 0, now(), now());
+--INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('f223c88b-102a-485d-a5da-f96bb55f0bdf', '商户2', 0, now(), now());
+--INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('3adda5a7-ab90-453d-a18a-dc608ac22553', '商户3', 0, now(), now());
 
 -- ----------------------------
 -- Table structure for `user_account`
@@ -174,7 +174,7 @@ CREATE TABLE `transaction_flow` (
 -- Table structure for `withdrawal_order`
 -- ----------------------------
 DROP TABLE IF EXISTS `withdrawal_order`;
-CREATE TABLE `withdraw_order` (
+CREATE TABLE `withdrawl_order` (
   `id` int(11) NOT NULL AUTO_INCREMENT,  
   `order_id` varchar(255) NOT NULL DEFAULT '',
   `user_order_id` varchar(255) NOT NULL DEFAULT '',

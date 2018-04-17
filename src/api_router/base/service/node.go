@@ -144,12 +144,12 @@ func (ni *ServiceNode) Push(req *data.UserRequestData, res *data.UserResponseDat
 func (ni *ServiceNode) startTcpServer(ctx context.Context) {
 	s :=strings.Split(ni.registerData.Addr, ":")
 	if len(s) != 2{
-		l4g.Crash("#Error: Node addr is not ip:port format")
+		l4g.Crashf("#Error: Node addr is not ip:port format")
 	}
 
 	listener, err := nethelper.CreateTcpServer(":"+s[1])
 	if err != nil {
-		l4g.Crash("%s", err.Error())
+		l4g.Crashf("", err)
 	}
 
 	go func() {

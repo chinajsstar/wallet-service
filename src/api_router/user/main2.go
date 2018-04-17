@@ -6,8 +6,7 @@ import (
 	"strings"
 	"../base/utils"
 	"golang.org/x/net/websocket"
-	"../base/service"
-	"../data"
+	"../base/data"
 	"../account_srv/install"
 	"encoding/json"
 	"encoding/base64"
@@ -176,7 +175,6 @@ func StartWsClient2() *rpc2.Client {
 }
 */
 
-var wsServer = service.NewWsServer()
 func main() {
 	// Start a server and corresponding client.
 	////
@@ -193,7 +191,6 @@ func main() {
 		if argv[0]=="q"{
 			break
 		} else if argv[0] == "w" {
-			go wsServer.Start(":8040")
 		}else if argv[0] == "c" {
 			conn = StartWsClient()
 		}else if argv[0] == "s" {

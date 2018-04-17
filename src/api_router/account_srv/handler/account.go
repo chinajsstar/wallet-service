@@ -51,11 +51,11 @@ func (s *Account)Init(dir string) {
 	var err error
 	s.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
 	if err != nil {
-		l4g.Crash(err)
+		l4g.Crashf("", err)
 	}
 	s.serverPublicKey, err = ioutil.ReadFile(dir+"/public.pem")
 	if err != nil {
-		l4g.Crash(err)
+		l4g.Crashf("", err)
 	}
 }
 
@@ -110,22 +110,24 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 		if err != nil {
 			return err
 		}
-		licenseKey := u.String()
+		userId := u.String()
+		licenseKey := userId
 
 		// db
-		err = db.Create(&din, licenseKey, salt, pp)
+		err = db.Create(&din, userId, licenseKey, salt, pp)
 		if err != nil {
 			return err
 		}
 
 		// to ack
 		dout := user.AckUserCreate{}
+		dout.UserId = userId
 		dout.LicenseKey = licenseKey
 		dout.ServerPublicKey = string(s.serverPublicKey)
 
 		d, err := json.Marshal(dout)
 		if err != nil {
-			db.DeleteByLicenseKey(dout.LicenseKey)
+			db.Delete(userId)
 			return err
 		}
 
@@ -136,6 +138,8 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 	if err != nil {
 		res.Data.Err = data.ErrAccountSrvRegisterFailed
 		res.Data.ErrMsg = data.ErrAccountSrvRegisterFailedText
+
+		l4g.Error("account-create:", err)
 	}
 }
 
@@ -235,7 +239,7 @@ func (s * Account) UpdatePassword(req *data.SrvRequestData, res *data.SrvRespons
 		}
 		pp := base64.StdEncoding.EncodeToString(h)
 
-		if err := db.UpdatePassword(d.Id, newSalt, pp); err != nil {
+		if err := db.UpdatePassword(d.UserId, newSalt, pp); err != nil {
 			return err
 		}
 
@@ -244,7 +248,7 @@ func (s * Account) UpdatePassword(req *data.SrvRequestData, res *data.SrvRespons
 		data, err := json.Marshal(dout)
 		if err != nil {
 			// 写回去
-			db.UpdatePassword(d.Id, salt, hashed)
+			db.UpdatePassword(d.UserId, salt, hashed)
 			return err
 		}
 

@@ -20,11 +20,11 @@ func (cc *ConfigCenter)Load(absPath string) {
 	var data []byte
 	data, err = ioutil.ReadFile(absPath)
 	if err != nil {
-		l4g.Crash(err)
+		l4g.Crashf("", err)
 	}
 
 	err = json.Unmarshal(data, cc)
 	if err != nil {
-		l4g.Crash(err)
+		l4g.Crashf("", err)
 	}
 }

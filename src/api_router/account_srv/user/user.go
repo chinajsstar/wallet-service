@@ -1,43 +1,23 @@
 package user
 
-// 总结构数据
-type User struct{
-    Id 				int
-    UserName 		string
-    Phone 			string
-    Email 			string
-    Salt 			string
-    Password 		string
-    GoogleAuth 		string
-    LicenseKey      string
-    PublicKey 		string
-    Level 			int
-    IsFrozen 		rune
-    LastLoginTime 	int64
-    LastLoginIp 	string
-    LastLoginMac 	string
-    CreateTime 		int64
-    UpdateTime 		int64
-    TimeZone 		string
-    Country 		string
-    Language 		string
-}
-
 // 账号生成-输入
 type ReqUserCreate struct{
 	UserName 		string `json:"user_name"`
+	UserClass 		int `json:"user_class"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
 	Password 		string `json:"password"`
 	Level 			int `json:level`
 	GoogleAuth 		string `json:"google_auth"`
 	PublicKey 		string `json:"public_key"`
-	TimeZone 		string `json:"timezone"`
+	CallbackUrl 	string `json:"callback_url"`
+	TimeZone 		int `json:"timezone"`
 	Country 		string `json:"country"`
 	Language 		string `json:"language"`
 }
 // 账号生成-输出
 type AckUserCreate struct{
+	UserId 			string  `json:"user_id"`
 	LicenseKey      string  `json:"license_key"`
 	ServerPublicKey string  `json:"server_public_key"`
 }
@@ -51,16 +31,14 @@ type ReqUserLogin struct{
 }
 // 账号登入-输出
 type AckUserLogin struct{
-	Id 				int    `json:"id"`
+	UserId 			string `json:"user_id"`
 	UserName 		string `json:"user_name"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
-	LicenseKey      string `json:"license_key"`
 }
 
 // 修改密码-输入
 type ReqUserUpdatePassword struct{
-	Id 				int    `json:"id"`
 	UserName 		string `json:"user_name"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
@@ -75,10 +53,12 @@ type AckUserUpdatePassword struct{
 // 用户基本资料
 type UserProfile struct{
 	Id 				int    `json:"id"`
+	UserId 			string `json:"user_id"`
 	UserName 		string `json:"user_name"`
+	UserClass 		string `json:"user_class"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
-	LicenseKey      string `json:"license_key"`
+	// TODO: others info
 }
 
 // 权限信息
