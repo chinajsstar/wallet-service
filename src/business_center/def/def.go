@@ -1,54 +1,36 @@
 package def
 
+type PushMsgCallback func(userID string, callbackMsg string)
+
 type ReqHead struct {
 	UserID string `json:"user_id"`
 	Method string `json:"method"`
 }
 
 type ReqNewAddress struct {
-	UserID string `json:"user_id"`
-	Method string `json:"method"`
-	Params struct {
-		ID     string `json:"id"`
-		Symbol string `json:"symbol"`
-		Count  int    `json:"count"`
-	} `json:"params"`
+	ID     string `json:"id"`
+	Symbol string `json:"symbol"`
+	Count  int    `json:"count"`
 }
 
 type RspNewAddress struct {
-	Result struct {
-		ID      string   `json:"id"`
-		Symbol  string   `json:"symbol"`
-		Address []string `json:"address"`
-	} `json:"result"`
-	Status struct {
-		Code int    `json:"code"`
-		Msg  string `json:"msg"`
-	} `json:"status"`
+	ID      string   `json:"id"`
+	Symbol  string   `json:"symbol"`
+	Address []string `json:"address"`
 }
 
 type ReqWithdrawal struct {
-	UserID string `json:"user_id"`
-	Method string `json:"method"`
-	Params struct {
-		UserOrderID   string  `json:"user_order_id"`
-		Symbol        string  `json:"symbol"`
-		Amount        float64 `json:"amount"`
-		ToAddress     string  `json:"to_address"`
-		UserTimestamp int64   `json:"user_timestamp"`
-	} `json:"params"`
+	UserOrderID   string  `json:"user_order_id"`
+	Symbol        string  `json:"symbol"`
+	Amount        float64 `json:"amount"`
+	ToAddress     string  `json:"to_address"`
+	UserTimestamp int64   `json:"user_timestamp"`
 }
 
 type RspWithdrawal struct {
-	Result struct {
-		OrderID     string `json:"order_id"`
-		UserOrderID string `json:"user_order_id"`
-		Timestamp   int64  `json:"timestamp"`
-	} `json:"result"`
-	Status struct {
-		Code int    `json:"code"`
-		Msg  string `json:"msg"`
-	} `json:"status"`
+	OrderID     string `json:"order_id"`
+	UserOrderID string `json:"user_order_id"`
+	Timestamp   int64  `json:"timestamp"`
 }
 
 type UserAccount struct {

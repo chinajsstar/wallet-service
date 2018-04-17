@@ -1,6 +1,7 @@
 package address
 
 import (
+	"api_router/base/data"
 	"blockchain_server/service"
 	"blockchain_server/types"
 	"business_center/basicdata"
@@ -18,14 +19,16 @@ import (
 
 type Address struct {
 	wallet          *service.ClientManager
+	callback        *PushMsgCallback
 	rechargeChannel types.RechargeTxChannel
 	cmdTxChannel    types.CmdTxChannel
 	waitGroup       sync.WaitGroup
 	ctx             context.Context
 }
 
-func (a *Address) Run(ctx context.Context, wallet *service.ClientManager) {
+func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callback *PushMsgCallback) {
 	a.wallet = wallet
+	a.callback = callback
 	a.ctx = ctx
 
 	a.rechargeChannel = make(types.RechargeTxChannel)
@@ -48,34 +51,36 @@ func (a *Address) Stop() {
 	a.waitGroup.Wait()
 }
 
-func (a *Address) AllocationAddress(req string, ack *string) error {
+func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	var reqInfo ReqNewAddress
-	err := json.Unmarshal([]byte(req), &reqInfo)
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqInfo)
 	if err != nil {
-		fmt.Printf("AllocationAddress Unmarshal Error : %s/n", err.Error())
+		fmt.Printf("NewAddress Unmarshal Error : %s/n", err.Error())
 		return err
 	}
 
 	var rspInfo RspNewAddress
-	rspInfo.Result.ID = reqInfo.UserID
-	rspInfo.Result.Symbol = reqInfo.Params.Symbol
-	rspInfo.Status.Code = 0
-	rspInfo.Status.Msg = ""
+	rspInfo.ID = reqInfo.ID
+	rspInfo.Symbol = reqInfo.Symbol
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[reqInfo.UserID]
+	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.LicenseKey]
 	if !ok {
-		return errors.New("AllocationAddress mapUserProperty find Error")
+		res.Data.Err = -1
+		res.Data.ErrMsg = "NewAddress mapUserProperty find Error"
+		return errors.New(res.Data.ErrMsg)
 	}
 
-	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Params.Symbol]
+	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Symbol]
 	if !ok {
-		return errors.New("AllocationAddress mapAssetProperty find Error")
+		res.Data.Err = -1
+		res.Data.ErrMsg = "NewAddress mapAssetProperty find Error"
+		return errors.New(res.Data.ErrMsg)
 	}
 
 	userAddresses := a.generateAddress(userProperty.UserID, userProperty.UserClass, assetProperty.ID,
-		assetProperty.Name, reqInfo.Params.Count)
+		assetProperty.Name, reqInfo.Count)
 	if len(userAddresses) > 0 {
-		rspInfo.Result.Address = a.addUserAddress(userAddresses)
+		rspInfo.Address = a.addUserAddress(userAddresses)
 
 		strTime := time.Now().UTC().Format("2006-01-02 15:04:05")
 		db := mysqlpool.Get()
@@ -85,40 +90,57 @@ func (a *Address) AllocationAddress(req string, ack *string) error {
 			strTime, strTime)
 
 		//添加监控地址
-		rcaCmd := service.NewRechargeAddressCmd("message id", assetProperty.Name, rspInfo.Result.Address)
+		rcaCmd := service.NewRechargeAddressCmd("message id", assetProperty.Name, rspInfo.Address)
 		a.wallet.InsertRechargeAddress(rcaCmd)
 	}
 
 	pack, err := json.Marshal(rspInfo)
 	if err != nil {
-		fmt.Printf("AllocationAddress RspNewAddress Marshal Error : %s/n", err.Error())
+		res.Data.Err = -1
+		res.Data.ErrMsg = "NewAddress RspNewAddress Marshal Error"
+		fmt.Printf("NewAddress RspNewAddress Marshal Error : %s/n", err.Error())
 		return err
 	}
-	*ack = string(pack)
+
+	res.Data.Value.Message = string(pack)
+	res.Data.Err = 0
+	res.Data.ErrMsg = ""
+
 	return nil
 }
 
-func (a *Address) Withdrawal(req string, ack *string) error {
+func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	var reqInfo ReqWithdrawal
-	err := json.Unmarshal([]byte(req), &reqInfo)
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqInfo)
 	if err != nil {
 		fmt.Printf("Withdrawal Unmarshal Error : %s/n", err.Error())
 		return err
 	}
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[reqInfo.UserID]
+	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.LicenseKey]
 	if !ok {
 		return errors.New("withdrawal mapUserProperty find Error")
 	}
 
-	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Params.Symbol]
+	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Symbol]
 	if !ok {
 		return errors.New("withdrawal mapAssetProperty find Error")
 	}
 
-	value := int64(reqInfo.Params.Amount * math.Pow10(18))
-	db := mysqlpool.Get()
-	ret, err := db.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
+	var rspInfo RspWithdrawal
+	uID, _ := uuid.NewV4()
+	rspInfo.OrderID = uID.String()
+	rspInfo.UserOrderID = reqInfo.UserOrderID
+	rspInfo.Timestamp = time.Now().Unix()
+
+	value := int64(reqInfo.Amount * math.Pow10(18) * assetProperty.WithdrawalRate)
+
+	Tx, err := mysqlpool.Get().Begin()
+	if err != nil {
+		return err
+	}
+
+	ret, err := Tx.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
 		" update_time = ? where user_id = ? and asset_id = ? and available_amount >= ?;",
 		value, value,
 		time.Now().UTC().Format("2006-01-02 15:04:05"),
@@ -127,34 +149,53 @@ func (a *Address) Withdrawal(req string, ack *string) error {
 		value)
 
 	if err != nil {
+		Tx.Rollback()
 		return err
 	}
 
-	var rspInfo RspWithdrawal
-	uID, _ := uuid.NewV4()
-	rspInfo.Result.OrderID = uID.String()
-	rspInfo.Result.UserOrderID = reqInfo.Params.UserOrderID
-	rspInfo.Result.Timestamp = time.Now().Unix()
-	rspInfo.Status.Code = 0
-	rspInfo.Status.Msg = ""
-
-	if rows, _ := ret.RowsAffected(); rows > 0 {
-		_, err = db.Exec("insert withdraw_order (order_id, user_order_id, user_id, asset_id, address, amount, wallet_fee, create_time) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?);",
-			rspInfo.Result.OrderID, reqInfo.Params.UserOrderID, userProperty.UserID, assetProperty.ID,
-			reqInfo.Params.ToAddress, int64(reqInfo.Params.Amount*math.Pow10(18)), 0,
-			time.Now().UTC().Format("2006-01-02 15:04:05"))
+	rows, _ := ret.RowsAffected()
+	if rows < 1 {
+		Tx.Rollback()
+		return nil
 	}
+
+	ret, err = Tx.Exec("update user_address a set"+
+		" a.available_amount = a.available_amount - ?,"+
+		" a.frozen_amount = a.frozen_amount + ?"+
+		" where a.available_amount >= ? and (a.asset_id, a.address) in (select asset_id, address from pay_address)",
+		value, value, value)
+
+	if err != nil {
+		Tx.Rollback()
+		return err
+	}
+
+	rows, _ = ret.RowsAffected()
+	if rows < 1 {
+		Tx.Rollback()
+		return nil
+	}
+
+	_, err = Tx.Exec("insert withdraw_order (order_id, user_order_id, user_id, asset_id, address, amount, wallet_fee, create_time) "+
+		"values (?, ?, ?, ?, ?, ?, ?, ?);",
+		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserID, assetProperty.ID,
+		reqInfo.ToAddress, int64(reqInfo.Amount*math.Pow10(18)), 0,
+		time.Now().UTC().Format("2006-01-02 15:04:05"))
+
+	Tx.Commit()
 
 	pack, err := json.Marshal(rspInfo)
 	if err != nil {
 		fmt.Printf("withdrawal RspNewAddress Marshal Error : %s/n", err.Error())
 		return err
 	}
-	*ack = string(pack)
 
 	//txCmd := service.NewSendTxCmd("message id", coin, privatekey, to, token, value)
 	//a.wallet.SendTx()
+
+	res.Data.Value.Message = string(pack)
+	res.Data.Err = 0
+	res.Data.ErrMsg = ""
 
 	return nil
 }
