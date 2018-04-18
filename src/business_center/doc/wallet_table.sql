@@ -4,16 +4,15 @@
 DROP TABLE IF EXISTS `user_property`;
 CREATE TABLE `user_property` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` varchar(255) NOT NULL DEFAULT '',
+  `user_key` varchar(255) NOT NULL DEFAULT '',
   `user_name` varchar(255) NOT NULL DEFAULT '',
   `user_class` int(11) NOT NULL DEFAULT 0 COMMENT '0:普通用户 1:热钱包; 100:管理员',
   `phone` varchar(255) NOT NULL DEFAULT '',
   `email` varchar(255) NOT NULL DEFAULT '',
-  `salt` varchar(16) NOT NULL COMMENT '密码算法加盐',
-  `password` text NOT NULL COMMENT '密码',
+  `salt` varchar(16) NOT NULL DEFAULT '' COMMENT '密码算法加盐',
+  `password` text NOT NULL DEFAULT '' COMMENT '密码',
   `google_auth` varchar(255) NOT NULL DEFAULT '',
   `license_key` varchar(255) NOT NULL DEFAULT '',
-  `public_key` text NOT NULL COMMENT '用户公钥',
   `callback_url` varchar(255) NOT NULL DEFAULT '',
   `level` int(11) NOT NULL DEFAULT 0 COMMENT '管理员级别，0：用户，100：普通管理员，200：创世管理员',
   `last_login_time` datetime DEFAULT NULL,
@@ -25,17 +24,20 @@ CREATE TABLE `user_property` (
   `time_zone` int(11) NOT NULL DEFAULT 0,
   `country` varchar(255) NOT NULL DEFAULT '',
   `language` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`user_id`),
-  UNIQUE KEY `id_UNIQUE` (`id`)
+  PRIMARY KEY (`user_key`),
+  UNIQUE KEY `id_UNIQUE` (`id`),
+  UNIQUE KEY `name_UNIQUE` (`user_name`),
+  UNIQUE KEY `phone_UNIQUE` (`phone`),
+  UNIQUE KEY `email_UNIQUE` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 -- Records of `user`
 -- ----------------------------
---INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('795b587d-2ee7-4979-832d-5d0ea64205d5', '超级钱包', 1, now(), now());
---INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('737205c4-af3c-426d-973d-165a0bf46c71', '商户1', 0, now(), now());
---INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('f223c88b-102a-485d-a5da-f96bb55f0bdf', '商户2', 0, now(), now());
---INSERT user_property (user_id, user_name, user_class, create_date, update_date) VALUES ('3adda5a7-ab90-453d-a18a-dc608ac22553', '商户3', 0, now(), now());
+--INSERT user_property (user_key, user_name, user_class, create_time, update_time) VALUES ('795b587d-2ee7-4979-832d-5d0ea64205d5', '超级钱包', 1, now(), now());
+--INSERT user_property (user_key, user_name, user_class, create_time, update_time) VALUES ('737205c4-af3c-426d-973d-165a0bf46c71', '商户1', 0, now(), now());
+--INSERT user_property (user_key, user_name, user_class, create_time, update_time) VALUES ('f223c88b-102a-485d-a5da-f96bb55f0bdf', '商户2', 0, now(), now());
+--INSERT user_property (user_key, user_name, user_class, create_time, update_time) VALUES ('3adda5a7-ab90-453d-a18a-dc608ac22553', '商户3', 0, now(), now());
 
 -- ----------------------------
 -- Table structure for `user_account`
@@ -43,15 +45,15 @@ CREATE TABLE `user_property` (
 DROP TABLE IF EXISTS `user_account`;
 CREATE TABLE `user_account` (
   `id` int(11) NOT NULL AUTO_INCREMENT, 
-  `user_id` varchar(255) NOT NULL DEFAULT '',
+  `user_key` varchar(255) NOT NULL DEFAULT '',
   `asset_id` int(11) NOT NULL DEFAULT 0,
   `available_amount` double NOT NULL DEFAULT 0,
   `frozen_amount` double NOT NULL DEFAULT 0,
   `create_time` datetime NOT NULL,
   `update_time` datetime NOT NULL,
-  PRIMARY KEY (`user_id`,`asset_id`),
+  PRIMARY KEY (`user_key`,`asset_id`),
   UNIQUE KEY `id_UNIQUE` (`id`),
-  UNIQUE KEY `user_id_asset` (`user_id`,`asset_id`)
+  UNIQUE KEY `user_key_asset` (`user_key`,`asset_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
@@ -105,7 +107,7 @@ CREATE TABLE `free_address` (
 DROP TABLE IF EXISTS `user_address`;
 CREATE TABLE `user_address` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` varchar(255) NOT NULL,
+  `user_key` varchar(255) NOT NULL,
   `asset_id` int(11) NOT NULL,
   `address` varchar(255) NOT NULL DEFAULT '',
   `private_key` varchar(400) NOT NULL DEFAULT '',
@@ -180,7 +182,7 @@ CREATE TABLE `withdrawl_order` (
   `id` int(11) NOT NULL AUTO_INCREMENT,  
   `order_id` varchar(255) NOT NULL DEFAULT '',
   `user_order_id` varchar(255) NOT NULL DEFAULT '',
-  `user_id` varchar(255) NOT NULL DEFAULT '',
+  `user_key` varchar(255) NOT NULL DEFAULT '',
   `asset_id` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
   `amount` double NOT NULL DEFAULT 0,
