@@ -23,7 +23,7 @@ func testPush(node *service.ServiceNode)  {
 		pData.Method.Version = "v1"
 		pData.Method.Srv = "push"
 		pData.Method.Function = "pushdata"
-		pData.Argv.LicenseKey = "3b7ecf3b-c605-4c4f-ac2b-2155d4186cd8"
+		pData.Argv.UserKey = "3b7ecf3b-c605-4c4f-ac2b-2155d4186cd8"
 		pData.Argv.Message = "abcd=" + strconv.Itoa(i)
 
 		res := data.UserResponseData{}

@@ -37,5 +37,5 @@ func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
 
 	res.Data.Value.Message = strconv.Itoa(din.A+din.B)
 	res.Data.Value.Signature = ""
-	res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
+	res.Data.Value.UserKey = req.Data.Argv.UserKey
 }

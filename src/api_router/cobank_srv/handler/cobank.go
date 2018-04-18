@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"../../base/data"
-	"../../base/service"
+	"api_router/base/data"
+	"api_router/base/service"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
-	"business_center/def"
-	"strconv"
 )
 
 type Cobank struct{
@@ -23,9 +21,7 @@ func NewCobank() (*Cobank) {
 
 func (x *Cobank)Init(node *service.ServiceNode) error {
 	x.node = node
-	var cb def.PushMsgCallback
-	cb = def.PushMsgCallback(x.callBack)
-	return x.business.InitAndStart(&cb)
+	return x.business.InitAndStart(x.callBack)
 }
 
 func (x *Cobank)callBack(userID string, callbackMsg string){
@@ -34,7 +30,7 @@ func (x *Cobank)callBack(userID string, callbackMsg string){
 	pData.Method.Srv = "push"
 	pData.Method.Function = "pushdata"
 
-	pData.Argv.LicenseKey = userID
+	pData.Argv.UserKey = userID
 	pData.Argv.Message = callbackMsg
 
 	res := data.UserResponseData{}
@@ -54,17 +50,15 @@ func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 func (x *Cobank)NewAddress(req *data.SrvRequestData, res *data.SrvResponseData){
 	res.Data.Err = data.NoErr
 
-	l4g.Debug("message: %s", req.Data.Argv.Message)
+	l4g.Debug("argv: %s", req.Data.Argv)
 
 	err := x.business.HandleMsg(req, res)
-	l4g.Debug("reply: %s", res.Data.Value.Message)
+	l4g.Debug("value: %s", res.Data.Value)
 
 	if err != nil {
-		res.Data.Err = data.ErrDataCorrupted
-		res.Data.ErrMsg = data.ErrDataCorruptedText
 		return
 	}
 
 	res.Data.Value.Signature = ""
-	res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
+	res.Data.Value.UserKey = req.Data.Argv.UserKey
 }

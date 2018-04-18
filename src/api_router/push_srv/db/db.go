@@ -19,7 +19,7 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"readUserCallbackUrl": "SELECT callback_url from %s.%s where user_id = ? limit ? offset ?",
+		"readUserCallbackUrl": "SELECT callback_url from %s.%s where user_key = ? limit ? offset ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -75,8 +75,8 @@ func Init(configPath string) {
 	}
 }
 
-func ReadUserCallbackUrl(userId string) (string, error) {
-	r := st["readUserCallbackUrl"].QueryRow(userId, 1, 0)
+func ReadUserCallbackUrl(userKey string) (string, error) {
+	r := st["readUserCallbackUrl"].QueryRow(userKey, 1, 0)
 
 	var url string
 	if err := r.Scan(&url); err != nil {

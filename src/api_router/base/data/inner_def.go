@@ -61,7 +61,7 @@ type SrvResponseData struct{
 
 //////////////////////////////////////////////////////////////////////
 func (urd UserRequestData)String() string {
-	return fmt.Sprintf("%s %s-%s-%s", urd.Argv.LicenseKey, urd.Method.Srv, urd.Method.Version, urd.Method.Function)
+	return fmt.Sprintf("%s %s-%s-%s", urd.Argv.UserKey, urd.Method.Srv, urd.Method.Version, urd.Method.Function)
 }
 
 func (srd SrvRegisterData)String() string {

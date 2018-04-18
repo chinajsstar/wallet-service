@@ -17,8 +17,7 @@ type ReqUserCreate struct{
 }
 // 账号生成-输出
 type AckUserCreate struct{
-	UserId 			string  `json:"user_id"`
-	LicenseKey      string  `json:"license_key"`
+	UserKey 		string  `json:"user_key"`
 	ServerPublicKey string  `json:"server_public_key"`
 }
 
@@ -31,7 +30,7 @@ type ReqUserLogin struct{
 }
 // 账号登入-输出
 type AckUserLogin struct{
-	UserId 			string `json:"user_id"`
+	UserKey 		string `json:"user_key"`
 	UserName 		string `json:"user_name"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
@@ -53,9 +52,9 @@ type AckUserUpdatePassword struct{
 // 用户基本资料
 type UserProfile struct{
 	Id 				int    `json:"id"`
-	UserId 			string `json:"user_id"`
+	UserKey 		string `json:"user_key"`
 	UserName 		string `json:"user_name"`
-	UserClass 		string `json:"user_class"`
+	UserClass 		int `json:"user_class"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
 	// TODO: others info

@@ -1,8 +1,8 @@
 package service
 
 import (
-	"../data"
-	"../nethelper"
+	"api_router/base/data"
+	"api_router/base/nethelper"
 	"net/rpc"
 	"sync"
 	"sync/atomic"

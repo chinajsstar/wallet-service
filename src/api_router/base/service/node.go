@@ -2,9 +2,9 @@ package service
 
 import (
 	"sync"
-	"../data"
-	"../nethelper"
-	"../config"
+	"api_router/base/data"
+	"api_router/base/nethelper"
+	"api_router/base/config"
 	"context"
 	"strings"
 	"log"

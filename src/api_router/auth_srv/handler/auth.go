@@ -3,24 +3,24 @@ package handler
 import (
 	"fmt"
 	"../db"
-	"../../base/utils"
-	"../../base/data"
-	"../../base/service"
+	"api_router/base/utils"
+	"api_router/base/data"
+	"api_router/base/service"
 	"crypto/sha512"
 	"crypto"
 	"io/ioutil"
 	"encoding/base64"
 	"sync"
 	"errors"
-	"../../account_srv/user"
+	"api_router/account_srv/user"
 	l4g "github.com/alecthomas/log4go"
 )
 
 type Auth struct{
 	privateKey []byte
 
-	rwmu sync.RWMutex
-	usersLicenseKey map[string]*user.UserLevel
+	rwmu     sync.RWMutex
+	usersKey map[string]*user.UserLevel
 }
 
 var defaultAuth = &Auth{}
@@ -36,15 +36,15 @@ func (auth * Auth)Init(dir string) {
 		l4g.Crashf("", err)
 	}
 
-	auth.usersLicenseKey = make(map[string]*user.UserLevel)
+	auth.usersKey = make(map[string]*user.UserLevel)
 }
 
-func (auth * Auth)getUserLevel(userId string) (*user.UserLevel, error)  {
+func (auth * Auth)getUserLevel(userKey string) (*user.UserLevel, error)  {
 	ul := func() *user.UserLevel{
 		auth.rwmu.RLock()
 		defer auth.rwmu.RUnlock()
 
-		return auth.usersLicenseKey[userId]
+		return auth.usersKey[userKey]
 	}()
 	if ul != nil {
 		return ul,nil
@@ -54,15 +54,15 @@ func (auth * Auth)getUserLevel(userId string) (*user.UserLevel, error)  {
 		auth.rwmu.Lock()
 		defer auth.rwmu.Unlock()
 
-		ul := auth.usersLicenseKey[userId]
+		ul := auth.usersKey[userKey]
 		if ul != nil {
 			return ul, nil
 		}
-		ul, err := db.ReadUserLevel(userId)
+		ul, err := db.ReadUserLevel(userKey)
 		if err != nil {
 			return nil, err
 		}
-		auth.usersLicenseKey[userId] = ul
+		auth.usersKey[userKey] = ul
 		return ul, nil
 	}()
 }
@@ -82,14 +82,14 @@ func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 // 验证数据
 func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	err := func() error{
-		ul, err := auth.getUserLevel(req.Data.Argv.LicenseKey)
+		ul, err := auth.getUserLevel(req.Data.Argv.UserKey)
 		if err != nil {
-			l4g.Error("(%s) failed: %s",req.Data.Argv.LicenseKey, err.Error())
+			l4g.Error("(%s) failed: %s",req.Data.Argv.UserKey, err.Error())
 			return err
 		}
 
 		if req.Context.ApiLever > ul.Level || ul.IsFrozen != 0{
-			l4g.Error("(%s-%s) failed: no api level or frozen", req.Data.Argv.LicenseKey, req.Data.Method.Function)
+			l4g.Error("(%s-%s) failed: no api level or frozen", req.Data.Argv.UserKey, req.Data.Method.Function)
 			return errors.New("no api level or frozen")
 		}
 
@@ -127,7 +127,7 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 
 		res.Data.Value.Message = string(originData)
 		res.Data.Value.Signature = ""
-		res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
+		res.Data.Value.UserKey = req.Data.Argv.UserKey
 
 		return nil
 	}()
@@ -141,7 +141,7 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 // 打包数据
 func (auth *Auth)EncryptData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	err := func() error{
-		ul, err := auth.getUserLevel(req.Data.Argv.LicenseKey)
+		ul, err := auth.getUserLevel(req.Data.Argv.UserKey)
 		if err != nil {
 			l4g.Error("%s", err.Error())
 			return err
@@ -191,7 +191,7 @@ func (auth *Auth)EncryptData(req *data.SrvRequestData, res *data.SrvResponseData
 		res.Data.Value.Signature = base64.StdEncoding.EncodeToString(bsignature)
 
 		// licensekey
-		res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
+		res.Data.Value.UserKey = req.Data.Argv.UserKey
 
 		return nil
 	}()

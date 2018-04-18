@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 	_ "github.com/go-sql-driver/mysql"
-	"../../account_srv/user"
+	"api_router/account_srv/user"
 	l4g "github.com/alecthomas/log4go"
-	"../../base/config"
+	"api_router/base/config"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"readUserLevel": "SELECT level, is_frozen, public_key from %s.%s where user_id = ? limit ? offset ?",
+		"readUserLevel": "SELECT level, is_frozen, public_key from %s.%s where user_key = ? limit ? offset ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -76,8 +76,8 @@ func Init(configPath string) {
 	}
 }
 
-func ReadUserLevel(userId string) (*user.UserLevel, error) {
-	r := st["readUserLevel"].QueryRow(userId, 1, 0)
+func ReadUserLevel(userKey string) (*user.UserLevel, error) {
+	r := st["readUserLevel"].QueryRow(userKey, 1, 0)
 
 	ul := &user.UserLevel{}
 	if err := r.Scan(&ul.Level, &ul.IsFrozen, &ul.PublicKey); err != nil {

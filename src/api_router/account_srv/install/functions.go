@@ -3,9 +3,9 @@ package install
 import (
 	"fmt"
 	"io/ioutil"
-	"../user"
+	"api_router/account_srv/user"
 	"strconv"
-	"../../base/utils"
+	"api_router/base/utils"
 )
 
 func AddUser(isinstall bool) (*user.ReqUserCreate, error) {
@@ -29,11 +29,11 @@ func AddUser(isinstall bool) (*user.ReqUserCreate, error) {
 	uc.Email = input
 
 	if isinstall {
-		uc.UserClass = 100
+		uc.UserClass = 2
 		uc.Level = 200
 	}else{
 		//0:普通用户 1:热钱包; 100:管理员
-		fmt.Println("输入用户类型: 0:普通用户 1:热钱包; 100:管理员")
+		fmt.Println("输入用户类型: 0:普通用户 1:热钱包; 2:管理员")
 		input = ""
 		fmt.Scanln(&input)
 		uc.UserClass, _ = strconv.Atoi(input)
