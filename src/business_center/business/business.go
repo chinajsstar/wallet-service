@@ -23,7 +23,7 @@ type Business struct {
 	address *address.Address
 }
 
-func (b *Business) InitAndStart(callback *PushMsgCallback) error {
+func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 	b.wallet = service.NewClientManager()
 	b.address = &address.Address{}

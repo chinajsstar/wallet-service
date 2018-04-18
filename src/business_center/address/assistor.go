@@ -25,7 +25,7 @@ func (a *Address) generateAddress(userID string, userClass int,
 			return userAddresses
 		}
 		var userAddress UserAddress
-		userAddress.UserID = userID
+		userAddress.UserKey = userID
 		userAddress.UserClass = userClass
 		userAddress.AssetID = assetID
 		userAddress.AssetName = assetName
@@ -52,7 +52,7 @@ func (a *Address) addUserAddress(userAddress []UserAddress) []string {
 	for _, v := range userAddress {
 		_, err := tx.Exec("insert user_address (user_id, asset_id, address, private_key, available_amount, frozen_amount, "+
 			"enabled, create_time, update_time) values (?, ?, ?, ?, ?, ?, ?, ?, ?);",
-			v.UserID, v.AssetID, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
+			v.UserKey, v.AssetID, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
 			time.Unix(v.CreateTime, 0).UTC().Format("2006-01-02 15:04:05"),
 			time.Unix(v.UpdateTime, 0).UTC().Format("2006-01-02 15:04:05"))
 		if err != nil {
@@ -354,13 +354,13 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 					if v.TransType == "to" || v.TransType == "gas" || v.TransType == "change" {
 						db.Exec("update user_account set available_amount = available_amount + ?,"+
 							" update_time = now() where user_id = ? and asset_id = ?;",
-							v.Amount, userAddress.UserID, userAddress.AssetID)
+							v.Amount, userAddress.UserKey, userAddress.AssetID)
 					}
 				case "eth":
 					if v.TransType == "to" {
 						db.Exec("update user_account set available_amount = available_amount + ?,"+
 							" update_time = now() where user_id = ? and asset_id = ?;",
-							v.Amount, userAddress.UserID, userAddress.AssetID)
+							v.Amount, userAddress.UserKey, userAddress.AssetID)
 					}
 				}
 			}

@@ -19,14 +19,14 @@ import (
 
 type Address struct {
 	wallet          *service.ClientManager
-	callback        *PushMsgCallback
+	callback        PushMsgCallback
 	rechargeChannel types.RechargeTxChannel
 	cmdTxChannel    types.CmdTxChannel
 	waitGroup       sync.WaitGroup
 	ctx             context.Context
 }
 
-func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callback *PushMsgCallback) {
+func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callback PushMsgCallback) {
 	a.wallet = wallet
 	a.callback = callback
 	a.ctx = ctx
@@ -77,7 +77,7 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAddresses := a.generateAddress(userProperty.UserID, userProperty.UserClass, assetProperty.ID,
+	userAddresses := a.generateAddress(userProperty.UserKey, userProperty.UserClass, assetProperty.ID,
 		assetProperty.Name, reqInfo.Count)
 	if len(userAddresses) > 0 {
 		rspInfo.Address = a.addUserAddress(userAddresses)
@@ -86,7 +86,7 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 		db := mysqlpool.Get()
 		db.Exec("insert user_account (user_id, asset_id, available_amount, frozen_amount,"+
 			" create_time, update_time) values (?, ?, 0, 0, ?, ?);",
-			userProperty.UserID, assetProperty.ID,
+			userProperty.UserKey, assetProperty.ID,
 			strTime, strTime)
 
 		//添加监控地址
@@ -144,7 +144,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		" update_time = ? where user_id = ? and asset_id = ? and available_amount >= ?;",
 		value, value,
 		time.Now().UTC().Format("2006-01-02 15:04:05"),
-		userProperty.UserID,
+		userProperty.UserKey,
 		assetProperty.ID,
 		value)
 
@@ -178,7 +178,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 
 	_, err = Tx.Exec("insert withdraw_order (order_id, user_order_id, user_id, asset_id, address, amount, wallet_fee, create_time) "+
 		"values (?, ?, ?, ?, ?, ?, ?, ?);",
-		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserID, assetProperty.ID,
+		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.ID,
 		reqInfo.ToAddress, int64(reqInfo.Amount*math.Pow10(18)), 0,
 		time.Now().UTC().Format("2006-01-02 15:04:05"))
 

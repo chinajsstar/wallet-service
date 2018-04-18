@@ -71,14 +71,13 @@ type TransDetail struct {
 }
 
 type UserProperty struct {
-	UserID        string `json:"user_id"`
+	UserKey       string `json:"user_key"`
 	UserName      string `json:"user_name"`
 	UserClass     int    `json:"user_class"`
 	Phone         string `json:"phone"`
 	Email         string `json:"email"`
 	Password      string `json:"password"`
 	GoogleAuth    string `json:"google_auth"`
-	LicenseKey    string `json:"license_key"`
 	PublicKey     string `json:"public_key"`
 	Level         int    `json:"level"`
 	LastLoginTime string `json:"last_login_time"`
@@ -111,10 +110,12 @@ type AssetProperty struct {
 }
 
 type UserAddress struct {
-	UserID          string `json:"user_id"`
+	UserKey         string `json:"user_key"`
+	UserName        string `json:"user_name"`
 	UserClass       int    `json:"user_class"`
 	AssetID         int    `json:"asset_id"`
 	AssetName       string `json:"asset_name"`
+	AssetFullName   string `json:"asset_full_name"`
 	Address         string `json:"address"`
 	PrivateKey      string `json:"private_key"`
 	AvailableAmount int64  `json:"available_amount"`

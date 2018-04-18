@@ -62,7 +62,7 @@ func (b *BasicData) AddUserPropertyMap(data []UserProperty) {
 	defer b.lockAssetPropertyMap.Unlock()
 
 	for _, v := range data {
-		b.mapUserProperty[v.UserID] = &v
+		b.mapUserProperty[v.UserKey] = &v
 	}
 }
 
