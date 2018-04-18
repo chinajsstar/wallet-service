@@ -22,12 +22,12 @@ var G_henly_licensekey string
 var G_server_pubkey []byte
 func loadRsaKeys() error {
 	var err error
-	G_henly_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_henly.pem")
+	G_henly_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_test.pem")
 	if err != nil {
 		return err
 	}
 
-	G_henly_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_henly.pem")
+	G_henly_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_test.pem")
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func loadRsaKeys() error {
 		return err
 	}
 
-	G_henly_licensekey = "524faf3a-b6a0-42ce-9c49-9c07b66aa835"
+	G_henly_licensekey = "b6ee8b52-1614-4171-8662-79784fb60fbe"
 
 	return nil
 }

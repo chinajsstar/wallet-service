@@ -1,6 +1,9 @@
 {
-	"srv_name":"arith",
-    "srv_version":"v1",
-	"srv_addr":"127.0.0.1:8090",
-	"center_addr":"127.0.0.1:8081"
+"node":
+  {
+    "srv_name": "arith",
+    "srv_version": "v1",
+    "srv_addr": "127.0.0.1:8090",
+    "center_addr": "127.0.0.1:8081"
+  }
 }

@@ -62,6 +62,7 @@ func (auth * Auth)getUserLevel(userId string) (*user.UserLevel, error)  {
 		if err != nil {
 			return nil, err
 		}
+		auth.usersLicenseKey[userId] = ul
 		return ul, nil
 	}()
 }

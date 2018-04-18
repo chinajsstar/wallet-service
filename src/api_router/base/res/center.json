@@ -1,6 +1,9 @@
 {
-  "port":"8080",
-  "ws_port":"8088",
-  "center_name":"center",
-  "center_port":"8081"
+  "center":
+  {
+    "port":"8080",
+    "ws_port":"8088",
+    "center_name":"center",
+    "center_port":"8081"
+  }
 }

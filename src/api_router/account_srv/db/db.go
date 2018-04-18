@@ -9,11 +9,12 @@ import (
 	"../user"
 	_ "github.com/go-sql-driver/mysql"
 	l4g "github.com/alecthomas/log4go"
+	"../../base/config"
 )
 
 var (
 	//Url      = "root:root@tcp(127.0.0.1:3306)/wallet"
-	Url      = "root@tcp(127.0.0.1:3306)/wallet"
+	Url      = ""//"root@tcp(127.0.0.1:3306)/wallet"
 	database string
 	usertable = "user_property"
 	db       *sql.DB
@@ -52,9 +53,14 @@ var (
 	st = map[string]*sql.Stmt{}
 )
 
-func init() {
+func Init(configPath string) {
 	var d *sql.DB
 	var err error
+
+	err = config.LoadJsonNode(configPath, "db", &Url)
+	if err != nil {
+		l4g.Crashf("", err)
+	}
 
 	parts := strings.Split(Url, "/")
 	if len(parts) != 2 {

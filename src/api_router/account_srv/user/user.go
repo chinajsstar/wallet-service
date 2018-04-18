@@ -61,13 +61,6 @@ type UserProfile struct{
 	// TODO: others info
 }
 
-// 权限信息
-type UserLevel struct{
-	Level 			int    `json:"level"`
-	IsFrozen 		rune   `json:"isfrozen"`
-	PublicKey 		string `json:"public_key"`
-}
-
 // 用户列表-输入
 type ReqUserList struct{
 	Id 				int    `json:"id"`
@@ -75,4 +68,11 @@ type ReqUserList struct{
 // 用户列表-输出
 type AckUserList struct{
 	Users []UserProfile `json:"users"`
+}
+
+// 权限信息
+type UserLevel struct{
+	Level 			int    `json:"level"`
+	IsFrozen 		rune   `json:"isfrozen"`
+	PublicKey 		string `json:"public_key"`
 }

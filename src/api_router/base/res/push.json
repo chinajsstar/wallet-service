@@ -1,9 +1,9 @@
 {
   "node":
   {
-    "srv_name": "auth",
+    "srv_name": "push",
     "srv_version": "v1",
-    "srv_addr": "127.0.0.1:8060",
+    "srv_addr": "127.0.0.1:8061",
     "center_addr": "127.0.0.1:8081"
   },
   "db":"root@tcp(127.0.0.1:3306)/wallet",

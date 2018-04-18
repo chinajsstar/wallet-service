@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	_ "github.com/go-sql-driver/mysql"
-	"../../account_srv/user"
 	l4g "github.com/alecthomas/log4go"
 	"../../base/config"
 )
@@ -20,7 +19,7 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"readUserLevel": "SELECT level, is_frozen, public_key from %s.%s where user_id = ? limit ? offset ?",
+		"readUserCallbackUrl": "SELECT callback_url from %s.%s where user_id = ? limit ? offset ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -76,16 +75,16 @@ func Init(configPath string) {
 	}
 }
 
-func ReadUserLevel(userId string) (*user.UserLevel, error) {
-	r := st["readUserLevel"].QueryRow(userId, 1, 0)
+func ReadUserCallbackUrl(userId string) (string, error) {
+	r := st["readUserCallbackUrl"].QueryRow(userId, 1, 0)
 
-	ul := &user.UserLevel{}
-	if err := r.Scan(&ul.Level, &ul.IsFrozen, &ul.PublicKey); err != nil {
+	var url string
+	if err := r.Scan(&url); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.New("not found")
+			return "", errors.New("not found")
 		}
-		return nil, err
+		return "", err
 	}
 
-	return ul, nil
+	return url, nil
 }

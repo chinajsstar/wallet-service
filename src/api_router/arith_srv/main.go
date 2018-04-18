@@ -21,9 +21,9 @@ func testPush(node *service.ServiceNode)  {
 
 		pData := data.UserRequestData{}
 		pData.Method.Version = "v1"
-		pData.Method.Srv = "arith"
-		pData.Method.Function = "sub"
-		pData.Argv.LicenseKey = "719101fe-93a0-44e5-909b-84a6e7fcb132"
+		pData.Method.Srv = "push"
+		pData.Method.Function = "pushdata"
+		pData.Argv.LicenseKey = "3b7ecf3b-c605-4c4f-ac2b-2155d4186cd8"
 		pData.Argv.Message = "abcd=" + strconv.Itoa(i)
 
 		res := data.UserResponseData{}

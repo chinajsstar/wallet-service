@@ -3,17 +3,17 @@ package main
 import (
 	//"golang.org/x/net/websocket"
 	"fmt"
-	"strings"
 	"../base/utils"
 	"golang.org/x/net/websocket"
 	"../base/data"
-	"../account_srv/install"
 	"encoding/json"
 	"encoding/base64"
 	"crypto/sha512"
 	"crypto"
 	"errors"
 	"io/ioutil"
+	//l4g "github.com/alecthomas/log4go"
+	"../base/config"
 )
 
 var G_admin_prikey2 []byte
@@ -176,6 +176,17 @@ func StartWsClient2() *rpc2.Client {
 */
 
 func main() {
+	appDir, _:= utils.GetCurrentDir()
+	appDir += "/test.json"
+
+	cn := config.ConfigNode{}
+	err := config.LoadJsonNode(appDir, "node", &cn)
+	fmt.Println(cn)
+	fmt.Println(err)
+
+	return
+
+/*
 	// Start a server and corresponding client.
 	////
 	LoadRsaKeys2()
@@ -226,7 +237,7 @@ func main() {
 			}
 		}
 	}
-
-	return
+*/
+	//return
 }
 
