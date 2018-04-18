@@ -50,7 +50,7 @@ func (a *Address) addUserAddress(userAddress []UserAddress) []string {
 	}
 
 	for _, v := range userAddress {
-		_, err := tx.Exec("insert user_address (user_id, asset_id, address, private_key, available_amount, frozen_amount, "+
+		_, err := tx.Exec("insert user_address (user_key, asset_id, address, private_key, available_amount, frozen_amount, "+
 			"enabled, create_time, update_time) values (?, ?, ?, ?, ?, ?, ?, ?, ?);",
 			v.UserKey, v.AssetID, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
 			time.Unix(v.CreateTime, 0).UTC().Format("2006-01-02 15:04:05"),
@@ -328,7 +328,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 
 		//结算订单
 		if len(blockin.OrderID) > 0 {
-			row := db.QueryRow("select user_id, asset_id, amount, wallet_fee"+
+			row := db.QueryRow("select user_key, asset_id, amount, wallet_fee"+
 				" from withdraw_order where order_id = ?", blockin.OrderID)
 			if row != nil {
 				var (
@@ -340,7 +340,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 				err = row.Scan(&userID, &assetID, &amount, &walletFee)
 				if err == nil {
 					db.Exec("update user_account set frozen_amount = frozen_amount - ?, update_time = now()"+
-						" where user_id = ? and asset_id = ?;", amount+walletFee, userID, assetID)
+						" where user_key = ? and asset_id = ?;", amount+walletFee, userID, assetID)
 				}
 			}
 		}
@@ -353,13 +353,13 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 				case "btc":
 					if v.TransType == "to" || v.TransType == "gas" || v.TransType == "change" {
 						db.Exec("update user_account set available_amount = available_amount + ?,"+
-							" update_time = now() where user_id = ? and asset_id = ?;",
+							" update_time = now() where user_key = ? and asset_id = ?;",
 							v.Amount, userAddress.UserKey, userAddress.AssetID)
 					}
 				case "eth":
 					if v.TransType == "to" {
 						db.Exec("update user_account set available_amount = available_amount + ?,"+
-							" update_time = now() where user_id = ? and asset_id = ?;",
+							" update_time = now() where user_key = ? and asset_id = ?;",
 							v.Amount, userAddress.UserKey, userAddress.AssetID)
 					}
 				}

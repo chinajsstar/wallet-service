@@ -84,7 +84,7 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 
 		strTime := time.Now().UTC().Format("2006-01-02 15:04:05")
 		db := mysqlpool.Get()
-		db.Exec("insert user_account (user_id, asset_id, available_amount, frozen_amount,"+
+		db.Exec("insert user_account (user_key, asset_id, available_amount, frozen_amount,"+
 			" create_time, update_time) values (?, ?, 0, 0, ?, ?);",
 			userProperty.UserKey, assetProperty.ID,
 			strTime, strTime)
@@ -141,7 +141,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	ret, err := Tx.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
-		" update_time = ? where user_id = ? and asset_id = ? and available_amount >= ?;",
+		" update_time = ? where user_key = ? and asset_id = ? and available_amount >= ?;",
 		value, value,
 		time.Now().UTC().Format("2006-01-02 15:04:05"),
 		userProperty.UserKey,
@@ -176,7 +176,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return nil
 	}
 
-	_, err = Tx.Exec("insert withdraw_order (order_id, user_order_id, user_id, asset_id, address, amount, wallet_fee, create_time) "+
+	_, err = Tx.Exec("insert withdraw_order (order_id, user_order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
 		"values (?, ?, ?, ?, ?, ?, ?, ?);",
 		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.ID,
 		reqInfo.ToAddress, int64(reqInfo.Amount*math.Pow10(18)), 0,
