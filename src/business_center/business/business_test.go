@@ -16,7 +16,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequestData
 	var res data.SrvResponseData
 
-	testType := 0
+	testType := 3
 	switch testType {
 	case 1:
 		req.Data.Method.Function = "new_address"
@@ -26,6 +26,8 @@ func TestHandleMsg(t *testing.T) {
 		req.Data.Method.Function = "withdrawal"
 		req.Data.Argv.LicenseKey = "737205c4-af3c-426d-973d-165a0bf46c71"
 		req.Data.Argv.Message = "{\"user_order_id\":\"1\",\"symbol\":\"eth\",\"amount\":0.1,\"to_address\":\"0x00000\",\"user_timestamp\":0}"
+	case 3:
+		req.Data.Method.Function = "query_user_address"
 	}
 
 	if testType > 0 {

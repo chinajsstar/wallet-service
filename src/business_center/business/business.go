@@ -57,6 +57,10 @@ func (b *Business) HandleMsg(req *data.SrvRequestData, res *data.SrvResponseData
 		{
 			return b.address.Withdrawal(req, res)
 		}
+	case "query_user_address":
+		{
+			return b.address.QueryUserAddress(req, res)
+		}
 	}
 	return errors.New("invalid command")
 }

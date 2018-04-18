@@ -3,6 +3,7 @@ package mysqlpool
 import (
 	. "business_center/def"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -84,6 +85,9 @@ func QueryAllUserAddress() (map[string]*UserAddress, error) {
 	return mapUserAddress, nil
 }
 
-func QueryUserAddress() (userAddresses []UserAddress) {
+func QueryUserAddress(query string) (userAddresses []UserAddress) {
+	var dat map[string]interface{}
+	json.Unmarshal([]byte(query), dat)
+
 	return nil
 }
