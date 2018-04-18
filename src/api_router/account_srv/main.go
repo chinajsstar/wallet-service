@@ -2,8 +2,8 @@ package main
 
 import (
 	"net/rpc"
-	"../base/service"
-	"../base/data"
+	"api_router/base/service"
+	"api_router/base/data"
 	"./handler"
 	"fmt"
 	"context"
@@ -11,7 +11,7 @@ import (
 	"strings"
 	"./install"
 	"encoding/json"
-	"../base/utils"
+	"api_router/base/utils"
 	"errors"
 	"./user"
 	"os"
@@ -72,7 +72,7 @@ func installWallet(dir string) error {
 	uca := user.AckUserCreate{}
 	err = json.Unmarshal([]byte(res.Data.Value.Message), &uca)
 
-	l4g.Info("3. Record genesis admin license key: %s", uca.LicenseKey)
+	l4g.Info("3. Record genesis admin user key: %s", uca.UserKey)
 	l4g.Info("4. Record super wallet rsa pub key: %s", uca.ServerPublicKey)
 
 	// write a tag file

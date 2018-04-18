@@ -2,11 +2,11 @@ package handler
 
 import (
 	"../db"
-	"../../base/data"
-	"../../base/service"
+	"api_router/base/data"
+	"api_router/base/service"
 	"sync"
 	l4g "github.com/alecthomas/log4go"
-	"../../base/nethelper"
+	"api_router/base/nethelper"
 	"encoding/json"
 )
 
@@ -25,12 +25,12 @@ func (push * Push)Init() {
 	push.usersCallbackUrl = make(map[string]string)
 }
 
-func (push * Push)getUserCallbackUrl(userId string) (string, error)  {
+func (push * Push)getUserCallbackUrl(userKey string) (string, error)  {
 	url := func() string{
 		push.rwmu.RLock()
 		defer push.rwmu.RUnlock()
 
-		return push.usersCallbackUrl[userId]
+		return push.usersCallbackUrl[userKey]
 	}()
 	if url != "" {
 		return url,nil
@@ -40,15 +40,15 @@ func (push * Push)getUserCallbackUrl(userId string) (string, error)  {
 		push.rwmu.Lock()
 		defer push.rwmu.Unlock()
 
-		url := push.usersCallbackUrl[userId]
+		url := push.usersCallbackUrl[userKey]
 		if url != "" {
 			return url, nil
 		}
-		url, err := db.ReadUserCallbackUrl(userId)
+		url, err := db.ReadUserCallbackUrl(userKey)
 		if err != nil {
 			return "", err
 		}
-		push.usersCallbackUrl[userId] = url
+		push.usersCallbackUrl[userKey] = url
 		return url, nil
 	}()
 }
@@ -65,16 +65,16 @@ func (push * Push)GetApiGroup()(map[string]service.NodeApi){
 // 推送数据
 func (push *Push)PushData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	err := func() error{
-		url, err := push.getUserCallbackUrl(req.Data.Argv.LicenseKey)
+		url, err := push.getUserCallbackUrl(req.Data.Argv.UserKey)
 		if err != nil {
-			l4g.Error("(%s) failed: %s",req.Data.Argv.LicenseKey, err.Error())
+			l4g.Error("(%s) failed: %s",req.Data.Argv.UserKey, err.Error())
 			return err
 		}
 
 		// call url
 		b, err := json.Marshal(req.Data.Argv)
 		if err != nil {
-			l4g.Error("(%s) marshal failed: %s",req.Data.Argv.LicenseKey, err.Error())
+			l4g.Error("(%s) marshal failed: %s",req.Data.Argv.UserKey, err.Error())
 			return err
 		}
 		var ret string
@@ -86,7 +86,7 @@ func (push *Push)PushData(req *data.SrvRequestData, res *data.SrvResponseData) {
 
 		res.Data.Value.Message = ret
 		res.Data.Value.Signature = ""
-		res.Data.Value.LicenseKey = req.Data.Argv.LicenseKey
+		res.Data.Value.UserKey = req.Data.Argv.UserKey
 
 		return nil
 	}()

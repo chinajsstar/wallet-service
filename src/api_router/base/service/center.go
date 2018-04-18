@@ -3,9 +3,9 @@ package service
 import (
 	"sync"
 	"net/rpc"
-	"../data"
-	"../nethelper"
-	"../config"
+	"api_router/base/data"
+	"api_router/base/nethelper"
+	"api_router/base/config"
 	"encoding/json"
 	"context"
 	"net/http"
@@ -41,6 +41,10 @@ type ServiceCenter struct{
 
 	// connection group
 	clientGroup *ConnectionGroup
+
+	// center's apis
+	registerData data.SrvRegisterData
+	apiHandler map[string]*NodeApi
 }
 
 // new a center
@@ -54,6 +58,21 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 	serviceCenter.licenseKey2wsClients = make(map[string]*websocket.Conn)
 
 	serviceCenter.clientGroup = NewConnectionGroup()
+
+	serviceCenter.registerData.Srv = serviceCenter.cfgCenter.CenterName
+	serviceCenter.registerData.Version = serviceCenter.cfgCenter.CenterVersion
+	serviceCenter.registerData.Addr = ""
+
+	serviceCenter.apiHandler = make(map[string]*NodeApi)
+	// api listsrv
+	apiInfo := data.ApiInfo{Name:"listsrv", Level:data.APILevel_admin}
+	apiInfo.Example = "none"
+	serviceCenter.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceCenter.listSrv, ApiInfo:apiInfo}
+	serviceCenter.registerData.Functions = append(serviceCenter.registerData.Functions, apiInfo)
+
+	// register
+	var res string
+	serviceCenter.Register(&serviceCenter.registerData, &res)
 
 	return serviceCenter, nil
 }
@@ -126,33 +145,6 @@ func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) erro
 	}()
 
 	return err
-}
-
-// RPC -- listsrv
-func (mi *ServiceCenter) ListSrv(req *data.UserRequestData, res *data.UserResponseData) error {
-	mi.rwmu.RLock()
-	defer mi.rwmu.RUnlock()
-
-	var nodes []data.SrvRegisterData
-	for _, v := range mi.SrvNodeNameMapSrvNodeGroup{
-		v.ListSrv(&nodes)
-	}
-
-	b, err := json.Marshal(nodes)
-	if err != nil {
-		res.Err = data.ErrDataCorrupted
-		res.Value.Message = ""
-		res.Value.Signature = ""
-		return nil
-	}
-	res.Value.Message = string(b)
-
-	// make sure no data if err
-	if res.Err != data.NoErr {
-		res.Value.Message = ""
-		res.Value.Signature = ""
-	}
-	return nil
 }
 
 // RPC -- dispatch
@@ -396,22 +388,37 @@ func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvRes
 	var nodeAddr string
 
 	func() {
+		centerVersionSrvName := strings.ToLower(mi.registerData.Srv + "." + mi.registerData.Version)
 		versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
 		l4g.Debug("call %s", req.Data.String())
 
 		mi.rwmu.RLock()
 		defer mi.rwmu.RUnlock()
 
-		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-		if srvNodeGroup == nil{
-			res.Data.Err = data.ErrNotFindSrv
-			res.Data.ErrMsg = data.ErrNotFindSrvText
-			l4g.Error("%s %s", req.Data.String(), res.Data.ErrMsg)
-			err = errors.New(res.Data.ErrMsg)
+		if centerVersionSrvName == versionSrvName {
+			h := mi.apiHandler[strings.ToLower(req.Data.Method.Function)]
+			if h != nil {
+				h.ApiHandler(req, res)
+			}else{
+				res.Data.Err = data.ErrNotFindFunction
+				res.Data.ErrMsg = data.ErrNotFindFunctionText
+			}
+			if res.Data.Err != data.NoErr {
+				l4g.Error("call failed: %s", res.Data.ErrMsg)
+			}
 			return
-		}
+		}else{
+			srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+			if srvNodeGroup == nil{
+				res.Data.Err = data.ErrNotFindSrv
+				res.Data.ErrMsg = data.ErrNotFindSrvText
+				l4g.Error("%s %s", req.Data.String(), res.Data.ErrMsg)
+				err = errors.New(res.Data.ErrMsg)
+				return
+			}
 
-		nodeAddr, err = srvNodeGroup.Dispatch(req, res)
+			nodeAddr, err = srvNodeGroup.Dispatch(req, res)
+		}
 	}()
 
 	// failed, remove this node
@@ -597,8 +604,8 @@ func (mi *ServiceCenter)handleWsData(conn *websocket.Conn, msg string) error{
 	b, _ := json.Marshal(resData)
 	websocket.Message.Send(conn, string(b))
 
-	if err == nil && resData.Err == data.NoErr && resData.Value.LicenseKey != ""{
-		wsc := &WsClient{licenseKey:resData.Value.LicenseKey}
+	if err == nil && resData.Err == data.NoErr && resData.Value.UserKey != ""{
+		wsc := &WsClient{licenseKey:resData.Value.UserKey}
 		mi.addWsClient(conn, wsc)
 
 		return nil
@@ -620,7 +627,7 @@ func (mi *ServiceCenter)pushWsData(d *data.UserResponseData) error {
 	mi.rwmuws.RLock()
 	defer mi.rwmuws.RUnlock()
 
-	conn := mi.licenseKey2wsClients[d.Value.LicenseKey]
+	conn := mi.licenseKey2wsClients[d.Value.UserKey]
 	if conn != nil {
 		err = websocket.Message.Send(conn, string(b))
 	}else{
@@ -628,4 +635,30 @@ func (mi *ServiceCenter)pushWsData(d *data.UserResponseData) error {
 	}
 
 	return err
+}
+
+// RPC -- listsrv
+func (mi *ServiceCenter) listSrv(req *data.SrvRequestData, res *data.SrvResponseData) {
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
+
+	var nodes []data.SrvRegisterData
+	for _, v := range mi.SrvNodeNameMapSrvNodeGroup{
+		v.ListSrv(&nodes)
+	}
+
+	b, err := json.Marshal(nodes)
+	if err != nil {
+		res.Data.Err = data.ErrDataCorrupted
+		res.Data.Value.Message = ""
+		res.Data.Value.Signature = ""
+		return
+	}
+	res.Data.Value.Message = string(b)
+
+	// make sure no data if err
+	if res.Data.Err != data.NoErr {
+		res.Data.Value.Message = ""
+		res.Data.Value.Signature = ""
+	}
 }

@@ -23,31 +23,31 @@ var (
 
 	accountQ = map[string]string{
 		"create": `INSERT into %s.%s (
-				user_id, user_name, user_class, phone, email, 
+				user_key, user_name, user_class, phone, email, 
 				salt, password, google_auth, 
-				license_key, public_key, callback_url, level,
+				public_key, callback_url, level,
 				last_login_time, last_login_ip, last_login_mac,
 				create_time, update_time, is_frozen,
 				time_zone, country, language) 
 				values (?, ?, ?, ?, ?,
 				?, ?, ?,
-				?, ?, ?, ?, 
+				?, ?, ?, 
 				?, ?, ?,
 				?, ?, ?,
 				?, ?, ?)`,
-		"delete": "DELETE from %s.%s where user_id = ?",
+		"delete": "DELETE from %s.%s where user_key = ?",
 
-		"updatePassword":         "UPDATE %s.%s set salt = ?, password = ?, update_time = ? where user_id = ?",
-		"frozen":         	  	  "UPDATE %s.%s set is_frozen = ? where user_id = ?",
-		"level":         	      "UPDATE %s.%s set level = ? where user_id = ?",
-		"readProfile":            "SELECT license_key, user_name, phone, email from %s.%s where user_id = ?",
-		"readPassword":           "SELECT salt, password from %s.%s where user_id = ?",
-		"searchUsername":         "SELECT user_id, user_name, phone, email, salt, password from %s.%s where user_name = ? limit ? offset ?",
-		"searchPhone":         	  "SELECT user_id, user_name, phone, email, salt, password from %s.%s where phone = ? limit ? offset ?",
-		"searchEmail":            "SELECT user_id, user_name, phone, email, salt, password from %s.%s where email = ? limit ? offset ?",
+		"updatePassword":         "UPDATE %s.%s set salt = ?, password = ?, update_time = ? where user_key = ?",
+		"frozen":         	  	  "UPDATE %s.%s set is_frozen = ? where user_key = ?",
+		"level":         	      "UPDATE %s.%s set level = ? where user_key = ?",
+		"readProfile":            "SELECT user_key, user_name, phone, email from %s.%s where user_key = ?",
+		"readPassword":           "SELECT salt, password from %s.%s where user_key = ?",
+		"searchUsername":         "SELECT user_key, user_name, phone, email, salt, password from %s.%s where user_name = ? limit ? offset ?",
+		"searchPhone":         	  "SELECT user_key, user_name, phone, email, salt, password from %s.%s where phone = ? limit ? offset ?",
+		"searchEmail":            "SELECT user_key, user_name, phone, email, salt, password from %s.%s where email = ? limit ? offset ?",
 
-		"listUsers":              "SELECT id, user_id, user_name, phone, email from %s.%s where id < ? order by id desc limit ?",
-		"listUsers2":             "SELECT id, user_id, user_name, phone, email from %s.%s order by id desc limit ?",
+		"listUsers":              "SELECT id, user_key, user_name, phone, email from %s.%s where id < ? order by id desc limit ?",
+		"listUsers2":             "SELECT id, user_key, user_name, phone, email from %s.%s order by id desc limit ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -106,38 +106,38 @@ func Init(configPath string) {
 	}
 }
 
-func Create(user *user.ReqUserCreate, userId, licenseKey string, salt string, password string) error {
+func Create(user *user.ReqUserCreate, userKey string, salt string, password string) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
 	_, err := st["create"].Exec(
-		userId, user.UserName, user.UserClass, user.Phone, user.Email,
+		userKey, user.UserName, user.UserClass, user.Phone, user.Email,
 		salt, password, user.GoogleAuth,
-		licenseKey, user.PublicKey, user.CallbackUrl, user.Level,
+		user.PublicKey, user.CallbackUrl, user.Level,
 		datetime, "", "",
 		datetime, datetime, 0,
 		user.TimeZone, user.Country, user.Language)
 	return err
 }
 
-func Delete(userId string) error {
-	_, err := st["delete"].Exec(userId)
+func Delete(userKey string) error {
+	_, err := st["delete"].Exec(userKey)
 	return err
 }
 
-func UpdatePassword(userId string, salt string, password string) error {
+func UpdatePassword(userKey string, salt string, password string) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
-	_, err := st["updatePassword"].Exec(salt, password, datetime, userId)
+	_, err := st["updatePassword"].Exec(salt, password, datetime, userKey)
 	return err
 }
 
-func Frozen(userId string, frozen rune) error {
-	_, err := st["frozen"].Exec(frozen, userId)
+func Frozen(userKey string, frozen rune) error {
+	_, err := st["frozen"].Exec(frozen, userKey)
 	return err
 }
 
-func Level(userId string, level int) error {
-	_, err := st["level"].Exec(level, userId)
+func Level(userKey string, level int) error {
+	_, err := st["level"].Exec(level, userKey)
 	return err
 }
 
@@ -171,7 +171,7 @@ func ReadPassword(userName, phone, email string) (*user.AckUserLogin, string, st
 
 	var salt, pass string
 	user := &user.AckUserLogin{}
-	if err := r.Scan(&user.UserId, &user.UserName, &user.Phone, &user.Email, &salt, &pass); err != nil {
+	if err := r.Scan(&user.UserKey, &user.UserName, &user.Phone, &user.Email, &salt, &pass); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, "", "", errors.New("not found")
 		}
@@ -202,7 +202,7 @@ func ListUsers(id int, num int) (*user.AckUserList, error) {
 	ul := &user.AckUserList{}
 	for r.Next()  {
 		up := user.UserProfile{}
-		if err := r.Scan(&up.Id, &up.UserId, &up.UserName, &up.Phone, &up.Email); err != nil {
+		if err := r.Scan(&up.Id, &up.UserKey, &up.UserName, &up.Phone, &up.Email); err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}

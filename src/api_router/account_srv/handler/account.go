@@ -2,11 +2,11 @@ package handler
 
 import (
 	"../db"
-	"../../base/data"
+	"api_router/base/data"
 	"crypto/rand"
 	"io/ioutil"
 	"../user"
-	"../../base/service"
+	"api_router/base/service"
 	"encoding/base64"
 	"golang.org/x/crypto/bcrypt"
 	"encoding/json"
@@ -105,29 +105,27 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 		}
 		pp := base64.StdEncoding.EncodeToString(h)
 
-		// licencekey
+		// userkey
 		u, err := uuid.NewV4()
 		if err != nil {
 			return err
 		}
-		userId := u.String()
-		licenseKey := userId
+		userKey := u.String()
 
 		// db
-		err = db.Create(&din, userId, licenseKey, salt, pp)
+		err = db.Create(&din, userKey, salt, pp)
 		if err != nil {
 			return err
 		}
 
 		// to ack
 		dout := user.AckUserCreate{}
-		dout.UserId = userId
-		dout.LicenseKey = licenseKey
+		dout.UserKey = userKey
 		dout.ServerPublicKey = string(s.serverPublicKey)
 
 		d, err := json.Marshal(dout)
 		if err != nil {
-			db.Delete(userId)
+			db.Delete(userKey)
 			return err
 		}
 
@@ -239,7 +237,7 @@ func (s * Account) UpdatePassword(req *data.SrvRequestData, res *data.SrvRespons
 		}
 		pp := base64.StdEncoding.EncodeToString(h)
 
-		if err := db.UpdatePassword(d.UserId, newSalt, pp); err != nil {
+		if err := db.UpdatePassword(d.UserKey, newSalt, pp); err != nil {
 			return err
 		}
 
@@ -248,7 +246,7 @@ func (s * Account) UpdatePassword(req *data.SrvRequestData, res *data.SrvRespons
 		data, err := json.Marshal(dout)
 		if err != nil {
 			// 写回去
-			db.UpdatePassword(d.UserId, salt, hashed)
+			db.UpdatePassword(d.UserKey, salt, hashed)
 			return err
 		}
 

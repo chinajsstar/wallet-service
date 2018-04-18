@@ -1,8 +1,8 @@
 package main
 
 import (
-	"../base/nethelper"
-	"../base/data"
+	"api_router/base/nethelper"
+	"api_router/base/data"
 	"fmt"
 	"encoding/json" // for json get
 	"sync/atomic"
@@ -11,13 +11,13 @@ import (
 	"log"
 	"time"
 	"io/ioutil"
-	"../base/utils"
+	"api_router/base/utils"
 	"crypto/sha512"
 	"crypto"
 	"encoding/base64"
 	"strings"
-	"../account_srv/user"
-	"../account_srv/install"
+	"api_router/account_srv/user"
+	"api_router/account_srv/install"
 	"errors"
 	"strconv"
 	l4g "github.com/alecthomas/log4go"
@@ -54,7 +54,7 @@ func LoadRsaKeys() error {
 		return err
 	}
 
-	G_admin_licensekey = "3b7ecf3b-c605-4c4f-ac2b-2155d4186cd8"
+	G_admin_licensekey = "1c75c668-f1ab-474b-9dae-9ed7950604b4"
 
 	return nil
 }
@@ -70,7 +70,7 @@ const(
 func sendData2(addr, message, version, srv, function string) (*data.UserResponseData, []byte, error) {
 	// 用户数据
 	var ud data.UserData
-	ud.LicenseKey = G_admin_licensekey
+	ud.UserKey = G_admin_licensekey
 
 	if dev == false{
 		bencrypted, err := func() ([]byte, error) {

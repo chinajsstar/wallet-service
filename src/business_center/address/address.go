@@ -63,7 +63,7 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 	rspInfo.ID = reqInfo.ID
 	rspInfo.Symbol = reqInfo.Symbol
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.LicenseKey]
+	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.UserKey]
 	if !ok {
 		res.Data.Err = -1
 		res.Data.ErrMsg = "NewAddress mapUserProperty find Error"
@@ -117,7 +117,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return err
 	}
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.LicenseKey]
+	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.UserKey]
 	if !ok {
 		return errors.New("withdrawal mapUserProperty find Error")
 	}
