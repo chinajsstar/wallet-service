@@ -199,7 +199,9 @@ func (self *Web) startHttpServer() error {
 
 	http.Handle("/index",http.HandlerFunc(self.handleIndex))
 	http.Handle("/login",http.HandlerFunc(self.handleLogin))
+	http.Handle("/register",http.HandlerFunc(self.handleRegister))
 	http.Handle("/dologin",http.HandlerFunc(self.LoginAction))
+	http.Handle("/doregister",http.HandlerFunc(self.RegisterAction))
 	http.Handle("/testapi", http.HandlerFunc(self.handleTestApi))
 	http.Handle("/wallet/", http.HandlerFunc(self.handleWallet))
 	http.Handle("/",http.HandlerFunc(self.handle404))
@@ -423,6 +425,25 @@ func (self *Web) handleLogin(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+// http handler
+func (self *Web) handleRegister(w http.ResponseWriter, req *http.Request) {
+	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//fmt.Println("path=", req.URL.Path)
+	//fmt.Println("query=", req.URL.RawQuery)
+
+	// listsrv
+	t, err := template.ParseFiles("template/html/register.html")
+	if err != nil {
+		l4g.Error("%s", err.Error())
+		return
+	}
+
+	t.Execute(w, nil)
+	return
+}
+
 func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
@@ -444,7 +465,7 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 
 		if ul.UserName == "" || ul.Password == ""{
 			ures.Err = 1
-			ures.ErrMsg = "参数错误"
+			ures.ErrMsg = "no username pr password"
 			return
 		}
 
@@ -471,6 +492,58 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		//expiration := time.Unix(5, 0)
 		cookie := http.Cookie{Name: "name", Value: aul.UserKey, Path: "/"}
 		http.SetCookie(w, &cookie)
+
+		ures = *d1
+	}()
+
+	b, _ := json.Marshal(ures)
+	w.Write(b)
+
+	return
+}
+
+func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+
+	ures := data.UserResponseData{}
+
+	func(){
+		message := ""
+		bb, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			ures.Err = data.ErrDataCorrupted
+			ures.ErrMsg = data.ErrDataCorruptedText
+			return
+		}
+		message = string(bb)
+		fmt.Println("argv=", message)
+
+		uc := user.ReqUserCreate{}
+		json.Unmarshal(bb, &uc)
+
+		if uc.UserName == "" || uc.Password == ""{
+			ures.Err = 1
+			ures.ErrMsg = "no username pr password"
+			return
+		}
+
+		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "create")
+		if d1.Err != data.NoErr {
+			w.Write([]byte(d1.ErrMsg))
+			return
+		}
+		if err != nil {
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		acl := user.AckUserCreate{}
+		json.Unmarshal([]byte(d1.Value.Message), &acl)
+		if err != nil {
+			w.Write([]byte(err.Error()))
+			return
+		}
+		fmt.Println(acl.ServerPublicKey)
 
 		ures = *d1
 	}()

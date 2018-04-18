@@ -54,7 +54,7 @@ type UserProfile struct{
 	Id 				int    `json:"id"`
 	UserKey 		string `json:"user_key"`
 	UserName 		string `json:"user_name"`
-	UserClass 		string `json:"user_class"`
+	UserClass 		int `json:"user_class"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
 	// TODO: others info

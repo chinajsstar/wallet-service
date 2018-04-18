@@ -46,8 +46,8 @@ var (
 		"searchPhone":         	  "SELECT user_key, user_name, phone, email, salt, password from %s.%s where phone = ? limit ? offset ?",
 		"searchEmail":            "SELECT user_key, user_name, phone, email, salt, password from %s.%s where email = ? limit ? offset ?",
 
-		"listUsers":              "SELECT id, user_key, user_name, phone, email from %s.%s where id < ? order by id desc limit ?",
-		"listUsers2":             "SELECT id, user_key, user_name, phone, email from %s.%s order by id desc limit ?",
+		"listUsers":              "SELECT id, user_key, user_name, user_class, phone, email from %s.%s where id < ? order by id desc limit ?",
+		"listUsers2":             "SELECT id, user_key, user_name, user_class, phone, email from %s.%s order by id desc limit ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -202,7 +202,7 @@ func ListUsers(id int, num int) (*user.AckUserList, error) {
 	ul := &user.AckUserList{}
 	for r.Next()  {
 		up := user.UserProfile{}
-		if err := r.Scan(&up.Id, &up.UserKey, &up.UserName, &up.Phone, &up.Email); err != nil {
+		if err := r.Scan(&up.Id, &up.UserKey, &up.UserName, &up.UserClass, &up.Phone, &up.Email); err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}
