@@ -587,16 +587,15 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		}
 
 		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "login")
+		fmt.Println(d1)
+
+		ures = *d1
 		if d1.Err != data.NoErr {
-			w.Write([]byte(d1.ErrMsg))
 			return
 		}
 		if err != nil {
-			w.Write([]byte(err.Error()))
 			return
 		}
-
-		fmt.Println(d1)
 
 		aul := user.AckUserLogin{}
 		json.Unmarshal([]byte(d1.Value.Message), &aul)
@@ -609,8 +608,6 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		//expiration := time.Unix(5, 0)
 		cookie := http.Cookie{Name: "name", Value: aul.UserKey, Path: "/"}
 		http.SetCookie(w, &cookie)
-
-		ures = *d1
 	}()
 
 	b, _ := json.Marshal(ures)
@@ -644,24 +641,15 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		}
 
 		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "create")
-		if d1.Err != data.NoErr {
-			w.Write([]byte(d1.ErrMsg))
-			return
-		}
-		if err != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-
-		acl := user.AckUserCreate{}
-		json.Unmarshal([]byte(d1.Value.Message), &acl)
-		if err != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-		fmt.Println(acl.ServerPublicKey)
+		fmt.Println(d1)
 
 		ures = *d1
+		if d1.Err != data.NoErr {
+			return
+		}
+		if err != nil {
+			return
+		}
 	}()
 
 	b, _ := json.Marshal(ures)
