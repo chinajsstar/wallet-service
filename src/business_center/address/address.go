@@ -201,18 +201,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 }
 
 func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	mapUserAddress, err := mysqlpool.QueryAllUserAddress()
-	if err != nil {
-		return err
-	}
-
-	addresses := make([]UserAddress, 0)
-	for _, v := range mapUserAddress {
-		addresses = append(addresses, *v)
-	}
-
-	pack, _ := json.Marshal(addresses)
-	res.Data.Value.Message = string(pack)
+	res.Data.Value.Message = mysqlpool.QueryUserAddress(req.Data.Argv.Message)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 

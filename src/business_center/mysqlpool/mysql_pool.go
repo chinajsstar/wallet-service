@@ -3,7 +3,6 @@ package mysqlpool
 import (
 	. "business_center/def"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -58,36 +57,4 @@ func QueryAllAssetProperty() (map[string]*AssetProperty, error) {
 	}
 
 	return mapAssetProperty, nil
-}
-
-func QueryAllUserAddress() (map[string]*UserAddress, error) {
-	rows, err := db.Query("select b.user_key, b.user_name, b.user_class, c.id, c.name," +
-		" c.full_name, a.address, a.private_key, " +
-		" a.available_amount, a.frozen_amount, a.enabled, " +
-		" unix_timestamp(a.create_time), unix_timestamp(a.update_time)" +
-		" from user_address a " +
-		" left join user_property b on a.user_key = b.user_key" +
-		" left join asset_property c on a.asset_id = c.id;")
-	if err != nil {
-		return nil, err
-	}
-
-	mapUserAddress := make(map[string]*UserAddress)
-	for rows.Next() {
-		userAddress := &UserAddress{}
-		rows.Scan(&userAddress.UserKey, &userAddress.UserName, &userAddress.UserClass, &userAddress.AssetID,
-			&userAddress.AssetName, &userAddress.AssetFullName, &userAddress.Address, &userAddress.PrivateKey,
-			&userAddress.AvailableAmount, &userAddress.FrozenAmount,
-			&userAddress.Enabled, &userAddress.CreateTime, &userAddress.UpdateTime)
-		mapUserAddress[userAddress.AssetName+"_"+userAddress.Address] = userAddress
-	}
-
-	return mapUserAddress, nil
-}
-
-func QueryUserAddress(query string) (userAddresses []UserAddress) {
-	var dat map[string]interface{}
-	json.Unmarshal([]byte(query), dat)
-
-	return nil
 }
