@@ -35,6 +35,7 @@ func (x *Cobank)callBack(userID string, callbackMsg string){
 
 	res := data.UserResponseData{}
 	x.node.Push(&pData, &res)
+	l4g.Info("push return: ", res)
 }
 
 func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
@@ -42,23 +43,25 @@ func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 
 	apiInfo := data.ApiInfo{Name:"new_address", Level:data.APILevel_client}
 	apiInfo.Example = "{\"id\":\"1\",\"symbol\":\"eth\",\"count\":5}"
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.NewAddress, ApiInfo:apiInfo}
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+
+	apiInfo = data.ApiInfo{Name:"query_user_address", Level:data.APILevel_admin}
+	apiInfo.Example = "none"
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
 
 	return nam
 }
 
-func (x *Cobank)NewAddress(req *data.SrvRequestData, res *data.SrvResponseData){
+func (x *Cobank)handler(req *data.SrvRequestData, res *data.SrvResponseData){
 	res.Data.Err = data.NoErr
 
 	l4g.Debug("argv: %s", req.Data.Argv)
 
 	err := x.business.HandleMsg(req, res)
+
 	l4g.Debug("value: %s", res.Data.Value)
 
 	if err != nil {
 		return
 	}
-
-	res.Data.Value.Signature = ""
-	res.Data.Value.UserKey = req.Data.Argv.UserKey
 }

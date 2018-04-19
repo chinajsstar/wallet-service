@@ -77,13 +77,27 @@ func Init(configPath string) {
 }
 
 func ReadUserLevel(userKey string) (*user.UserLevel, error) {
-	r := st["readUserLevel"].QueryRow(userKey, 1, 0)
+	var r *sql.Rows
+	var err error
+
+	r, err = st["readUserLevel"].Query(userKey, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		return nil, errors.New("row no next")
+	}
 
 	ul := &user.UserLevel{}
 	if err := r.Scan(&ul.Level, &ul.IsFrozen, &ul.PublicKey); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.New("not found")
+			return nil, errors.New("no rows")
 		}
+		return nil, err
+	}
+	if r.Err() != nil {
 		return nil, err
 	}
 

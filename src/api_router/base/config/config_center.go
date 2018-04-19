@@ -19,16 +19,4 @@ func (cc *ConfigCenter)Load(absPath string) {
 	if err != nil {
 		l4g.Crashf("", err)
 	}
-
-	//var err error
-	//var data []byte
-	//data, err = ioutil.ReadFile(absPath)
-	//if err != nil {
-	//	l4g.Crashf("", err)
-	//}
-	//
-	//err = json.Unmarshal(data, cc)
-	//if err != nil {
-	//	l4g.Crashf("", err)
-	//}
 }

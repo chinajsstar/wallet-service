@@ -64,35 +64,27 @@ func (push * Push)GetApiGroup()(map[string]service.NodeApi){
 
 // 推送数据
 func (push *Push)PushData(req *data.SrvRequestData, res *data.SrvResponseData) {
-	err := func() error{
-		url, err := push.getUserCallbackUrl(req.Data.Argv.UserKey)
-		if err != nil {
-			l4g.Error("(%s) failed: %s",req.Data.Argv.UserKey, err.Error())
-			return err
-		}
-
-		// call url
-		b, err := json.Marshal(req.Data.Argv)
-		if err != nil {
-			l4g.Error("(%s) marshal failed: %s",req.Data.Argv.UserKey, err.Error())
-			return err
-		}
-		var ret string
-		err = nethelper.CallToHttpServer(url, "", string(b), &ret)
-		if err != nil {
-			l4g.Error("%s", err.Error())
-			return err
-		}
-
-		res.Data.Value.Message = ret
-		res.Data.Value.Signature = ""
-		res.Data.Value.UserKey = req.Data.Argv.UserKey
-
-		return nil
-	}()
-
+	url, err := push.getUserCallbackUrl(req.Data.Argv.UserKey)
 	if err != nil {
+		l4g.Error("(%s) no user callback: %s",req.Data.Argv.UserKey, err.Error())
 		res.Data.Err = data.ErrPushSrvPushData
-		res.Data.ErrMsg = data.ErrPushSrvPushDataText
+		return
 	}
+
+	// call url
+	b, err := json.Marshal(req.Data.Argv)
+	if err != nil {
+		l4g.Error("error json message: %s", err.Error())
+		res.Data.Err = data.ErrDataCorrupted
+		return
+	}
+	var ret string
+	err = nethelper.CallToHttpServer(url, "", string(b), &ret)
+	if err != nil {
+		l4g.Error("push http: %s", err.Error())
+		res.Data.Err = data.ErrPushSrvPushData
+		return
+	}
+
+	res.Data.Value.Message = ret
 }

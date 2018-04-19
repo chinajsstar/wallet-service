@@ -112,35 +112,26 @@ func LoginUser() (*user.ReqUserLogin, error) {
 
 	fmt.Println("用户名，电话，邮箱填一个: ")
 	fmt.Println("输入用户名: ")
+	input = ""
 	fmt.Scanln(&input)
 	uc.UserName = input
 
 	fmt.Println("输入电话: ")
+	input = ""
 	fmt.Scanln(&input)
 	uc.Phone = input
 
 	fmt.Println("输入邮箱: ")
+	input = ""
 	fmt.Scanln(&input)
 	uc.Email = input
 
 	fmt.Println("输入密码: ")
+	input = ""
 	fmt.Scanln(&input)
-	pw1 := input
+	pw := input
 
-	uc.Password = utils.GetMd5Text(pw1)
+	uc.Password = utils.GetMd5Text(pw)
 
 	return uc, nil
-}
-
-func ListUsers() (*user.ReqUserList, error) {
-	var err error
-	var input string
-
-	uc := &user.ReqUserList{}
-
-	fmt.Println("输入上次最小id，默认填-1: ")
-	fmt.Scanln(&input)
-	uc.Id, err = strconv.Atoi(input)
-
-	return uc, err
 }

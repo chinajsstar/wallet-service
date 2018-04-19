@@ -11,15 +11,9 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
-	"golang.org/x/net/websocket"
 	"errors"
 	l4g "github.com/alecthomas/log4go"
 )
-
-type WsClient struct{
-	// ws client license key
-	licenseKey string
-}
 
 type ServiceCenter struct{
 	// config
@@ -29,12 +23,6 @@ type ServiceCenter struct{
 	rwmu                       sync.RWMutex
 	SrvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
 	ApiInfo                    map[string]*data.ApiInfo
-
-	// websocket
-	rwmuws sync.RWMutex
-	// valid clients
-	licenseKey2wsClients map[string]*websocket.Conn
-	wsClients map[*websocket.Conn]*WsClient
 
 	// wait group
 	wg sync.WaitGroup
@@ -53,9 +41,6 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 	serviceCenter.cfgCenter.Load(confPath)
 
 	serviceCenter.SrvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
-
-	serviceCenter.wsClients = make(map[*websocket.Conn]*WsClient)
-	serviceCenter.licenseKey2wsClients = make(map[string]*websocket.Conn)
 
 	serviceCenter.clientGroup = NewConnectionGroup()
 
@@ -80,8 +65,6 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 // start the service center
 func StartCenter(ctx context.Context, mi *ServiceCenter) {
 	mi.startHttpServer(ctx)
-
-	//mi.startWsServer(ctx)
 
 	mi.startTcpServer(ctx)
 }
@@ -193,22 +176,6 @@ func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
 	}()
 }
 
-// start websocket server
-func (mi *ServiceCenter) startWsServer(ctx context.Context) {
-	// websocket
-	l4g.Debug("Start ws server on %s", mi.cfgCenter.WsPort)
-
-	http.Handle("/ws", websocket.Handler(mi.handleWebSocket))
-
-	go func() {
-		l4g.Info("ws server routine running... ")
-		err := http.ListenAndServe(":"+mi.cfgCenter.WsPort, nil)
-		if err != nil {
-			l4g.Crashf("", err)
-		}
-	}()
-}
-
 // start tcp server
 func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
 	l4g.Debug("Start Tcp server on ", mi.cfgCenter.CenterPort)
@@ -251,7 +218,6 @@ func (mi *ServiceCenter) innerCall(req *data.UserRequestData, res *data.UserResp
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
-		res.ErrMsg = data.ErrNotFindSrvText
 		l4g.Error("%s %s", req.String(), res.ErrMsg)
 		return
 	}
@@ -274,7 +240,6 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	// can not call auth service
 	if req.Method.Srv == "auth" {
 		res.Err = data.ErrIllegallyCall
-		res.ErrMsg = data.ErrIllegallyCallText
 		l4g.Error("%s %s", req.String(), res.ErrMsg)
 		return
 	}
@@ -283,7 +248,6 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
-		res.ErrMsg = data.ErrNotFindSrvText
 		l4g.Error("%s %s", req.String(), res.ErrMsg)
 		return
 	}
@@ -401,7 +365,6 @@ func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvRes
 				h.ApiHandler(req, res)
 			}else{
 				res.Data.Err = data.ErrNotFindFunction
-				res.Data.ErrMsg = data.ErrNotFindFunctionText
 			}
 			if res.Data.Err != data.NoErr {
 				l4g.Error("call failed: %s", res.Data.ErrMsg)
@@ -411,7 +374,6 @@ func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvRes
 			srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
 			if srvNodeGroup == nil{
 				res.Data.Err = data.ErrNotFindSrv
-				res.Data.ErrMsg = data.ErrNotFindSrvText
 				l4g.Error("%s %s", req.Data.String(), res.Data.ErrMsg)
 				err = errors.New(res.Data.ErrMsg)
 				return
@@ -464,7 +426,6 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
 			resData.Err = data.ErrDataCorrupted
-			resData.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 
@@ -477,7 +438,6 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
 			resData.Err = data.ErrDataCorrupted
-			resData.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 
@@ -500,141 +460,15 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 		resData.Method = reqData.Method
 	}()
 
+	if resData.Err != data.NoErr && resData.ErrMsg == "" {
+		resData.ErrMsg = data.GetErrMsg(resData.Err)
+	}
+
 	// write back http
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(resData)
 	w.Write(b)
 	return
-}
-
-// ws handler
-func (mi *ServiceCenter)handleWebSocket(conn *websocket.Conn) {
-	for {
-		l4g.Debug("ws handle data...")
-		var err error
-		var data string
-		err = websocket.Message.Receive(conn, &data)
-		if err == nil{
-			err = mi.handleWsData(conn, data)
-		}
-
-		if err != nil {
-			//移除出错的链接
-			mi.removeWsClient(conn)
-			l4g.Error("ws read failed, remove client:%s", err.Error())
-			break
-		}
-	}
-}
-
-func (mi *ServiceCenter)addWsClient(conn *websocket.Conn, client *WsClient) error{
-	var err error
-
-	mi.rwmuws.Lock()
-	defer mi.rwmuws.Unlock()
-
-	mi.wsClients[conn] = client
-	mi.licenseKey2wsClients[client.licenseKey] = conn
-
-	l4g.Debug("add, ws client = %d", len(mi.wsClients))
-	return err
-}
-
-func (mi *ServiceCenter)removeWsClient(conn *websocket.Conn) error{
-	var err error
-
-	conn.Close()
-
-	mi.rwmuws.Lock()
-	defer mi.rwmuws.Unlock()
-
-	licenseKey := ""
-	v := mi.wsClients[conn]
-	if v != nil {
-		licenseKey = v.licenseKey
-	}
-
-	delete(mi.wsClients, conn)
-	if licenseKey != ""{
-		delete(mi.licenseKey2wsClients, licenseKey)
-	}
-
-	l4g.Debug("remove, ws client = %d", len(mi.wsClients))
-	return err
-}
-
-func (mi *ServiceCenter)handleWsData(conn *websocket.Conn, msg string) error{
-	mi.wg.Add(1)
-	defer mi.wg.Done()
-
-	// only handle login request
-	resData := data.UserResponseData{}
-	err := func () error {
-		// 重组rpc结构json
-		reqData := data.UserRequestData{}
-		err := json.Unmarshal([]byte(msg), &reqData);
-		if err != nil {
-			resData.Err = data.ErrDataCorrupted
-			resData.ErrMsg = data.ErrDataCorruptedText
-			l4g.Error("ws parse failed:%s", err.Error())
-			return err
-		}
-		resData.Method = reqData.Method
-
-		if reqData.Method.Srv != "account" {
-			resData.Err = data.ErrIllegallyCall
-			resData.ErrMsg = data.ErrIllegallyCallText
-			l4g.Error("ws illegally call:%s", reqData.Method.Srv)
-			return errors.New(resData.ErrMsg)
-		}
-
-		if reqData.Method.Function != "login" && reqData.Method.Function != "logout" {
-			resData.Err = data.ErrIllegallyCall
-			resData.ErrMsg = data.ErrIllegallyCallText
-			l4g.Error("ws illegally call:%s", reqData.Method.Function)
-			return errors.New(resData.ErrMsg)
-		}
-
-		mi.userCall(&reqData, &resData)
-		resData.Method = reqData.Method
-		return nil
-	}()
-
-	// write back
-	b, _ := json.Marshal(resData)
-	websocket.Message.Send(conn, string(b))
-
-	if err == nil && resData.Err == data.NoErr && resData.Value.UserKey != ""{
-		wsc := &WsClient{licenseKey:resData.Value.UserKey}
-		mi.addWsClient(conn, wsc)
-
-		return nil
-	}
-
-	if resData.Err != data.NoErr {
-		err = errors.New(resData.ErrMsg)
-	}
-
-	return err
-}
-
-func (mi *ServiceCenter)pushWsData(d *data.UserResponseData) error {
-	b, err := json.Marshal(*d)
-	if err != nil {
-		return err
-	}
-
-	mi.rwmuws.RLock()
-	defer mi.rwmuws.RUnlock()
-
-	conn := mi.licenseKey2wsClients[d.Value.UserKey]
-	if conn != nil {
-		err = websocket.Message.Send(conn, string(b))
-	}else{
-		err = errors.New("no client login")
-	}
-
-	return err
 }
 
 // RPC -- listsrv

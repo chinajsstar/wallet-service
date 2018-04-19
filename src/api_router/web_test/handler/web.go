@@ -17,6 +17,8 @@ import (
 	"crypto/sha512"
 	"crypto"
 	"errors"
+	"golang.org/x/net/websocket"
+	"sync"
 )
 
 const httpaddrGateway = "http://127.0.0.1:8080"
@@ -159,15 +161,29 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+type WsClient struct{
+	// ws client license key
+	licenseKey string
+}
+
 type Web struct{
 	nodes []*data.SrvRegisterData
 
 	users map[string]*user.AckUserLogin
+
+	// websocket
+	rwmuws sync.RWMutex
+	// valid clients
+	licenseKey2wsClients map[string]*websocket.Conn
+	wsClients map[*websocket.Conn]*WsClient
 }
 
 func NewWeb() *Web {
 	w := &Web{}
 	w.users = make(map[string]*user.AckUserLogin)
+
+	w.wsClients = make(map[*websocket.Conn]*WsClient)
+	w.licenseKey2wsClients = make(map[string]*websocket.Conn)
 
 	return w
 }
@@ -181,7 +197,109 @@ func (self *Web)Init() error {
 		return err
 	}
 
+	self.startWsServer()
+
 	return nil
+}
+
+// start websocket server
+func (self *Web) startWsServer() {
+	// websocket
+	l4g.Debug("Start ws server on 8076")
+
+	http.Handle("/ws", websocket.Handler(self.handleWebSocket))
+
+	go func() {
+		l4g.Info("ws server routine running... ")
+		err := http.ListenAndServe(":8076", nil)
+		if err != nil {
+			l4g.Crashf("", err)
+		}
+	}()
+}
+
+
+// ws handler
+func (self *Web)handleWebSocket(conn *websocket.Conn) {
+	for {
+		l4g.Debug("ws handle data...")
+		var err error
+		var data string
+		err = websocket.Message.Receive(conn, &data)
+		if err == nil{
+			err = self.handleWsData(conn, data)
+		}
+
+		if err != nil {
+			//移除出错的链接
+			self.removeWsClient(conn)
+			l4g.Error("ws read failed, remove client:%s", err.Error())
+			break
+		}
+	}
+}
+
+func (self *Web)addWsClient(conn *websocket.Conn, client *WsClient) error{
+	var err error
+
+	self.rwmuws.Lock()
+	defer self.rwmuws.Unlock()
+
+	self.wsClients[conn] = client
+	self.licenseKey2wsClients[client.licenseKey] = conn
+
+	l4g.Debug("add, ws client = %d", len(self.wsClients))
+	return err
+}
+
+func (self *Web)removeWsClient(conn *websocket.Conn) error{
+	var err error
+
+	conn.Close()
+
+	self.rwmuws.Lock()
+	defer self.rwmuws.Unlock()
+
+	licenseKey := ""
+	v := self.wsClients[conn]
+	if v != nil {
+		licenseKey = v.licenseKey
+	}
+
+	delete(self.wsClients, conn)
+	if licenseKey != ""{
+		delete(self.licenseKey2wsClients, licenseKey)
+	}
+
+	l4g.Debug("remove, ws client = %d", len(self.wsClients))
+	return err
+}
+
+
+func (self *Web)handleWsData(conn *websocket.Conn, msg string) error{
+	wsc := &WsClient{licenseKey:""}
+	self.addWsClient(conn, wsc)
+
+	return nil
+}
+
+func (self *Web)pushWsData(d *data.UserResponseData) error {
+	b, err := json.Marshal(*d)
+	if err != nil {
+		return err
+	}
+
+	self.rwmuws.RLock()
+	defer self.rwmuws.RUnlock()
+
+	conn := self.licenseKey2wsClients[d.Value.UserKey]
+	if conn != nil {
+		err = websocket.Message.Send(conn, string(b))
+	}else{
+		err = errors.New("no client login")
+	}
+
+	return err
 }
 
 // start http server
@@ -454,7 +572,6 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			ures.Err = data.ErrDataCorrupted
-			ures.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 		message = string(bb)
@@ -512,7 +629,6 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			ures.Err = data.ErrDataCorrupted
-			ures.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 		message = string(bb)
@@ -622,7 +738,6 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 		bb, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			ures.Err = data.ErrDataCorrupted
-			ures.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 		message = string(bb)

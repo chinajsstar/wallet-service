@@ -63,11 +63,11 @@ func main() {
 
 	time.Sleep(time.Second*1)
 	for ; ;  {
-		fmt.Println("Input 'quit' to quit...")
+		fmt.Println("Input 'q' to quit...")
 		var input string
 		fmt.Scanln(&input)
 
-		if input == "quit" {
+		if input == "q" {
 			cancel()
 			break;
 		}

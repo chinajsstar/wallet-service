@@ -5,6 +5,7 @@ import (
 	"../../base/service"
 	"encoding/json"
 	"strconv"
+	l4g "github.com/alecthomas/log4go"
 )
 
 type Args struct {
@@ -30,12 +31,11 @@ func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
 	din := Args{}
 	err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
 	if err != nil {
+		l4g.Error("error json message: %s", err.Error())
 		res.Data.Err = data.ErrDataCorrupted
-		res.Data.ErrMsg = data.ErrDataCorruptedText
 		return
 	}
 
 	res.Data.Value.Message = strconv.Itoa(din.A+din.B)
-	res.Data.Value.Signature = ""
-	res.Data.Value.UserKey = req.Data.Argv.UserKey
+	l4g.Info("do add: %s", res.Data.Value.Message)
 }

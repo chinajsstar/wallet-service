@@ -16,8 +16,6 @@ type SrvNode struct{
 
 	rwmu sync.RWMutex					// read/write lock
 	client *rpc.Client					// client
-
-	//tcpPool pool.RpcPool
 }
 
 // try to connect service node
@@ -87,11 +85,6 @@ func (sng *SrvNodeGroup) RegisterNode(reg *data.SrvRegisterData) error {
 		sng.addrMapSrvNode[reg.Addr] = srvNode
 	}
 
-	if srvNode != nil{
-		//factory    := func() (*rpc.Client, error) { return rpc.Dial("tcp", srvNode.registerData.Addr) }
-		//srvNode.tcpPool, _ = pool.NewRpcChannelPool(20, 50, factory)
-	}
-
 	sng.nodes = append(sng.nodes, srvNode)
 
 	l4g.Debug("reg-%s, all-%d", reg.String(), len(sng.addrMapSrvNode))
@@ -149,7 +142,6 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 	// check has srv nodes
 	if sng.addrMapSrvNode == nil || len(sng.addrMapSrvNode) == 0 {
 		res.Data.Err = data.ErrNotFindSrv
-		res.Data.ErrMsg = data.ErrNotFindSrvText
 		return nodeAddr, errors.New(res.Data.ErrMsg)
 	}
 
@@ -158,7 +150,6 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 	srvNode = sng.getFreeNode()
 	if srvNode == nil{
 		res.Data.Err = data.ErrNotFindSrv
-		res.Data.ErrMsg = data.ErrNotFindSrvText
 		return nodeAddr, errors.New(res.Data.ErrMsg)
 	}
 
@@ -176,14 +167,12 @@ func (sng *SrvNodeGroup) Dispatch(req *data.SrvRequestData, res *data.SrvRespons
 			l4g.Error("#Call srv:%s", err.Error())
 
 			res.Data.Err = data.ErrCallFailed
-			res.Data.ErrMsg = data.ErrCallFailedText
 
 			nodeAddr = srvNode.registerData.Addr
 			err = errors.New(res.Data.ErrMsg)
 		}
 	}else{
 		res.Data.Err = data.ErrConnectSrvFailed
-		res.Data.ErrMsg = data.ErrConnectSrvFailedText
 
 		nodeAddr = srvNode.registerData.Addr
 		err = errors.New(res.Data.ErrMsg)

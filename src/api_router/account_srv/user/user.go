@@ -57,7 +57,6 @@ type UserProfile struct{
 	UserClass 		int `json:"user_class"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
-	// TODO: others info
 }
 
 // 用户列表-输入

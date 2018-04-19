@@ -76,13 +76,27 @@ func Init(configPath string) {
 }
 
 func ReadUserCallbackUrl(userKey string) (string, error) {
-	r := st["readUserCallbackUrl"].QueryRow(userKey, 1, 0)
+	var r *sql.Rows
+	var err error
+
+	r, err = st["readUserCallbackUrl"].Query(userKey, 1, 0)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		return "", errors.New("row no next")
+	}
 
 	var url string
 	if err := r.Scan(&url); err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.New("not found")
+			return "", errors.New("no rows")
 		}
+		return "", err
+	}
+	if r.Err() != nil {
 		return "", err
 	}
 
