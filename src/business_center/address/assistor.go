@@ -3,7 +3,6 @@ package address
 import (
 	"blockchain_server/service"
 	"blockchain_server/types"
-	"business_center/basicdata"
 	. "business_center/def"
 	"business_center/mysqlpool"
 	"business_center/redispool"
@@ -62,7 +61,6 @@ func (a *Address) addUserAddress(userAddress []UserAddress) []string {
 		addresses = append(addresses, v.Address)
 	}
 	tx.Commit()
-	basicdata.Get().AddUserAddressMap(userAddress)
 
 	return addresses
 }
@@ -77,7 +75,7 @@ func (a *Address) recvRechargeTxChannel() {
 			select {
 			case rct := <-channel:
 				{
-					assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[rct.Coin_name]
+					assetProperty, ok := mysqlpool.QueryAllAssetProperty()[rct.Coin_name]
 					if !ok {
 						continue
 					}
@@ -143,7 +141,7 @@ func (a *Address) recvCmdTxChannel() {
 			select {
 			case cmdTx := <-channel:
 				{
-					assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[cmdTx.Coinname]
+					assetProperty, ok := mysqlpool.QueryAllAssetProperty()[cmdTx.Coinname]
 					if !ok {
 						continue
 					}
@@ -228,7 +226,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			blockin.Detail = make([]TransactionDetail, 0)
 
 			//from
-			detail.Address = strings.ToLower(transfer.From)
+			detail.Address = "0x" + strings.ToLower(transfer.From)
 			detail.Amount = -int64(transfer.Value)
 			detail.TransType = "from"
 			blockin.Detail = append(blockin.Detail, detail)
@@ -240,7 +238,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//gas
-			detail.Address = strings.ToLower(transfer.From)
+			detail.Address = "0x" + strings.ToLower(transfer.From)
 			detail.Amount = -int64(transfer.Gase)
 			detail.TransType = "gas"
 			blockin.Detail = append(blockin.Detail, detail)
@@ -256,7 +254,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 
 	for _, detail := range blockin.Detail {
 
-		userAddress, ok := basicdata.Get().GetAllUserAddressMap()[blockin.AssetName+"_"+detail.Address]
+		userAddress, ok := mysqlpool.QueryAllUserAddress()[blockin.AssetName+"_"+detail.Address]
 		if ok {
 			_, err := Tx.Exec("update user_address set available_amount = available_amount + ?, update_time = now() "+
 				" where asset_id = ? and address = ?;",
@@ -348,7 +346,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 
 		//充值订单
 		for _, v := range blockin.Detail {
-			userAddress, ok := basicdata.Get().GetAllUserAddressMap()[blockin.AssetName+"_"+v.Address]
+			userAddress, ok := mysqlpool.QueryAllUserAddress()[blockin.AssetName+"_"+v.Address]
 			if ok && userAddress.UserClass == 0 {
 				switch blockin.AssetName {
 				case "btc":

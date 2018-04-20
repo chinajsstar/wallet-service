@@ -25,36 +25,38 @@ func init() {
 	db.Ping()
 }
 
-func QueryAllUserProperty() (map[string]*UserProperty, error) {
+func QueryAllUserProperty() map[string]*UserProperty {
+	mapUserProperty := make(map[string]*UserProperty)
+
 	rows, err := db.Query("select user_key, user_name, user_class" +
 		" from user_property;")
 	if err != nil {
-		return nil, err
+		fmt.Println(err.Error())
+		return mapUserProperty
 	}
 
-	mapUserProperty := make(map[string]*UserProperty)
 	for rows.Next() {
 		userProperty := &UserProperty{}
 		rows.Scan(&userProperty.UserKey, &userProperty.UserName, &userProperty.UserClass)
 		mapUserProperty[userProperty.UserKey] = userProperty
 	}
-
-	return mapUserProperty, nil
+	return mapUserProperty
 }
 
-func QueryAllAssetProperty() (map[string]*AssetProperty, error) {
+func QueryAllAssetProperty() map[string]*AssetProperty {
+	mapAssetProperty := make(map[string]*AssetProperty)
+
 	rows, err := db.Query("select id, name, full_name, confirmation_num" +
 		" from asset_property;")
 	if err != nil {
-		return nil, err
+		fmt.Println(err.Error())
+		return nil
 	}
 
-	mapAssetProperty := make(map[string]*AssetProperty)
 	for rows.Next() {
 		assetProperty := &AssetProperty{}
 		rows.Scan(&assetProperty.ID, &assetProperty.Name, &assetProperty.FullName, &assetProperty.ConfirmationNum)
 		mapAssetProperty[assetProperty.Name] = assetProperty
 	}
-
-	return mapAssetProperty, nil
+	return mapAssetProperty
 }

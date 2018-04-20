@@ -4,7 +4,6 @@ import (
 	"api_router/base/data"
 	"blockchain_server/service"
 	"blockchain_server/types"
-	"business_center/basicdata"
 	. "business_center/def"
 	"business_center/mysqlpool"
 	"context"
@@ -41,7 +40,7 @@ func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callba
 	a.wallet.SubscribeTxCmdState(a.cmdTxChannel)
 
 	//添加监控地址
-	for _, v := range basicdata.Get().GetAllUserAddressMap() {
+	for _, v := range mysqlpool.QueryAllUserAddress() {
 		rcaCmd := service.NewRechargeAddressCmd("", v.AssetName, []string{v.Address})
 		a.wallet.InsertRechargeAddress(rcaCmd)
 	}
@@ -63,14 +62,14 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 	rspInfo.ID = reqInfo.ID
 	rspInfo.Symbol = reqInfo.Symbol
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.UserKey]
+	userProperty, ok := mysqlpool.QueryAllUserAddress()[req.Data.Argv.UserKey]
 	if !ok {
 		res.Data.Err = -1
 		res.Data.ErrMsg = "NewAddress mapUserProperty find Error"
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Symbol]
+	assetProperty, ok := mysqlpool.QueryAllAssetProperty()[reqInfo.Symbol]
 	if !ok {
 		res.Data.Err = -1
 		res.Data.ErrMsg = "NewAddress mapAssetProperty find Error"
@@ -123,12 +122,12 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.UserKey]
+	userProperty, ok := mysqlpool.QueryAllUserProperty()[req.Data.Argv.UserKey]
 	if !ok {
 		return errors.New("withdrawal mapUserProperty find Error")
 	}
 
-	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Symbol]
+	assetProperty, ok := mysqlpool.QueryAllAssetProperty()[reqInfo.Symbol]
 	if !ok {
 		return errors.New("withdrawal mapAssetProperty find Error")
 	}
