@@ -3,10 +3,13 @@ package mysqlpool
 import (
 	. "business_center/def"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
-func QueryAllUserAddress() (map[string]*UserAddress, error) {
+func QueryAllUserAddress() map[string]*UserAddress {
+	mapUserAddress := make(map[string]*UserAddress)
+
 	rows, err := db.Query("select b.user_key, b.user_name, b.user_class, c.id, c.name," +
 		" c.full_name, a.address, a.private_key, " +
 		" a.available_amount, a.frozen_amount, a.enabled, " +
@@ -15,10 +18,10 @@ func QueryAllUserAddress() (map[string]*UserAddress, error) {
 		" left join user_property b on a.user_key = b.user_key" +
 		" left join asset_property c on a.asset_id = c.id;")
 	if err != nil {
-		return nil, err
+		fmt.Println(err.Error())
+		return mapUserAddress
 	}
 
-	mapUserAddress := make(map[string]*UserAddress)
 	for rows.Next() {
 		userAddress := &UserAddress{}
 		rows.Scan(&userAddress.UserKey, &userAddress.UserName, &userAddress.UserClass, &userAddress.AssetID,
@@ -27,8 +30,7 @@ func QueryAllUserAddress() (map[string]*UserAddress, error) {
 			&userAddress.Enabled, &userAddress.CreateTime, &userAddress.UpdateTime)
 		mapUserAddress[userAddress.AssetName+"_"+userAddress.Address] = userAddress
 	}
-
-	return mapUserAddress, nil
+	return mapUserAddress
 }
 
 func QueryUserAddress(query string) string {
