@@ -70,6 +70,9 @@ func NewServiceNode(confPath string) (*ServiceNode, error){
 
 // register api group
 func RegisterNodeApi(ni *ServiceNode, nodeApiGroup NodeApiGroup) {
+	if(nodeApiGroup == nil){
+		return
+	}
 	nam := nodeApiGroup.GetApiGroup()
 
 	for k, v := range nam{
@@ -85,7 +88,7 @@ func RegisterNodeApi(ni *ServiceNode, nodeApiGroup NodeApiGroup) {
 func StartNode(ctx context.Context, ni *ServiceNode) {
 	ni.startTcpServer(ctx)
 
-	ni.startToServiceCenter(ctx)
+	ni.startToCenter(ctx)
 }
 
 // Stop the service node
@@ -102,40 +105,29 @@ func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData)
 		res.Data.Err = data.ErrNotFindFunction
 	}
 	if res.Data.Err != data.NoErr {
-		l4g.Error("call failed: %s", res.Data.ErrMsg)
+		l4g.Error("call failed: %d", res.Data.Err)
 	}
 	return nil
 }
 
-// dispatch a request to center
-func (ni *ServiceNode) ListSrv(req *data.UserRequestData, res *data.UserResponseData) error {
+// inner call a request to router
+func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *data.UserResponseData) error {
 	var err error
 	if ni.client != nil {
-		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterListSrv, req, res)
+		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterInnerCall, req, res)
 	}else{
-		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterListSrv, req, res)
+		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterInnerCall, req, res)
 	}
 	return err
 }
 
-// dispatch a request to center
-func (ni *ServiceNode) Dispatch(req *data.UserRequestData, res *data.UserResponseData) error {
+// inner call a request to router by encrypt
+func (ni *ServiceNode) InnerCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) error {
 	var err error
 	if ni.client != nil {
-		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterDispatch, req, res)
+		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterInnerCallByEncrypt, req, res)
 	}else{
-		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterDispatch, req, res)
-	}
-	return err
-}
-
-// push a data to center
-func (ni *ServiceNode) Push(req *data.UserRequestData, res *data.UserResponseData) error {
-	var err error
-	if ni.client != nil {
-		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterPush, req, res)
-	}else{
-		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterPush, req, res)
+		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterInnerCallByEncrypt, req, res)
 	}
 	return err
 }
@@ -221,7 +213,7 @@ func (ni *ServiceNode)unRegistToCenter() error{
 	return err
 }
 
-func (ni *ServiceNode)startToServiceCenter(ctx context.Context) {
+func (ni *ServiceNode)startToCenter(ctx context.Context) {
 	go func() {
 		ni.wg.Add(1)
 		defer ni.wg.Done()

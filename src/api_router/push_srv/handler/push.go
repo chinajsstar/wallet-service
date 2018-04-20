@@ -87,4 +87,5 @@ func (push *Push)PushData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	}
 
 	res.Data.Value.Message = ret
+	l4g.Info("push:", req.Data.Argv.Message)
 }

@@ -130,8 +130,8 @@ func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) erro
 	return err
 }
 
-// RPC -- dispatch
-func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserResponseData) error {
+// RPC -- inner
+func (mi *ServiceCenter) InnerCall(req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -145,12 +145,12 @@ func (mi *ServiceCenter) Dispatch(req *data.UserRequestData, res *data.UserRespo
 	return nil
 }
 
-// RPC -- push
-func (mi *ServiceCenter) Push(req *data.UserRequestData, res *data.UserResponseData) error {
+// RPC -- inner
+func (mi *ServiceCenter) InnerCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	mi.pushCall(req, res)
+	mi.innerCallByEncrypt(req, res)
 
 	// make sure no data if err
 	if res.Err != data.NoErr {
@@ -287,8 +287,8 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	*res = reqEncryptedRes.Data
 }
 
-// push call by srv node
-func (mi *ServiceCenter) pushCall(req *data.UserRequestData, res *data.UserResponseData) {
+// inner call by encrypt
+func (mi *ServiceCenter) innerCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) {
 	// encode and sign data
 	var reqEncrypted data.SrvRequestData
 	reqEncrypted.Data.Method = req.Method
@@ -302,7 +302,9 @@ func (mi *ServiceCenter) pushCall(req *data.UserRequestData, res *data.UserRespo
 	// push encode and sign data
 	var reqPush data.SrvRequestData
 	reqPush.Data.Method = req.Method
-	reqPush.Data.Argv = reqEncryptedRes.Data.Value
+	reqPush.Data.Argv = req.Argv
+	reqPush.Data.Argv.Message = reqEncryptedRes.Data.Value.Message
+	reqPush.Data.Argv.Signature = reqEncryptedRes.Data.Value.Signature
 	var reqPushRes data.SrvResponseData
 
 	mi.callFunction(&reqPush, &reqPushRes)

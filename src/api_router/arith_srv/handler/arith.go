@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"../../base/data"
-	"../../base/service"
+	"api_router/base/data"
+	"api_router/base/service"
 	"encoding/json"
 	"strconv"
 	l4g "github.com/alecthomas/log4go"
@@ -37,5 +37,4 @@ func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
 	}
 
 	res.Data.Value.Message = strconv.Itoa(din.A+din.B)
-	l4g.Info("do add: %s", res.Data.Value.Message)
 }

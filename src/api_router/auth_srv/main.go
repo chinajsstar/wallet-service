@@ -22,13 +22,13 @@ func main() {
 	defer l4g.Close()
 
 	cfgPath := appDir + "/" + AuthSrvConfig
+	fmt.Println("config path:", cfgPath)
 	db.Init(cfgPath)
 
 	accountDir := appDir + "/account"
 	handler.AuthInstance().Init(accountDir)
 
 	// create service node
-	fmt.Println("config path:", cfgPath)
 	nodeInstance, err := service.NewServiceNode(cfgPath)
 	if nodeInstance == nil || err != nil{
 		l4g.Error("Create service node failed: %s", err.Error())

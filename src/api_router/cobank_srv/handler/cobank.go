@@ -19,9 +19,13 @@ func NewCobank() (*Cobank) {
 	return x
 }
 
-func (x *Cobank)Init(node *service.ServiceNode) error {
+func (x *Cobank)Start(node *service.ServiceNode) error {
 	x.node = node
 	return x.business.InitAndStart(x.callBack)
+}
+
+func (x *Cobank)Stop() {
+	x.business.Stop()
 }
 
 func (x *Cobank)callBack(userID string, callbackMsg string){
@@ -34,7 +38,7 @@ func (x *Cobank)callBack(userID string, callbackMsg string){
 	pData.Argv.Message = callbackMsg
 
 	res := data.UserResponseData{}
-	x.node.Push(&pData, &res)
+	x.node.InnerCallByEncrypt(&pData, &res)
 	l4g.Info("push return: ", res)
 }
 
@@ -45,8 +49,20 @@ func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 	apiInfo.Example = "{\"id\":\"1\",\"symbol\":\"eth\",\"count\":5}"
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
 
+	//"user_key": "string",
+	//"user_name": "string",
+	//"user_class": "int",
+	//"asset_name": "string",
+	//"address": "string",
+	//"max_amount": "double",
+	//"min_amount": "double",
+	//"create_time_begin": "int64",
+	//"create_time_end": "int64",
+	//"page_index": "int",
+	//"max_display": "int"
+
 	apiInfo = data.ApiInfo{Name:"query_user_address", Level:data.APILevel_admin}
-	apiInfo.Example = "none"
+	apiInfo.Example = "{\"user_key\":\"\"}"
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
 
 	return nam
@@ -58,10 +74,9 @@ func (x *Cobank)handler(req *data.SrvRequestData, res *data.SrvResponseData){
 	l4g.Debug("argv: %s", req.Data.Argv)
 
 	err := x.business.HandleMsg(req, res)
+	if err != nil {
+		l4g.Error("err: ", err)
+	}
 
 	l4g.Debug("value: %s", res.Data.Value)
-
-	if err != nil {
-		return
-	}
 }

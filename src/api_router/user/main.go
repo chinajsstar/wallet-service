@@ -216,7 +216,7 @@ func DoTest2(count *int64, right *int64, times int64){
 func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
 	ackData := data.UserResponseData{}
 
-	err := nethelper.CallJRPCToTcpServer(tcpaddrGateway, data.MethodCenterDispatch, params, &ackData)
+	err := nethelper.CallJRPCToTcpServer(tcpaddrGateway, data.MethodCenterInnerCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil && ackData.Err==0{
@@ -232,7 +232,7 @@ func DoTestTcp(params interface{}, count *int64, right *int64, times int64){
 
 func DoTestTcp2(client *rpc.Client, params interface{}, count *int64, right *int64, times int64){
 	ackData := data.UserResponseData{}
-	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodCenterDispatch, params, &ackData)
+	err := nethelper.CallJRPCToTcpServerOnClient(client, data.MethodCenterInnerCall, params, &ackData)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil && ackData.Err==0{
@@ -328,7 +328,7 @@ func main() {
 		timeBegin = time.Now();
 		fmt.Println("开始时间：", timeBegin)
 
-		if argv[0] == "quit" {
+		if argv[0] == "q" {
 			fmt.Println("I do quit")
 			break;
 		}else if argv[0] == "d1" {
@@ -497,34 +497,6 @@ func main() {
 			}
 
 			fmt.Println("login user ack: ", uca)
-		}else if argv[0] == "test_listusers"{
-			m, err := install.ListUsers()
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			d, err := json.Marshal(m)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			_, d2, err := sendData2(httpaddrGateway, string(d), "v1", "account", "listusers")
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-			fmt.Println(string(d2))
-
-			uca := user.AckUserList{}
-			err = json.Unmarshal(d2, &uca)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			fmt.Println("list users ack: ", uca)
 		} else if argv[0] == "test_newaddress"{
 			s := "{\"user_id\":\"0001\",\"method\":\"new_address\",\"params\":{\"id\":\"1\",\"symbol\":\"eth\",\"count\":10}}"
 

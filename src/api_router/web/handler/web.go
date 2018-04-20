@@ -161,11 +161,6 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-type WsClient struct{
-	// ws client license key
-	licenseKey string
-}
-
 type Web struct{
 	nodes []*data.SrvRegisterData
 
@@ -173,17 +168,14 @@ type Web struct{
 
 	// websocket
 	rwmuws sync.RWMutex
-	// valid clients
-	licenseKey2wsClients map[string]*websocket.Conn
-	wsClients map[*websocket.Conn]*WsClient
+	wsClients map[*websocket.Conn]interface{}
 }
 
 func NewWeb() *Web {
 	w := &Web{}
 	w.users = make(map[string]*user.AckUserLogin)
 
-	w.wsClients = make(map[*websocket.Conn]*WsClient)
-	w.licenseKey2wsClients = make(map[string]*websocket.Conn)
+	w.wsClients = make(map[*websocket.Conn]interface{})
 
 	return w
 }
@@ -239,14 +231,16 @@ func (self *Web)handleWebSocket(conn *websocket.Conn) {
 	}
 }
 
-func (self *Web)addWsClient(conn *websocket.Conn, client *WsClient) error{
+func (self *Web)addWsClient(conn *websocket.Conn) error{
 	var err error
 
 	self.rwmuws.Lock()
 	defer self.rwmuws.Unlock()
 
-	self.wsClients[conn] = client
-	self.licenseKey2wsClients[client.licenseKey] = conn
+	if _, ok := self.wsClients[conn]; ok{
+		return nil
+	}
+	self.wsClients[conn] = ""
 
 	l4g.Debug("add, ws client = %d", len(self.wsClients))
 	return err
@@ -260,16 +254,7 @@ func (self *Web)removeWsClient(conn *websocket.Conn) error{
 	self.rwmuws.Lock()
 	defer self.rwmuws.Unlock()
 
-	licenseKey := ""
-	v := self.wsClients[conn]
-	if v != nil {
-		licenseKey = v.licenseKey
-	}
-
 	delete(self.wsClients, conn)
-	if licenseKey != ""{
-		delete(self.licenseKey2wsClients, licenseKey)
-	}
 
 	l4g.Debug("remove, ws client = %d", len(self.wsClients))
 	return err
@@ -277,35 +262,28 @@ func (self *Web)removeWsClient(conn *websocket.Conn) error{
 
 
 func (self *Web)handleWsData(conn *websocket.Conn, msg string) error{
-	wsc := &WsClient{licenseKey:""}
-	self.addWsClient(conn, wsc)
+	self.addWsClient(conn)
 
 	return nil
 }
 
 func (self *Web)pushWsData(d *data.UserResponseData) error {
-	b, err := json.Marshal(*d)
-	if err != nil {
-		return err
-	}
-
 	self.rwmuws.RLock()
 	defer self.rwmuws.RUnlock()
 
-	conn := self.licenseKey2wsClients[d.Value.UserKey]
-	if conn != nil {
-		err = websocket.Message.Send(conn, string(b))
-	}else{
-		err = errors.New("no client login")
+	for c, _ := range self.wsClients{
+		websocket.Message.Send(c, d.Value.Message)
 	}
 
-	return err
+	return nil
 }
 
 // start http server
 func (self *Web) startHttpServer() error {
 	// http
 	l4g.Debug("Start http server on 8077")
+
+	http.Handle("/walletcb", http.HandlerFunc(self.handleWalletCb))
 
 	http.Handle("/listsrv", http.HandlerFunc(self.handleListSrv))
 	http.Handle("/getapi", http.HandlerFunc(self.handleGetApi))
@@ -746,5 +724,61 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 	b, _ := json.Marshal(ures)
 
 	w.Write(b)
+	return
+}
+
+
+// http handler
+func (self *Web) handleWalletCb(w http.ResponseWriter, req *http.Request) {
+	b, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+	fmt.Println(string(b))
+
+	ackData := data.UserResponseData{}
+	err = json.Unmarshal(b, &ackData.Value)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	// base64 decode
+	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	// 验证签名
+	var hashData []byte
+	hs := sha512.New()
+	hs.Write([]byte(bencrypted2))
+	hashData = hs.Sum(nil)
+
+	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, wallet_server_pubkey)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	// 解密数据
+	d2, err := utils.RsaDecrypt(bencrypted2, web_admin_prikey, utils.RsaDecodeLimit2048)
+	if err != nil {
+		l4g.Error("http handler: %s", err.Error())
+		return
+	}
+
+	ackData.Value.Message = string(d2)
+	self.pushWsData(&ackData)
+
+	fmt.Println("cb", string(d2))
 	return
 }

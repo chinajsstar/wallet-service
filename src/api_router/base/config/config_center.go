@@ -7,7 +7,6 @@ import (
 // api gateway center config
 type ConfigCenter struct{
 	Port 			string `json:"port"`			// http port
-	WsPort 			string `json:"ws_port"`			// websocket port
 	CenterVersion	string `json:"center_version"`	// center version
 	CenterName		string `json:"center_name"`		// center name
 	CenterPort 		string `json:"center_port"`		// center rpc port
