@@ -5,6 +5,8 @@ import (
 	"api_router/base/service"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
+	"business_center/def"
+	"encoding/json"
 )
 
 type Cobank struct{
@@ -46,7 +48,9 @@ func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	apiInfo := data.ApiInfo{Name:"new_address", Level:data.APILevel_client}
-	apiInfo.Example = "{\"id\":\"1\",\"symbol\":\"eth\",\"count\":5}"
+	reqNewAddress := def.ReqWithdrawal{}
+	b1, _ := json.Marshal(reqNewAddress)
+	apiInfo.Example = string(b1)
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
 
 	//"user_key": "string",
@@ -63,6 +67,12 @@ func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 
 	apiInfo = data.ApiInfo{Name:"query_user_address", Level:data.APILevel_admin}
 	apiInfo.Example = "{\"user_key\":\"\"}"
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+
+	apiInfo = data.ApiInfo{Name:"withdrawal", Level:data.APILevel_client}
+	reqWithDrawal := def.ReqWithdrawal{}
+	b2, _ := json.Marshal(reqWithDrawal)
+	apiInfo.Example = string(b2)
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
 
 	return nam

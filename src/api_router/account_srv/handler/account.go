@@ -78,6 +78,10 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	apiInfo.Example = ""
 	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdatePassword, ApiInfo:apiInfo}
 
+	apiInfo = data.ApiInfo{Name:"updatekey", Level:data.APILevel_admin}
+	apiInfo.Example = "{\"user_key\":\"\",\"public_key\":\"\",\"callback_url\":\"\"}"
+	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdateKey, ApiInfo:apiInfo}
+
 	return nam
 }
 
@@ -150,7 +154,6 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// to ack
 	ackUserCreate := user.AckUserCreate{}
 	ackUserCreate.UserKey = userKey
-	ackUserCreate.ServerPublicKey = string(s.serverPublicKey)
 
 	dataAck, err := json.Marshal(ackUserCreate)
 	if err != nil {
@@ -329,4 +332,55 @@ func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData)
 	// ok
 	res.Data.Value.Message = string(dataAck)
 	l4g.Info("update a user password: %s", res.Data.Value.Message)
+}
+
+// 更新密码
+func (s * Account) UpdateKey(req *data.SrvRequestData, res *data.SrvResponseData) {
+	// from req
+	reqUpdateKey := user.ReqUserUpdateKey{}
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateKey)
+	if err != nil {
+		l4g.Error("error json message: %s", err.Error())
+		res.Data.Err = data.ErrDataCorrupted
+		return
+	}
+
+	// load old key
+	oldKey, err := db.ReadKey(reqUpdateKey.UserKey)
+	if err != nil {
+		l4g.Error("error ReadKey: %s", err.Error())
+		res.Data.Err = data.ErrInternal
+		return
+	}
+
+	newPubKey := reqUpdateKey.PublicKey
+	newCbUrl := reqUpdateKey.CallbackUrl
+	if newPubKey == ""{
+		newPubKey = oldKey.PublicKey
+	}
+	if newCbUrl == ""{
+		newCbUrl = oldKey.CallbackUrl
+	}
+
+	// update key
+	if err := db.UpdateKey(reqUpdateKey.UserKey, newPubKey, newCbUrl); err != nil {
+		l4g.Error("error update password: %s", err.Error())
+		res.Data.Err = data.ErrInternal
+		return
+	}
+
+	// to ack
+	ackUpdateKey := user.AckUserUpdateKey{Status:"ok"}
+	dataAck, err := json.Marshal(ackUpdateKey)
+	if err != nil {
+		// 写回去
+		db.UpdateKey(reqUpdateKey.UserKey, oldKey.PublicKey, oldKey.CallbackUrl)
+		l4g.Error("error Marshal: %s", err.Error())
+		res.Data.Err = data.ErrInternal
+		return
+	}
+
+	// ok
+	res.Data.Value.Message = string(dataAck)
+	l4g.Info("update a user key: %s", res.Data.Value.Message)
 }

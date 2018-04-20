@@ -32,8 +32,6 @@ $("form[data-type=formRegisterAction]").submit(function(event){
     var psmd5 = md5(ps)
 
     var googleauth = ""+$('#googleauth').attr("value")
-    var pubkey = ""+$('#pubkey').attr("value")
-    var callback = ""+$('#callback').attr("value")
 
     var argv = '{'
         + '"user_name":"'+name + '"'
@@ -43,8 +41,8 @@ $("form[data-type=formRegisterAction]").submit(function(event){
         + ',"password":"' + psmd5 +'"'
         + ',"level":0'
         + ',"google_auth":"' + googleauth +'"'
-        + ',"public_key":"' + pubkey +'"'
-        + ',"callback_url":"' + callback +'"'
+        + ',"public_key":"' + "" +'"'
+        + ',"callback_url":"' + "" +'"'
         +'}'
     $.post(action, argv, function(ret){
         if(ret.err != 0) {
@@ -70,6 +68,32 @@ $("form[data-type=formAction]").submit(function(event){
         if(ret.err != 0) {
             alert(ret.errmsg);
         } else {
+            location.href = $(target).attr("form-rediret");
+        }
+    },"json")
+})
+
+$("form[data-type=formDevSettingAction]").submit(function(event){
+    event.preventDefault();
+    var target = event.target;
+    var action = $(target).attr("action");
+
+    var pubkey = ""+$('#pubkey').attr("value")
+    var cburl = ""+$('#cburl').attr("value")
+
+    var pk = Base64Encode(pubkey)
+
+    var argv = '{'
+        + '"user_key":"' + "" +'"'
+        + ',"public_key":"' + pk +'"'
+        + ',"callback_url":"' + cburl +'"'
+        +'}'
+    alert(argv)
+    $.post(action, argv, function(ret){
+        if(ret.err != 0) {
+            alert(ret.errmsg);
+        } else {
+            alert("设置成功，返回主页");
             location.href = $(target).attr("form-rediret");
         }
     },"json")

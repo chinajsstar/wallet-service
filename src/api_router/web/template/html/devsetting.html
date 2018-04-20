@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>开发设置</title>
+        <link rel="stylesheet" type="text/css" href="/css/main.css" />
+        <script type="text/javascript" src="/js/jquery.js" ></script>
+    </head>
+    <body>
+        <h1>开发设置</h1>
+        <div><p>公钥</p><textarea style="height: 400px; width:600px" readonly="readonly" id="serpubkey" name="serpubkey">{{.SerPubKey}}</textarea></div>
+        <form data-type="formDevSettingAction" action="/dodevsetting" form-rediret="/index">
+            <table>
+                <tr>
+                <td>公钥</td><td><textarea style="height: 400px; width:600px" id="pubkey" name="pubkey"></textarea></td>
+                </tr>
+                <tr>
+                <td>回调</td><td><input style="width:400px" id="cburl" type="text" name="cburl"></input></td>
+                </tr>
+                <tr>
+                    <td><input type="submit" value="上传" style="width:100px;height:25px"></input></td>
+                </tr>
+            </table>
+        </form>
+    </body>
+    <script type="text/javascript" src="/js/md5.min.js" ></script>
+    <script type="text/javascript" src="/js/base64js.min.js" ></script>
+    <script type="text/javascript" src="/js/base.js" ></script>
+</html>

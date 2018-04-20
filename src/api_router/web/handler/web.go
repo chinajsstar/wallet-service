@@ -164,7 +164,7 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 type Web struct{
 	nodes []*data.SrvRegisterData
 
-	users map[string]*user.AckUserLogin
+	loginUsers map[string]*user.AckUserLogin
 
 	// websocket
 	rwmuws sync.RWMutex
@@ -173,7 +173,7 @@ type Web struct{
 
 func NewWeb() *Web {
 	w := &Web{}
-	w.users = make(map[string]*user.AckUserLogin)
+	w.loginUsers = make(map[string]*user.AckUserLogin)
 
 	w.wsClients = make(map[*websocket.Conn]interface{})
 
@@ -283,8 +283,6 @@ func (self *Web) startHttpServer() error {
 	// http
 	l4g.Debug("Start http server on 8077")
 
-	http.Handle("/walletcb", http.HandlerFunc(self.handleWalletCb))
-
 	http.Handle("/listsrv", http.HandlerFunc(self.handleListSrv))
 	http.Handle("/getapi", http.HandlerFunc(self.handleGetApi))
 	http.Handle("/runapi", http.HandlerFunc(self.handleRunApi))
@@ -299,6 +297,8 @@ func (self *Web) startHttpServer() error {
 	http.Handle("/dologin",http.HandlerFunc(self.LoginAction))
 	http.Handle("/doregister",http.HandlerFunc(self.RegisterAction))
 	http.Handle("/testapi", http.HandlerFunc(self.handleTestApi))
+	http.Handle("/devsetting", http.HandlerFunc(self.handleDevSetting))
+	http.Handle("/dodevsetting",http.HandlerFunc(self.DevSettingAction))
 	http.Handle("/wallet/", http.HandlerFunc(self.handleWallet))
 	http.Handle("/",http.HandlerFunc(self.handle404))
 
@@ -521,6 +521,28 @@ func (self *Web) handleLogin(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+type UserDev struct {
+	SerPubKey string
+}
+// http handler
+func (self *Web) handleDevSetting(w http.ResponseWriter, req *http.Request) {
+	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//fmt.Println("path=", req.URL.Path)
+	//fmt.Println("query=", req.URL.RawQuery)
+
+	// listsrv
+	t, err := template.ParseFiles("template/html/devsetting.html")
+	if err != nil {
+		l4g.Error("%s", err.Error())
+		return
+	}
+
+	t.Execute(w, &UserDev{SerPubKey:string(wallet_server_pubkey)})
+	return
+}
+
 // http handler
 func (self *Web) handleRegister(w http.ResponseWriter, req *http.Request) {
 	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
@@ -586,6 +608,65 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		//expiration := time.Unix(5, 0)
 		cookie := http.Cookie{Name: "name", Value: aul.UserKey, Path: "/"}
 		http.SetCookie(w, &cookie)
+	}()
+
+	b, _ := json.Marshal(ures)
+	w.Write(b)
+
+	return
+}
+
+func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("name")
+	if err != nil || cookie.Value == ""{
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+
+	ures := data.UserResponseData{}
+
+	func(){
+		message := ""
+		bb, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			ures.Err = data.ErrDataCorrupted
+			return
+		}
+		message = string(bb)
+		fmt.Println("dev argv=", message)
+
+		ul := user.ReqUserUpdateKey{}
+		json.Unmarshal(bb, &ul)
+
+		if ul.PublicKey == "" && ul.CallbackUrl == ""{
+			ures.Err = 1
+			ures.ErrMsg = "no pubkey and url"
+			return
+		}
+
+		b1, err := base64.StdEncoding.DecodeString(ul.PublicKey)
+		if err != nil {
+			ures.Err = data.ErrDataCorrupted
+			return
+		}
+
+		ul.PublicKey = string(b1)
+		ul.UserKey = cookie.Value
+
+		m, err := json.Marshal(ul)
+
+		d1, _, err := sendPostData(httpaddrGateway, string(m), "v1", "account", "updatekey")
+		fmt.Println(d1)
+
+		ures = *d1
+		if d1.Err != data.NoErr {
+			return
+		}
+		if err != nil {
+			return
+		}
 	}()
 
 	b, _ := json.Marshal(ures)
@@ -724,61 +805,5 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 	b, _ := json.Marshal(ures)
 
 	w.Write(b)
-	return
-}
-
-
-// http handler
-func (self *Web) handleWalletCb(w http.ResponseWriter, req *http.Request) {
-	b, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		l4g.Error("http handler: %s", err.Error())
-		return
-	}
-	fmt.Println(string(b))
-
-	ackData := data.UserResponseData{}
-	err = json.Unmarshal(b, &ackData.Value)
-	if err != nil {
-		l4g.Error("http handler: %s", err.Error())
-		return
-	}
-
-	// base64 decode
-	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
-	if err != nil {
-		l4g.Error("http handler: %s", err.Error())
-		return
-	}
-
-	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
-	if err != nil {
-		l4g.Error("http handler: %s", err.Error())
-		return
-	}
-
-	// 验证签名
-	var hashData []byte
-	hs := sha512.New()
-	hs.Write([]byte(bencrypted2))
-	hashData = hs.Sum(nil)
-
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, wallet_server_pubkey)
-	if err != nil {
-		l4g.Error("http handler: %s", err.Error())
-		return
-	}
-
-	// 解密数据
-	d2, err := utils.RsaDecrypt(bencrypted2, web_admin_prikey, utils.RsaDecodeLimit2048)
-	if err != nil {
-		l4g.Error("http handler: %s", err.Error())
-		return
-	}
-
-	ackData.Value.Message = string(d2)
-	self.pushWsData(&ackData)
-
-	fmt.Println("cb", string(d2))
 	return
 }

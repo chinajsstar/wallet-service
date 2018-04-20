@@ -2,7 +2,6 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
 	"api_router/account_srv/user"
 	"strconv"
 	"api_router/base/utils"
@@ -44,23 +43,7 @@ func AddUser(isinstall bool) (*user.ReqUserCreate, error) {
 		}else{
 			uc.Level = 0
 		}
-
-		fmt.Println("输入回调url: ")
-		input = ""
-		fmt.Scanln(&input)
-		uc.CallbackUrl = input
 	}
-
-	fmt.Println("输入公钥文件路径: ")
-	input = ""
-	fmt.Scanln(&input)
-	pubPath := input
-	pubKey, err := ioutil.ReadFile(pubPath)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	uc.PublicKey = string(pubKey)
 
 	var pw1, pw2 string
 	for ; ; {

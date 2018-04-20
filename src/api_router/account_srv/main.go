@@ -73,7 +73,6 @@ func installWallet(dir string) error {
 	err = json.Unmarshal([]byte(res.Data.Value.Message), &uca)
 
 	l4g.Info("3. Record genesis admin user key: %s", uca.UserKey)
-	l4g.Info("4. Record super wallet rsa pub key: %s", uca.ServerPublicKey)
 
 	// write a tag file
 	fo, err := os.Create(dir+"/wallet.install")
