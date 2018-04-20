@@ -93,6 +93,21 @@ func (a *Address) recvRechargeTxChannel() {
 							blockin.OrderID = ""
 
 							a.transactionBegin(&blockin, rct.Tx)
+
+							// push
+							userKey := ""
+							addr := rct.Tx.To
+							userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(blockin.AssetName+"_"+addr)]
+							if ok {
+								userKey = userAddress.UserKey
+								msg := ""
+								msg = "{"
+								msg += "\"type:\":\"inblock\""
+								msg += ",\"blockinheight:\":" + strconv.FormatInt(blockin.BlockinHeight, 10)
+								msg += "}"
+								a.callback(userKey, msg)
+							}
+							fmt.Println("pppppppp000000000: ", ok)
 						}
 					case types.Tx_state_confirmed: //确认
 						{
@@ -107,6 +122,22 @@ func (a *Address) recvRechargeTxChannel() {
 							status.OrderID = ""
 
 							a.transactionFinish(&status, rct.Tx)
+
+							// push
+							userKey := ""
+							addr := rct.Tx.To
+							userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(status.AssetName+"_"+addr)]
+							if ok {
+								userKey = userAddress.UserKey
+								msg := ""
+								msg = "{"
+								msg += "\"type:\":\"confirm\""
+								msg += ",\"confirmheight:\":" + strconv.FormatInt(status.ConfirmHeight, 10)
+								msg += "}"
+								a.callback(userKey, msg)
+							}
+
+							fmt.Println("pppppppp111111111: ", ok)
 						}
 					case types.Tx_state_unconfirmed: //失败
 						{
@@ -159,20 +190,6 @@ func (a *Address) recvCmdTxChannel() {
 							blockin.OrderID = cmdTx.NetCmd.MsgId
 
 							a.transactionBegin(&blockin, cmdTx.Tx)
-
-							// push
-							userKey := ""
-							addr := cmdTx.Tx.To
-							userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(blockin.AssetName+"_"+addr)]
-							if ok {
-								userKey = userAddress.UserKey
-								msg := ""
-								msg = "{"
-								msg += "\"type:\":\"inblock\""
-								msg += ",\"blockinheight:\":" + strconv.FormatInt(blockin.BlockinHeight, 10)
-								msg += "}"
-								a.callback(userKey, msg)
-							}
 						}
 					case types.Tx_state_confirmed: //确认
 						{
@@ -187,20 +204,6 @@ func (a *Address) recvCmdTxChannel() {
 							status.UpdateTime = time.Now().Unix()
 
 							a.transactionFinish(&status, cmdTx.Tx)
-
-							// push
-							userKey := ""
-							addr := cmdTx.Tx.To
-							userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(status.AssetName+"_"+addr)]
-							if ok {
-								userKey = userAddress.UserKey
-								msg := ""
-								msg = "{"
-								msg += "\"type:\":\"confirm\""
-								msg += ",\"confirmheight:\":" + strconv.FormatInt(status.ConfirmHeight, 10)
-								msg += "}"
-								a.callback(userKey, msg)
-							}
 						}
 					case types.Tx_state_unconfirmed: //失败
 						{
