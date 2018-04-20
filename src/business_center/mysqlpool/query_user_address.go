@@ -3,7 +3,6 @@ package mysqlpool
 import (
 	. "business_center/def"
 	"encoding/json"
-	"math"
 	"time"
 )
 
@@ -125,7 +124,7 @@ func QueryUserAddress(query string) string {
 					sqlWhere += " where"
 				}
 				sqlWhere += " a.available_amount + a.frozen_amount <= ?"
-				params = append(params, int64(value*math.Pow10(18)))
+				params = append(params, int64(value))
 			}
 		}
 
@@ -137,7 +136,7 @@ func QueryUserAddress(query string) string {
 					sqlWhere += " where"
 				}
 				sqlWhere += " a.available_amount + a.frozen_amount >= ?"
-				params = append(params, int64(value*math.Pow10(18)))
+				params = append(params, int64(value))
 			}
 		}
 
