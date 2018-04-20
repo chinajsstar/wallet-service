@@ -228,19 +228,19 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			blockin.Detail = make([]TransactionDetail, 0)
 
 			//from
-			detail.Address = transfer.From
+			detail.Address = strings.ToLower(transfer.From)
 			detail.Amount = -int64(transfer.Value)
 			detail.TransType = "from"
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//to
-			detail.Address = transfer.To
+			detail.Address = strings.ToLower(transfer.To)
 			detail.Amount = int64(transfer.Value)
 			detail.TransType = "to"
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//gas
-			detail.Address = transfer.From
+			detail.Address = strings.ToLower(transfer.From)
 			detail.Amount = -int64(transfer.Gase)
 			detail.TransType = "gas"
 			blockin.Detail = append(blockin.Detail, detail)
@@ -323,6 +323,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		var detail TransactionDetail
 		for rows.Next() {
 			rows.Scan(&detail.Address, &detail.TransType, &detail.Amount)
+			detail.Address = strings.ToLower(detail.Address)
 			blockin.Detail = append(blockin.Detail, detail)
 		}
 
