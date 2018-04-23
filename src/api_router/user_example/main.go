@@ -172,6 +172,46 @@ func sendData2(addr, message, version, srv, function string) (*data.UserResponse
 	return ackData, []byte(uda.Message), nil
 }
 
+func sendData3(addr, message, version, srv, function string) (*data.UserResponseData, []byte, error) {
+	// 用户数据
+	ud := data.UserData{}
+	ud.UserKey = user_licensekey
+	ud.Message = message
+
+	path := "/wallettest"
+	path += "/"+version
+	path += "/"+srv
+	path += "/"+function
+
+	b, err := json.Marshal(ud)
+	if err != nil {
+		return nil, nil, err
+	}
+	body := string(b)
+
+	////////////////////////////////////////////
+	fmt.Println("ok send msg:", body)
+	ackData := &data.UserResponseData{}
+
+	var res string
+	nethelper.CallToHttpServer(addr, path, body, &res)
+	fmt.Println("ok get ack:", res)
+
+	err = json.Unmarshal([]byte(res), &ackData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if ackData.Err != data.NoErr {
+		fmt.Println("err: ", ackData.Err, "-msg: ", ackData.ErrMsg)
+		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
+	}
+
+	uda := ackData.Value
+
+	return ackData, []byte(uda.Message), nil
+}
+
 // http
 // curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"a\":2, \"b\":1}"}' http://localhost:8080/wallet/v1/arith/add
 // curl -d '{"a":2, "b":1}' http://localhost:8077/wallet/v1/arith/add
@@ -188,9 +228,8 @@ func main() {
 	fmt.Println(">rsagen name: create a rsa key")
 	fmt.Println(">set addr: set remote http addr")
 	fmt.Println(">load port name userkey: load")
-	fmt.Println(">arith.add a b: test arith.add")
-	fmt.Println(">cobank.new_address id symbol count: cobank.new_address")
 
+	fmt.Println(">api srv function message")
 	fmt.Println(">testapi srv function message")
 	for ; ;  {
 		fmt.Println("Please input command: ")
@@ -245,40 +284,20 @@ func main() {
 
 			// 启动回调地址
 			startHttpServer(port)
-		} else if argv[0] == "arith.add" {
-			a := "0"
-			b := "0"
-			if len(argv) > 1 {
-				a = argv[1]
+		} else if argv[0] == "api"{
+			var srv, function, message string
+			if len(argv) != 4{
+				fmt.Println("格式：api srv function message")
+				continue
 			}
-			if len(argv) > 2 {
-				b = argv[2]
-			}
+			srv = argv[1]
+			function = argv[2]
+			message = argv[3]
 
-			m := "{\"a\":" + a +",\"b\":" + b + "}"
-			_, d, err := sendData2(httpaddrGateway, m, "v1", "arith", "add")
+			_, d, err := sendData2(httpaddrGateway, message, "v1", srv, function)
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(d))
-
-		}  else if argv[0] == "cobank.new_address"{
-			id := "0"
-			symbol := "eth"
-			count := "1"
-			if len(argv) > 1 {
-				id = argv[1]
-			}
-			if len(argv) > 2 {
-				symbol = argv[2]
-			}
-			if len(argv) > 3 {
-				count = argv[3]
-			}
-
-			m := "{\"id\":\""+ id + "\",\"symbol\":\"" + symbol + "\",\"count\":" + count + "}"
-			_, d, err := sendData2(httpaddrGateway, m, "v1", "cobank", "new_address")
-			fmt.Println("err==", err)
-			fmt.Println("ack==", string(d))
-		} else if argv[0] == "testapi"{
+		}else if argv[0] == "testapi"{
 			var srv, function, message string
 			if len(argv) != 4{
 				fmt.Println("格式：testapi srv function message")
@@ -288,7 +307,7 @@ func main() {
 			function = argv[2]
 			message = argv[3]
 
-			_, d, err := sendData2(httpaddrGateway, message, "v1", srv, function)
+			_, d, err := sendData3(httpaddrGateway, message, "v1", srv, function)
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(d))
 		}

@@ -47,11 +47,13 @@ func (x *Cobank)callBack(userID string, callbackMsg string){
 func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"new_address", Level:data.APILevel_client}
-	reqNewAddress := def.ReqWithdrawal{}
-	b1, _ := json.Marshal(reqNewAddress)
-	apiInfo.Example = string(b1)
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"new_address", Level:data.APILevel_client}
+		example := def.ReqNewAddress{}
+		b, _ := json.Marshal(example)
+		apiInfo.Example = string(b)
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	}()
 
 	//"user_key": "string",
 	//"user_name": "string",
@@ -65,15 +67,19 @@ func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 	//"page_index": "int",
 	//"max_display": "int"
 
-	apiInfo = data.ApiInfo{Name:"query_user_address", Level:data.APILevel_admin}
-	apiInfo.Example = "{\"user_key\":\"\"}"
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"query_user_address", Level:data.APILevel_admin}
+		apiInfo.Example = "{\"user_key\":\"\"}"
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	}()
 
-	apiInfo = data.ApiInfo{Name:"withdrawal", Level:data.APILevel_client}
-	reqWithDrawal := def.ReqWithdrawal{}
-	b2, _ := json.Marshal(reqWithDrawal)
-	apiInfo.Example = string(b2)
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"withdrawal", Level:data.APILevel_client}
+		example := def.ReqWithdrawal{}
+		b, _ := json.Marshal(example)
+		apiInfo.Example = string(b)
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	}()
 
 	return nam
 }

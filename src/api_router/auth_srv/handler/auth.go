@@ -13,6 +13,7 @@ import (
 	"sync"
 	"api_router/account_srv/user"
 	l4g "github.com/alecthomas/log4go"
+	"encoding/json"
 )
 
 type Auth struct{
@@ -69,13 +70,17 @@ func (auth * Auth)getUserLevel(userKey string) (*user.UserLevel, error)  {
 func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"authdata", Level:data.APILevel_client}
-	apiInfo.Example = ""
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:auth.AuthData, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"authdata", Level:data.APILevel_client}
+		apiInfo.Example = ""
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:auth.AuthData, ApiInfo:apiInfo}
+	}()
 
-	apiInfo = data.ApiInfo{Name:"encryptdata", Level:data.APILevel_client}
-	apiInfo.Example = ""
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:auth.EncryptData, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"encryptdata", Level:data.APILevel_client}
+		apiInfo.Example = ""
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:auth.EncryptData, ApiInfo:apiInfo}
+	}()
 
 	return nam
 }

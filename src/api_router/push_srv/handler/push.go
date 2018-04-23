@@ -8,6 +8,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/nethelper"
 	"encoding/json"
+	"golang.org/x/crypto/nacl/auth"
 )
 
 type Push struct{
@@ -56,8 +57,10 @@ func (push * Push)getUserCallbackUrl(userKey string) (string, error)  {
 func (push * Push)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"pushdata", Level:data.APILevel_client}
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:push.PushData, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"pushdata", Level:data.APILevel_client}
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:push.PushData, ApiInfo:apiInfo}
+	}()
 
 	return nam
 }

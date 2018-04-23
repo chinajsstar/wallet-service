@@ -167,6 +167,11 @@ func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
 
 	http.Handle("/wallet/", http.HandlerFunc(mi.handleWallet))
 
+	// test mode
+	if mi.cfgCenter.TestMode != 0 {
+		http.Handle("/wallettest/", http.HandlerFunc(mi.handleWalletTest))
+	}
+
 	go func() {
 		l4g.Info("Http server routine running... ")
 		err := http.ListenAndServe(":"+mi.cfgCenter.Port, nil)
@@ -459,6 +464,75 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 		}
 
 		mi.userCall(&reqData, &resData)
+		resData.Method = reqData.Method
+	}()
+
+	if resData.Err != data.NoErr && resData.ErrMsg == "" {
+		resData.ErrMsg = data.GetErrMsg(resData.Err)
+	}
+
+	// write back http
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := json.Marshal(resData)
+	w.Write(b)
+	return
+}
+
+// http handler
+func (mi *ServiceCenter) handleWalletTest(w http.ResponseWriter, req *http.Request) {
+	l4g.Debug("Http server test Accept a client: %s", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
+	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
+
+	mi.wg.Add(1)
+	defer mi.wg.Done()
+
+	resData := data.UserResponseData{}
+	func (){
+		//fmt.Println("path=", req.URL.Path)
+
+		path := req.URL.Path
+		path = strings.Replace(path, "wallettest", "", -1)
+		path = strings.TrimLeft(path, "/")
+		path = strings.TrimRight(path, "/")
+
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			resData.Err = data.ErrDataCorrupted
+			return
+		}
+
+		//body := string(b)
+		//fmt.Println("body=", body)
+
+		// make data
+		reqData := data.UserRequestData{}
+		err = json.Unmarshal(b, &reqData.Argv);
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			resData.Err = data.ErrDataCorrupted
+			return
+		}
+
+		// get method
+		paths := strings.Split(path, "/")
+		for i := 0; i < len(paths); i++ {
+			if i == 0 {
+				reqData.Method.Version = paths[i]
+			}else if i == 1{
+				reqData.Method.Srv = paths[i]
+			} else{
+				if reqData.Method.Function != "" {
+					reqData.Method.Function += "."
+				}
+				reqData.Method.Function += paths[i]
+			}
+		}
+
+		mi.innerCall(&reqData, &resData)
 		resData.Method = reqData.Method
 	}()
 

@@ -62,25 +62,35 @@ func (s *Account)Init(dir string) {
 func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"create", Level:data.APILevel_genesis}
-	apiInfo.Example = ""
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Create, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"create", Level:data.APILevel_genesis}
+		apiInfo.Example = ""
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Create, ApiInfo:apiInfo}
+	}()
 
-	apiInfo = data.ApiInfo{Name:"listusers", Level:data.APILevel_admin}
-	apiInfo.Example = "{\"id\":-1}"
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.ListUsers, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"listusers", Level:data.APILevel_admin}
+		apiInfo.Example = "{\"id\":-1}"
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.ListUsers, ApiInfo:apiInfo}
+	}()
 
-	apiInfo = data.ApiInfo{Name:"login", Level:data.APILevel_client}
-	apiInfo.Example = ""
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Login, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"login", Level:data.APILevel_client}
+		apiInfo.Example = ""
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Login, ApiInfo:apiInfo}
+	}()
 
-	apiInfo = data.ApiInfo{Name:"updatepassword", Level:data.APILevel_admin}
-	apiInfo.Example = ""
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdatePassword, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"updatepassword", Level:data.APILevel_admin}
+		apiInfo.Example = ""
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdatePassword, ApiInfo:apiInfo}
+	}()
 
-	apiInfo = data.ApiInfo{Name:"updatekey", Level:data.APILevel_admin}
-	apiInfo.Example = "{\"user_key\":\"\",\"public_key\":\"\",\"callback_url\":\"\"}"
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdateKey, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"updatekey", Level:data.APILevel_admin}
+		apiInfo.Example = "{\"user_key\":\"\",\"public_key\":\"\",\"callback_url\":\"\"}"
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdateKey, ApiInfo:apiInfo}
+	}()
 
 	return nam
 }

@@ -10,6 +10,7 @@ type ConfigCenter struct{
 	CenterVersion	string `json:"center_version"`	// center version
 	CenterName		string `json:"center_name"`		// center name
 	CenterPort 		string `json:"center_port"`		// center rpc port
+	TestMode		int    `json:"test_mode"`
 }
 
 // load center config from absolution path

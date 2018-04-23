@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strconv"
 	l4g "github.com/alecthomas/log4go"
+	"business_center/def"
 )
 
 type Args struct {
@@ -17,9 +18,13 @@ type Arith int
 func (arith *Arith)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"add", Level:data.APILevel_client}
-	apiInfo.Example = "{\"a\":1,\"b\":1}"
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:arith.Add, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"add", Level:data.APILevel_client}
+		example := Args{}
+		b, _ := json.Marshal(example)
+		apiInfo.Example = string(b)
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:arith.Add, ApiInfo:apiInfo}
+	}()
 
 	return nam
 }

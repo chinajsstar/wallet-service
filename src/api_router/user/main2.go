@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	//l4g "github.com/alecthomas/log4go"
 	"../base/config"
+	"reflect"
 )
 
 var G_admin_prikey2 []byte
@@ -175,6 +176,26 @@ func StartWsClient2() *rpc2.Client {
 }
 */
 
+type Args2 struct {
+	A int `json:"a" comment:"加数1"`
+	B int `json:"b" comment:"加数2"`
+}
+
+func FieldTag(t reflect.Type) bool {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+	n := t.NumField()
+	for i := 0; i < n; i++ {
+		fmt.Println(t.Field(i).Tag.Get("json"), "--", t.Field(i).Tag.Get("comment"))
+	}
+	return true
+}
+
 func main() {
 	appDir, _:= utils.GetCurrentDir()
 	appDir += "/test.json"
@@ -183,6 +204,10 @@ func main() {
 	err := config.LoadJsonNode(appDir, "node", &cn)
 	fmt.Println(cn)
 	fmt.Println(err)
+
+	a2 := Args2{}
+	at2 := reflect.TypeOf(a2)
+	FieldTag(at2)
 
 	return
 
