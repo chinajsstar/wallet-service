@@ -62,7 +62,7 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 	rspInfo.ID = reqInfo.ID
 	rspInfo.Symbol = reqInfo.Symbol
 
-	userProperty, ok := mysqlpool.QueryAllUserAddress()[req.Data.Argv.UserKey]
+	userProperty, ok := mysqlpool.QueryAllUserProperty()[req.Data.Argv.UserKey]
 	if !ok {
 		res.Data.Err = -1
 		res.Data.ErrMsg = "NewAddress mapUserProperty find Error"
@@ -201,8 +201,13 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return err
 	}
 
-	txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.Name, privateKey, reqInfo.ToAddress, nil, uint64(amount))
-	a.wallet.SendTx(txCmd)
+	if assetProperty.IsToken > 0 {
+		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.CoinName, privateKey, reqInfo.ToAddress, &assetProperty.Name, uint64(amount))
+		a.wallet.SendTx(txCmd)
+	} else {
+		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.Name, privateKey, reqInfo.ToAddress, nil, uint64(amount))
+		a.wallet.SendTx(txCmd)
+	}
 	res.Data.Value.Message = string(pack)
 
 	return nil

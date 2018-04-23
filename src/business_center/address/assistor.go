@@ -8,9 +8,9 @@ import (
 	"business_center/redispool"
 	"context"
 	"fmt"
+	"github.com/satori/go.uuid"
 	"strings"
 	"time"
-	"strconv"
 )
 
 func (a *Address) generateAddress(userID string, userClass int,
@@ -53,8 +53,8 @@ func (a *Address) addUserAddress(userAddress []UserAddress) []string {
 		_, err := tx.Exec("insert user_address (user_key, asset_id, address, private_key, available_amount, frozen_amount, "+
 			"enabled, create_time, update_time) values (?, ?, ?, ?, ?, ?, ?, ?, ?);",
 			v.UserKey, v.AssetID, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
-			time.Unix(v.CreateTime, 0).UTC().Format("2006-01-02 15:04:05"),
-			time.Unix(v.UpdateTime, 0).UTC().Format("2006-01-02 15:04:05"))
+			time.Unix(v.CreateTime, 0).UTC().Format(TimeFormat),
+			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
 		if err != nil {
 			fmt.Println(err.Error())
 			continue
@@ -88,6 +88,8 @@ func (a *Address) recvRechargeTxChannel() {
 							blockin.AssetID = assetProperty.ID
 							blockin.AssetName = assetProperty.Name
 							blockin.Hash = rct.Tx.Tx_hash
+							blockin.Status = 0
+							blockin.MinerFee = int64(rct.Tx.Gaseprice)
 							blockin.BlockinHeight = int64(rct.Tx.InBlock)
 							blockin.BlockinTime = int64(rct.Tx.Time)
 							blockin.OrderID = ""
@@ -95,18 +97,18 @@ func (a *Address) recvRechargeTxChannel() {
 							a.transactionBegin(&blockin, rct.Tx)
 
 							// push
-							userKey := ""
-							addr := rct.Tx.To
-							userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(blockin.AssetName+"_"+addr)]
-							if ok {
-								userKey = userAddress.UserKey
-								msg := ""
-								msg = "{"
-								msg += "\"type:\":\"inblock\""
-								msg += ",\"blockinheight:\":" + strconv.FormatInt(blockin.BlockinHeight, 10)
-								msg += "}"
-								a.callback(userKey, msg)
-							}
+							//userKey := ""
+							//addr := rct.Tx.To
+							//userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(blockin.AssetName+"_"+addr)]
+							//if ok {
+							//	userKey = userAddress.UserKey
+							//	msg := ""
+							//	msg = "{"
+							//	msg += "\"type:\":\"inblock\""
+							//	msg += ",\"blockinheight:\":" + strconv.FormatInt(blockin.BlockinHeight, 10)
+							//	msg += "}"
+							//	a.callback(userKey, msg)
+							//}
 							fmt.Println("pppppppp000000000: ", ok)
 						}
 					case types.Tx_state_confirmed: //确认
@@ -124,18 +126,18 @@ func (a *Address) recvRechargeTxChannel() {
 							a.transactionFinish(&status, rct.Tx)
 
 							// push
-							userKey := ""
-							addr := rct.Tx.To
-							userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(status.AssetName+"_"+addr)]
-							if ok {
-								userKey = userAddress.UserKey
-								msg := ""
-								msg = "{"
-								msg += "\"type:\":\"confirm\""
-								msg += ",\"confirmheight:\":" + strconv.FormatInt(status.ConfirmHeight, 10)
-								msg += "}"
-								a.callback(userKey, msg)
-							}
+							//userKey := ""
+							//addr := rct.Tx.To
+							//userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(status.AssetName+"_"+addr)]
+							//if ok {
+							//	userKey = userAddress.UserKey
+							//	msg := ""
+							//	msg = "{"
+							//	msg += "\"type:\":\"confirm\""
+							//	msg += ",\"confirmheight:\":" + strconv.FormatInt(status.ConfirmHeight, 10)
+							//	msg += "}"
+							//	a.callback(userKey, msg)
+							//}
 
 							fmt.Println("pppppppp111111111: ", ok)
 						}
@@ -185,6 +187,8 @@ func (a *Address) recvCmdTxChannel() {
 							blockin.AssetID = assetProperty.ID
 							blockin.AssetName = assetProperty.Name
 							blockin.Hash = cmdTx.Tx.Tx_hash
+							blockin.Status = 0
+							blockin.MinerFee = int64(cmdTx.Tx.Gaseprice)
 							blockin.BlockinHeight = int64(cmdTx.Tx.InBlock)
 							blockin.BlockinTime = int64(cmdTx.Tx.Time)
 							blockin.OrderID = cmdTx.NetCmd.MsgId
@@ -232,10 +236,15 @@ func (a *Address) recvCmdTxChannel() {
 
 func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.Transfer) error {
 	db := mysqlpool.Get()
+
+	if len(blockin.OrderID) > 0 {
+		db.Exec("update withdraw_order set hash = ? where order_id = ?;", blockin.Hash, blockin.OrderID)
+	}
+
 	_, err := db.Exec("insert transaction_blockin "+
-		"(asset_id, hash, blockin_height, blockin_time, order_id) values (?, ?, ?, ?, ?);",
-		blockin.AssetID, blockin.Hash, blockin.BlockinHeight,
-		time.Unix(blockin.BlockinTime, 0).UTC().Format("2006-01-02 15:04:05"),
+		"(asset_id, hash, status, miner_fee, blockin_height, blockin_time, order_id) values (?, ?, ?, ?, ?, ?, ?);",
+		blockin.AssetID, blockin.Hash, blockin.Status, blockin.MinerFee, blockin.BlockinHeight,
+		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat),
 		blockin.OrderID)
 
 	if err != nil {
@@ -294,6 +303,13 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			if err != nil {
 				fmt.Println(err.Error())
 			}
+
+			if detail.TransType == "to" && userAddress.UserClass == 0 {
+				orderID, _ := uuid.NewV4()
+				Tx.Exec("insert recharge_order (order_id, user_key, asset_id, address, amount, create_time, hash)"+
+					" values (?, ?, ?, ?, ?, ?, ?);", orderID, userAddress.UserKey, userAddress.AssetID, userAddress.Address,
+					detail.Amount, time.Now().UTC().Format(TimeFormat), blockin.Hash)
+			}
 		}
 
 		_, err := Tx.Exec("insert transaction_detail "+
@@ -317,13 +333,16 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		"(asset_id, hash, status, confirm_height, confirm_time, update_time, order_id) "+
 		"values (?, ?, ?, ?, ?, ?, ?);",
 		status.AssetID, status.Hash, status.Status, status.ConfirmHeight,
-		time.Unix(status.ConfirmTime, 0).UTC().Format("2006-01-02 15:04:05"),
-		time.Unix(status.UpdateTime, 0).UTC().Format("2006-01-02 15:04:05"),
+		time.Unix(status.ConfirmTime, 0).UTC().Format(TimeFormat),
+		time.Unix(status.UpdateTime, 0).UTC().Format(TimeFormat),
 		status.OrderID)
 
 	if err != nil {
 		return err
 	}
+
+	db.Exec("update transaction_blockin set status = ? where asset_id = ? and hash = ?;",
+		status.Status, status.AssetID, status.Hash)
 
 	if status.Status == 1 {
 		var blockin TransactionBlockin

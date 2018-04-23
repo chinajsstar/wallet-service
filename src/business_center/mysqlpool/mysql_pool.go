@@ -46,7 +46,7 @@ func QueryAllUserProperty() map[string]*UserProperty {
 func QueryAllAssetProperty() map[string]*AssetProperty {
 	mapAssetProperty := make(map[string]*AssetProperty)
 
-	rows, err := db.Query("select id, name, full_name, confirmation_num" +
+	rows, err := db.Query("select id, name, full_name, is_token, coin_name, confirmation_num" +
 		" from asset_property;")
 	if err != nil {
 		fmt.Println(err.Error())
@@ -55,7 +55,8 @@ func QueryAllAssetProperty() map[string]*AssetProperty {
 
 	for rows.Next() {
 		assetProperty := &AssetProperty{}
-		rows.Scan(&assetProperty.ID, &assetProperty.Name, &assetProperty.FullName, &assetProperty.ConfirmationNum)
+		rows.Scan(&assetProperty.ID, &assetProperty.Name, &assetProperty.FullName, &assetProperty.IsToken, &assetProperty.CoinName,
+			&assetProperty.ConfirmationNum)
 		mapAssetProperty[assetProperty.Name] = assetProperty
 	}
 	return mapAssetProperty
