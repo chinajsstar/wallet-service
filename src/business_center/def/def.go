@@ -156,3 +156,18 @@ type TransactionStatus struct {
 	UpdateTime    int64  `json:"update_time"`
 	OrderID       string `json:"order_id"`
 }
+
+type TransactionNotic struct {
+	UserKey       string `json:"user_key"`
+	OrderID       string `json:"order_id"`
+	MsgID         int64  `json:"msg_id"`
+	Type          int    `json:"type"`
+	Status        int    `json:"status"`
+	BlockinHeight int64  `json:"blockin_height"`
+	AssetID       int    `json:"asset_id"`
+	Address       string `json:"address"`
+	Amount        int64  `json:"amount"`
+	WalletFee     int64  `json:"wallet_fee"`
+	Hash          string `json:"hash"`
+	Time          int64  `json:"time"`
+}
