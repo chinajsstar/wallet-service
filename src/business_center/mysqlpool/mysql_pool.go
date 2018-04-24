@@ -14,7 +14,7 @@ func Get() *sql.DB {
 }
 
 func init() {
-	d, err := sql.Open("mysql", "root:command@tcp(127.0.0.1:3306)/test?charset=utf8")
+	d, err := sql.Open("mysql", "root:root@tcp(192.168.21.109:3306)/wallet?charset=utf8")
 	if err != nil {
 		fmt.Println(err.Error())
 		return
