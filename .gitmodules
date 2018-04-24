@@ -49,3 +49,6 @@
 [submodule "src/github.com/btcsuite/btcwallet"]
 	path = src/github.com/btcsuite/btcwallet
 	url = https://github.com/btcsuite/btcwallet.git
+[submodule "src/github.com/btcsuite/golangcrypto"]
+	path = src/github.com/btcsuite/golangcrypto
+	url = https://github.com/btcsuite/golangcrypto.git

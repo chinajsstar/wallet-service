@@ -1,4 +1,4 @@
-package blockchain_server
+package client
 
 import (
 	"blockchain_server/types"
@@ -11,7 +11,7 @@ type Signer interface {
 
 type ChainClient interface {
 	Name() string
-	NewAccount()(*types.Account, error)
+	NewAccount(c uint32)([]*types.Account, error)
 	// from is a crypted private key
 	SendTx(privkey string, transfer *types.Transfer) error
 	UpdateTx(tx *types.Transfer) error

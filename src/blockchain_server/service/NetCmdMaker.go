@@ -24,8 +24,11 @@ func NewQueryBalanceCmd(msgId, coinname, address string, tokenName *string) *typ
 		Address:address, Token:tokenName}
 }
 
+
+// 交易和充值中的单位都是10^8为一个单位, 即1^8数量为一个bitcoin或者eth
+// 发送时, 内部会执行转换!
 func NewSendTxCmd(msgId, coinname, chiperKey, to string, tkname *string, amount uint64) (*types.CmdSendTx) {
-	config := config.GetConfiger().Clientconfig[coinname]
+	config := config.MainConfiger().Clientconfig[coinname]
 	if config == nil {
 		log4go.Error("Coin[%s] not supported", coinname)
 		return nil
@@ -46,7 +49,7 @@ func NewSendTxCmd(msgId, coinname, chiperKey, to string, tkname *string, amount 
 }
 
 func NewRechargeAddressCmd(msgId, coin string, address []string) (*types.CmdRechargeAddress) {
-	//config := config.GetConfiger().Clientconfig[coin]
+	//config := config.MainConfiger().Clientconfig[coin]
 	//if config == nil {
 	//	log4go.Error("Coin[%s] not supported",coin)
 	//	return nil

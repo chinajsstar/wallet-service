@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"blockchain_server/utils"
+	"math"
 )
 
 type Client struct {
@@ -28,8 +29,8 @@ type Client struct {
 
 	c                *ethclient.Client
 	addresslist      *utils.FoldedStrings// 监控地址列表
-	blockHeight      uint64				// 当前区块高度
-	scanblock        uint64             // 起始扫描高度
+	blockHeight      uint64				 // 当前区块高度
+	scanblock        uint64              // 起始扫描高度
 
 	//rctChannel 发送的充值 被Client.Manager.loopRechargeTxMessage 接收到
 	rctChannel       types.RechargeTxChannel
@@ -54,38 +55,49 @@ func (self *Client)unlock() {
 }
 
 func NewClient() (*Client, error) {
-	client, err := ethclient.Dial(config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
+	client, err := ethclient.Dial(config.MainConfiger().Clientconfig[types.Chain_eth].RPC_url)
 	if nil!=err {
 		l4g.Error("create eth client error! message:%s", err.Error())
 		return nil, err
 	}
 	c := &Client{c:client}
-	c.init()
-
+	if err := c.init(); err!=nil {
+		return nil, err
+	}
 	return c, nil
 }
 
-func  (self *Client) init() {
+func (self *Client)init() error {
 	// self.ctx must 
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
 
 	self.addresslist = new(utils.FoldedStrings)
-	atomic.StoreUint64(&self.blockHeight, self.getBlockHeight())
 
-	configer := config.GetConfiger().Clientconfig[types.Chain_eth]
+	// 起始扫描高度为 当前真实高度 - 确认数
+	if _, err := self.refreshBlockHeight(); err!=nil {
+		//l4g.Trace("eth refresh height faild, message:%s", err)
+		return err
+	}
+
+	configer := config.MainConfiger().Clientconfig[types.Chain_eth]
+
+	self.confirm_count = uint16(configer.TxConfirmNumber)
+	if self.confirm_count <= 0 {
+		return fmt.Errorf("eth confirm number must not be zero.")
+	}
 
 	self.scanblock = configer.Start_scan_Blocknumber
 	// if start block number==0, then, begin with current block height
 	if self.scanblock==0 {
-		self.scanblock = self.getBlockHeight()
+		self.scanblock = self.virtualBlockHeight()
 	}
 
-	self.confirm_count = uint16(configer.TxConfirmNumber)
 
 	self.address_locker = new(sync.RWMutex)
+
 	// 如果为0, 则默认从最新的块开始扫描
 	if self.scanblock==0 {
-		self.scanblock = self.blockHeight
+		self.scanblock = self.virtualBlockHeight()
 	}
 
 	self.tokens = make(map[string]*types.Token, 128)
@@ -103,7 +115,7 @@ func  (self *Client) init() {
 
 		tk.Name, err = tmp_tk.Name(nil)
 		if err!=nil { continue }
-		tk.Decimals, _ = tmp_tk.Decimals(nil)
+		if d, err := tmp_tk.Decimals(nil); err==nil { tk.Decimals = uint(d) }
 		tk.Symbol, _ = tmp_tk.Symbol(nil)
 
 		self.erc20Token[tk.Symbol] = tmp_tk
@@ -115,8 +127,10 @@ func  (self *Client) init() {
 	var err error
 	if self.erc20ABI, err = abi.JSON(strings.NewReader(token.TokenABI)); err!=nil {
 		// TODO:here may should print error message and exit process
-		l4g.Error("Create erc20 token abi error:%s", err.Error())
+		return err
+		//l4g.Error("Create erc20 token abi error:%s", err.Error())
 	}
+	return nil
 }
 
 func (self *Client) Start() error {
@@ -136,8 +150,16 @@ func (self *Client) Name() string {
 	return types.Chain_eth
 }
 
-func (self *Client) NewAccount()(*types.Account, error) {
-	return NewAccount()
+func (self *Client) NewAccount(c uint32)([]*types.Account, error) {
+	if c>256 { c = 256 }
+	accounts := make([]*types.Account, c)
+	for i:=0; uint32(i)<c; i++ {
+		if tmp, err := NewAccount(); err!=nil {
+			l4g.Trace("%s Create New account error message:%s", err.Error())
+			return nil, err
+		} else { accounts[i] = tmp }
+	}
+	return accounts, nil
 }
 
 
@@ -226,12 +248,31 @@ func (self *Client)GetBalance(addstr string, tokenname *string) (uint64, error){
 	return bl, nil
 }
 
+// 自动以标准的精度转换为client相关的精度数量
+// 1,000,000,000
+func (self *Client) toClientDecimal(v uint64) *big.Int {
+	i := 18 - types.StandardDecimal
+	ibig :=  big.NewInt(int64(v))
+	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i))))
+	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))) }
+}
+
+// 从client相关的精度数量转为自定义标准的精度数量
+func (self *Client) toStandardDecimal(v uint64) uint64 {
+	i := types.StandardDecimal - 18
+	ibig := big.NewInt(int64(v))
+	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i)))).Uint64()
+	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))).Uint64() }
+}
+
 // TODO: 创建出来的tx,如果是token的话, 交易总是失败, 目前发送Token不用这个方法, 后面再检查
 func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 
 	from  := common.HexToAddress(tx.From)
 	to 	  := common.HexToAddress(tx.To)
-	value := big.NewInt(int64(tx.Value))
+
+	value := self.toClientDecimal(tx.Value)
+
 	var input []byte = nil
 
 	// if tx.Token field not nil, then create erc20 token transaction
@@ -239,7 +280,7 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 	// and reciver address is packed to []byte 'input'
 	if tx.Token!=nil {
 		var err error
-		if input, err = self.erc20ABI.Pack("transfer", to, value); err!=nil {
+		if input, err = self.erc20ABI.Pack("transfer", to, tx.Token.ToTokenDecimal(tx.Value)); err!=nil {
 			l4g.Error("Create erc20 transaction error, message:%s", err.Error())
 			return nil, err
 		}
@@ -266,17 +307,33 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 	return etypes.NewTransaction(nonce, to, value, gaslimit, gasprice, input), nil
 }
 
-func (self Client) getBlockHeight() uint64 {
-	block, err := self.c.BlockByNumber(context.TODO(), nil)
+
+func (self *Client) refreshBlockHeight () (uint64, error) {
+	block, err := self.c.BlockByNumber(self.ctx, nil)
 	if err!=nil {
-		return 0
+		l4g.Error("ETH get block height faild, message:%s", err.Error())
+		return 0, err
 	}
-	atomic.StoreUint64(&self.blockHeight, block.NumberU64())
+	h := block.NumberU64()
+	atomic.StoreUint64(&self.blockHeight, h)
+	return h, nil
+}
+
+
+func (self *Client) realBlockHeight() uint64 {
 	return atomic.LoadUint64(&self.blockHeight)
 }
 
 func (self *Client) BlockHeight() uint64 {
-	return atomic.LoadUint64(&self.blockHeight)
+	return self.virtualBlockHeight()
+}
+
+func (self *Client) virtualBlockHeight() uint64 {
+	rh := self.realBlockHeight()
+	if rh > uint64(self.confirm_count) {
+		return rh - uint64(self.confirm_count)
+	}
+	return 0
 }
 
 //func (self *Client)updateTxWithTx(transfer *types.Transfer, transaction *etypes.Transaction) bool {
@@ -284,7 +341,7 @@ func (self *Client) BlockHeight() uint64 {
 //
 //	if inblock ==0 {
 //		state = types.Tx_state_pending
-//	} else if lastblock-inblock >= config.GetConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
+//	} else if lastblock-inblock >= config.MainConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
 //		state = types.Tx_state_confirmed
 //	} else {
 //		state = types.Tx_state_mined
@@ -298,7 +355,7 @@ func (self *Client) BlockHeight() uint64 {
 //		From:              tx.From(),
 //		To :               tx.To().String(),
 //		Value:             tx.Value().Uint64(),
-//		Gase :             tx.Gas(),
+//		Gas :             tx.Gas(),
 //		Gaseprice:         tx.GasPrice().Uint64(),
 //		Total :            tx.Cost().Uint64(),
 //		blockNumber:       inblock,
@@ -341,9 +398,12 @@ func (self *Client) beginSubscribeBlockHaders() error {
 				goto endfor
 			}
 			case header := <- header_chan: {
-				atomic.StoreUint64(&self.blockHeight, header.Number.Uint64())
+				h := header.Number.Uint64()
+				// 设置当前块高为 真实高度 - 确认数的高度
+				atomic.StoreUint64(&self.blockHeight, h)
+
 				l4g.Trace("get new block(%s) height:%d",
-					header.Hash().String(), atomic.LoadUint64(&self.blockHeight))
+					header.Hash().String(), h)
 			}
 			}
 		}
@@ -356,28 +416,31 @@ func (self *Client) beginSubscribeBlockHaders() error {
 
 func (self *Client) beginScanBlock() error {
 	go func() {
+		var scanblock, top uint64
 		for {
-			height := atomic.LoadUint64(&self.blockHeight)
+			// top block height
+			top = self.virtualBlockHeight()
+			scanblock = self.scanblock
 
 			// following express to make sure blockchain are not forked
 			// height <= (self.scanblock-self.confirm_count)
 			if nil==self.addresslist || len(*self.addresslist)==0 ||
 				//height <= self.scanblock - uint64(self.confirm_count) ||
-				height <= self.scanblock ||
+				top <= self.scanblock ||
 				self.rctChannel == nil {
-				l4g.Trace("Recharge channel is nil, or block height(%d)==scanblock(%d), or addresslit is empty!", height, self.scanblock)
+				l4g.Trace("Recharge channel is nil, or block height(%d)==scanblock(%d), or addresslit is empty!", top, self.scanblock)
 				time.Sleep(time.Second * 5)
 				continue
 			}
 
-			block, err := self.c.BlockByNumber(self.ctx, big.NewInt(int64(self.scanblock)))
+			block, err := self.c.BlockByNumber(self.ctx, big.NewInt(int64(scanblock)))
 
 			if err!= nil {
 				l4g.Error("get block error, stop scanning block, message:%s", err.Error())
 				goto endfor
 			}
 
-			l4g.Trace("scaning block :%d", block.NumberU64())
+			l4g.Trace("scaning block :%d", self.scanblock)
 
 			txs := block.Transactions()
 
@@ -397,6 +460,10 @@ func (self *Client) beginScanBlock() error {
 				if  self.hasAddress(reciver.String()) ||
 					self.hasAddress(tx.From()) {
 
+					// TODO: 测试发现tx中的inblock为0, 应该是库的bug, 先在这里手动设置
+					// TODO: 以后需要看看ethereum库中相关部分
+					tx.Inblock = scanblock
+
 					tmp_tx := self.toTx(tx)
 					// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
 					self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}
@@ -411,7 +478,7 @@ func (self *Client) beginScanBlock() error {
 				goto endfor
 			}
 			default: {
-				time.Sleep(time.Second * 1)
+				time.Sleep(time.Millisecond * 200)
 			}
 			}
 		}
@@ -426,8 +493,14 @@ func (self *Client) hasAddress(address string) bool {
 	return self.addresslist.Contains(address)
 }
 
+func (self *Client) blockTime(bn uint64) uint64 {
+	if block, err := self.c.BlockByNumber(self.ctx, big.NewInt(int64(bn))); err!=nil {
+		return 0
+	} else {return block.Time().Uint64() }
+}
+
 func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
-	height := atomic.LoadUint64(&self.blockHeight)
+	height := self.virtualBlockHeight()
 
 	receipt, err := self.c.TransactionReceipt(self.ctx, common.HexToHash(tx.Tx_hash))
 	if err!=nil {
@@ -437,12 +510,14 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 
 	tx.GasUsed = receipt.GasUsed
 	//if receipt.Status==etypes.ReceiptStatusFailed ||
-	if tx.GasUsed > tx.Gase {
+	if tx.GasUsed > tx.Gas {
 		tx.State = types.Tx_state_unconfirmed
 	} else {
-		if height - tx.InBlock > config.GetConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
+		//else if  (height > srcTx.Inblock) && uint16(height-srcTx.Inblock) > self.confirm_count {
+		//if (height > tx.InBlock) && uint16(height - tx.InBlock) > self.confirm_count {
+		if tx.InBlock <= height {
 			tx.State = types.Tx_state_confirmed
-			tx.ConfirmatedHeight = height
+			tx.ConfirmatedHeight = height + uint64(self.confirm_count)
 		} else {
 			tx.State = types.Tx_state_mined
 		}
@@ -458,7 +533,8 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 		destTx.Confirmationsnumber = uint64(self.confirm_count)
 	}
 
-	height := atomic.LoadUint64(&self.blockHeight)
+	height := self.virtualBlockHeight()
+
 	// if input srcTx is nil, try to get transaction from network node
 	if srcTx ==nil {
 		var err error
@@ -478,9 +554,13 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 	}
 
 	var state types.TxState
+
+	// 由于这里使用的是virtualBlockHeight,作为当前块高, 实际上已经减去了
+	// confirm_count, 所以只要virtualblockheight = inblock 就可以视为已经确认!
 	if srcTx.Inblock==0 {
 		state = types.Tx_state_pending
-	} else if uint16(height-srcTx.Inblock) > self.confirm_count {
+	} else if srcTx.Inblock <= height {
+	//else if  (height > srcTx.Inblock) && uint16(height-srcTx.Inblock) > self.confirm_count {
 		state = types.Tx_state_confirmed
 	} else {
 		state = types.Tx_state_mined
@@ -505,17 +585,28 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 
 	destTx.Tx_hash = srcTx.Hash().String()
 	destTx.From = srcTx.From()
-	destTx.Value = srcTx.Value().Uint64()
-	destTx.Gase = srcTx.Gas()
-	destTx.Gaseprice = srcTx.GasPrice().Uint64()
-	destTx.Total = srcTx.Cost().Uint64()
+
+	if destTx.Token!=nil {
+		destTx.Value = destTx.Token.ToStandardDecimal(srcTx.Value().Uint64())
+	} else {
+		destTx.Value = self.toStandardDecimal(srcTx.Value().Uint64())
+	}
+
+	//destTx.Value = self.toStandardDecimal(srcTx.Value().Uint64())
+	destTx.Gas = srcTx.Gas()
+	destTx.Gaseprice = self.toStandardDecimal(srcTx.GasPrice().Uint64())
+	destTx.Total = self.toStandardDecimal(srcTx.Cost().Uint64())
 	destTx.InBlock = srcTx.Inblock
 	destTx.State = state
+
+	if destTx.InBlock!=0 && destTx.Time==0 {
+		destTx.Time = self.blockTime(destTx.InBlock)
+	}
 
 	if state==types.Tx_state_confirmed {
 		if err := self.updateTxWithReceipt(destTx); err==nil {
 			if destTx.State==types.Tx_state_confirmed {
-				destTx.ConfirmatedHeight = height
+				destTx.ConfirmatedHeight = height + uint64(self.confirm_count)
 			}
 		}
 	}
@@ -572,9 +663,7 @@ func (self *Client) InsertRechargeAddress(address []string) {
 
 func (self *Client) Stop() {
 	self.ctx_canncel()
-	atomic.StoreUint64(&config.GetConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber, atomic.LoadUint64(&self.blockHeight))
-	config.GetConfiger().Save()
-	//close(self.rctChannel)
-	//close(self.pendingTxChannel)
+	atomic.StoreUint64(&config.MainConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber, atomic.LoadUint64(&self.blockHeight))
+	config.MainConfiger().Save()
 }
 

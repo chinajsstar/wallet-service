@@ -22,7 +22,7 @@ func l4g_fatalln(v ...interface{}) {
 }
 
 func init () {
-	configer := config.GetConfiger()
+	configer := config.MainConfiger()
 	isExist, err := utils.PathExists(configer.Cryptofile)
 	if err!=nil {
 	}
@@ -42,7 +42,7 @@ func init () {
 }
 
 func newCryptoKey() () {
-	keyfile := config.GetConfiger().Cryptofile
+	keyfile := config.MainConfiger().Cryptofile
 	if false {
 		if nil!=cryptoKey {
 			return
@@ -71,7 +71,7 @@ func newCryptoKey() () {
 // 此函数设计为用来加密和解密账户的秘钥文件
 func Encrypt(plaintext []byte) (chiper []byte, err error) {
 	if nil==cryptoKey {
-		return nil, fmt.Errorf("CryptKey is nil. keyfile:%s", config.GetConfiger().Cryptofile)
+		return nil, fmt.Errorf("CryptKey is nil. keyfile:%s", config.MainConfiger().Cryptofile)
 	}
 
 	return crypto.Encrypt(plaintext, &cryptoKey.PublicKey)
@@ -88,7 +88,7 @@ func type_display(i interface{}) {
 // 此函数设计为用来加密和解密账户的秘钥文件
 func Decrypto(chiper []byte) (plaintext []byte, err error) {
 	if nil==cryptoKey {
-		return nil, fmt.Errorf("CryptKey is nil. keyfile:%s", config.GetConfiger().Cryptofile)
+		return nil, fmt.Errorf("CryptKey is nil. keyfile:%s", config.MainConfiger().Cryptofile)
 	}
 
 	return crypto.Decrypt(chiper, cryptoKey)

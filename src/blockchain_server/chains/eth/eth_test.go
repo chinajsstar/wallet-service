@@ -119,7 +119,7 @@ func TestNewAccount(t *testing.T) {
 //}
 
 func TestReceipt(t *testing.T) {
-	client, err := ethclient.Dial(config.GetConfiger().Clientconfig[types.Chain_eth].RPC_url)
+	client, err := ethclient.Dial(config.MainConfiger().Clientconfig[types.Chain_eth].RPC_url)
 	if nil!=err {
 		return
 	}

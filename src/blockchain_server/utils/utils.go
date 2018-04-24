@@ -7,6 +7,10 @@ import (
 	"os"
 	"strings"
 	l4g "github.com/alecthomas/log4go"
+	"time"
+	"math/rand"
+	"crypto/md5"
+	"encoding/hex"
 )
 
 func Faltal_error(err error) {
@@ -17,6 +21,12 @@ func Faltal_error(err error) {
 	os.Exit(1)
 }
 
+func IsBytesEmpty(d []byte) bool {
+	for _, b := range d {
+		if b!=0 { return false }
+	}
+	return true
+}
 
 func string_has_prefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
@@ -65,5 +75,25 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func RandString(l int) string{
+	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	bytes := []byte(str)
+
+	var result []byte
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	for i := 0; i < int(l); i++ {
+		result = append(result, bytes[r.Intn(int(len(bytes)))])
+	}
+	return string(result)
+}
+
+func MD5(text string) string{
+	ctx := md5.New()
+	ctx.Write([]byte(text))
+	return hex.EncodeToString(ctx.Sum(nil))
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	"time"
+	"math"
 )
 
 var (
@@ -34,7 +35,7 @@ func main() {
 
 	/*********批量创建账号示例*********/
 	if true {
-		accCmd := service.NewAccountCmd("message id", types.Chain_eth, 10)
+		accCmd := service.NewAccountCmd("message id", types.Chain_eth, 2)
 		var accs []*types.Account
 		accs, err = clientManager.NewAccounts(accCmd)
 		for i, account := range accs {
@@ -51,21 +52,21 @@ func main() {
 	if true {
 		go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{tmp_toaddress}, done_watchaddress)
 	}
-	if false {
+	if true {
 		go testSendTokenTx(ctx, clientManager, tmp_account.PrivateKey, tmp_toaddress, types.Chain_eth,
-			nil, 10, done_sendTx)
+			nil, uint64(math.Pow10(8)), done_sendTx)
 	}
 
 	testGetBalance(clientManager, tmp_toaddress, token)
 
-	select {
-	case <-done_sendTx:
-		{
+	for i:=0; i<2; i++ {
+		select {
+		case <-done_sendTx: {
 			l4g.Trace("SendTransaction done!")
 		}
-	case <-done_watchaddress:
-		{
+		case <-done_watchaddress: {
 			l4g.Trace("Watch Address done!")
+		}
 		}
 	}
 
@@ -106,7 +107,7 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 					} else {
 						l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
 						if rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed {
-							// watch_address_channel <- true
+							 watch_address_channel <- true
 						}
 					}
 				}

@@ -241,7 +241,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 
 			//gas
 			detail.Address = transfer.From
-			detail.Amount = -int64(transfer.Gase)
+			detail.Amount = -int64(transfer.Gas)
 			detail.TransType = "gas"
 			blockin.Detail = append(blockin.Detail, detail)
 		}
