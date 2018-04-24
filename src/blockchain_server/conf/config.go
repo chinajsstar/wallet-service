@@ -8,27 +8,33 @@ import (
 	"fmt"
 	"os"
 	"blockchain_server/types"
+	"sync"
 )
 
 var (
-	configer    Configer
-	DebugRuning = true
-	SaveConfiguarations = false
+	configer            Configer
+	Debugmode           = true
+	SaveConfiguarations = true
 )
 
 type ClientConfig struct {
-	Name                   string `json:"name"`
 	RPC_url                string `json:"rpc_url"`
+	Name                   string `json:"name"`
 	Start_scan_Blocknumber uint64 `json:"start_sacn_blocknumber,string,omitempty"`
 	TxConfirmNumber        uint64 `json:"confirmnumber,string,omitempty"`
-	Tokens				   map[string]*types.Token `json:Tokens`
+	Tokens				   map[string]*types.Token `json:"Tokens"`
+
+	SubConfigs map[string]interface{} `josn:"SubConfigs, omitempty"`
 }
 
 type Configer struct {
+	Online_mode		string  `json:"online_mode"`
 	Cryptofile  	string	`json:"crypto_file"`
 	Log_conf_file	string  `json:"log_conf_file"`
 	Log_path		string  `json:"log_path"`
 	Clientconfig    map[string]*ClientConfig
+
+	mutx 			sync.Mutex
 }
 
 
@@ -50,15 +56,32 @@ func (self *ClientConfig) String() string {
 	return str
 }
 
+func (self *Configer) Lock() {
+	self.mutx.Lock()
+}
+
+func (self *Configer) Unlock() {
+	self.mutx.Unlock()
+}
+
 func (self *Configer) Save() error {
+
 	if !SaveConfiguarations {return nil}
 
-	jsondata, _ := json.Marshal(configer)
-	err := ioutil.WriteFile(getConfigFilePath(), jsondata, os.ModePerm)
-	if err != nil {
-		return err
+	var d []byte
+	var err error = nil
+
+	self.Lock()
+	if d, err = json.Marshal(configer); err!=nil {
+		l4g.Error("Save configer error, message:%s", err.Error())
+	} else {
+		if err = ioutil.WriteFile(GetConfigFilePath(), d, os.ModePerm); err!=nil {
+			l4g.Error("Save configer error, message:%s", err.Error())
+		}
 	}
-	return nil
+	self.Unlock()
+
+	return err
 }
 
 func (self *Configer)Trace() {
@@ -85,23 +108,21 @@ func check(err error) {
 }
 
 func init () {
-	configfile := getConfigFilePath()
+	configfile := GetConfigFilePath()
 	dat, err := ioutil.ReadFile(configfile)
 	check(err)
 	err = json.Unmarshal(dat, &configer)
 	check(err)
 
-	l4g.LoadConfiguration(configer.Log_conf_file)
-
 	configer.Trace()
 }
 
-func GetConfiger() (*Configer) {
+func MainConfiger() (*Configer) {
 	return &configer
 }
 
-func getConfigFilePath() string {
-	if DebugRuning {
+func GetConfigFilePath() string {
+	if Debugmode {
 		l4g.Trace("running as debug version!")
 		return "/Users/cengliang/code/wallet-service/src/blockchain_server/res/app_debug.config"
 	}

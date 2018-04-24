@@ -2,7 +2,10 @@ package types
 
 import (
 	"fmt"
+	"math"
+	"math/big"
 )
+
 
 //-32700	Parse error	Invalid JSON was received by the server.
 //An error occurred on the server while parsing the JSON text.
@@ -31,13 +34,39 @@ const (
 
 	NetCmdCode_success = iota
 	NetCmdCode_failed
+
+
+	// online  模式不允许保存私钥
+	// offline 模式可以都保存
+	Onlinemode_offline = "offline"
+	Onlinemode_online  = "online"
+
+	StandardDecimal = 8
 )
 
 type Token struct {
 	Name     string `json:"name"`
 	Address  string `json:"address"`
 	Symbol   string `json:"symbol"`
-	Decimals uint8  `json:"decimals,string,omitempty"`
+	Decimals uint   `json:"decimals,string,omitempty"`
+}
+
+// 把StandardDecimal 表示的数量, 转换为币种内部使用的数量
+func (self *Token) ToTokenDecimal(v uint64) uint64 {
+	//i := 18 - self.Decimals
+	//if i>0 { return v * uint64(math.Pow10( int( i)))
+	//} else { return v / uint64(math.Pow10( int(-i))) }
+	i := 18 - self.Decimals
+	ibig :=  big.NewInt(int64(v))
+	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(int( i))))).Uint64()
+	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(int(-i))))).Uint64() }
+}
+
+// 把币种内部使用的精度表示为外部标准使用过的精度!
+func (self *Token) ToStandardDecimal (v uint64) uint64 {
+	i := self.Decimals - 18
+	if i>0 { return v * uint64(math.Pow10( int( i)))
+	} else { return v / uint64(math.Pow10( int(-i))) }
 }
 
 func (self *Token) String() string {
@@ -93,7 +122,7 @@ type Transfer struct {
 	From                string
 	To                  string
 	Value               uint64	// 交易金额
-	Gase                uint64
+	Gas                 uint64
 	Gaseprice           uint64
 	GasUsed             uint64
 	Total               uint64	// 总花费金额
@@ -107,7 +136,7 @@ type Transfer struct {
 }
 
 func (tx *Transfer) Minerfee() uint64 {
-	return 	tx.Gase * tx.Gaseprice
+	return 	tx.Gas * tx.Gaseprice
 }
 
 func (tx *Transfer) Tatolcost() uint64 {
@@ -176,6 +205,10 @@ type NotFound struct {
 
 func (self *NotFound)Error() string {
 	return self.message
+}
+
+func NewNotFound(message string) *NotFound {
+	return &NotFound{message:message}
 }
 
 func NewTxNotFoundErr(tx_hash string) *NotFound {

@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"blockchain_server"
 	"blockchain_server/chains/event"
+	chainclient "blockchain_server/chains/client"
 	"time"
 	"context"
 )
@@ -31,7 +32,7 @@ type ClientManager struct {
 	txRchChannel types.RechargeTxChannel	// txRchChannel    接收所有Client监听地址充值事件
 	txCmdqTxChannel types.CmdqTxChannel		// txCmdqTxChannel 通过hash值查询tx的channel
 
-	clients      map[string]blockchain_server.ChainClient
+	clients      map[string]chainclient.ChainClient
 
 	loopRechageRuning bool
 	loopTxCmdRuning   bool
@@ -71,9 +72,9 @@ func (self ErrorInvalideParam)Error() string {
 	return self.message
 }
 
-func (self *ClientManager) AddClient(client blockchain_server.ChainClient) {
+func (self *ClientManager) AddClient(client chainclient.ChainClient) {
 	if self.clients==nil {
-		self.clients = make(map[string]blockchain_server.ChainClient)
+		self.clients = make(map[string]chainclient.ChainClient)
 	}
 	client.SubscribeRechageTx(self.txRchChannel)
 	self.clients[client.Name()] = client
@@ -193,9 +194,7 @@ func (self *ClientManager) trackRechargeTx(rechTx *types.RechargeTx) {
 	err_channel := make(chan error)
 
 	go self.trackTxState(rechTx.Coin_name, rechTx.Tx, tx_channel, err_channel)
-
 	// 收到时, 进行下一次通知!
-
 	self.rechTxFeed.Send(rechTx)
 	for {
 		select {
@@ -315,63 +314,42 @@ func (self *ClientManager) trackTxState(clientName string,
 	l4g.Trace("********start trace transaction(%s)", tx.Tx_hash)
 	instance := self.clients[clientName]
 
-beginCheckState:
-	//if tx.State==types.Tx_state_commited || tx.State==types.Tx_state_pending {
-	//
-	//}
-	tx.State = types.Tx_state_commited
-	curBlockHeight := instance.BlockHeight()
-	// check for Transaction mined state
-	for {
-		time.Sleep(time.Second)
-		if curBlockHeight < instance.BlockHeight() {
-			break
-		}
-	}
+	// 每次有新块高增加, 才会去检查transaction的状态是否发生改变
+	// 如果状态没有改变, 说明tansaction还没有被打包到新的块中
+	// 直到transaction的状态变为了 mined, 再进入 确认的流程中
+	max_try_count := 30
+	i := 0
+	for i:=0; i<max_try_count; i++ {
+		curBlockHeight := instance.BlockHeight()
+		for { time.Sleep(time.Second)
+		if curBlockHeight < instance.BlockHeight() { break } }
 
-	if err:=instance.UpdateTx(tx); err!=nil {
-		if _, ok := err.(*types.NotFound); ok {
-			l4g.Trace("Transaction:(%s) have not found on node, please wait.....!", tx.Tx_hash)
-			goto beginCheckState
-		} else {
-			err_channel <- err
-			l4g.Error(err.Error())
+		state := tx.State
+
+		err := instance.UpdateTx(tx)
+		if err!=nil {
+			if _, ok := err.(*types.NotFound); !ok {
+				l4g.Error("update Tx faild, message:%s", err.Error())
+				err_channel <- err
+				goto endfor
+			}
+		}
+
+		if state !=tx.State { tx_channel<-tx }
+
+		if tx.State==types.Tx_state_unconfirmed && tx.State==types.Tx_state_confirmed {
+			tx_channel <- tx
 			goto endfor
 		}
+		i++
 	}
 
-	tx_channel<-tx
-
-	if tx.State==types.Tx_state_unconfirmed || tx.State==types.Tx_state_confirmed {
-		goto endfor
+	if i==max_try_count {
+		message := "Update Transaction state upto max count, still can not confirm!!!"
+		l4g.Error(message)
+		err_channel <- fmt.Errorf(message)
 	}
 
-	for {
-		time.Sleep(time.Second)
-		curBlockHeight = instance.BlockHeight()
-		if tx.Confirmationsnumber < (curBlockHeight - tx.InBlock) {
-			break
-		}
-	}
-
-	if err:=instance.UpdateTx(tx); err!=nil {
-		if _, ok := err.(*types.NotFound); ok {
-			l4g.Error("block chain was forked?????, recheck Transacton(%s) state!!!", tx.Tx_hash)
-			goto beginCheckState
-		} else {
-			err_channel <- err
-			l4g.Error(err.Error())
-			goto endfor
-		}
-	}
-
-	if tx.State==types.Tx_state_confirmed {
-		tx.ConfirmatedHeight = curBlockHeight
-	}
-
-	//l4g.Trace("Track Transaction, state changed, Transaction infromation:%s", tx.String())
-
-	tx_channel<-tx
 endfor:
 	l4g.Trace("********stop trace transaction(%s)", tx.Tx_hash)
 }
@@ -486,7 +464,7 @@ func NewClientManager() *ClientManager {
 func (self *ClientManager) init () {
 	self.txCmdChannel = make(types.CmdTxChannel, 256)
 	self.txRchChannel = make(types.RechargeTxChannel, 256)
-	self.clients = make(map[string]blockchain_server.ChainClient, 256)
+	self.clients = make(map[string]chainclient.ChainClient, 256)
 	self.ctx, self.ctx_cannel = context.WithCancel(context.Background())
 }
 
@@ -494,23 +472,13 @@ func (self *ClientManager)NewAccounts(cmd *types.CmdNewAccounts) ([]*types.Accou
 	if cmd.Amount==0 || cmd.Amount>max_once_account_number {
 		return nil, newInvalidParamError(fmt.Sprintf("the count of account must >0 and <%d", max_once_account_number))
 	}
-	accs := make([]*types.Account,cmd.Amount)
 
 	client := self.clients[cmd.Coinname]
-
 	if nil==client {
 		return nil, fmt.Errorf("not found '%s' client!", cmd.Coinname)
 	}
 
-	for i:=0; i<int(cmd.Amount); i++ {
-		acc, err := client.NewAccount()
-		if err!=nil {
-			l4g.Error("new %s account error, messafge", cmd.Coinname, err.Error())
-			return nil, err
-		}
-		accs[i] = acc
-	}
-	return accs, nil
+	return client.NewAccount(cmd.Amount)
 }
 
 func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
@@ -527,7 +495,8 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 }
 
 
-
+// 交易和充值中的单位都是10^8为一个单位
+// 即1^8 单位为一个bitcoin或者eth
 func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
 	if self.txCmdChannel==nil {
 		l4g.Trace("txCmdChannel is nil, create new")
