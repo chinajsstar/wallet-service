@@ -5,6 +5,7 @@
     "ws_port":"8088",
     "center_version":"v1",
     "center_name":"center",
-    "center_port":"8081"
+    "center_port":"8081",
+    "test_mode":1
   }
 }

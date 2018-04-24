@@ -73,7 +73,6 @@ func installWallet(dir string) error {
 	err = json.Unmarshal([]byte(res.Data.Value.Message), &uca)
 
 	l4g.Info("3. Record genesis admin user key: %s", uca.UserKey)
-	l4g.Info("4. Record super wallet rsa pub key: %s", uca.ServerPublicKey)
 
 	// write a tag file
 	fo, err := os.Create(dir+"/wallet.install")
@@ -96,7 +95,7 @@ func main() {
 
 	accountDir := appDir + "/account"
 	err := os.MkdirAll(accountDir, os.ModePerm)
-	if err!=nil && os.IsExist(err)==false {
+	if err != nil && os.IsExist(err) == false {
 		l4g.Error("Create dir failed：%s - %s", accountDir, err.Error())
 		return
 	}
@@ -128,47 +127,15 @@ func main() {
 
 	time.Sleep(time.Second*2)
 	for ; ;  {
-		fmt.Println("Input 'quit' to quit...")
-		fmt.Println("Input 'createuser' to create a user...")
-		fmt.Println("Input 'loginuser' to test the user...")
+		fmt.Println("Input 'q' to quit...")
 		var input string
 		input = utils.ScanLine()
 
 		argv := strings.Split(input, " ")
 
-		if argv[0] == "quit" {
+		if argv[0] == "q" {
 			cancel()
 			break;
-		}else if argv[0] == "createuser" {
-			uc, err := install.AddUser(false)
-			if err != nil {
-				l4g.Error("createuser failed: %s",err.Error())
-				continue
-			}
-			b, _ := json.Marshal(*uc)
-
-			var req data.SrvRequestData
-			var res data.SrvResponseData
-			req.Data.Argv.Message = string(b)
-
-			handler.AccountInstance().Create(&req, &res)
-			l4g.Info("createuser req:", req)
-			l4g.Info("createuser res:", res)
-		}else if argv[0] == "loginuser" {
-			ul, err := install.LoginUser()
-			if err != nil {
-				l4g.Error("loginuser failed: %s",err.Error())
-				continue
-			}
-			b, _ := json.Marshal(*ul)
-
-			var req data.SrvRequestData
-			var res data.SrvResponseData
-			req.Data.Argv.Message = string(b)
-
-			handler.AccountInstance().Login(&req, &res)
-			l4g.Info("loginuser req:", req)
-			l4g.Info("loginuser res:", res)
 		}
 	}
 

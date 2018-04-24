@@ -5,6 +5,8 @@ import (
 	"api_router/base/service"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
+	"business_center/def"
+	"encoding/json"
 )
 
 type Cobank struct{
@@ -19,9 +21,13 @@ func NewCobank() (*Cobank) {
 	return x
 }
 
-func (x *Cobank)Init(node *service.ServiceNode) error {
+func (x *Cobank)Start(node *service.ServiceNode) error {
 	x.node = node
 	return x.business.InitAndStart(x.callBack)
+}
+
+func (x *Cobank)Stop() {
+	x.business.Stop()
 }
 
 func (x *Cobank)callBack(userID string, callbackMsg string){
@@ -34,31 +40,59 @@ func (x *Cobank)callBack(userID string, callbackMsg string){
 	pData.Argv.Message = callbackMsg
 
 	res := data.UserResponseData{}
-	x.node.Push(&pData, &res)
+	x.node.InnerCallByEncrypt(&pData, &res)
+	l4g.Info("push return: ", res)
 }
 
 func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"new_address", Level:data.APILevel_client}
-	apiInfo.Example = "{\"id\":\"1\",\"symbol\":\"eth\",\"count\":5}"
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.NewAddress, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"new_address", Level:data.APILevel_client}
+		example := def.ReqNewAddress{}
+		b, _ := json.Marshal(example)
+		apiInfo.Example = string(b)
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	}()
+
+	//"user_key": "string",
+	//"user_name": "string",
+	//"user_class": "int",
+	//"asset_name": "string",
+	//"address": "string",
+	//"max_amount": "double",
+	//"min_amount": "double",
+	//"create_time_begin": "int64",
+	//"create_time_end": "int64",
+	//"page_index": "int",
+	//"max_display": "int"
+
+	func(){
+		apiInfo := data.ApiInfo{Name:"query_user_address", Level:data.APILevel_admin}
+		apiInfo.Example = "{\"user_key\":\"\"}"
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	}()
+
+	func(){
+		apiInfo := data.ApiInfo{Name:"withdrawal", Level:data.APILevel_client}
+		example := def.ReqWithdrawal{}
+		b, _ := json.Marshal(example)
+		apiInfo.Example = string(b)
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:x.handler, ApiInfo:apiInfo}
+	}()
 
 	return nam
 }
 
-func (x *Cobank)NewAddress(req *data.SrvRequestData, res *data.SrvResponseData){
+func (x *Cobank)handler(req *data.SrvRequestData, res *data.SrvResponseData){
 	res.Data.Err = data.NoErr
 
 	l4g.Debug("argv: %s", req.Data.Argv)
 
 	err := x.business.HandleMsg(req, res)
-	l4g.Debug("value: %s", res.Data.Value)
-
 	if err != nil {
-		return
+		l4g.Error("err: ", err)
 	}
 
-	res.Data.Value.Signature = ""
-	res.Data.Value.UserKey = req.Data.Argv.UserKey
+	l4g.Debug("value: %s", res.Data.Value)
 }

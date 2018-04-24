@@ -17,6 +17,8 @@ import (
 	"crypto/sha512"
 	"crypto"
 	"errors"
+	"golang.org/x/net/websocket"
+	"sync"
 )
 
 const httpaddrGateway = "http://127.0.0.1:8080"
@@ -162,12 +164,18 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 type Web struct{
 	nodes []*data.SrvRegisterData
 
-	users map[string]*user.AckUserLogin
+	loginUsers map[string]*user.AckUserLogin
+
+	// websocket
+	rwmuws sync.RWMutex
+	wsClients map[*websocket.Conn]interface{}
 }
 
 func NewWeb() *Web {
 	w := &Web{}
-	w.users = make(map[string]*user.AckUserLogin)
+	w.loginUsers = make(map[string]*user.AckUserLogin)
+
+	w.wsClients = make(map[*websocket.Conn]interface{})
 
 	return w
 }
@@ -179,6 +187,92 @@ func (self *Web)Init() error {
 
 	if err := self.startHttpServer(); err != nil{
 		return err
+	}
+
+	self.startWsServer()
+
+	return nil
+}
+
+// start websocket server
+func (self *Web) startWsServer() {
+	// websocket
+	l4g.Debug("Start ws server on 8076")
+
+	http.Handle("/ws", websocket.Handler(self.handleWebSocket))
+
+	go func() {
+		l4g.Info("ws server routine running... ")
+		err := http.ListenAndServe(":8076", nil)
+		if err != nil {
+			l4g.Crashf("", err)
+		}
+	}()
+}
+
+
+// ws handler
+func (self *Web)handleWebSocket(conn *websocket.Conn) {
+	for {
+		l4g.Debug("ws handle data...")
+		var err error
+		var data string
+		err = websocket.Message.Receive(conn, &data)
+		if err == nil{
+			err = self.handleWsData(conn, data)
+		}
+
+		if err != nil {
+			//移除出错的链接
+			self.removeWsClient(conn)
+			l4g.Error("ws read failed, remove client:%s", err.Error())
+			break
+		}
+	}
+}
+
+func (self *Web)addWsClient(conn *websocket.Conn) error{
+	var err error
+
+	self.rwmuws.Lock()
+	defer self.rwmuws.Unlock()
+
+	if _, ok := self.wsClients[conn]; ok{
+		return nil
+	}
+	self.wsClients[conn] = ""
+
+	l4g.Debug("add, ws client = %d", len(self.wsClients))
+	return err
+}
+
+func (self *Web)removeWsClient(conn *websocket.Conn) error{
+	var err error
+
+	conn.Close()
+
+	self.rwmuws.Lock()
+	defer self.rwmuws.Unlock()
+
+	delete(self.wsClients, conn)
+
+	l4g.Debug("remove, ws client = %d", len(self.wsClients))
+	return err
+}
+
+
+func (self *Web)handleWsData(conn *websocket.Conn, msg string) error{
+	self.addWsClient(conn)
+
+	return nil
+}
+
+func (self *Web)pushWsData(d *data.UserResponseData) error {
+	self.rwmuws.RLock()
+	defer self.rwmuws.RUnlock()
+
+	for c, _ := range self.wsClients{
+		websocket.Message.Send(c, d.Value.Message)
 	}
 
 	return nil
@@ -199,8 +293,12 @@ func (self *Web) startHttpServer() error {
 
 	http.Handle("/index",http.HandlerFunc(self.handleIndex))
 	http.Handle("/login",http.HandlerFunc(self.handleLogin))
+	http.Handle("/register",http.HandlerFunc(self.handleRegister))
 	http.Handle("/dologin",http.HandlerFunc(self.LoginAction))
+	http.Handle("/doregister",http.HandlerFunc(self.RegisterAction))
 	http.Handle("/testapi", http.HandlerFunc(self.handleTestApi))
+	http.Handle("/devsetting", http.HandlerFunc(self.handleDevSetting))
+	http.Handle("/dodevsetting",http.HandlerFunc(self.DevSettingAction))
 	http.Handle("/wallet/", http.HandlerFunc(self.handleWallet))
 	http.Handle("/",http.HandlerFunc(self.handle404))
 
@@ -423,6 +521,47 @@ func (self *Web) handleLogin(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
+type UserDev struct {
+	SerPubKey string
+}
+// http handler
+func (self *Web) handleDevSetting(w http.ResponseWriter, req *http.Request) {
+	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//fmt.Println("path=", req.URL.Path)
+	//fmt.Println("query=", req.URL.RawQuery)
+
+	// listsrv
+	t, err := template.ParseFiles("template/html/devsetting.html")
+	if err != nil {
+		l4g.Error("%s", err.Error())
+		return
+	}
+
+	t.Execute(w, &UserDev{SerPubKey:string(wallet_server_pubkey)})
+	return
+}
+
+// http handler
+func (self *Web) handleRegister(w http.ResponseWriter, req *http.Request) {
+	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//fmt.Println("path=", req.URL.Path)
+	//fmt.Println("query=", req.URL.RawQuery)
+
+	// listsrv
+	t, err := template.ParseFiles("template/html/register.html")
+	if err != nil {
+		l4g.Error("%s", err.Error())
+		return
+	}
+
+	t.Execute(w, nil)
+	return
+}
+
 func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
@@ -433,7 +572,6 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			ures.Err = data.ErrDataCorrupted
-			ures.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 		message = string(bb)
@@ -444,21 +582,20 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 
 		if ul.UserName == "" || ul.Password == ""{
 			ures.Err = 1
-			ures.ErrMsg = "参数错误"
+			ures.ErrMsg = "no username pr password"
 			return
 		}
 
 		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "login")
+		fmt.Println(d1)
+
+		ures = *d1
 		if d1.Err != data.NoErr {
-			w.Write([]byte(d1.ErrMsg))
 			return
 		}
 		if err != nil {
-			w.Write([]byte(err.Error()))
 			return
 		}
-
-		fmt.Println(d1)
 
 		aul := user.AckUserLogin{}
 		json.Unmarshal([]byte(d1.Value.Message), &aul)
@@ -471,8 +608,107 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		//expiration := time.Unix(5, 0)
 		cookie := http.Cookie{Name: "name", Value: aul.UserKey, Path: "/"}
 		http.SetCookie(w, &cookie)
+	}()
+
+	b, _ := json.Marshal(ures)
+	w.Write(b)
+
+	return
+}
+
+func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("name")
+	if err != nil || cookie.Value == ""{
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+
+	ures := data.UserResponseData{}
+
+	func(){
+		message := ""
+		bb, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			ures.Err = data.ErrDataCorrupted
+			return
+		}
+		message = string(bb)
+		fmt.Println("dev argv=", message)
+
+		ul := user.ReqUserUpdateKey{}
+		json.Unmarshal(bb, &ul)
+
+		if ul.PublicKey == "" && ul.CallbackUrl == ""{
+			ures.Err = 1
+			ures.ErrMsg = "no pubkey and url"
+			return
+		}
+
+		b1, err := base64.StdEncoding.DecodeString(ul.PublicKey)
+		if err != nil {
+			ures.Err = data.ErrDataCorrupted
+			return
+		}
+
+		ul.PublicKey = string(b1)
+		ul.UserKey = cookie.Value
+
+		m, err := json.Marshal(ul)
+
+		d1, _, err := sendPostData(httpaddrGateway, string(m), "v1", "account", "updatekey")
+		fmt.Println(d1)
 
 		ures = *d1
+		if d1.Err != data.NoErr {
+			return
+		}
+		if err != nil {
+			return
+		}
+	}()
+
+	b, _ := json.Marshal(ures)
+	w.Write(b)
+
+	return
+}
+
+func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+
+	ures := data.UserResponseData{}
+
+	func(){
+		message := ""
+		bb, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			ures.Err = data.ErrDataCorrupted
+			return
+		}
+		message = string(bb)
+		fmt.Println("argv=", message)
+
+		uc := user.ReqUserCreate{}
+		json.Unmarshal(bb, &uc)
+
+		if uc.UserName == "" || uc.Password == ""{
+			ures.Err = 1
+			ures.ErrMsg = "no username pr password"
+			return
+		}
+
+		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "create")
+		fmt.Println(d1)
+
+		ures = *d1
+		if d1.Err != data.NoErr {
+			return
+		}
+		if err != nil {
+			return
+		}
 	}()
 
 	b, _ := json.Marshal(ures)
@@ -549,7 +785,6 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 		bb, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			ures.Err = data.ErrDataCorrupted
-			ures.ErrMsg = data.ErrDataCorruptedText
 			return
 		}
 		message = string(bb)

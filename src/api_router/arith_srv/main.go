@@ -2,9 +2,9 @@ package main
 
 import (
 	"net/rpc"
-	"../base/service"
-	"../base/utils"
-	"../base/data"
+	"api_router/base/service"
+	"api_router/base/utils"
+	"api_router/base/data"
 	"./handler"
 	"fmt"
 	"context"
@@ -27,7 +27,7 @@ func testPush(node *service.ServiceNode)  {
 		pData.Argv.Message = "abcd=" + strconv.Itoa(i)
 
 		res := data.UserResponseData{}
-		node.Push(&pData, &res)
+		node.InnerCallByEncrypt(&pData, &res)
 
 		fmt.Println(res)
 	}
@@ -63,11 +63,11 @@ func main() {
 
 	time.Sleep(time.Second*1)
 	for ; ;  {
-		fmt.Println("Input 'quit' to quit...")
+		fmt.Println("Input 'q' to quit...")
 		var input string
 		fmt.Scanln(&input)
 
-		if input == "quit" {
+		if input == "q" {
 			cancel()
 			break;
 		}

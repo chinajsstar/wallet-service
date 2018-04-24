@@ -7,13 +7,12 @@ import "fmt"
 // /////////////////////////////////////////////////////
 
 const(
-	MethodCenterRegister   = "ServiceCenter.Register"	// srv node register to center
-	MethodCenterUnRegister = "ServiceCenter.UnRegister"	// srv node unregister to center
+	MethodCenterRegister   			= "ServiceCenter.Register"				// register to center
+	MethodCenterUnRegister 			= "ServiceCenter.UnRegister"			// unregister to center
+	MethodCenterInnerCall  			= "ServiceCenter.InnerCall"				// call a api to center
+	MethodCenterInnerCallByEncrypt 	= "ServiceCenter.InnerCallByEncrypt"	// call a api by encrypt data to center
 
-	MethodCenterListSrv    = "ServiceCenter.ListSrv"	// srv node list srv data to center
-	MethodCenterPush   	   = "ServiceCenter.Push"		// srv node push data to center
-	MethodCenterDispatch   = "ServiceCenter.Dispatch"	// srv node dispatch a request to center
-	MethodNodeCall         = "ServiceNode.Call"			// center call a srv node function
+	MethodNodeCall         			= "ServiceNode.Call"					// center call a srv node function
 )
 
 const(

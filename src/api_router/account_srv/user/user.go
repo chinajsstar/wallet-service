@@ -9,8 +9,6 @@ type ReqUserCreate struct{
 	Password 		string `json:"password"`
 	Level 			int `json:level`
 	GoogleAuth 		string `json:"google_auth"`
-	PublicKey 		string `json:"public_key"`
-	CallbackUrl 	string `json:"callback_url"`
 	TimeZone 		int `json:"timezone"`
 	Country 		string `json:"country"`
 	Language 		string `json:"language"`
@@ -18,7 +16,6 @@ type ReqUserCreate struct{
 // 账号生成-输出
 type AckUserCreate struct{
 	UserKey 		string  `json:"user_key"`
-	ServerPublicKey string  `json:"server_public_key"`
 }
 
 // 账号登入-输入
@@ -49,15 +46,25 @@ type AckUserUpdatePassword struct{
 	Status 			string `json:"status"`
 }
 
+// 修改公钥和回调地址-输入
+type ReqUserUpdateKey struct{
+	UserKey			string `json:"user_key"`
+	PublicKey		string `json:"public_key"`
+	CallbackUrl		string `json:"callback_url"`
+}
+// 修改公钥和回调地址-输出
+type AckUserUpdateKey struct{
+	Status 			string `json:"status"`
+}
+
 // 用户基本资料
 type UserProfile struct{
 	Id 				int    `json:"id"`
 	UserKey 		string `json:"user_key"`
 	UserName 		string `json:"user_name"`
-	UserClass 		string `json:"user_class"`
+	UserClass 		int `json:"user_class"`
 	Phone 			string `json:"phone"`
 	Email 			string `json:"email"`
-	// TODO: others info
 }
 
 // 用户列表-输入

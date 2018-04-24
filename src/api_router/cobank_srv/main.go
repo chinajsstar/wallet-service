@@ -32,7 +32,7 @@ func main() {
 
 	// register apis
 	cobank := handler.NewCobank()
-	if err := cobank.Init(nodeInstance); err != nil{
+	if err := cobank.Start(nodeInstance); err != nil{
 		l4g.Error("Init service node failed: %s", err.Error())
 		return
 	}
@@ -44,17 +44,18 @@ func main() {
 
 	time.Sleep(time.Second*1)
 	for ; ;  {
-		fmt.Println("Input 'quit' to quit...")
+		fmt.Println("Input 'q' to quit...")
 		var input string
 		fmt.Scanln(&input)
 
-		if input == "quit" {
+		if input == "q" {
 			cancel()
 			break;
 		}
 	}
 
 	l4g.Info("Waiting all routine quit...")
+	cobank.Stop()
 	service.StopNode(nodeInstance)
 	l4g.Info("All routine is quit...")
 }

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"../user"
+	"api_router/account_srv/user"
 	_ "github.com/go-sql-driver/mysql"
 	l4g "github.com/alecthomas/log4go"
-	"../../base/config"
+	"api_router/base/config"
 )
 
 var (
@@ -38,16 +38,19 @@ var (
 		"delete": "DELETE from %s.%s where user_key = ?",
 
 		"updatePassword":         "UPDATE %s.%s set salt = ?, password = ?, update_time = ? where user_key = ?",
+		"updateKey":         	  "UPDATE %s.%s set public_key = ?, callback_url = ?, update_time = ? where user_key = ?",
 		"frozen":         	  	  "UPDATE %s.%s set is_frozen = ? where user_key = ?",
 		"level":         	      "UPDATE %s.%s set level = ? where user_key = ?",
+		"readKey":         	      "SELECT public_key, callback_url from %s.%s where user_key = ?",
 		"readProfile":            "SELECT user_key, user_name, phone, email from %s.%s where user_key = ?",
+		"readUser":           	  "SELECT user_key, user_name, phone, email from %s.%s where user_key = ? or user_name = ? or phone = ? or email = ? limit ?",
 		"readPassword":           "SELECT salt, password from %s.%s where user_key = ?",
 		"searchUsername":         "SELECT user_key, user_name, phone, email, salt, password from %s.%s where user_name = ? limit ? offset ?",
 		"searchPhone":         	  "SELECT user_key, user_name, phone, email, salt, password from %s.%s where phone = ? limit ? offset ?",
 		"searchEmail":            "SELECT user_key, user_name, phone, email, salt, password from %s.%s where email = ? limit ? offset ?",
 
-		"listUsers":              "SELECT id, user_key, user_name, phone, email from %s.%s where id < ? order by id desc limit ?",
-		"listUsers2":             "SELECT id, user_key, user_name, phone, email from %s.%s order by id desc limit ?",
+		"listUsers":              "SELECT id, user_key, user_name, user_class, phone, email from %s.%s where id < ? order by id desc limit ?",
+		"listUsers2":             "SELECT id, user_key, user_name, user_class, phone, email from %s.%s order by id desc limit ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -112,7 +115,7 @@ func Create(user *user.ReqUserCreate, userKey string, salt string, password stri
 	_, err := st["create"].Exec(
 		userKey, user.UserName, user.UserClass, user.Phone, user.Email,
 		salt, password, user.GoogleAuth,
-		user.PublicKey, user.CallbackUrl, user.Level,
+		"", "", user.Level,
 		datetime, "", "",
 		datetime, datetime, 0,
 		user.TimeZone, user.Country, user.Language)
@@ -131,6 +134,13 @@ func UpdatePassword(userKey string, salt string, password string) error {
 	return err
 }
 
+func UpdateKey(userKey string, publicKey string, callbackUrl string) error {
+	var datetime = time.Now().UTC()
+	datetime.Format(time.RFC3339)
+	_, err := st["updateKey"].Exec(publicKey, callbackUrl, datetime, userKey)
+	return err
+}
+
 func Frozen(userKey string, frozen rune) error {
 	_, err := st["frozen"].Exec(frozen, userKey)
 	return err
@@ -139,6 +149,62 @@ func Frozen(userKey string, frozen rune) error {
 func Level(userKey string, level int) error {
 	_, err := st["level"].Exec(level, userKey)
 	return err
+}
+
+func ReadKey(userKey string) (*user.ReqUserUpdateKey, error) {
+	var r *sql.Rows
+	var err error
+
+	r, err = st["readKey"].Query(userKey)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		return nil, errors.New("row no next")
+	}
+
+	userUpdateKey := &user.ReqUserUpdateKey{}
+	if err := r.Scan(&userUpdateKey.PublicKey, &userUpdateKey.CallbackUrl); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("no rows")
+		}
+		return nil, err
+	}
+	if r.Err() != nil {
+		return nil, err
+	}
+
+	return userUpdateKey, nil
+}
+
+func ReadUser(userKey, userName, phone, email string) (*user.AckUserLogin, error) {
+	var r *sql.Rows
+	var err error
+
+	r, err = st["readUser"].Query(userKey, userName, phone, email, 1)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		return nil, errors.New("row no next")
+	}
+
+	userLogin := &user.AckUserLogin{}
+	if err := r.Scan(&userLogin.UserKey, &userLogin.UserName, &userLogin.Phone, &userLogin.Email); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("no rows")
+		}
+		return nil, err
+	}
+	if r.Err() != nil {
+		return nil, err
+	}
+
+	return userLogin, nil
 }
 
 func ReadPassword(userName, phone, email string) (*user.AckUserLogin, string, string, error) {
@@ -166,14 +232,14 @@ func ReadPassword(userName, phone, email string) (*user.AckUserLogin, string, st
 	defer r.Close()
 
 	if !r.Next() {
-		return nil, "", "", errors.New("not found")
+		return nil, "", "", errors.New("row no next")
 	}
 
 	var salt, pass string
-	user := &user.AckUserLogin{}
-	if err := r.Scan(&user.UserKey, &user.UserName, &user.Phone, &user.Email, &salt, &pass); err != nil {
+	userLogin := &user.AckUserLogin{}
+	if err := r.Scan(&userLogin.UserKey, &userLogin.UserName, &userLogin.Phone, &userLogin.Email, &salt, &pass); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, "", "", errors.New("not found")
+			return nil, "", "", errors.New("no rows")
 		}
 		return nil, "", "", err
 	}
@@ -181,7 +247,7 @@ func ReadPassword(userName, phone, email string) (*user.AckUserLogin, string, st
 		return nil, "", "", err
 	}
 
-	return user, salt, pass, nil
+	return userLogin, salt, pass, nil
 }
 
 func ListUsers(id int, num int) (*user.AckUserList, error) {
@@ -202,7 +268,7 @@ func ListUsers(id int, num int) (*user.AckUserList, error) {
 	ul := &user.AckUserList{}
 	for r.Next()  {
 		up := user.UserProfile{}
-		if err := r.Scan(&up.Id, &up.UserKey, &up.UserName, &up.Phone, &up.Email); err != nil {
+		if err := r.Scan(&up.Id, &up.UserKey, &up.UserName, &up.UserClass, &up.Phone, &up.Email); err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}

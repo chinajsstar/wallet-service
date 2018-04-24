@@ -1,10 +1,12 @@
 package handler
 
 import (
-	"../../base/data"
-	"../../base/service"
+	"api_router/base/data"
+	"api_router/base/service"
 	"encoding/json"
 	"strconv"
+	l4g "github.com/alecthomas/log4go"
+	"business_center/def"
 )
 
 type Args struct {
@@ -16,9 +18,13 @@ type Arith int
 func (arith *Arith)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
-	apiInfo := data.ApiInfo{Name:"add", Level:data.APILevel_client}
-	apiInfo.Example = "{\"a\":1,\"b\":1}"
-	nam[apiInfo.Name] = service.NodeApi{ApiHandler:arith.Add, ApiInfo:apiInfo}
+	func(){
+		apiInfo := data.ApiInfo{Name:"add", Level:data.APILevel_client}
+		example := Args{}
+		b, _ := json.Marshal(example)
+		apiInfo.Example = string(b)
+		nam[apiInfo.Name] = service.NodeApi{ApiHandler:arith.Add, ApiInfo:apiInfo}
+	}()
 
 	return nam
 }
@@ -30,12 +36,10 @@ func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
 	din := Args{}
 	err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
 	if err != nil {
+		l4g.Error("error json message: %s", err.Error())
 		res.Data.Err = data.ErrDataCorrupted
-		res.Data.ErrMsg = data.ErrDataCorruptedText
 		return
 	}
 
 	res.Data.Value.Message = strconv.Itoa(din.A+din.B)
-	res.Data.Value.Signature = ""
-	res.Data.Value.UserKey = req.Data.Argv.UserKey
 }

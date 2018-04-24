@@ -2,22 +2,23 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <title>登陆页面</title>
+        <title>开发设置</title>
         <link rel="stylesheet" type="text/css" href="/css/main.css" />
         <script type="text/javascript" src="/js/jquery.js" ></script>
     </head>
     <body>
-        <h1>登陆页面</h1>
-        <form data-type="formAction" action="/dologin" form-rediret="/index">
+        <h1>开发设置</h1>
+        <div><p>公钥</p><textarea style="height: 400px; width:600px" readonly="readonly" id="serpubkey" name="serpubkey">{{.SerPubKey}}</textarea></div>
+        <form data-type="formDevSettingAction" action="/dodevsetting" form-rediret="/index">
             <table>
                 <tr>
-                <td>用户名</td><td><input id="name" type="text" name="name"></input></td>
+                <td>公钥</td><td><textarea style="height: 400px; width:600px" id="pubkey" name="pubkey"></textarea></td>
                 </tr>
                 <tr>
-                <td>密码</td><td><input id="password" type="password" name="password"></input></td>
+                <td>回调</td><td><input style="width:400px" id="cburl" type="text" name="cburl"></input></td>
                 </tr>
                 <tr>
-                    <td><input type="submit" value="登陆" style="width:100px;height:25px"></input></td>
+                    <td><input type="submit" value="上传" style="width:100px;height:25px"></input></td>
                 </tr>
             </table>
         </form>

@@ -4,7 +4,6 @@ import (
 	"api_router/base/data"
 	"blockchain_server/service"
 	"blockchain_server/types"
-	"business_center/basicdata"
 	. "business_center/def"
 	"business_center/mysqlpool"
 	"context"
@@ -41,7 +40,7 @@ func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callba
 	a.wallet.SubscribeTxCmdState(a.cmdTxChannel)
 
 	//添加监控地址
-	for _, v := range basicdata.Get().GetAllUserAddressMap() {
+	for _, v := range mysqlpool.QueryAllUserAddress() {
 		rcaCmd := service.NewRechargeAddressCmd("", v.AssetName, []string{v.Address})
 		a.wallet.InsertRechargeAddress(rcaCmd)
 	}
@@ -63,14 +62,14 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 	rspInfo.ID = reqInfo.ID
 	rspInfo.Symbol = reqInfo.Symbol
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.UserKey]
+	userProperty, ok := mysqlpool.QueryAllUserProperty()[req.Data.Argv.UserKey]
 	if !ok {
 		res.Data.Err = -1
 		res.Data.ErrMsg = "NewAddress mapUserProperty find Error"
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Symbol]
+	assetProperty, ok := mysqlpool.QueryAllAssetProperty()[reqInfo.Symbol]
 	if !ok {
 		res.Data.Err = -1
 		res.Data.ErrMsg = "NewAddress mapAssetProperty find Error"
@@ -84,7 +83,7 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 
 		strTime := time.Now().UTC().Format("2006-01-02 15:04:05")
 		db := mysqlpool.Get()
-		db.Exec("insert user_account (user_id, asset_id, available_amount, frozen_amount,"+
+		db.Exec("insert user_account (user_key, asset_id, available_amount, frozen_amount,"+
 			" create_time, update_time) values (?, ?, 0, 0, ?, ?);",
 			userProperty.UserKey, assetProperty.ID,
 			strTime, strTime)
@@ -117,23 +116,49 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return err
 	}
 
-	userProperty, ok := basicdata.Get().GetAllUserPropertyMap()[req.Data.Argv.UserKey]
+	var rspInfo RspWithdrawal
+	rspInfo.UserOrderID = reqInfo.UserOrderID
+	rspInfo.Timestamp = time.Now().Unix()
+	res.Data.Err = 0
+	res.Data.ErrMsg = ""
+
+	userProperty, ok := mysqlpool.QueryAllUserProperty()[req.Data.Argv.UserKey]
 	if !ok {
 		return errors.New("withdrawal mapUserProperty find Error")
 	}
 
-	assetProperty, ok := basicdata.Get().GetAllAssetPropertyMap()[reqInfo.Symbol]
+	assetProperty, ok := mysqlpool.QueryAllAssetProperty()[reqInfo.Symbol]
 	if !ok {
 		return errors.New("withdrawal mapAssetProperty find Error")
 	}
 
-	var rspInfo RspWithdrawal
-	uID, _ := uuid.NewV4()
-	rspInfo.OrderID = uID.String()
-	rspInfo.UserOrderID = reqInfo.UserOrderID
-	rspInfo.Timestamp = time.Now().Unix()
+	row := mysqlpool.Get().QueryRow("select a.address, a.private_key,"+
+		" b.available_amount, b.frozen_amount from pay_address a"+
+		" left join user_address b on a.asset_id = b.asset_id and a.address = b.address"+
+		" where a.asset_id = ?", assetProperty.ID)
+	if row == nil {
+		return nil
+	}
 
-	value := int64(reqInfo.Amount * math.Pow10(18) * assetProperty.WithdrawalRate)
+	var (
+		address         string
+		privateKey      string
+		availableAmount int64
+		frozenAmount    int64
+	)
+	err = row.Scan(&address, &privateKey, &availableAmount, &frozenAmount)
+	if err != nil {
+		fmt.Println("没有设置热钱包")
+		return err
+	}
+
+	amount := int64(reqInfo.Amount * math.Pow10(8))
+	fee := int64(float64(amount) * assetProperty.WithdrawalRate)
+
+	if availableAmount < amount+fee {
+		fmt.Println("热钱包资金不够")
+		return nil
+	}
 
 	Tx, err := mysqlpool.Get().Begin()
 	if err != nil {
@@ -141,12 +166,12 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	ret, err := Tx.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
-		" update_time = ? where user_id = ? and asset_id = ? and available_amount >= ?;",
-		value, value,
+		" update_time = ? where user_key = ? and asset_id = ? and available_amount >= ?;",
+		amount+fee, amount+fee,
 		time.Now().UTC().Format("2006-01-02 15:04:05"),
 		userProperty.UserKey,
 		assetProperty.ID,
-		value)
+		amount+fee)
 
 	if err != nil {
 		Tx.Rollback()
@@ -159,27 +184,13 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return nil
 	}
 
-	ret, err = Tx.Exec("update user_address a set"+
-		" a.available_amount = a.available_amount - ?,"+
-		" a.frozen_amount = a.frozen_amount + ?"+
-		" where a.available_amount >= ? and (a.asset_id, a.address) in (select asset_id, address from pay_address)",
-		value, value, value)
+	uID, _ := uuid.NewV4()
+	rspInfo.OrderID = uID.String()
 
-	if err != nil {
-		Tx.Rollback()
-		return err
-	}
-
-	rows, _ = ret.RowsAffected()
-	if rows < 1 {
-		Tx.Rollback()
-		return nil
-	}
-
-	_, err = Tx.Exec("insert withdraw_order (order_id, user_order_id, user_id, asset_id, address, amount, wallet_fee, create_time) "+
+	_, err = Tx.Exec("insert withdraw_order (order_id, user_order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
 		"values (?, ?, ?, ?, ?, ?, ?, ?);",
 		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.ID,
-		reqInfo.ToAddress, int64(reqInfo.Amount*math.Pow10(18)), 0,
+		reqInfo.ToAddress, amount, fee,
 		time.Now().UTC().Format("2006-01-02 15:04:05"))
 
 	Tx.Commit()
@@ -190,12 +201,21 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return err
 	}
 
-	//txCmd := service.NewSendTxCmd("message id", coin, privatekey, to, token, value)
-	//a.wallet.SendTx()
-
+	if assetProperty.IsToken > 0 {
+		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.CoinName, privateKey, reqInfo.ToAddress, &assetProperty.Name, uint64(amount))
+		a.wallet.SendTx(txCmd)
+	} else {
+		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.Name, privateKey, reqInfo.ToAddress, nil, uint64(amount))
+		a.wallet.SendTx(txCmd)
+	}
 	res.Data.Value.Message = string(pack)
+
+	return nil
+}
+
+func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	res.Data.Value.Message = mysqlpool.QueryUserAddress(req.Data.Argv.Message)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
-
 	return nil
 }

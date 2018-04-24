@@ -2,6 +2,8 @@ package def
 
 type PushMsgCallback func(userID string, callbackMsg string)
 
+const TimeFormat = "2006-01-02 15:04:05"
+
 type ReqHead struct {
 	UserID string `json:"user_id"`
 	Method string `json:"method"`
@@ -92,9 +94,10 @@ type UserProperty struct {
 
 type AssetProperty struct {
 	ID                    int     `json:"id"`
-	ClassID               int     `json:"classid"`
 	Name                  string  `json:"name"`
 	FullName              string  `json:"full_name"`
+	IsToken               int     `json:"is_token"`
+	CoinName              string  `json:"coin_name"`
 	Logo                  string  `json:"logo"`
 	DepositMin            float64 `json:"deposit_min"`
 	WithdrawalRate        float64 `json:"withdrawal_rate"`
@@ -128,6 +131,8 @@ type UserAddress struct {
 type TransactionBlockin struct {
 	AssetID       int                 `json:"asset_id"`
 	Hash          string              `json:"hash"`
+	Status        int                 `json:"status"`
+	MinerFee      int64               `json:"miner_fee"`
 	AssetName     string              `json:"asset_name"`
 	BlockinHeight int64               `json:"blockin_height"`
 	BlockinTime   int64               `json:"blockin_time"`
@@ -150,4 +155,19 @@ type TransactionStatus struct {
 	ConfirmTime   int64  `json:"confirm_time"`
 	UpdateTime    int64  `json:"update_time"`
 	OrderID       string `json:"order_id"`
+}
+
+type TransactionNotic struct {
+	UserKey       string `json:"user_key"`
+	OrderID       string `json:"order_id"`
+	MsgID         int64  `json:"msg_id"`
+	Type          int    `json:"type"`
+	Status        int    `json:"status"`
+	BlockinHeight int64  `json:"blockin_height"`
+	AssetID       int    `json:"asset_id"`
+	Address       string `json:"address"`
+	Amount        int64  `json:"amount"`
+	WalletFee     int64  `json:"wallet_fee"`
+	Hash          string `json:"hash"`
+	Time          int64  `json:"time"`
 }
