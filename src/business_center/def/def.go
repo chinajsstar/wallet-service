@@ -2,7 +2,20 @@ package def
 
 type PushMsgCallback func(userID string, callbackMsg string)
 
-const TimeFormat = "2006-01-02 15:04:05"
+const (
+	TimeFormat = "2006-01-02 15:04:05"
+)
+
+const (
+	TypeRecharge = iota
+	TypeWithdrawal
+)
+
+const (
+	StatusBlockin = iota
+	StatusConfirm
+	StatusFail
+)
 
 type ReqHead struct {
 	UserID string `json:"user_id"`
@@ -159,7 +172,6 @@ type TransactionStatus struct {
 
 type TransactionNotic struct {
 	UserKey       string `json:"user_key"`
-	OrderID       string `json:"order_id"`
 	MsgID         int64  `json:"msg_id"`
 	Type          int    `json:"type"`
 	Status        int    `json:"status"`

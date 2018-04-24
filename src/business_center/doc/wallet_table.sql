@@ -234,10 +234,10 @@ DROP TABLE IF EXISTS `transaction_notice`;
 CREATE TABLE `transaction_notice` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_key` varchar(255) NOT NULL COMMENT '商户Key',
-  `order_id` varchar(255) NOT NULL DEFAULT COMMENT '业务uuid',
+  `order_id` varchar(255) NOT NULL DEFAULT '' COMMENT '业务uuid',
   `msg_id` bigint(20) NOT NULL DEFAULT 0 COMMENT '消息序号',
   `type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
-  `status` int(11) NOT NULL COMMENT `0:入块, 1:成功, >1:失败`,
+  `status` int(11) NOT NULL COMMENT '0:入块, 1:成功, >1:失败',
   `blockin_height` bigint(20) NOT NULL,
   `asset_id` int(11) NOT NULL DEFAULT 0 COMMENT '币种',
   `address` varchar(255) NOT NULL DEFAULT '' COMMENT '地址',
