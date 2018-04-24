@@ -23,6 +23,11 @@ type Business struct {
 	address *address.Address
 }
 
+// 模拟充值 add by liuheng
+func (b *Business) GetWallet() *service.ClientManager {
+	return b.wallet
+}
+
 func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 	b.wallet = service.NewClientManager()
