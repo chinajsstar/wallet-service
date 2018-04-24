@@ -386,10 +386,11 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 	// getapi?srv
 	vv := req.URL.Query()
 	srvname := vv.Get("srv")
+	vername := vv.Get("ver")
 
 	srvNode := data.SrvRegisterData{}
 	for _, v := range self.nodes {
-		if v.Srv == srvname {
+		if v.Srv == srvname && v.Version == vername{
 			srvNode = *v
 			break
 		}

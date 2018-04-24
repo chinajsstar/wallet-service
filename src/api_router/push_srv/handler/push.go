@@ -8,7 +8,6 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/nethelper"
 	"encoding/json"
-	"golang.org/x/crypto/nacl/auth"
 )
 
 type Push struct{
@@ -58,8 +57,9 @@ func (push * Push)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func(){
-		apiInfo := data.ApiInfo{Name:"pushdata", Level:data.APILevel_client}
-		nam[apiInfo.Name] = service.NodeApi{ApiHandler:push.PushData, ApiInfo:apiInfo}
+		service.RegisterApi(&nam,
+			"pushdata", data.APILevel_client, push.PushData,
+			"推送数据", "", "", "")
 	}()
 
 	return nam

@@ -13,7 +13,7 @@ import (
 	"errors"
 	"io/ioutil"
 	//l4g "github.com/alecthomas/log4go"
-	"../base/config"
+	//"../base/config"
 	"reflect"
 )
 
@@ -177,37 +177,109 @@ func StartWsClient2() *rpc2.Client {
 */
 
 type Args2 struct {
-	A int `json:"a" comment:"加数1"`
+	A int `json:"-" comment:"加数1"`
 	B int `json:"b" comment:"加数2"`
 }
 
-func FieldTag(t reflect.Type) bool {
+func FieldTag(v reflect.Value) string {
+	t := v.Type()
+
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
 
-	if t.Kind() != reflect.Struct {
-		return false
+	var out string
+	if t.Kind() == reflect.Struct {
+		out += "\n{"
+		n := t.NumField()
+		fmt.Println(n)
+		for i := 0; i < n; i++ {
+			tagJson := t.Field(i).Tag.Get("json")
+			if tagJson == "-" {
+				continue
+			}
+			out += "\n" + tagJson + " // " + t.Field(i).Tag.Get("comment")
+		}
+		out += "\n}"
+	}else if t.Kind() == reflect.Slice || t.Kind() == reflect.Array{
+		n := v.Len()
+
+		out += "\n["
+		for i := 0; i < n && i < 1; i++ {
+			//rs := v.Index(i)
+			rs := v.Index(i)
+			out += FieldTag(rs)
+		}
+		out += "\n]"
+
+		//fmt.Println(n)
+		//n := t.Len()
+		//for i := 0; i < n; i++ {
+		//	//out += t.Field(i).Tag.Get("json") + "--" + t.Field(i).Tag.Get("comment")
+		//	fmt.Println(FieldTag(t.Field(i)))
+		//}
+	}else if t.Kind() == reflect.Map {
+		ks := v.MapKeys()
+		out += "\n{"
+		for i := 0; i < len(ks); i++ {
+			out += FieldTag(ks[i])
+			out += ":"
+			key := v.MapIndex(ks[i])
+			out += FieldTag(key)
+		}
+		out += "\n}"
+
+		//fmt.Println(n)
+		//n := t.Len()
+		//for i := 0; i < n; i++ {
+		//	//out += t.Field(i).Tag.Get("json") + "--" + t.Field(i).Tag.Get("comment")
+		//	fmt.Println(FieldTag(t.Field(i)))
+		//}
+	}else{
+		out = "\n" + v.String()
 	}
-	n := t.NumField()
-	for i := 0; i < n; i++ {
-		fmt.Println(t.Field(i).Tag.Get("json"), "--", t.Field(i).Tag.Get("comment"))
-	}
-	return true
+
+	return out
 }
 
 func main() {
-	appDir, _:= utils.GetCurrentDir()
-	appDir += "/test.json"
+	//appDir, _:= utils.GetCurrentDir()
+	//appDir += "/test.json"
+	//
+	//cn := config.ConfigNode{}
+	//err := config.LoadJsonNode(appDir, "node", &cn)
+	//fmt.Println(cn)
+	//fmt.Println(err)
+	func(){
+		fmt.Println("---------------")
+		a2 := Args2{}
+		a2.A = 1
+		a2.B = 2
+		b,_ := json.Marshal(a2)
+		fmt.Println(string(b))
 
-	cn := config.ConfigNode{}
-	err := config.LoadJsonNode(appDir, "node", &cn)
-	fmt.Println(cn)
-	fmt.Println(err)
+		//b1,_ := json.MarshalIndent(a2, "comment", "comment")
+		//fmt.Println(string(b1))
+	}()
 
-	a2 := Args2{}
-	at2 := reflect.TypeOf(a2)
-	FieldTag(at2)
+	//func(){
+	//	fmt.Println("---------------")
+	//	var a2 []Args2
+	//	a2 = append(a2, Args2{})
+	//	b,_ := json.Marshal(a2)
+	//	fmt.Println(string(b))
+	//	fmt.Println(FieldTag(reflect.ValueOf(a2)))
+	//}()
+
+	func(){
+		fmt.Println("---------------")
+		var a2 map[string]Args2
+		a2 = make(map[string]Args2)
+		a2["abc"] = Args2{}
+		b,_ := json.Marshal(a2)
+		fmt.Println(string(b))
+		fmt.Println(FieldTag(reflect.ValueOf(a2)))
+	}()
 
 	return
 

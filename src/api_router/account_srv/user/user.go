@@ -2,20 +2,20 @@ package user
 
 // 账号生成-输入
 type ReqUserCreate struct{
-	UserName 		string `json:"user_name"`
-	UserClass 		int `json:"user_class"`
-	Phone 			string `json:"phone"`
-	Email 			string `json:"email"`
-	Password 		string `json:"password"`
-	Level 			int `json:level`
-	GoogleAuth 		string `json:"google_auth"`
-	TimeZone 		int `json:"timezone"`
-	Country 		string `json:"country"`
-	Language 		string `json:"language"`
+	UserName 		string `json:"user_name" comment:"用户名"`
+	UserClass 		int `json:"user_class" comment:"用户类型"`
+	Phone 			string `json:"phone" comment:"电话好码"`
+	Email 			string `json:"email" comment:"电子邮箱"`
+	Password 		string `json:"password" comment:"密码"`
+	Level 			int `json:"level" comment:"级别"`
+	GoogleAuth 		string `json:"google_auth" comment:"Google验证"`
+	TimeZone 		int `json:"timezone" comment:"时区"`
+	Country 		string `json:"country" comment:"国家"`
+	Language 		string `json:"language" comment:"语言"`
 }
 // 账号生成-输出
 type AckUserCreate struct{
-	UserKey 		string  `json:"user_key"`
+	UserKey 		string  `json:"user_key" comment:"用户唯一标示"`
 }
 
 // 账号登入-输入
