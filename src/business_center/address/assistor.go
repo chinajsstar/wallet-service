@@ -7,8 +7,10 @@ import (
 	"business_center/mysqlpool"
 	"business_center/redispool"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
+	"log"
 	"strings"
 	"time"
 )
@@ -95,21 +97,6 @@ func (a *Address) recvRechargeTxChannel() {
 							blockin.OrderID = ""
 
 							a.transactionBegin(&blockin, rct.Tx)
-
-							// push
-							//userKey := ""
-							//addr := rct.Tx.To
-							//userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(blockin.AssetName+"_"+addr)]
-							//if ok {
-							//	userKey = userAddress.UserKey
-							//	msg := ""
-							//	msg = "{"
-							//	msg += "\"type:\":\"inblock\""
-							//	msg += ",\"blockinheight:\":" + strconv.FormatInt(blockin.BlockinHeight, 10)
-							//	msg += "}"
-							//	a.callback(userKey, msg)
-							//}
-							fmt.Println("pppppppp000000000: ", ok)
 						}
 					case types.Tx_state_confirmed: //确认
 						{
@@ -124,22 +111,6 @@ func (a *Address) recvRechargeTxChannel() {
 							status.OrderID = ""
 
 							a.transactionFinish(&status, rct.Tx)
-
-							// push
-							//userKey := ""
-							//addr := rct.Tx.To
-							//userAddress, ok := mysqlpool.QueryAllUserAddress()[strings.ToLower(status.AssetName+"_"+addr)]
-							//if ok {
-							//	userKey = userAddress.UserKey
-							//	msg := ""
-							//	msg = "{"
-							//	msg += "\"type:\":\"confirm\""
-							//	msg += ",\"confirmheight:\":" + strconv.FormatInt(status.ConfirmHeight, 10)
-							//	msg += "}"
-							//	a.callback(userKey, msg)
-							//}
-
-							fmt.Println("pppppppp111111111: ", ok)
 						}
 					case types.Tx_state_unconfirmed: //失败
 						{
@@ -253,7 +224,7 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 			tn.BlockinHeight = blockin.BlockinHeight
 			tn.Time = blockin.BlockinTime
 
-			sendTransactionNotic(&tn)
+			a.sendTransactionNotic(&tn)
 		}
 	}
 
@@ -340,7 +311,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 				tn.Hash = blockin.Hash
 				tn.Time = blockin.BlockinTime
 
-				sendTransactionNotic(&tn)
+				a.sendTransactionNotic(&tn)
 			}
 		}
 
@@ -424,7 +395,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 					tn.BlockinHeight = blockin.BlockinHeight
 					tn.Time = blockin.BlockinTime
 
-					sendTransactionNotic(&tn)
+					a.sendTransactionNotic(&tn)
 
 					db.Exec("update user_account set frozen_amount = frozen_amount - ?, update_time = now()"+
 						" where user_key = ? and asset_id = ?;", tn.Amount+tn.WalletFee, tn.UserKey, tn.AssetID)
@@ -458,12 +429,12 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 						tn.BlockinHeight = blockin.BlockinHeight
 						tn.AssetID = blockin.AssetID
 						tn.Address = userAddress.Address
-						tn.Amount = detail.Amount
+						tn.Amount = v.Amount
 						tn.WalletFee = 0
 						tn.Hash = blockin.Hash
 						tn.Time = time.Now().Unix()
 
-						sendTransactionNotic(&tn)
+						a.sendTransactionNotic(&tn)
 					}
 				}
 			}
@@ -473,7 +444,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 	return nil
 }
 
-func sendTransactionNotic(tn *TransactionNotic) error {
+func (a *Address) sendTransactionNotic(tn *TransactionNotic) error {
 	db := mysqlpool.Get()
 
 	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id,"+
@@ -492,5 +463,13 @@ func sendTransactionNotic(tn *TransactionNotic) error {
 
 	row := db.QueryRow("select msg_id from transaction_notice where id = ?;", insertID)
 	row.Scan(&tn.MsgID)
+
+	// push notify by liuheng
+	b, err := json.Marshal(tn)
+	if err != nil {
+		log.Println("Push Error: json Marshal")
+	} else {
+		a.callback(tn.UserKey, string(b))
+	}
 	return nil
 }
