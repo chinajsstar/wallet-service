@@ -60,7 +60,6 @@ func FieldTag2(v reflect.Value) string {
 	if t.Kind() == reflect.Struct {
 		out += "{"
 		n := t.NumField()
-		fmt.Println(n)
 		for i := 0; i < n; i++ {
 			tagJson := t.Field(i).Tag.Get("json")
 			if tagJson == "-" {
@@ -74,7 +73,6 @@ func FieldTag2(v reflect.Value) string {
 
 		out += "["
 		for i := 0; i < n && i < 1; i++ {
-			//rs := v.Index(i)
 			rs := v.Index(i)
 			out += FieldTag(rs)
 		}
