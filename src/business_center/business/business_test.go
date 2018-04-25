@@ -14,7 +14,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequestData
 	var res data.SrvResponseData
 
-	testType := 0
+	testType := 2
 	switch testType {
 	case 1:
 		req.Data.Method.Function = "new_address"

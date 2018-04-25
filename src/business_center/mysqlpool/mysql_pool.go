@@ -14,7 +14,7 @@ func Get() *sql.DB {
 }
 
 func init() {
-	d, err := sql.Open("mysql", "root:root@tcp(192.168.21.109:3306)/wallet?charset=utf8")
+	d, err := sql.Open("mysql", "root:command@tcp(127.0.0.1:3306)/test?charset=utf8")
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -60,4 +60,23 @@ func QueryAllAssetProperty() map[string]*AssetProperty {
 		mapAssetProperty[assetProperty.Name] = assetProperty
 	}
 	return mapAssetProperty
+}
+
+func QueryAllUserAccount() map[string]*UserAccount {
+	mapUserAccount := make(map[string]*UserAccount)
+
+	rows, err := db.Query("select user_key, user_class, asset_id, available_amount, frozen_amount," +
+		" unix_timestamp(create_time), unix_timestamp(update_time) from user_account;")
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil
+	}
+
+	for rows.Next() {
+		userAccount := &UserAccount{}
+		rows.Scan(&userAccount.UserKey, &userAccount.UserClass, &userAccount.AssetID, &userAccount.AvailableAmount,
+			&userAccount.FrozenAmount, &userAccount.CreateTime, &userAccount.UpdateTime)
+		mapUserAccount[userAccount.UserKey] = userAccount
+	}
+	return mapUserAccount
 }
