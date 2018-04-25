@@ -191,7 +191,7 @@ func QueryUserAddress(query string) string {
 		}
 	}
 
-	rows, _ := db.Query(sqlQuery+sqlWhere, params...)
+	rows, err := db.Query(sqlQuery+sqlWhere, params...)
 	if err != nil {
 		return ""
 	}

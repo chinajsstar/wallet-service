@@ -46,6 +46,7 @@ DROP TABLE IF EXISTS `user_account`;
 CREATE TABLE `user_account` (
   `id` int(11) NOT NULL AUTO_INCREMENT, 
   `user_key` varchar(255) NOT NULL DEFAULT '',
+  `user_class` int(11) NOT NULL DEFAULT 0,
   `asset_id` int(11) NOT NULL DEFAULT 0,
   `available_amount` bigint(20) NOT NULL DEFAULT 0,
   `frozen_amount` bigint(20) NOT NULL DEFAULT 0,
@@ -109,11 +110,12 @@ DROP TABLE IF EXISTS `user_address`;
 CREATE TABLE `user_address` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_key` varchar(255) NOT NULL,
+  `user_class` int(11) NOT NULL DEFAULT 0,
+  `available_amount` bigint(20) NOT NULL DEFAULT '0',
+  `frozen_amount` bigint(20) NOT NULL DEFAULT '0', 
   `asset_id` int(11) NOT NULL,
   `address` varchar(255) NOT NULL DEFAULT '',
   `private_key` varchar(400) NOT NULL DEFAULT '',
-  `available_amount` bigint(20) NOT NULL DEFAULT '0',
-  `frozen_amount` bigint(20) NOT NULL DEFAULT '0',
   `enabled` int(11) NOT NULL DEFAULT 1,
   `create_time` datetime NOT NULL,
   `update_time` datetime NOT NULL,
@@ -160,11 +162,13 @@ DROP TABLE IF EXISTS `transaction_detail`;
 CREATE TABLE `transaction_detail` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `asset_id` int(11) NOT NULL,
-  `hash` varchar(255) DEFAULT NULL,
   `address` varchar(255) NOT NULL,
-  `trans_type` varchar(255) NOT NULL COMMENT '支出（from）, 收入(to), 矿工费(gas), 找零(change)',
+  `trans_type` varchar(255) NOT NULL COMMENT '支出（from）, 收入(to), 矿工费(miner_fee), 找零(change)',
   `amount` bigint(20) NOT NULL,
-  PRIMARY KEY (`id`),
+  `miner_fee` bigint(20) NOT NULL DEFAULT 0,
+  `hash` varchar(255) DEFAULT NULL,
+  `detail_id` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`detail_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
@@ -185,26 +189,6 @@ CREATE TABLE `transaction_status` (
   PRIMARY KEY (`asset_id`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8
-
-
--- ----------------------------
--- Table structure for `recharge_order`
--- ----------------------------
-DROP TABLE IF EXISTS `recharge_order`;
-CREATE TABLE `recharge_order` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,  
-  `order_id` varchar(255) NOT NULL DEFAULT '',
-  `user_order_id` varchar(255) NOT NULL DEFAULT '',
-  `user_key` varchar(255) NOT NULL DEFAULT '',
-  `asset_id` varchar(255) NOT NULL DEFAULT '',
-  `address` varchar(255) NOT NULL DEFAULT '',
-  `amount` bigint(20) NOT NULL DEFAULT 0,
-  `wallet_fee` bigint(20) NOT NULL DEFAULT 0,
-  `create_time` datetime NOT NULL, 
-  `hash` varchar(255) DEFAULT NULL DEFAULT '',
-  PRIMARY KEY (`order_id`),
-  UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 -- ----------------------------
@@ -234,7 +218,6 @@ DROP TABLE IF EXISTS `transaction_notice`;
 CREATE TABLE `transaction_notice` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_key` varchar(255) NOT NULL COMMENT '商户Key',
-  `order_id` varchar(255) NOT NULL DEFAULT '' COMMENT '业务uuid',
   `msg_id` bigint(20) NOT NULL DEFAULT 0 COMMENT '消息序号',
   `type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
   `status` int(11) NOT NULL COMMENT '0:入块, 1:成功, >1:失败',

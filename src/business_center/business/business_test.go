@@ -14,11 +14,11 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequestData
 	var res data.SrvResponseData
 
-	testType := 3
+	testType := 0
 	switch testType {
 	case 1:
 		req.Data.Method.Function = "new_address"
-		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
+		req.Data.Argv.UserKey = "6cc6f813-c031-40f3-8e3a-9332f5f67a93"
 		req.Data.Argv.Message = "{\"id\":\"1\",\"symbol\":\"eth\",\"count\":1}"
 	case 2:
 		req.Data.Method.Function = "withdrawal"

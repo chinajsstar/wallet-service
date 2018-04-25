@@ -7,8 +7,9 @@ const (
 )
 
 const (
-	TypeRecharge = iota
+	TypeDeposit = iota
 	TypeWithdrawal
+	TypeChange
 )
 
 const (
@@ -154,9 +155,13 @@ type TransactionBlockin struct {
 }
 
 type TransactionDetail struct {
+	AssetID   int    `json:"asset_id"`
 	Address   string `json:"address"`
 	TransType string `json:"trans_type"`
 	Amount    int64  `json:"amount"`
+	MinerFee  int64  `json:"miner_fee"`
+	Hash      string `json:"hash"`
+	DetailID  string `json:"detail_id"`
 }
 
 type TransactionStatus struct {

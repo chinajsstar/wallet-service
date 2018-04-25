@@ -81,11 +81,11 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 	if len(userAddresses) > 0 {
 		rspInfo.Address = a.addUserAddress(userAddresses)
 
-		strTime := time.Now().UTC().Format("2006-01-02 15:04:05")
+		strTime := time.Now().UTC().Format(TimeFormat)
 		db := mysqlpool.Get()
-		db.Exec("insert user_account (user_key, asset_id, available_amount, frozen_amount,"+
-			" create_time, update_time) values (?, ?, 0, 0, ?, ?);",
-			userProperty.UserKey, assetProperty.ID,
+		db.Exec("insert user_account (user_key, user_class, asset_id, available_amount, frozen_amount,"+
+			" create_time, update_time) values (?, ?, ?, 0, 0, ?, ?);",
+			userProperty.UserKey, userProperty.UserClass, assetProperty.ID,
 			strTime, strTime)
 
 		//添加监控地址
