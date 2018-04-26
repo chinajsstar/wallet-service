@@ -299,7 +299,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			detail.Amount, detail.Hash, detail.DetailID)
 
 		if ok {
-			Tx.Exec("update user_address set available_amount = available_amount + ?, update_time = ? "+
+			Tx.Exec("update user_address set available_amount = available_amount + ?, update_time = ?"+
 				" where asset_id = ? and address = ?;",
 				detail.Amount, time.Now().UTC().Format(TimeFormat), userAddress.AssetID, userAddress.Address)
 		}
