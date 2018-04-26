@@ -259,7 +259,6 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			detail.Address = strings.ToLower(transfer.From)
 			detail.TransType = "from"
 			detail.Amount = -int64(transfer.Value)
-			detail.MinerFee = int64(transfer.Minerfee())
 			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
@@ -269,7 +268,6 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			detail.Address = strings.ToLower(transfer.To)
 			detail.TransType = "to"
 			detail.Amount = int64(transfer.Value)
-			detail.MinerFee = int64(transfer.Minerfee())
 			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
@@ -279,7 +277,6 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			detail.Address = strings.ToLower(transfer.From)
 			detail.TransType = "miner_fee"
 			detail.Amount = -int64(transfer.Minerfee())
-			detail.MinerFee = int64(transfer.Minerfee())
 			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
@@ -296,10 +293,10 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 	for _, detail := range blockin.Detail {
 		userAddress, ok := mysqlpool.QueryAllUserAddress()[blockin.AssetName+"_"+detail.Address]
 		Tx.Exec("insert transaction_detail "+
-			"(asset_id, address, trans_type, amount, miner_fee, hash, detail_id) "+
-			"values (?, ?, ?, ?, ?, ?, ?);",
+			"(asset_id, address, trans_type, amount, hash, detail_id) "+
+			"values (?, ?, ?, ?, ?, ?);",
 			blockin.AssetID, detail.Address, detail.TransType,
-			detail.Amount, detail.MinerFee, detail.Hash, detail.DetailID)
+			detail.Amount, detail.Hash, detail.DetailID)
 
 		if ok {
 			Tx.Exec("update user_address set available_amount = available_amount + ?, update_time = ? "+
@@ -361,14 +358,14 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 	db.Exec("update transaction_blockin set status = ? where asset_id = ? and hash = ?;",
 		status.Status, status.AssetID, status.Hash)
 
-	rows, _ := db.Query("select asset_id, address, trans_type, amount, miner_fee, hash, detail_id from transaction_detail"+
+	rows, _ := db.Query("select asset_id, address, trans_type, amount, hash, detail_id from transaction_detail"+
 		" where asset_id = ? and hash = ?;",
 		status.AssetID, status.Hash)
 
 	var detail TransactionDetail
 	for rows.Next() {
 		err := rows.Scan(&detail.AssetID, &detail.Address, &detail.TransType, &detail.Amount,
-			&detail.MinerFee, &detail.Hash, &detail.DetailID)
+			&detail.Hash, &detail.DetailID)
 		if err == nil {
 			detail.Address = strings.ToLower(detail.Address)
 			userAddress, ok := mysqlpool.QueryAllUserAddress()[blockin.AssetName+"_"+detail.Address]

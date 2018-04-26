@@ -165,7 +165,6 @@ CREATE TABLE `transaction_detail` (
   `address` varchar(255) NOT NULL,
   `trans_type` varchar(255) NOT NULL COMMENT '支出（from）, 收入(to), 矿工费(miner_fee), 找零(change)',
   `amount` bigint(20) NOT NULL,
-  `miner_fee` bigint(20) NOT NULL DEFAULT 0,
   `hash` varchar(255) DEFAULT NULL,
   `detail_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`detail_id`),

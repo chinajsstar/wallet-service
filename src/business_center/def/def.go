@@ -151,7 +151,6 @@ type TransactionDetail struct {
 	Address   string `json:"address"`
 	TransType string `json:"trans_type"`
 	Amount    int64  `json:"amount"`
-	MinerFee  int64  `json:"miner_fee"`
 	Hash      string `json:"hash"`
 	DetailID  string `json:"detail_id"`
 }
