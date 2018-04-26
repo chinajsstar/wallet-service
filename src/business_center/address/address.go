@@ -81,11 +81,11 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 	if len(userAddresses) > 0 {
 		rspInfo.Address = a.addUserAddress(userAddresses)
 
-		strTime := time.Now().UTC().Format("2006-01-02 15:04:05")
+		strTime := time.Now().UTC().Format(TimeFormat)
 		db := mysqlpool.Get()
-		db.Exec("insert user_account (user_key, asset_id, available_amount, frozen_amount,"+
-			" create_time, update_time) values (?, ?, 0, 0, ?, ?);",
-			userProperty.UserKey, assetProperty.ID,
+		db.Exec("insert user_account (user_key, user_class, asset_id, available_amount, frozen_amount,"+
+			" create_time, update_time) values (?, ?, ?, 0, 0, ?, ?);",
+			userProperty.UserKey, userProperty.UserClass, assetProperty.ID,
 			strTime, strTime)
 
 		//添加监控地址
@@ -136,9 +136,6 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		" b.available_amount, b.frozen_amount from pay_address a"+
 		" left join user_address b on a.asset_id = b.asset_id and a.address = b.address"+
 		" where a.asset_id = ?", assetProperty.ID)
-	if row == nil {
-		return nil
-	}
 
 	var (
 		address         string
@@ -168,7 +165,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	ret, err := Tx.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
 		" update_time = ? where user_key = ? and asset_id = ? and available_amount >= ?;",
 		amount+fee, amount+fee,
-		time.Now().UTC().Format("2006-01-02 15:04:05"),
+		time.Now().UTC().Format(TimeFormat),
 		userProperty.UserKey,
 		assetProperty.ID,
 		amount+fee)
@@ -187,11 +184,11 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	uID, _ := uuid.NewV4()
 	rspInfo.OrderID = uID.String()
 
-	_, err = Tx.Exec("insert withdraw_order (order_id, user_order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
+	_, err = Tx.Exec("insert withdrawal_order (order_id, user_order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
 		"values (?, ?, ?, ?, ?, ?, ?, ?);",
 		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.ID,
 		reqInfo.ToAddress, amount, fee,
-		time.Now().UTC().Format("2006-01-02 15:04:05"))
+		time.Now().UTC().Format(TimeFormat))
 
 	Tx.Commit()
 
@@ -210,6 +207,56 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 	res.Data.Value.Message = string(pack)
 
+	return nil
+}
+
+func (a *Address) QueryAssetProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	assetProperty := make([]AssetProperty, 0)
+	for _, v := range mysqlpool.QueryAllAssetProperty() {
+		assetProperty = append(assetProperty, *v)
+	}
+
+	pack, err := json.Marshal(assetProperty)
+	if err != nil {
+		return err
+	}
+	res.Data.Value.Message = string(pack)
+	res.Data.Err = 0
+	res.Data.ErrMsg = ""
+	return nil
+}
+
+func (a *Address) QueryUserProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userProperty := make([]UserProperty, 0)
+	for _, v := range mysqlpool.QueryAllUserProperty() {
+		userProperty = append(userProperty, *v)
+	}
+
+	pack, err := json.Marshal(userProperty)
+	if err != nil {
+		return err
+	}
+
+	res.Data.Value.Message = string(pack)
+	res.Data.Err = 0
+	res.Data.ErrMsg = ""
+	return nil
+}
+
+func (a *Address) QueryUserAccount(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userAccount := make([]UserAccount, 0)
+	for _, v := range mysqlpool.QueryAllUserAccount() {
+		userAccount = append(userAccount, *v)
+	}
+
+	pack, err := json.Marshal(userAccount)
+	if err != nil {
+		return err
+	}
+
+	res.Data.Value.Message = string(pack)
+	res.Data.Err = 0
+	res.Data.ErrMsg = ""
 	return nil
 }
 

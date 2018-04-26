@@ -294,9 +294,11 @@ func main() {
 			function = argv[2]
 			message = argv[3]
 
-			_, d, err := sendData2(httpaddrGateway, message, "v1", srv, function)
-			fmt.Println("err==", err)
-			fmt.Println("ack==", string(d))
+			go func() {
+				_, d, err := sendData2(httpaddrGateway, message, "v1", srv, function)
+				fmt.Println("err==", err)
+				fmt.Println("ack==", string(d))
+			}()
 		}else if argv[0] == "testapi"{
 			var srv, function, message string
 			if len(argv) != 4{
@@ -307,9 +309,11 @@ func main() {
 			function = argv[2]
 			message = argv[3]
 
-			_, d, err := sendData3(httpaddrGateway, message, "v1", srv, function)
-			fmt.Println("err==", err)
-			fmt.Println("ack==", string(d))
+			go func() {
+				_, d, err := sendData3(httpaddrGateway, message, "v1", srv, function)
+				fmt.Println("err==", err)
+				fmt.Println("ack==", string(d))
+			}()
 		}
 	}
 }

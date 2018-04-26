@@ -7,8 +7,9 @@ const (
 )
 
 const (
-	TypeRecharge = iota
+	TypeDeposit = iota
 	TypeWithdrawal
+	TypeChange
 )
 
 const (
@@ -49,21 +50,13 @@ type RspWithdrawal struct {
 }
 
 type UserAccount struct {
-	UserID          string  `json:"user_id"`
+	UserKey         string  `json:"user_key"`
+	UserClass       int     `json:"user_class"`
 	AssetID         int     `json:"asset_id"`
 	AvailableAmount float64 `json:"available_amount"`
 	FrozenAmount    float64 `json:"frozen_amount"`
 	CreateTime      uint64  `json:"create_time"`
 	UpdateTime      uint64  `json:"update_time"`
-}
-
-type LaunchWithdrawl struct {
-	UserID  string `json:"user_id"`
-	AssetID int    `json:"asset_id"`
-	To      string `json:"to"`
-	Value   uint64 `json:"value"`
-	Fee     uint64 `json:"fee"`
-	TxHash  string `json:"tx_hash"`
 }
 
 type TransDetail struct {
@@ -154,9 +147,12 @@ type TransactionBlockin struct {
 }
 
 type TransactionDetail struct {
+	AssetID   int    `json:"asset_id"`
 	Address   string `json:"address"`
 	TransType string `json:"trans_type"`
 	Amount    int64  `json:"amount"`
+	Hash      string `json:"hash"`
+	DetailID  string `json:"detail_id"`
 }
 
 type TransactionStatus struct {

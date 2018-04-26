@@ -63,33 +63,49 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func(){
-		apiInfo := data.ApiInfo{Name:"create", Level:data.APILevel_genesis}
-		apiInfo.Example = ""
-		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Create, ApiInfo:apiInfo}
+		input := user.ReqUserCreate{}
+		output := user.AckUserCreate{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"create", data.APILevel_genesis, s.Create,
+			"创建用户", string(b), input, output)
 	}()
 
 	func(){
-		apiInfo := data.ApiInfo{Name:"listusers", Level:data.APILevel_admin}
-		apiInfo.Example = "{\"id\":-1}"
-		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.ListUsers, ApiInfo:apiInfo}
+		input := user.ReqUserList{}
+		output := user.AckUserList{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"listusers", data.APILevel_admin, s.ListUsers,
+			"列出所有用户", string(b), input, output)
+
 	}()
 
 	func(){
-		apiInfo := data.ApiInfo{Name:"login", Level:data.APILevel_client}
-		apiInfo.Example = ""
-		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.Login, ApiInfo:apiInfo}
+		input := user.ReqUserLogin{}
+		output := user.AckUserLogin{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"login", data.APILevel_client, s.Login,
+			"用户登陆", string(b), input, output)
 	}()
 
 	func(){
-		apiInfo := data.ApiInfo{Name:"updatepassword", Level:data.APILevel_admin}
-		apiInfo.Example = ""
-		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdatePassword, ApiInfo:apiInfo}
+		input := user.ReqUserUpdatePassword{}
+		output := user.AckUserUpdatePassword{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"updatepassword", data.APILevel_admin, s.UpdatePassword,
+			"更新密码", string(b), input, output)
 	}()
 
 	func(){
-		apiInfo := data.ApiInfo{Name:"updatekey", Level:data.APILevel_admin}
-		apiInfo.Example = "{\"user_key\":\"\",\"public_key\":\"\",\"callback_url\":\"\"}"
-		nam[apiInfo.Name] = service.NodeApi{ApiHandler:s.UpdateKey, ApiInfo:apiInfo}
+		input := user.ReqUserUpdateKey{}
+		output := user.AckUserUpdateKey{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"updatekey", data.APILevel_admin, s.UpdateKey,
+			"更新key", string(b), input, output)
 	}()
 
 	return nam
@@ -341,7 +357,7 @@ func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData)
 
 	// ok
 	res.Data.Value.Message = string(dataAck)
-	l4g.Info("update a user password: %s", res.Data.Value.Message)
+	l4g.Info("list users: %s", res.Data.Value.Message)
 }
 
 // 更新密码

@@ -49,11 +49,23 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 	serviceCenter.registerData.Addr = ""
 
 	serviceCenter.apiHandler = make(map[string]*NodeApi)
-	// api listsrv
-	apiInfo := data.ApiInfo{Name:"listsrv", Level:data.APILevel_admin}
-	apiInfo.Example = "none"
-	serviceCenter.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceCenter.listSrv, ApiInfo:apiInfo}
-	serviceCenter.registerData.Functions = append(serviceCenter.registerData.Functions, apiInfo)
+
+	func(){
+		// api listsrv
+		apiInfo := data.ApiInfo{Name:"listsrv", Level:data.APILevel_admin}
+
+		example := "{}"
+		icomment := "无参数"
+
+		var oargv []data.SrvRegisterData
+		oargv = append(oargv, data.SrvRegisterData{Version:"v1", Srv:"srv", Addr:""})
+		ocomment := data.FieldTag(oargv)
+
+		apiDoc := data.ApiDoc{Name:apiInfo.Name, Level:apiInfo.Level, Doc:"列出所有服务", Example:example, InComment:icomment, OutComment:ocomment}
+		serviceCenter.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceCenter.listSrv, ApiInfo:apiInfo, ApiDoc:apiDoc}
+		serviceCenter.registerData.Functions = append(serviceCenter.registerData.Functions, apiInfo)
+		serviceCenter.registerData.ApiDocs = append(serviceCenter.registerData.ApiDocs, apiDoc)
+	}()
 
 	// register
 	var res string
@@ -94,7 +106,7 @@ func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error 
 			}
 
 			for _, v := range reg.Functions{
-				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &data.ApiInfo{v.Name, v.Level, v.Example}
+				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &data.ApiInfo{v.Name, v.Level}
 			}
 		}
 

@@ -4,14 +4,15 @@ import (
 	"api_router/base/data"
 	"api_router/base/service"
 	"encoding/json"
-	"strconv"
 	l4g "github.com/alecthomas/log4go"
-	"business_center/def"
 )
 
 type Args struct {
-	A int `json:"a"`
-	B int `json:"b"`
+	A int `json:"a" comment:"加数1"`
+	B int `json:"b" comment:"加数2"`
+}
+type AckArgs struct {
+	C int `json:"c" comment:"和"`
 }
 type Arith int
 
@@ -19,11 +20,12 @@ func (arith *Arith)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func(){
-		apiInfo := data.ApiInfo{Name:"add", Level:data.APILevel_client}
-		example := Args{}
-		b, _ := json.Marshal(example)
-		apiInfo.Example = string(b)
-		nam[apiInfo.Name] = service.NodeApi{ApiHandler:arith.Add, ApiInfo:apiInfo}
+		input := Args{}
+		output := AckArgs{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"add", data.APILevel_client, arith.Add,
+			"加法运算", string(b), input, output)
 	}()
 
 	return nam
@@ -41,5 +43,7 @@ func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
 		return
 	}
 
-	res.Data.Value.Message = strconv.Itoa(din.A+din.B)
+	out := AckArgs{C:din.A+din.B}
+	b, _ := json.Marshal(out)
+	res.Data.Value.Message = string(b)
 }

@@ -18,8 +18,8 @@
 12. 如果返回正确，说明测试已通
 
 ～加密模式
-13. >testapi srv function message
+13. >api srv function message
 
 ～测试明文模式
-14. >testapi2 srv function message
+14. >testapi srv function message
 15. >curl -d '{"user_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"a\":2, \"b\":1}"}' http://192.168.21.109:8080/wallettest/v1/arith/add

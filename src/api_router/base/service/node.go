@@ -13,13 +13,32 @@ import (
 	"errors"
 	"net"
 	l4g "github.com/alecthomas/log4go"
+	"reflect"
 )
 
 // node api interface
 type NodeApiHandler func(req *data.SrvRequestData, res *data.SrvResponseData)
 type NodeApi struct{
 	ApiInfo 	data.ApiInfo
+	ApiDoc 		data.ApiDoc
 	ApiHandler 	NodeApiHandler
+}
+
+func RegisterApi(nap *map[string]NodeApi, name string, level int, handler NodeApiHandler,
+	doc, example string, input, output interface{}) error {
+	if _, ok := (*nap)[name]; ok {
+		return errors.New("function exist")
+	}
+
+	apiInfo := data.ApiInfo{Name:name, Level:level}
+
+	incomment := data.FieldTag2(reflect.ValueOf(input))
+	outcomment := data.FieldTag2(reflect.ValueOf(output))
+	apiDoc := data.ApiDoc{Name:name, Level:level, Doc:doc, Example:example, InComment:incomment, OutComment:outcomment}
+
+	(*nap)[name] = NodeApi{ApiHandler:handler, ApiInfo:apiInfo, ApiDoc:apiDoc}
+
+	return nil
 }
 type NodeApiGroup interface {
 	GetApiGroup()(map[string]NodeApi)
@@ -81,6 +100,7 @@ func RegisterNodeApi(ni *ServiceNode, nodeApiGroup NodeApiGroup) {
 		}
 		ni.apiHandler[k] = &NodeApi{ApiInfo:v.ApiInfo, ApiHandler:v.ApiHandler}
 		ni.registerData.Functions = append(ni.registerData.Functions, v.ApiInfo)
+		ni.registerData.ApiDocs = append(ni.registerData.ApiDocs, v.ApiDoc)
 	}
 }
 
