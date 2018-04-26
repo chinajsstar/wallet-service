@@ -15,6 +15,7 @@ var (
 	configer            Configer
 	Debugmode           = true
 	SaveConfiguarations = true
+	IsOnlinemode		= false
 )
 
 type ClientConfig struct {
@@ -37,6 +38,9 @@ type Configer struct {
 	mutx 			sync.Mutex
 }
 
+func (self *Configer) IsOnlineMode() bool {
+	return self.Online_mode==types.Onlinemode_online
+}
 
 func (self *ClientConfig) Save() error {
 	return configer.Save()
@@ -113,6 +117,8 @@ func init () {
 	check(err)
 	err = json.Unmarshal(dat, &configer)
 	check(err)
+
+	IsOnlinemode = configer.Online_mode==types.Onlinemode_online
 
 	configer.Trace()
 }

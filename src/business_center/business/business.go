@@ -29,9 +29,9 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	b.address = &address.Address{}
 
 	//实例化以太坊客户端
-	client, err := eth.NewClient()
+	client, err := eth.ClientInstance()
 	if err != nil {
-		fmt.Printf("InitAndStart NewClient %s Error : %s\n", types.Chain_eth, err.Error())
+		fmt.Printf("InitAndStart ClientInstance %s Error : %s\n", types.Chain_eth, err.Error())
 		return err
 	}
 	b.wallet.AddClient(client)

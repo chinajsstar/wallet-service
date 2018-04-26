@@ -12,16 +12,18 @@ import (
 )
 
 var (
-	tmp_account = &types.Account{
-		"0x04e2b6c9bfeacd4880d99790a03a3db4ad8d87c82bb7d72711b277a9a03e49743077f3ae6d0d40e6bc04eceba67c2b3ec670b22b30d57f9d6c42779a05fba097536c412af73be02d1642aecea9fa7082db301e41d1c3c2686a6a21ca431e7e8605f761d8e12d61ca77605b31d707abc3f17bc4a28f4939f352f283a48ed77fc274b039590cc2c43ef739bd3ea13e491316",
-		"0x54b2e44d40d3df64e38487dd4e145b3e6ae25927"}
-	tmp_toaddress = "0x0c14120e179f7dc6571467448fb3a7f7b14f889d"
-)
+	bank_account = &types.Account{
+		"0x04a7983149693e7d26571801a9cdc8c6cb1e76a7666f65a8cd8c7af343abd46440469e3dc00faabc9db96764e6063002452f36227b8f6fe262c2c2387116d20b2cb63e0987cd14e8b4156c8ee0149d2137086b23ef1bf691555990d0bf036bd7ba5617ad2179a296e23e9749461d3bb6d97fd645b52fdaa83245480f0a8c77b4650f47fb7de97fee43d3db544ec8e55120",
+		"0xadFF7cAE7b43B9990789dFD41791218dd75307Fe"}
 
+	to_account = &types.Account{
+		"0x046c3de0582b9eaaa0ad9f04d26227ec36dc3bcb128f3e2739e3cc4c5fd92d1e177731e83c19366d9332fe51aea0105becd96b6100122e38fcc19b8edabffe4ecafa980aec412a949189a49c63311a4d376cd5d9db98a2e5a7ce6ab2db7ba13df91d5a9229bff158d564dacfa65ffa3f74580cdfd060d7b94d265330d3edeea3172a59b00d2a4ed77bd95ab7e2bf704ce9",
+		"0xD35F8FF353d3b1B08305209f5CEb53333134D381"}
+)
 func main() {
 	clientManager := service.NewClientManager()
 
-	client, err := eth.NewClient()
+	client, err := eth.ClientInstance()
 
 	if nil != err {
 		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error())
@@ -50,14 +52,14 @@ func main() {
 
 	token := "ZToken"
 	if true {
-		go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{tmp_toaddress}, done_watchaddress)
+		go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{to_account.Address, bank_account.Address}, done_watchaddress)
 	}
-	if true {
-		go testSendTokenTx(ctx, clientManager, tmp_account.PrivateKey, tmp_toaddress, types.Chain_eth,
-			nil, uint64(math.Pow10(8)), done_sendTx)
+	if false {
+		go testSendTokenTx(ctx, clientManager, bank_account.PrivateKey,to_account.Address, types.Chain_eth,
+			nil, 100 * uint64(math.Pow10(8)), done_sendTx)
 	}
 
-	testGetBalance(clientManager, tmp_toaddress, token)
+	testGetBalance(clientManager, bank_account.Address, token)
 
 	for i:=0; i<2; i++ {
 		select {
@@ -107,7 +109,7 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 					} else {
 						l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
 						if rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed {
-							 watch_address_channel <- true
+							watch_address_channel <- true
 						}
 					}
 				}

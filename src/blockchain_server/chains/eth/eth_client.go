@@ -54,7 +54,11 @@ func (self *Client)unlock() {
 	self.address_locker.Unlock()
 }
 
-func NewClient() (*Client, error) {
+var (instance *Client = nil)
+
+func ClientInstance () (*Client, error) {
+	if instance!=nil {return instance, nil }
+
 	client, err := ethclient.Dial(config.MainConfiger().Clientconfig[types.Chain_eth].RPC_url)
 	if nil!=err {
 		l4g.Error("create eth client error! message:%s", err.Error())
@@ -64,7 +68,8 @@ func NewClient() (*Client, error) {
 	if err := c.init(); err!=nil {
 		return nil, err
 	}
-	return c, nil
+	instance = c
+	return instance, nil
 }
 
 func (self *Client)init() error {
@@ -257,8 +262,15 @@ func (self *Client) toClientDecimal(v uint64) *big.Int {
 	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))) }
 }
 
+func (c *Client) toStandardDecimalWithBig(ibig *big.Int) uint64 {
+	i := types.StandardDecimal - 18
+	//ibig := big.NewInt(int64(v))
+	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i)))).Uint64()
+	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))).Uint64() }
+}
+
 // 从client相关的精度数量转为自定义标准的精度数量
-func (self *Client) toStandardDecimal(v uint64) uint64 {
+func (self *Client) toStandardDecimalWithInt(v uint64) uint64 {
 	i := types.StandardDecimal - 18
 	ibig := big.NewInt(int64(v))
 	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i)))).Uint64()
@@ -272,6 +284,8 @@ func (self *Client)newEthTx(tx *types.Transfer) (*etypes.Transaction, error) {
 	to 	  := common.HexToAddress(tx.To)
 
 	value := self.toClientDecimal(tx.Value)
+
+	l4g.Trace("value is: %v", value)
 
 	var input []byte = nil
 
@@ -426,7 +440,7 @@ func (self *Client) beginScanBlock() error {
 			// height <= (self.scanblock-self.confirm_count)
 			if nil==self.addresslist || len(*self.addresslist)==0 ||
 				//height <= self.scanblock - uint64(self.confirm_count) ||
-				top <= self.scanblock ||
+				top < self.scanblock ||
 				self.rctChannel == nil {
 				l4g.Trace("Recharge channel is nil, or block height(%d)==scanblock(%d), or addresslit is empty!", top, self.scanblock)
 				time.Sleep(time.Second * 5)
@@ -587,15 +601,15 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 	destTx.From = srcTx.From()
 
 	if destTx.Token!=nil {
-		destTx.Value = destTx.Token.ToStandardDecimal(srcTx.Value().Uint64())
+		destTx.Value = destTx.Token.ToStandardDecimalWithBig(srcTx.Value())
 	} else {
-		destTx.Value = self.toStandardDecimal(srcTx.Value().Uint64())
+		destTx.Value = self.toStandardDecimalWithBig(srcTx.Value())
 	}
 
-	//destTx.Value = self.toStandardDecimal(srcTx.Value().Uint64())
+	//destTx.Value = self.toStandardDecimalWithInt(srcTx.Value().Uint64())
 	destTx.Gas = srcTx.Gas()
-	destTx.Gaseprice = self.toStandardDecimal(srcTx.GasPrice().Uint64())
-	destTx.Total = self.toStandardDecimal(srcTx.Cost().Uint64())
+	destTx.Gaseprice = self.toStandardDecimalWithBig(srcTx.GasPrice())
+	destTx.Total = self.toStandardDecimalWithBig(srcTx.Cost())
 	destTx.InBlock = srcTx.Inblock
 	destTx.State = state
 

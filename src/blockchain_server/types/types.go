@@ -69,6 +69,15 @@ func (self *Token) ToStandardDecimal (v uint64) uint64 {
 	} else { return v / uint64(math.Pow10( int(-i))) }
 }
 
+func (self *Token) ToStandardDecimalWithBig(ibig *big.Int) uint64 {
+	i := self.Decimals - 18
+	if self.Decimals>18 {
+		return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(int( i))))).Uint64()
+	} else {
+		return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(int(-i))))).Uint64()
+	}
+}
+
 func (self *Token) String() string {
 	return fmt.Sprintf(`
 		name:%-8s, symbol:%-8s, decimals:%-8d, address:%s`,

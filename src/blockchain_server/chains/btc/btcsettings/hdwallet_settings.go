@@ -29,6 +29,9 @@ type RPCSettings struct {
 	// test or main network
 }
 
+func init() {
+}
+
 func (self *RPCSettings) Isvalid() bool {
 	return self.Rpc_url=="" || self.Endpoint=="" || self.Username=="" ||
 		self.Password=="" || self.NetworkMode==""

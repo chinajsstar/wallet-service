@@ -20,7 +20,7 @@ var (
 func TestNetCmdSvr(t *testing.T) {
 	clientManager := NewClientManager()
 
-	client, err := eth.NewClient()
+	client, err := eth.ClientInstance()
 
 	if nil!=err {
 		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error() )

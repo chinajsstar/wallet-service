@@ -20,18 +20,18 @@ import (
 func TestNewAccount(t *testing.T) {
 	fmt.Println("*****************Testing NewAccount")
 	account, _ := NewAccount()
-	fmt.Printf("\"%s\", \n\"%s\"\n", account.PrivateKey, account.Address)
+	fmt.Printf("\"%s\", \instance\"%s\"\instance", account.PrivateKey, account.Address)
 	//cryptKey := utils.String_cat_prefix(account.PrivateKey, "0x")
 	//keyData, _ := hex.DecodeString(cryptKey)
 	//keyPainData, _:= blockchain_server.Decrypto(keyData)
 
-	//fmt.Printf("DecryptedPrivateKeyString: 0x%x\n", keyPainData)
+	//fmt.Printf("DecryptedPrivateKeyString: 0x%x\instance", keyPainData)
 
 	key, _ := ParseChiperkey(account.PrivateKey)
-	fmt.Printf("decrypt----------------------\n")
-	fmt.Printf("address:%s\n", crypto.PubkeyToAddress(key.PublicKey).String())
-	fmt.Printf("publickey:%s\n", key.PublicKey.X.String())
-	fmt.Printf("privatekey:0x%x\n", key.D.Bytes())
+	fmt.Printf("decrypt----------------------\instance")
+	fmt.Printf("address:%s\instance", crypto.PubkeyToAddress(key.PublicKey).String())
+	fmt.Printf("publickey:%s\instance", key.PublicKey.X.String())
+	fmt.Printf("privatekey:0x%x\instance", key.D.Bytes())
 }
 */
 
