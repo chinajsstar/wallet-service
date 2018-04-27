@@ -52,3 +52,6 @@
 [submodule "src/github.com/btcsuite/golangcrypto"]
 	path = src/github.com/btcsuite/golangcrypto
 	url = https://github.com/btcsuite/golangcrypto.git
+[submodule "src/github.com/mattn/go-sqlite3"]
+	path = src/github.com/mattn/go-sqlite3
+	url = https://github.com/mattn/go-sqlite3.git
