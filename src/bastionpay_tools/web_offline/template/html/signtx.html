@@ -1,0 +1,34 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>签名交易</title>
+        <link rel="stylesheet" type="text/css" href="/css/main.css" />
+        <script type="text/javascript" src="/js/jquery.js" ></script>
+    </head>
+    <body>
+        <h1>签名交易页面</h1>
+        <form data-type="formNewAddressAction" action="/signtxact" form-rediret="/index">
+            <table>
+                <tr>
+                    <td>交易文件：</td><td><input id="txfilepath" type="text" name="txfilepath"></input></td>
+                </tr>
+                <tr>
+                    <td>保存签名文件：</td><td><input id="txsignedfilepath" type="text" name="txsignedfilepath"></input></td>
+                </tr>
+                <tr>
+                    <td><input type="submit" value="签名" style="width:100px;height:25px"></input></td>
+                </tr>
+            </table>
+        </form>
+    </body>
+    <script type="text/javascript" src="/js/md5.min.js" ></script>
+    <script type="text/javascript" src="/js/base64js.min.js" ></script>
+    <script type="text/javascript" src="/js/base.js" ></script>
+    <script>
+        function runDemo(url)
+        {
+            window.location.href = url;
+        }
+    </script>
+</html>
