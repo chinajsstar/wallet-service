@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"github.com/satori/go.uuid"
 	"log"
-	"strings"
 	"time"
 )
 
@@ -31,7 +30,7 @@ func (a *Address) generateAddress(userID string, userClass int,
 		userAddress.UserClass = userClass
 		userAddress.AssetID = assetID
 		userAddress.AssetName = assetName
-		userAddress.Address = strings.ToLower(accounts[0].Address)
+		userAddress.Address = accounts[0].Address
 		userAddress.PrivateKey = accounts[0].PrivateKey
 		userAddress.AvailableAmount = 0
 		userAddress.FrozenAmount = 0
@@ -225,6 +224,7 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 		tn.Type = TypeWithdrawal
 		tn.Status = StatusBlockin
 		tn.BlockinHeight = blockin.BlockinHeight
+		tn.Hash = blockin.Hash
 		tn.Time = blockin.BlockinTime
 
 		a.sendTransactionNotic(&tn)
@@ -256,7 +256,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 		{
 			//from
 			detail.AssetID = blockin.AssetID
-			detail.Address = strings.ToLower(transfer.From)
+			detail.Address = transfer.From
 			detail.TransType = "from"
 			detail.Amount = -int64(transfer.Value)
 			detail.Hash = blockin.Hash
@@ -265,7 +265,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 
 			//to
 			detail.AssetID = blockin.AssetID
-			detail.Address = strings.ToLower(transfer.To)
+			detail.Address = transfer.To
 			detail.TransType = "to"
 			detail.Amount = int64(transfer.Value)
 			detail.Hash = blockin.Hash
@@ -274,7 +274,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 
 			//miner_fee
 			detail.AssetID = blockin.AssetID
-			detail.Address = strings.ToLower(transfer.From)
+			detail.Address = transfer.From
 			detail.TransType = "miner_fee"
 			detail.Amount = -int64(transfer.Minerfee())
 			detail.Hash = blockin.Hash
@@ -367,7 +367,6 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		err := rows.Scan(&detail.AssetID, &detail.Address, &detail.TransType, &detail.Amount,
 			&detail.Hash, &detail.DetailID)
 		if err == nil {
-			detail.Address = strings.ToLower(detail.Address)
 			userAddress, ok := mysqlpool.QueryAllUserAddress()[blockin.AssetName+"_"+detail.Address]
 
 			switch detail.TransType {

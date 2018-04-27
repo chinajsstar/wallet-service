@@ -1,0 +1,26 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>BastionPay tool</title>
+        <link rel="stylesheet" type="text/css" href="/css/main.css" />
+        <script type="text/javascript" src="/js/jquery.js" ></script>
+    </head>
+    <body>
+        <div class="head">
+            <div><h1>在线测试工具</h1></div>
+            <div>欢迎使用 |
+                <a href="#" onclick="runDemo('/buildtx')">生成交易</a> |
+                <a href="#" onclick="runDemo('/data/')">下载交易文件</a> |
+                <a href="#" onclick="runDemo('/uploadsignedtx')">上传签名交易</a> |
+                <a href="#" onclick="runDemo('/sendsignedtx')">发送签名交易</a>
+            </div>
+        </div>
+        <script>
+            function runDemo(url)
+            {
+                window.location.href = url;
+            }
+        </script>
+    </body>
+</html>

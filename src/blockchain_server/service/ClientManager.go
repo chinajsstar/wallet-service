@@ -13,6 +13,8 @@ import (
 	chainclient "blockchain_server/chains/client"
 	"time"
 	"context"
+	"encoding/json"
+	"encoding/base64"
 )
 
 const (
@@ -367,7 +369,29 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	l4g.Trace("------------send transaction begin------------")
 	instance := self.clients[txCmd.Coinname]
 
-	err := instance.SendTx(txCmd.Chiperkey, txCmd.Tx)
+	// liuheng add
+	// TODO: zl review
+	var err error
+	if txCmd.SignedTxString != "" {
+		err = func() error {
+			txCmdSignedByte, err := base64.StdEncoding.DecodeString(txCmd.SignedTxString)
+			if nil != err {
+				l4g.Error("Signed tx DecodeString error:%s", err.Error())
+				return err
+			}
+
+			err = instance.SendSignedTx(txCmdSignedByte, txCmd.Tx)
+			if nil != err {
+				l4g.Error("SendSignedTx Transaction error:%s", err.Error())
+				return err
+			}
+
+			return nil
+		}()
+	}else{
+		err = instance.SendTx(txCmd.Chiperkey, txCmd.Tx)
+	}
+
 	if nil!=err {
 		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
@@ -525,3 +549,105 @@ func (self *ClientManager)Close() {
 	}
 }
 
+// build transaction, return types.CmdSendTx 's json string
+func (self *ClientManager) BuildTx(txCmd *types.CmdSendTx) (string, error) {
+	l4g.Trace("------------Build transaction begin------------")
+	instance := self.clients[txCmd.Coinname]
+
+	err := instance.BuildTx(txCmd.Tx)
+	if nil != err {
+		l4g.Error("Build Transaction error:%s", err.Error())
+		return "", err
+	}
+
+	txCmdByte, err := json.Marshal(txCmd)
+	if nil != err {
+		l4g.Error("Build Transaction Marshal error:%s", err.Error())
+		return "", err
+	}
+
+	txCmdString := base64.StdEncoding.EncodeToString(txCmdByte)
+	if nil != err {
+		l4g.Error("Build Transaction base64 EncodeToString error:%s", err.Error())
+		return "", err
+	}
+
+	l4g.Trace("------------Build transaction end------------")
+
+	return txCmdString, nil
+}
+
+// sing transaction, return types.CmdSendTx 's json string
+func (self *ClientManager) SignTx(chiperPrikey string, txCmdString string) (string, error) {
+	l4g.Trace("------------Sign transaction begin------------")
+
+	// 解包
+	txCmdByte, err := base64.StdEncoding.DecodeString(txCmdString)
+	if nil != err {
+		l4g.Error("Sign Transaction base64 DecodeString error:%s", err.Error())
+		return "", err
+	}
+
+	var txCmd types.CmdSendTx
+	err = json.Unmarshal(txCmdByte, &txCmd)
+	if err != nil {
+		l4g.Error("Sign Transaction Unmarshal error:%s", err.Error())
+		return "", err
+	}
+
+	// 签名
+	instance := self.clients[txCmd.Coinname]
+
+	txCmdSignedByte, err := instance.SignTx(chiperPrikey, txCmd.Tx)
+	if nil != err {
+		l4g.Error("Sign Transaction SignTx error:%s", err.Error())
+		return "", err
+	}
+
+	txCmdSignedByteString := base64.StdEncoding.EncodeToString(txCmdSignedByte)
+	if nil != err {
+		l4g.Error("Sign Transaction base64 error:%s", err.Error())
+		return "", err
+	}
+
+	// 重新打包
+	txCmd.SignedTxString = txCmdSignedByteString
+	txCmdByte2, err := json.Marshal(txCmd)
+	if nil != err {
+		l4g.Error("Sign Transaction Marshal error:%s", err.Error())
+		return "", err
+	}
+
+	txCmdString2 := base64.StdEncoding.EncodeToString(txCmdByte2)
+	if nil != err {
+		l4g.Error("Sign Transaction base64 EncodeToString error:%s", err.Error())
+		return "", err
+	}
+
+	l4g.Trace("------------Sign transaction end------------")
+
+	return txCmdString2, nil
+}
+
+// send transaction, txCmdString may signed, or unsigned, if unsigned, chiperprikey need real prikey
+func (self *ClientManager) SendSignedTx(txCmdString string) (error) {
+	l4g.Trace("------------SendSignedTx transaction begin------------")
+
+	txCmdByte, err := base64.StdEncoding.DecodeString(txCmdString)
+	if nil != err {
+		l4g.Error("SendSignedTx Transaction base64 DecodeString error:%s", err.Error())
+		return err
+	}
+
+	txCmd := &types.CmdSendTx{}
+	err = json.Unmarshal(txCmdByte, txCmd)
+	if err != nil {
+		l4g.Error("SendSignedTx Transaction Unmarshal error:%s", err.Error())
+		return err
+	}
+
+	self.SendTx(txCmd)
+
+	l4g.Trace("------------SendSignedTx transaction end------------")
+	return nil
+}

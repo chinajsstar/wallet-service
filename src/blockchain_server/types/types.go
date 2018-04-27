@@ -88,6 +88,10 @@ type CmdSendTx struct {
 	NetCmd
 	Chiperkey 	string
 	Tx       	*Transfer
+
+	// liuheng add
+	// TODO: zl review
+	SignedTxString	string  // 已签名交易(数据[]byte经base64编码过)，空表示没有签名
 }
 
 type CmdNewAccounts struct {
