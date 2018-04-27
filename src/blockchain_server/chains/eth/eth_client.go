@@ -651,7 +651,7 @@ func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
 	return tmpTx
 }
 
-func (self *Client) InsertRechargeAddress(address []string) {
+func (self *Client) InsertRechargeAddress(address []string) (invalid []string) {
 	self.lock()
 	defer self.unlock()
 
@@ -673,6 +673,9 @@ func (self *Client) InsertRechargeAddress(address []string) {
 		}
 		l4g.Trace(value)
 	}
+
+	// eth always return nil
+	return
 }
 
 func (self *Client) Stop() {

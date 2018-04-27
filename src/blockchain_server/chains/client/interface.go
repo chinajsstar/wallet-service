@@ -18,7 +18,7 @@ type ChainClient interface {
 	BlockHeight() (uint64)
 	SubscribeRechageTx(txRechChannel types.RechargeTxChannel)
 
-	InsertRechargeAddress(address []string)
+	InsertRechargeAddress(address []string) (invalid []string)
 	GetBalance(address string, tokenname *string) (uint64, error)
 	Tx(tx_hash string)(*types.Transfer, error)
 

@@ -304,6 +304,15 @@ func (self *ClientManager) QuryTx(cmdqTx *types.CmdqueryTx, qTxChannel types.Cmd
 	return tx, err
 }
 
+func (self *ClientManager) BlockHeight(assert string) uint64 {
+	instance := self.clients[assert]
+	if instance==nil {
+		l4g.Error("query on not supported coin type(%s)", assert)
+		return 0
+	}
+	return instance.BlockHeight()
+}
+
 // 检查Transaction状态, 先记录当前块高, 如果发现块高增加1以上, 则查询Tx是否入块,
 // 如果入块, 则开始检查Tx确认状态,
 // 如果Tx确认已经入块, 但在检查确认状态时, 返回了NotFound错误, 则可能由于区块链分叉, 交易可能会被重新打包
