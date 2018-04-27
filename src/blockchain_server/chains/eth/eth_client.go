@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"blockchain_server/utils"
 	"math"
+	"errors"
 )
 
 type Client struct {
@@ -681,3 +682,142 @@ func (self *Client) Stop() {
 	config.MainConfiger().Save()
 }
 
+// from is a crypted private key, if ok, may replace SendTx
+func (self *Client)SendTxBySteps(chiperKey string, tx *types.Transfer) error {
+	err := self.BuildTx(tx)
+	if err != nil {
+		l4g.Error("buildtx failed: %s", err.Error())
+		return err
+	}
+
+	txByte, err := self.SignTx(chiperKey, tx)
+	if err != nil {
+		l4g.Error("signtx failed: %s", err.Error())
+		return err
+	}
+
+	return self.SendSignedTx(txByte, tx)
+}
+
+// build transaction
+func (self *Client)BuildTx(tx *types.Transfer) error {
+	if isTxToken(tx) {
+		tk := self.erc20Token[tx.Token.Name]
+		if tk == nil{
+			return fmt.Errorf("Not supported token(%s) Transaction:%s", tx.Token.Name, tx.String() )
+		}
+	} else {
+		_, err := self.newEthTx(tx)
+		if err != nil {
+			return err
+		}
+	}
+	//tx.State = types.Tx_state_commited
+	return nil
+}
+
+// sign transaction
+func (self *Client)SignTx(chiperKey string, tx *types.Transfer) ([]byte, error) {
+	key, err := ParseChiperkey(chiperKey)
+	if err!= nil {
+		return nil, err
+	}
+
+	// check pubkkey is prikey's address
+	from := crypto.PubkeyToAddress(key.PublicKey).String()
+	if strings.ToLower(from) != strings.ToLower(tx.From) {
+		return nil, fmt.Errorf("tx.Form(%s) is not equal prikey's address(%s)", tx.From, from)
+	}
+
+	if isTxToken(tx) {
+		// BuildTx has already checked...
+		tk := self.erc20Token[tx.Token.Name]
+		if tk == nil{
+			return nil, fmt.Errorf("Not supported token(%s) Transaction:%s", tx.Token.Name, tx.String() )
+		}
+
+		opts := bind.NewKeyedTransactor(key)
+		tmpTx, err := tk.Transfer(opts, common.HexToAddress(tx.To), big.NewInt(10))
+		if err!=nil {
+			l4g.Error("SignTx-Transfer error:%s", err.Error())
+			return nil, err
+		}
+
+		txByte, err := tmpTx.MarshalJSON()
+		if err != nil {
+			l4g.Error("SignTx-MarshalJSON error:%s", err.Error())
+			return nil, err
+		}
+
+		l4g.Trace("eth sign token Transaction: ", tmpTx.String())
+		return txByte, nil
+	} else {
+		etx, err := self.newEthTx(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		signer := etypes.HomesteadSigner{}
+		signedTx, err := etypes.SignTx(etx, signer, key)
+		if err!=nil {
+			l4g.Error("sign Transaction error:%s", err.Error())
+			return nil, err
+		}
+
+		txByte, err := signedTx.MarshalJSON()
+		if err != nil {
+			l4g.Error("SignTx-MarshalJSON error:%s", err.Error())
+			return nil, err
+		}
+
+		l4g.Trace("eth sign Transaction: ", signedTx.String())
+		return txByte, nil
+	}
+
+	//tx.State = types.Tx_state_commited
+	return nil, errors.New("Why here !!!")
+}
+
+// send signed transaction
+func (self *Client)SendSignedTx(txByte []byte, tx *types.Transfer) (error) {
+	if isTxToken(tx) {
+		tk := self.erc20Token[tx.Token.Name]
+		if tk == nil {
+			return fmt.Errorf("Not supported token(%s) Transaction:%s", tx.Token.Name, tx.String() )
+		}
+
+		var tmpTx etypes.Transaction
+		err := tmpTx.UnmarshalJSON(txByte)
+		if err != nil {
+			l4g.Error("SendSignedTx UnmarshalJSON: %s", err.Error())
+			return err
+		}
+
+		err = self.updateTxWithTx(tx, &tmpTx)
+		if err != nil {
+			l4g.Error("SendSignedTx-updateTxWithTx error:%s", err.Error())
+			return err
+		}
+
+		l4g.Trace("SendSignedTx Tx information:%s", tx.String())
+	} else {
+		var signedTx etypes.Transaction
+		err := signedTx.UnmarshalJSON(txByte)
+		if err != nil {
+			l4g.Error("SendSignedTx UnmarshalJSON: %s", err.Error())
+			return err
+		}
+
+		tx.Tx_hash = signedTx.Hash().String()
+		tx.State = types.Tx_state_unkown
+		if err:=self.c.SendTransaction(context.TODO(), &signedTx); err!=nil {
+			l4g.Trace("Transaction gas * price + value = %d",  signedTx.Cost().Uint64())
+			l4g.Error("SendTransaction error: %s", err.Error())
+			return err
+		}
+
+		l4g.Trace("SendSignedTx Tx information:%s", tx.String())
+	}
+	tx.State = types.Tx_state_commited
+	return nil
+}

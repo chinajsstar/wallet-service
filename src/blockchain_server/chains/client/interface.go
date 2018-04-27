@@ -18,6 +18,13 @@ type ChainClient interface {
 	BlockHeight() (uint64)
 	SubscribeRechageTx(txRechChannel types.RechargeTxChannel)
 
+	// split SendTx to 3 steps: BuildTx, SignTx, SendSignedTx
+	// liuheng add
+	// TODO: zl review
+	BuildTx(tx *types.Transfer) (error)
+	SignTx(chiperKey string, tx *types.Transfer) ([]byte, error)
+	SendSignedTx(txByte []byte, tx *types.Transfer) (error)
+
 	InsertRechargeAddress(address []string)
 	GetBalance(address string, tokenname *string) (uint64, error)
 	Tx(tx_hash string)(*types.Transfer, error)
