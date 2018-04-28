@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"bastionpay_tools/handler"
 	"errors"
+	"strconv"
 )
 
 func usageoffline()  {
@@ -59,9 +60,23 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 	var err error
 	var res string
 	if argv[0] == "newaddress" {
-		res, err = handler.NewAddress(ol.clientManager, ol.dataDir, argv)
+		if len(argv) != 3 {
+			fmt.Println("正确格式：newaddress 类型 数量")
+			return "", errors.New("command error")
+		}
+
+		coinType := argv[1]
+		count, _ := strconv.Atoi(argv[2])
+
+		res, err = handler.NewAddress(ol.clientManager, ol.dataDir, coinType, uint32(count))
 	}else if argv[0] == "loadonlineaddress" {
-		accs, err := handler.LoadOnlineAddress(ol.dataDir, argv)
+		if len(argv) != 2 {
+			fmt.Println("正确格式：loadonlineaddress 唯一标示")
+			return "", errors.New("command is error")
+		}
+
+		uniName := argv[1]
+		accs, err := handler.LoadOnlineAddress(ol.dataDir, uniName)
 		if err != nil {
 			fmt.Println("加载在线地址失败：", err.Error())
 			return "", err
@@ -72,7 +87,13 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 			fmt.Println("私钥：", acc.PrivateKey)
 		}
 	}else if argv[0] == "loadofflineaddress" {
-		accs, err := handler.LoadOfflineAddress(ol.dataDir, argv)
+		if len(argv) != 2 {
+			fmt.Println("正确格式：loadofflineaddress 唯一标示")
+			return "", errors.New("command is error")
+		}
+
+		uniName := argv[1]
+		accs, err := handler.LoadOfflineAddress(ol.dataDir, uniName)
 		if err != nil {
 			fmt.Println("加载在线地址失败：", err.Error())
 			return "", err
@@ -83,7 +104,15 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 			fmt.Println("私钥：", acc.PrivateKey)
 		}
 	}else if argv[0] == "signtx" {
-		err = handler.SignTx(ol.clientManager, ol.dataDir, argv)
+		if len(argv) != 3 {
+			fmt.Println("正确格式：signtx 交易文件路径 签名交易文件路径")
+			return "", errors.New("command is error")
+		}
+
+		txFilePath := argv[1]
+		txSignedFilePath := argv[2]
+
+		err = handler.SignTx(ol.clientManager, ol.dataDir, txFilePath, txSignedFilePath)
 	}else{
 		usageoffline()
 		err = errors.New("unknown command")

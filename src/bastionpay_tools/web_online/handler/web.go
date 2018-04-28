@@ -11,8 +11,6 @@ import (
 	"io"
 	"github.com/satori/go.uuid"
 	"time"
-	"crypto/md5"
-	"strconv"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -37,10 +35,14 @@ func (self *Web)Init(ol *tools.OnLine) error {
 // start http server
 func (self *Web) startHttpServer() error {
 	// http
-	l4g.Debug("Start http server on 8055")
+	l4g.Debug("Start http server on 8054")
 
 	http.Handle("/",http.HandlerFunc(self.handle404))
 	http.Handle("/index",http.HandlerFunc(self.handleIndex))
+
+	// 上传地址文件
+	http.Handle("/uploadaddress", http.HandlerFunc(self.handleUploadAddress))
+	http.Handle("/uploadaddressact", http.HandlerFunc(self.handleUploadAddressAct))
 
 	// 生成交易
 	http.Handle("/buildtx", http.HandlerFunc(self.handleBuildtx))
@@ -65,7 +67,7 @@ func (self *Web) startHttpServer() error {
 
 	go func() {
 		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(":8055", nil)
+		err := http.ListenAndServe(":8054", nil)
 		if err != nil {
 			l4g.Crashf("", err)
 			return
@@ -195,7 +197,25 @@ func (self *Web) handleUploadSignedtx(w http.ResponseWriter, req *http.Request) 
 
 // http handler
 func (self *Web) handleUploadSignedtxAct(w http.ResponseWriter, req *http.Request) {
-	err := self.upload(w, req)
+	err := func() error {
+		req.ParseMultipartForm(32 << 20)
+		file, handler, err := req.FormFile("uploadfile")
+		if err != nil {
+			fmt.Println("1:", err)
+			return err
+		}
+		defer file.Close()
+		fmt.Fprintf(w, "%v", handler.Header)
+		f, err := os.OpenFile("./data/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			fmt.Println("2", err)
+			return err
+		}
+
+		defer f.Close()
+		_, err = io.Copy(f, file)
+		return err
+	}()
 
 	rb := ResBack{}
 	if err != nil {
@@ -210,21 +230,22 @@ func (self *Web) handleUploadSignedtxAct(w http.ResponseWriter, req *http.Reques
 	return
 }
 
-// 处理/upload 逻辑
-func (self *Web)upload(w http.ResponseWriter, r *http.Request) error{
-	fmt.Println("method:", r.Method) //获取请求的方法
-	var err error
-	if r.Method == "GET" {
-		crutime := time.Now().Unix()
-		h := md5.New()
-		io.WriteString(h, strconv.FormatInt(crutime, 10))
-		token := fmt.Sprintf("%x", h.Sum(nil))
-		t, _ := template.ParseFiles("upload.gtpl")
-		t.Execute(w, token)
-	} else {
-		//r.ParseForm()
-		r.ParseMultipartForm(32 << 20)
-		file, handler, err := r.FormFile("uploadfile")
+// http handler
+func (self *Web) handleUploadAddress(w http.ResponseWriter, req *http.Request) {
+	t, err := template.ParseFiles("template/html/uploadaddress.html")
+	if err != nil {
+		return
+	}
+
+	t.Execute(w, nil)
+	return
+}
+
+// http handler
+func (self *Web) handleUploadAddressAct(w http.ResponseWriter, req *http.Request) {
+	err := func() error {
+		req.ParseMultipartForm(32 << 20)
+		file, handler, err := req.FormFile("uploadfile")
 		if err != nil {
 			fmt.Println("1:", err)
 			return err
@@ -236,11 +257,23 @@ func (self *Web)upload(w http.ResponseWriter, r *http.Request) error{
 			fmt.Println("2", err)
 			return err
 		}
+
 		defer f.Close()
 		_, err = io.Copy(f, file)
+		return err
+	}()
+
+	rb := ResBack{}
+	if err != nil {
+		rb.Err = 1
+		rb.ErrMsg = err.Error()
+	}else{
+		rb.ErrMsg = "上传成功"
 	}
 
-	return err
+	b, _ := json.Marshal(rb)
+	w.Write(b)
+	return
 }
 
 // http handler

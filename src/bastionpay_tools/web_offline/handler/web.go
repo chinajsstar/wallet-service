@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"encoding/json"
 	"bastionpay_tools/tools"
-	"bastionpay_tools/handler"
 	"os"
 	"io"
 	"bastionpay_tools/db"
@@ -133,19 +132,16 @@ func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
 	argv = append(argv, "newaddress")
 	argv = append(argv, cointype)
 	argv = append(argv, count)
-	res, err := self.offlineTool.Execute(argv)
+	uniName, err := self.offlineTool.Execute(argv)
 
 	rb := ResBack{}
 	if err != nil {
 		rb.Err = 1
 		rb.ErrMsg = err.Error()
 	}else{
-		naRes := handler.NewAddressRes{}
-		err = json.Unmarshal([]byte(res), &naRes)
-		if err == nil {
-			newaddressfilepath = newaddressdir + "/" + db.GetOnlineUniDBName(naRes.UniName)
-			_, err = CopyFile(naRes.OnlineDBPath, newaddressfilepath)
-		}
+		onlineDBPath := self.offlineTool.GetDataDir() + "/" + db.GetOnlineUniDBName(uniName)
+		newaddressfilepath = newaddressdir + "/" + db.GetOnlineUniDBName(uniName)
+		_, err = CopyFile(onlineDBPath, newaddressfilepath)
 	}
 
 	if err != nil {
