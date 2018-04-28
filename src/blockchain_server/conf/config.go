@@ -21,8 +21,8 @@ var (
 type ClientConfig struct {
 	RPC_url                string `json:"rpc_url"`
 	Name                   string `json:"name"`
-	Start_scan_Blocknumber uint64 `json:"start_sacn_blocknumber,string,omitempty"`
-	TxConfirmNumber        uint64 `json:"confirmnumber,string,omitempty"`
+	Start_scan_Blocknumber uint64 `json:"start_sacn_blocknumber"`
+	TxConfirmNumber        uint64 `json:"confirmnumber,omitempty"`
 	Tokens				   map[string]*types.Token `json:"Tokens"`
 
 	SubConfigs map[string]interface{} `josn:"SubConfigs, omitempty"`

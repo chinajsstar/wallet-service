@@ -12,9 +12,9 @@ import (
 )
 
 func main()  {
-	cc, err := btc.NewBTCClient("localhost:18444", "henly", "henly123456", ":8076")
+	cc, err := btc.ClientInstance("localhost:18444", "henly", "henly123456", ":8076")
 	if err != nil {
-		fmt.Println("#NewBTCClient failed:", err)
+		fmt.Println("#ClientInstance failed:", err)
 		return
 	}
 
