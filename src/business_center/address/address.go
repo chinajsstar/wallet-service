@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	l4g "github.com/alecthomas/log4go"
 	"github.com/satori/go.uuid"
 	"math"
 	"sync"
@@ -40,9 +41,13 @@ func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callba
 	a.wallet.SubscribeTxCmdState(a.cmdTxChannel)
 
 	//添加监控地址
-	for _, v := range mysqlpool.QueryAllUserAddress() {
-		rcaCmd := service.NewRechargeAddressCmd("", v.AssetName, []string{v.Address})
-		a.wallet.InsertRechargeAddress(rcaCmd)
+	if userAddress, ok := mysqlpool.QueryUserAddress(""); ok {
+		for _, v := range userAddress {
+			if assetProperty, ok := mysqlpool.QueryAssetPropertyByID(v.AssetID); ok {
+				rcaCmd := service.NewRechargeAddressCmd("", assetProperty.AssetName, []string{v.Address})
+				a.wallet.InsertRechargeAddress(rcaCmd)
+			}
+		}
 	}
 }
 
@@ -51,59 +56,32 @@ func (a *Address) Stop() {
 }
 
 func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	var reqInfo ReqNewAddress
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqInfo)
-	if err != nil {
-		fmt.Printf("NewAddress Unmarshal Error : %s/n", err.Error())
-		return err
-	}
-
-	var rspInfo RspNewAddress
-	rspInfo.ID = reqInfo.ID
-	rspInfo.Symbol = reqInfo.Symbol
-
-	userProperty, ok := mysqlpool.QueryAllUserProperty()[req.Data.Argv.UserKey]
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err = -1
-		res.Data.ErrMsg = "NewAddress mapUserProperty find Error"
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	assetProperty, ok := mysqlpool.QueryAllAssetProperty()[reqInfo.Symbol]
+	paramsMapping := unpackJson(req.Data.Argv.Message)
+	resMap := make(map[string]interface{})
+	resMap["user_order_id"] = paramsMapping.UserOrderID
+	resMap["asset_id"] = paramsMapping.AssetID
+
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByID(paramsMapping.AssetID)
 	if !ok {
-		res.Data.Err = -1
-		res.Data.ErrMsg = "NewAddress mapAssetProperty find Error"
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_id\"无效")
+		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAddresses := a.generateAddress(userProperty.UserKey, userProperty.UserClass, assetProperty.ID,
-		assetProperty.Name, reqInfo.Count)
-	if len(userAddresses) > 0 {
-		rspInfo.Address = a.addUserAddress(userAddresses)
-
-		strTime := time.Now().UTC().Format(TimeFormat)
-		db := mysqlpool.Get()
-		db.Exec("insert user_account (user_key, user_class, asset_id, available_amount, frozen_amount,"+
-			" create_time, update_time) values (?, ?, ?, 0, 0, ?, ?);",
-			userProperty.UserKey, userProperty.UserClass, assetProperty.ID,
-			strTime, strTime)
-
-		//添加监控地址
-		rcaCmd := service.NewRechargeAddressCmd("message id", assetProperty.Name, rspInfo.Address)
-		a.wallet.InsertRechargeAddress(rcaCmd)
+	if paramsMapping.Count <= 0 {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"count\"要大于0")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
 	}
-
-	pack, err := json.Marshal(rspInfo)
-	if err != nil {
-		res.Data.Err = -1
-		res.Data.ErrMsg = "NewAddress RspNewAddress Marshal Error"
-		fmt.Printf("NewAddress RspNewAddress Marshal Error : %s/n", err.Error())
-		return err
-	}
-
-	res.Data.Value.Message = string(pack)
-	res.Data.Err = 0
-	res.Data.ErrMsg = ""
+	resMap["data"] = a.generateAddress(&userProperty, &assetProperty, paramsMapping.Count)
+	res.Data.Value.Message = packJson(resMap)
 
 	return nil
 }
@@ -122,20 +100,26 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 
-	userProperty, ok := mysqlpool.QueryAllUserProperty()[req.Data.Argv.UserKey]
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		return errors.New("withdrawal mapUserProperty find Error")
+		err := errors.New("withdrawal UserProperty Find Error")
+		res.Data.Err = -1
+		res.Data.ErrMsg = err.Error()
+		return err
 	}
 
-	assetProperty, ok := mysqlpool.QueryAllAssetProperty()[reqInfo.Symbol]
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(reqInfo.Symbol)
 	if !ok {
-		return errors.New("withdrawal mapAssetProperty find Error")
+		err := errors.New("withdrawal AssetProperty Find Error")
+		res.Data.Err = -1
+		res.Data.ErrMsg = err.Error()
+		return err
 	}
 
 	row := mysqlpool.Get().QueryRow("select a.address, a.private_key,"+
 		" b.available_amount, b.frozen_amount from pay_address a"+
 		" left join user_address b on a.asset_id = b.asset_id and a.address = b.address"+
-		" where a.asset_id = ?", assetProperty.ID)
+		" where a.asset_id = ?", assetProperty.AssetID)
 
 	var (
 		address         string
@@ -167,7 +151,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		amount+fee, amount+fee,
 		time.Now().UTC().Format(TimeFormat),
 		userProperty.UserKey,
-		assetProperty.ID,
+		assetProperty.AssetID,
 		amount+fee)
 
 	if err != nil {
@@ -186,7 +170,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 
 	_, err = Tx.Exec("insert withdrawal_order (order_id, user_order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
 		"values (?, ?, ?, ?, ?, ?, ?, ?);",
-		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.ID,
+		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.AssetID,
 		reqInfo.ToAddress, amount, fee,
 		time.Now().UTC().Format(TimeFormat))
 
@@ -199,10 +183,10 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	if assetProperty.IsToken > 0 {
-		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.CoinName, privateKey, reqInfo.ToAddress, &assetProperty.Name, uint64(amount))
+		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.CoinName, privateKey, reqInfo.ToAddress, &assetProperty.AssetName, uint64(amount))
 		a.wallet.SendTx(txCmd)
 	} else {
-		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.Name, privateKey, reqInfo.ToAddress, nil, uint64(amount))
+		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.AssetName, privateKey, reqInfo.ToAddress, nil, uint64(amount))
 		a.wallet.SendTx(txCmd)
 	}
 	res.Data.Value.Message = string(pack)
@@ -211,57 +195,48 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 }
 
 func (a *Address) QueryAssetProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	assetProperty := make([]AssetProperty, 0)
-	for _, v := range mysqlpool.QueryAllAssetProperty() {
-		assetProperty = append(assetProperty, *v)
-	}
+	query := req.Data.Argv.Message
+	resMap := responsePagination(query, mysqlpool.QueryAssetPropertyCount(query))
+	assetProperty, _ := mysqlpool.QueryAssetProperty(query)
+	resMap["data"] = assetProperty
 
-	pack, err := json.Marshal(assetProperty)
-	if err != nil {
-		return err
-	}
-	res.Data.Value.Message = string(pack)
+	res.Data.Value.Message = packJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil
 }
 
 func (a *Address) QueryUserProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	userProperty := make([]UserProperty, 0)
-	for _, v := range mysqlpool.QueryAllUserProperty() {
-		userProperty = append(userProperty, *v)
-	}
+	query := req.Data.Argv.Message
+	resMap := responsePagination(query, mysqlpool.QueryUserPropertyCount(query))
+	userProperty, _ := mysqlpool.QueryUserProperty(query)
+	resMap["data"] = userProperty
 
-	pack, err := json.Marshal(userProperty)
-	if err != nil {
-		return err
-	}
-
-	res.Data.Value.Message = string(pack)
+	res.Data.Value.Message = packJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil
 }
 
 func (a *Address) QueryUserAccount(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	userAccount := make([]UserAccount, 0)
-	for _, v := range mysqlpool.QueryAllUserAccount() {
-		userAccount = append(userAccount, *v)
-	}
+	query := req.Data.Argv.Message
+	resMap := responsePagination(query, mysqlpool.QueryUserAccountCount(query))
+	userAccount, _ := mysqlpool.QueryUserAccount(query)
+	resMap["data"] = userAccount
 
-	pack, err := json.Marshal(userAccount)
-	if err != nil {
-		return err
-	}
-
-	res.Data.Value.Message = string(pack)
+	res.Data.Value.Message = packJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil
 }
 
 func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	res.Data.Value.Message = mysqlpool.QueryUserAddress(req.Data.Argv.Message)
+	query := req.Data.Argv.Message
+	resMap := responsePagination(query, mysqlpool.QueryUserAddressCount(query))
+	userAddress, _ := mysqlpool.QueryUserAddress(query)
+	resMap["data"] = userAddress
+
+	res.Data.Value.Message = packJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil

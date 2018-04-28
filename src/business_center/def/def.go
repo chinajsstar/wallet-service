@@ -18,6 +18,15 @@ const (
 	StatusFail
 )
 
+type ParamsMapping struct {
+	UserKey     string  `json:"user_key"`
+	UserOrderID string  `json:"user_order_id"`
+	AssetID     int     `json:"asset_id"`
+	Address     string  `json:"address"`
+	Amount      float64 `json:"amount"`
+	Count       int     `json:"count"`
+}
+
 type ReqHead struct {
 	UserID string `json:"user_id"`
 	Method string `json:"method"`
@@ -84,23 +93,26 @@ type UserProperty struct {
 	UserClass     int    `json:"user_class"`
 	Phone         string `json:"phone"`
 	Email         string `json:"email"`
+	Salt          string `json:"salt"`
 	Password      string `json:"password"`
 	GoogleAuth    string `json:"google_auth"`
 	PublicKey     string `json:"public_key"`
+	CallbackUrl   string `json:"callback_url"`
 	Level         int    `json:"level"`
 	LastLoginTime string `json:"last_login_time"`
 	LastLoginIp   string `json:"last_login_ip"`
 	LastLoginMac  string `json:"last_login_mac"`
-	CreateTime    string `json:"create_date"`
-	UpdateTime    string `json:"update_date"`
+	CreateTime    int64  `json:"create_date"`
+	UpdateTime    int64  `json:"update_date"`
 	IsFrozen      int    `json:"is_frozen"`
 	TimeZone      int    `json:"time_zone"`
 	Conutry       string `json:"conutry"`
+	Language      string `json:"language"`
 }
 
 type AssetProperty struct {
-	ID                    int     `json:"id"`
-	Name                  string  `json:"name"`
+	AssetID               int     `json:"asset_id"`
+	AssetName             string  `json:"asset_name"`
 	FullName              string  `json:"full_name"`
 	IsToken               int     `json:"is_token"`
 	CoinName              string  `json:"coin_name"`
@@ -120,11 +132,8 @@ type AssetProperty struct {
 
 type UserAddress struct {
 	UserKey         string `json:"user_key"`
-	UserName        string `json:"user_name"`
 	UserClass       int    `json:"user_class"`
 	AssetID         int    `json:"asset_id"`
-	AssetName       string `json:"asset_name"`
-	AssetFullName   string `json:"asset_full_name"`
 	Address         string `json:"address"`
 	PrivateKey      string `json:"private_key"`
 	AvailableAmount int64  `json:"available_amount"`

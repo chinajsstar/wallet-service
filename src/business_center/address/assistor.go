@@ -14,57 +14,47 @@ import (
 	"time"
 )
 
-func (a *Address) generateAddress(userID string, userClass int,
-	assetID int, assetName string, count int) []UserAddress {
-	userAddresses := make([]UserAddress, 0)
-	cmd := service.NewAccountCmd("", assetName, 1)
-
+func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *AssetProperty, count int) []UserAddress {
+	cmd := service.NewAccountCmd("", assetProperty.AssetName, 1)
+	userAddress := make([]UserAddress, 0)
 	for i := 0; i < count; i++ {
 		accounts, err := a.wallet.NewAccounts(cmd)
 		if err != nil {
-			fmt.Printf("generateAddress NewAccounts Error : %s\n", err.Error())
-			return userAddresses
+			CheckError(ErrorWallet, err.Error())
+			return []UserAddress{}
 		}
-		var userAddress UserAddress
-		userAddress.UserKey = userID
-		userAddress.UserClass = userClass
-		userAddress.AssetID = assetID
-		userAddress.AssetName = assetName
-		userAddress.Address = accounts[0].Address
-		userAddress.PrivateKey = accounts[0].PrivateKey
-		userAddress.AvailableAmount = 0
-		userAddress.FrozenAmount = 0
-		userAddress.Enabled = 1
-		userAddress.CreateTime = time.Now().Unix()
-		userAddress.UpdateTime = time.Now().Unix()
+		nowTM := time.Now().Unix()
+		data := UserAddress{
+			UserKey:         userProperty.UserKey,
+			UserClass:       userProperty.UserClass,
+			AssetID:         assetProperty.AssetID,
+			Address:         accounts[0].Address,
+			PrivateKey:      accounts[0].PrivateKey,
+			AvailableAmount: 0,
+			FrozenAmount:    0,
+			Enabled:         1,
+			CreateTime:      nowTM,
+			UpdateTime:      nowTM,
+		}
 
-		userAddresses = append(userAddresses, userAddress)
-	}
-	return userAddresses
-}
-
-func (a *Address) addUserAddress(userAddress []UserAddress) []string {
-	var addresses []string
-	tx, err := mysqlpool.Get().Begin()
-	if err != nil {
-		return addresses
-	}
-
-	for _, v := range userAddress {
-		_, err := tx.Exec("insert user_address (user_key, user_class, asset_id, address, private_key,"+
-			" available_amount, frozen_amount, enabled, create_time, update_time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-			v.UserKey, v.UserClass, v.AssetID, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
-			time.Unix(v.CreateTime, 0).UTC().Format(TimeFormat),
-			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
+		//添加地址监控
+		cmd := service.NewRechargeAddressCmd("", assetProperty.AssetName, []string{data.Address})
+		err = a.wallet.InsertRechargeAddress(cmd)
 		if err != nil {
-			fmt.Println(err.Error())
-			continue
+			CheckError(ErrorWallet, err.Error())
+			return []UserAddress{}
 		}
-		addresses = append(addresses, v.Address)
+		userAddress = append(userAddress, data)
 	}
-	tx.Commit()
-
-	return addresses
+	err := mysqlpool.AddUserAddress(userAddress)
+	if err != nil {
+		return []UserAddress{}
+	}
+	err = mysqlpool.AddUserAccount(userProperty.UserKey, userProperty.UserClass, assetProperty.AssetID)
+	if err != nil {
+		return []UserAddress{}
+	}
+	return userAddress
 }
 
 func (a *Address) recvRechargeTxChannel() {
@@ -77,7 +67,7 @@ func (a *Address) recvRechargeTxChannel() {
 			select {
 			case rct := <-channel:
 				{
-					assetProperty, ok := mysqlpool.QueryAllAssetProperty()[rct.Coin_name]
+					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(rct.Coin_name)
 					if !ok {
 						continue
 					}
@@ -86,8 +76,8 @@ func (a *Address) recvRechargeTxChannel() {
 					case types.Tx_state_mined: //入块
 						{
 							var blockin TransactionBlockin
-							blockin.AssetID = assetProperty.ID
-							blockin.AssetName = assetProperty.Name
+							blockin.AssetID = assetProperty.AssetID
+							blockin.AssetName = assetProperty.AssetName
 							blockin.Hash = rct.Tx.Tx_hash
 							blockin.Status = 0
 							blockin.MinerFee = int64(rct.Tx.Minerfee())
@@ -100,8 +90,8 @@ func (a *Address) recvRechargeTxChannel() {
 					case types.Tx_state_confirmed: //确认
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.ID
-							status.AssetName = assetProperty.Name
+							status.AssetID = assetProperty.AssetID
+							status.AssetName = assetProperty.AssetName
 							status.Hash = rct.Tx.Tx_hash
 							status.Status = 1
 							status.ConfirmHeight = int64(rct.Tx.ConfirmatedHeight)
@@ -114,8 +104,8 @@ func (a *Address) recvRechargeTxChannel() {
 					case types.Tx_state_unconfirmed: //失败
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.ID
-							status.AssetName = assetProperty.Name
+							status.AssetID = assetProperty.AssetID
+							status.AssetName = assetProperty.AssetName
 							status.Hash = rct.Tx.Tx_hash
 							status.Status = 2
 							status.ConfirmHeight = int64(rct.Tx.ConfirmatedHeight)
@@ -145,7 +135,7 @@ func (a *Address) recvCmdTxChannel() {
 			select {
 			case cmdTx := <-channel:
 				{
-					assetProperty, ok := mysqlpool.QueryAllAssetProperty()[cmdTx.Coinname]
+					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(cmdTx.Coinname)
 					if !ok {
 						continue
 					}
@@ -155,8 +145,8 @@ func (a *Address) recvCmdTxChannel() {
 					case types.Tx_state_mined: //入块
 						{
 							var blockin TransactionBlockin
-							blockin.AssetID = assetProperty.ID
-							blockin.AssetName = assetProperty.Name
+							blockin.AssetID = assetProperty.AssetID
+							blockin.AssetName = assetProperty.AssetName
 							blockin.Hash = cmdTx.Tx.Tx_hash
 							blockin.Status = 0
 							blockin.MinerFee = int64(cmdTx.Tx.Minerfee())
@@ -169,8 +159,8 @@ func (a *Address) recvCmdTxChannel() {
 					case types.Tx_state_confirmed: //确认
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.ID
-							status.AssetName = assetProperty.Name
+							status.AssetID = assetProperty.AssetID
+							status.AssetName = assetProperty.AssetName
 							status.Hash = cmdTx.Tx.Tx_hash
 							status.Status = 1
 							status.ConfirmHeight = int64(cmdTx.Tx.ConfirmatedHeight)
@@ -183,8 +173,8 @@ func (a *Address) recvCmdTxChannel() {
 					case types.Tx_state_unconfirmed: //失败
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.ID
-							status.AssetName = assetProperty.Name
+							status.AssetID = assetProperty.AssetID
+							status.AssetName = assetProperty.AssetName
 							status.Hash = cmdTx.Tx.Tx_hash
 							status.Status = 2
 							status.ConfirmHeight = int64(cmdTx.Tx.ConfirmatedHeight)
@@ -291,7 +281,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 	}
 
 	for _, detail := range blockin.Detail {
-		userAddress, ok := mysqlpool.QueryAllUserAddress()[blockin.AssetName+"_"+detail.Address]
+		userAddress, ok := mysqlpool.QueryUserAddressByIDAddress(blockin.AssetID, detail.Address)
 		Tx.Exec("insert transaction_detail "+
 			"(asset_id, address, trans_type, amount, hash, detail_id) "+
 			"values (?, ?, ?, ?, ?, ?);",
@@ -367,8 +357,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		err := rows.Scan(&detail.AssetID, &detail.Address, &detail.TransType, &detail.Amount,
 			&detail.Hash, &detail.DetailID)
 		if err == nil {
-			userAddress, ok := mysqlpool.QueryAllUserAddress()[blockin.AssetName+"_"+detail.Address]
-
+			userAddress, ok := mysqlpool.QueryUserAddressByIDAddress(blockin.AssetID, detail.Address)
 			switch detail.TransType {
 			case "from":
 			case "to":
@@ -489,4 +478,71 @@ func (a *Address) generateUUID() string {
 	u, _ := uuid.NewV4()
 	uID = fmt.Sprintf("0x%x", u.Bytes())
 	return uID
+}
+
+func responsePagination(query string, totalLines int) map[string]interface{} {
+	resMap := make(map[string]interface{})
+	resMap["total_lines"] = totalLines
+
+	if len(query) > 0 {
+		var queryMap map[string]interface{}
+		err := json.Unmarshal([]byte(query), &queryMap)
+		if err != nil {
+			return resMap
+		}
+		if value, ok := queryMap["page_index"]; ok {
+			resMap["page_index"] = value
+		}
+		if value, ok := queryMap["max_disp_lines"]; ok {
+			resMap["max_disp_lines"] = value
+		}
+	}
+	return resMap
+}
+
+func packJson(v interface{}) string {
+	s, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(s)
+}
+
+func unpackJson(s string) ParamsMapping {
+	params := ParamsMapping{UserKey: "", UserOrderID: "", AssetID: 0, Address: "", Amount: 0, Count: 0}
+	var jsonMap map[string]interface{}
+	err := json.Unmarshal([]byte(s), &jsonMap)
+	if err != nil {
+		return params
+	}
+
+	for k, v := range jsonMap {
+		switch k {
+		case "user_key":
+			if value, ok := v.(string); ok {
+				params.UserKey = value
+			}
+		case "user_order_id":
+			if value, ok := v.(string); ok {
+				params.UserOrderID = value
+			}
+		case "asset_id":
+			if value, ok := v.(float64); ok {
+				params.AssetID = int(value)
+			}
+		case "address":
+			if value, ok := v.(string); ok {
+				params.Address = value
+			}
+		case "amount":
+			if value, ok := v.(float64); ok {
+				params.Amount = value
+			}
+		case "count":
+			if value, ok := v.(float64); ok {
+				params.Count = int(value)
+			}
+		}
+	}
+	return params
 }

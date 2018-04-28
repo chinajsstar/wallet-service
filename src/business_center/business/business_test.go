@@ -2,6 +2,7 @@ package business
 
 import (
 	"api_router/base/data"
+	"business_center/mysqlpool"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"testing"
@@ -14,12 +15,16 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequestData
 	var res data.SrvResponseData
 
-	testType := 2
+	//mysqlpool.QueryUserPropertyByKey("f223c88b-102a-485d-a5da-f96bb55f0bdf")
+	//mysqlpool.QueryUserAccount("737205c4-af3c-426d-973d-165a0bf46c71")
+	mysqlpool.QueryUserAccountByKey("737205c4-af3c-426d-973d-165a0bf46c71")
+
+	testType := 1
 	switch testType {
 	case 1:
 		req.Data.Method.Function = "new_address"
-		req.Data.Argv.UserKey = "32fe3bf7-8154-4b6f-845c-dc8414c81d21"
-		req.Data.Argv.Message = "{\"id\":\"1\",\"symbol\":\"eth\",\"count\":1}"
+		req.Data.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Data.Argv.Message = "{\"user_order_id\":\"1\",\"asset_id\":2,\"count\":1}"
 	case 2:
 		req.Data.Method.Function = "withdrawal"
 		req.Data.Argv.UserKey = "32fe3bf7-8154-4b6f-845c-dc8414c81d21"
@@ -27,7 +32,7 @@ func TestHandleMsg(t *testing.T) {
 	case 3:
 		req.Data.Method.Function = "query_user_address"
 		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Data.Argv.Message = "{\"page_index\":1,\"max_display\":100,\"create_time_begin\":1523656800}"
+		req.Data.Argv.Message = "{\"page_index\":1,\"max_disp_lines\":9,\"min_create_time\":1523656800}"
 	}
 
 	if testType > 0 {
