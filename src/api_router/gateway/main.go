@@ -1,11 +1,11 @@
 package main
 
 import (
-	"../base/service"
+	"api_router/base/service"
 	"fmt"
 	"time"
 	"context"
-	"../base/utils"
+	"api_router/base/utils"
 	"net/rpc"
 	l4g "github.com/alecthomas/log4go"
 )

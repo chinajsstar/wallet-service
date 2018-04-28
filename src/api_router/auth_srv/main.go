@@ -4,12 +4,12 @@ import (
 	"net/rpc"
 	"api_router/base/service"
 	"api_router/base/utils"
-	"./handler"
+	"api_router/auth_srv/handler"
 	"fmt"
 	"context"
 	"time"
 	l4g "github.com/alecthomas/log4go"
-	"../auth_srv/db"
+	"api_router/auth_srv/db"
 )
 
 const AuthSrvConfig = "auth.json"

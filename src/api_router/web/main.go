@@ -2,7 +2,7 @@ package main
 
 import (
 	"api_router/base/utils"
-	"./handler"
+	"api_router/web/handler"
 	"fmt"
 	"time"
 	l4g "github.com/alecthomas/log4go"
@@ -19,7 +19,7 @@ func main() {
 
 	// register apis
 	web := new(handler.Web)
-	if err := web.Init(); err != nil{
+	if err := web.Init(appDir); err != nil{
 		l4g.Error("Init service node failed: %s", err.Error())
 		return
 	}

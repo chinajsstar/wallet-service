@@ -4,12 +4,12 @@ import (
 	"net/rpc"
 	"api_router/base/service"
 	"api_router/base/utils"
-	"./handler"
+	"api_router/push_srv/handler"
 	"fmt"
 	"context"
 	"time"
 	l4g "github.com/alecthomas/log4go"
-	"../push_srv/db"
+	"api_router/push_srv/db"
 )
 
 const PushSrvConfig = "push.json"

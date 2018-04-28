@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"../db"
+	"api_router/push_srv/db"
 	"api_router/base/data"
 	"api_router/base/service"
 	"sync"

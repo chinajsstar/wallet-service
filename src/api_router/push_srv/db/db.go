@@ -7,7 +7,7 @@ import (
 	"strings"
 	_ "github.com/go-sql-driver/mysql"
 	l4g "github.com/alecthomas/log4go"
-	"../../base/config"
+	"api_router/base/config"
 )
 
 var (
