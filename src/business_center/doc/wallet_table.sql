@@ -81,13 +81,13 @@ CREATE TABLE `asset_property` (
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',
   PRIMARY KEY (`asset_id`),
   UNIQUE KEY `id_UNIQUE` (`asset_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 -- Records of `assets_property`
 -- ----------------------------
-INSERT asset_property (name, full_name) VALUES ('btc', 'Bitcoin');
-INSERT asset_property (name, full_name) VALUES ('eth', 'Ethereum');
+INSERT asset_property (asset_name, full_name) VALUES ('btc', 'Bitcoin');
+INSERT asset_property (asset_name, full_name) VALUES ('eth', 'Ethereum');
 
 -- ----------------------------
 -- Table structure for `user_address`
@@ -152,7 +152,7 @@ CREATE TABLE `transaction_blockin` (
   `order_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`asset_id`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 -- ----------------------------
@@ -169,7 +169,7 @@ CREATE TABLE `transaction_detail` (
   `detail_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`detail_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 -- ----------------------------
@@ -187,7 +187,7 @@ CREATE TABLE `transaction_status` (
   `order_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`asset_id`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
 
 
 -- ----------------------------
