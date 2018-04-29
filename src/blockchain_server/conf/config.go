@@ -9,6 +9,7 @@ import (
 	"os"
 	"blockchain_server/types"
 	"sync"
+	apiutils "api_router/base/utils"
 )
 
 var (
@@ -116,6 +117,12 @@ func init () {
 	dat, err := ioutil.ReadFile(configfile)
 	check(err)
 	err = json.Unmarshal(dat, &configer)
+	var appDir string
+	appDir, err = apiutils.GetAppDir()
+	configer.Cryptofile = appDir + "/" + configer.Cryptofile
+	configer.Log_path = appDir + "/" + configer.Log_path
+	configer.Log_conf_file = appDir + "/" + configer.Log_conf_file
+
 	check(err)
 
 	IsOnlinemode = configer.Online_mode==types.Onlinemode_online
@@ -130,7 +137,8 @@ func MainConfiger() (*Configer) {
 func GetConfigFilePath() string {
 	if Debugmode {
 		l4g.Trace("running as debug version!")
-		return "/Users/cengliang/code/wallet-service/src/blockchain_server/res/app_debug.config"
+		appDir, _:= apiutils.GetAppDir()
+		return appDir + "/blockchain_server/res/app_debug.config"
 	}
 	l4g.Trace("running as release version!")
 	return utils.CurrentRuningFileDir() + "./../res/app.config"
