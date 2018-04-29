@@ -59,6 +59,7 @@ func (ol *OffLine) Start(dataDir string) error {
 func (ol *OffLine)Execute(argv []string) (string, error) {
 	var err error
 	var res string
+	fmt.Println(argv)
 	if argv[0] == "newaddress" {
 		if len(argv) != 3 {
 			fmt.Println("正确格式：newaddress 类型 数量")
@@ -66,7 +67,11 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 		}
 
 		coinType := argv[1]
-		count, _ := strconv.Atoi(argv[2])
+		count, err := strconv.Atoi(argv[2])
+		if err != nil {
+			fmt.Println(err.Error())
+			return "", err
+		}
 
 		res, err = handler.NewAddress(ol.clientManager, ol.dataDir, coinType, uint32(count))
 	}else if argv[0] == "loadonlineaddress" {

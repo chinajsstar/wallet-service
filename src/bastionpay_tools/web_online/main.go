@@ -44,7 +44,7 @@ func main() {
 		input = utils.ScanLine()
 		argv := strings.Split(input, " ")
 
-		if input == "q" {
+		if argv[0] == "q" {
 			break;
 		}else{
 			ol.Execute(argv)
