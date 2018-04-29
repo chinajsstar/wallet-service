@@ -13,7 +13,7 @@ func ScanLine() string {
 	var b []byte
 	for ; err == nil; {
 		_, err = fmt.Scanf("%c", &c)
-		if c != '\n' {
+		if c != '\n' && c!= '\r' {
 			b = append(b, c)
 		} else {
 			break

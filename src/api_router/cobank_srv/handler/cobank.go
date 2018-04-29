@@ -193,7 +193,7 @@ func (x *Cobank)importAddress(req *data.SrvRequestData, res *data.SrvResponseDat
 	coinType := uniNameTags[0]
 	dataTime := uniNameTags[1]
 
-	t, err := time.Parse(time.RFC3339, dataTime)
+	t, err := time.Parse("2006-01-02-15-04-05", dataTime)
 	//uuid := uniNameTags[2]
 	asset_id := -1
 	row := db.QueryRow("select id from asset_property where name = ?", coinType)
@@ -214,7 +214,7 @@ func (x *Cobank)importAddress(req *data.SrvRequestData, res *data.SrvResponseDat
 	for _, acc := range aCcs  {
 		_, err = Tx.Exec("insert free_address (asset_id, address, private_key, create_time) values (?, ?, ?, ?);",
 			asset_id, acc.Address, acc.PrivateKey,
-			t.Format("006-01-02 15:04:05"))
+			t.Format("2006-01-02 15:04:05"))
 		if err != nil {
 			l4g.Error("写入失败：%s", err.Error())
 			break
