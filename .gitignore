@@ -7,3 +7,4 @@ pkg/
 *.a
 bin/
 *.log
+src/github.com/
