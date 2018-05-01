@@ -7,6 +7,7 @@ import (
 	"blockchain_server/types"
 	"bastionpay_tools/handler"
 	"errors"
+	"strconv"
 )
 
 func usageonline()  {
@@ -54,7 +55,13 @@ func (ol *OnLine) Execute(argv []string) (string, error) {
 	var err error
 	var res string
 	if argv[0] == "loadonlineaddress" {
-		accs, err := handler.LoadOnlineAddress(ol.dataDir, argv)
+		if len(argv) != 2 {
+			fmt.Println("正确格式：loadonlineaddress 唯一标示")
+			return "", errors.New("command is error")
+		}
+
+		uniName := argv[1]
+		accs, err := handler.LoadOnlineAddress(ol.dataDir, uniName)
 		if err != nil {
 			fmt.Println("加载在线地址失败：", err.Error())
 			return "", err
@@ -65,17 +72,51 @@ func (ol *OnLine) Execute(argv []string) (string, error) {
 			fmt.Println("私钥：", acc.PrivateKey)
 		}
 	} else if argv[0] == "buildtxcmd" {
-		err = handler.BuildTxCmd(ol.clientManager, argv)
+		err = BuildTxTest(ol.clientManager, argv)
 	}else if argv[0] == "sendsignedtx" {
+		if len(argv) != 2 {
+			fmt.Println("正确格式：sendsignedtx 签名交易文件路径")
+			return "", errors.New("command is error")
+		}
+
 		if ol.isStart == false{
 			ol.clientManager.Start()
 			ol.isStart = true
 		}
-		err = handler.SendSignedTx(ol.clientManager, argv)
+
+		txSignedFilePath := argv[1]
+		err = handler.SendSignedTx(ol.clientManager, txSignedFilePath)
 	}else{
 		usageonline()
 		err = errors.New("unknown command")
 	}
 
 	return res, err
+}
+
+func BuildTxTest(clientManager *service.ClientManager, argv []string) (error) {
+	if len(argv) != 7 {
+		fmt.Println("正确格式：buildtxcmd 类型 加密私钥 从地址 去地址 数量 交易文件路径")
+		return errors.New("command is error")
+	}
+
+	t := argv[1]
+	chiperprikey := argv[2]
+	from := argv[3]
+	to := argv[4]
+	value, err := strconv.Atoi(argv[5])
+	if err != nil {
+		fmt.Printf("数量不正确: %s\n", err.Error())
+		return err
+	}
+
+	txCmd := service.NewSendTxCmd("message id", t, "", to, nil, uint64(value))
+	txCmd.Tx.From = from
+	txCmd.Chiperkey = chiperprikey
+
+	var txArr []*types.CmdSendTx
+	txArr = append(txArr, txCmd)
+
+	txFilePath := argv[6]
+	return handler.BuildTx(clientManager, txArr, txFilePath)
 }

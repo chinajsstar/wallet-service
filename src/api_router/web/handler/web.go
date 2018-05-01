@@ -28,25 +28,25 @@ var web_admin_pubkey []byte
 var web_admin_userkey string
 
 var wallet_server_pubkey []byte
-func loadAdministratorRsaKeys() error {
+func loadAdministratorRsaKeys(dataDir string) error {
+	if dataDir == ""{
+		dataDir = "/Users/henly.liu/workspace"
+	}
+
 	var err error
-	web_admin_prikey, err = ioutil.ReadFile("/Users/henly.liu/workspace/private_administrator.pem")
+	web_admin_prikey, err = ioutil.ReadFile(dataDir+"/private_administrator.pem")
 	if err != nil {
 		return err
 	}
 
-	web_admin_pubkey, err = ioutil.ReadFile("/Users/henly.liu/workspace/public_administrator.pem")
+	web_admin_pubkey, err = ioutil.ReadFile(dataDir+"/public_administrator.pem")
 	if err != nil {
 		return err
 	}
 
 	web_admin_userkey = "1c75c668-f1ab-474b-9dae-9ed7950604b4"
 
-	appDir, _:= utils.GetAppDir()
-	appDir += "/SuperWallet"
-
-	accountDir := appDir + "/account"
-	wallet_server_pubkey, err = ioutil.ReadFile(accountDir + "/public.pem")
+	wallet_server_pubkey, err = ioutil.ReadFile(dataDir + "/public.pem")
 	if err != nil {
 		return err
 	}
@@ -180,8 +180,8 @@ func NewWeb() *Web {
 	return w
 }
 
-func (self *Web)Init() error {
-	if err := loadAdministratorRsaKeys(); err != nil {
+func (self *Web)Init(dataDir string) error {
+	if err := loadAdministratorRsaKeys(dataDir); err != nil {
 		return err
 	}
 

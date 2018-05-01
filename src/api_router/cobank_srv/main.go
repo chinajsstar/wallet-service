@@ -4,7 +4,7 @@ import (
 	"net/rpc"
 	"api_router/base/service"
 	"api_router/base/utils"
-	"./handler"
+	"api_router/cobank_srv/handler"
 	"fmt"
 	"context"
 	"time"
@@ -30,8 +30,9 @@ func main() {
 	}
 	rpc.Register(nodeInstance)
 
+	onLineDir := "/Users/henly.liu/wallet-service/src/bastionpay_tools/web_online/data"
 	// register apis
-	cobank := handler.NewCobank()
+	cobank := handler.NewCobank(onLineDir)
 	if err := cobank.Start(nodeInstance); err != nil{
 		l4g.Error("Init service node failed: %s", err.Error())
 		return

@@ -2,7 +2,7 @@ package handler
 
 import (
 	"fmt"
-	"../db"
+	"api_router/auth_srv/db"
 	"api_router/base/utils"
 	"api_router/base/data"
 	"api_router/base/service"

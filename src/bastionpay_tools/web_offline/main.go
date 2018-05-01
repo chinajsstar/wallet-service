@@ -2,7 +2,7 @@ package main
 
 import (
 	"api_router/base/utils"
-	"./handler"
+	"bastionpay_tools/web_offline/handler"
 	"fmt"
 	"time"
 	l4g "github.com/alecthomas/log4go"
@@ -44,7 +44,7 @@ func main() {
 		input = utils.ScanLine()
 		argv := strings.Split(input, " ")
 
-		if input == "q" {
+		if argv[0] == "q" {
 			break;
 		}else{
 			ol.Execute(argv)

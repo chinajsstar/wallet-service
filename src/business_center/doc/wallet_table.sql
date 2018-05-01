@@ -15,7 +15,7 @@ CREATE TABLE `user_property` (
   `public_key` text DEFAULT NULL COMMENT '公钥',
   `callback_url` varchar(255) NOT NULL DEFAULT '',
   `level` int(11) NOT NULL DEFAULT 0 COMMENT '管理员级别，0：用户，100：普通管理员，200：创世管理员',
-  `last_login_time` datetime DEFAULT NULL,
+  `last_login_time` varchar(255) NOT NULL DEFAULT '',
   `last_login_ip` varchar(255) NOT NULL DEFAULT '',
   `last_login_mac` varchar(255) NOT NULL DEFAULT '',
   `create_time` datetime NOT NULL,
@@ -62,8 +62,8 @@ CREATE TABLE `user_account` (
 -- ----------------------------
 DROP TABLE IF EXISTS `asset_property`;
 CREATE TABLE `asset_property` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '资产编号',
-  `name` varchar(255) NOT NULL DEFAULT '' COMMENT '资产名称',
+  `asset_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '资产编号',
+  `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '资产名称',
   `full_name` varchar(255) NOT NULL DEFAULT '' COMMENT '资产全称',
   `is_token` int(11) NOT NULL DEFAULT '0' COMMENT '资产所属类型',
   `coin_name` varchar(255) NOT NULL DEFAULT '',
@@ -79,15 +79,15 @@ CREATE TABLE `asset_property` (
   `gas_factor` double NOT NULL DEFAULT '0' COMMENT '矿工费乘数因子',
   `debt` double NOT NULL DEFAULT '0' COMMENT '资产缺口',
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+  PRIMARY KEY (`asset_id`),
+  UNIQUE KEY `id_UNIQUE` (`asset_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 -- Records of `assets_property`
 -- ----------------------------
-INSERT asset_property (name, full_name) VALUES ('btc', 'Bitcoin');
-INSERT asset_property (name, full_name) VALUES ('eth', 'Ethereum');
+INSERT asset_property (asset_name, full_name) VALUES ('btc', 'Bitcoin');
+INSERT asset_property (asset_name, full_name) VALUES ('eth', 'Ethereum');
 
 -- ----------------------------
 -- Table structure for `user_address`
@@ -152,7 +152,7 @@ CREATE TABLE `transaction_blockin` (
   `order_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`asset_id`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 -- ----------------------------
@@ -169,7 +169,7 @@ CREATE TABLE `transaction_detail` (
   `detail_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`detail_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
 -- ----------------------------
@@ -187,7 +187,7 @@ CREATE TABLE `transaction_status` (
   `order_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`asset_id`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
 
 
 -- ----------------------------

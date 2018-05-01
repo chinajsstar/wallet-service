@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"../db"
+	"api_router/account_srv/db"
 	"api_router/base/data"
 	"crypto/rand"
 	"io/ioutil"

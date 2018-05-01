@@ -1,0 +1,31 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>上传地址文件</title>
+        <link rel="stylesheet" type="text/css" href="/css/main.css" />
+        <script type="text/javascript" src="/js/jquery.js" ></script>
+    </head>
+    <body>
+        <h1>上传地址页面</h1>
+        <form method="post" action="/uploadaddressact" enctype="multipart/form-data">
+            <table>
+                <tr>
+                    <td>地址文件：</td><td><input id="uploadfile" type="file" name="uploadfile"></input></td>
+                </tr>
+                <tr>
+                    <td><input type="submit" value="上传" style="width:100px;height:25px"></input></td>
+                </tr>
+            </table>
+        </form>
+    </body>
+    <script type="text/javascript" src="/js/md5.min.js" ></script>
+    <script type="text/javascript" src="/js/base64js.min.js" ></script>
+    <script type="text/javascript" src="/js/base.js" ></script>
+    <script>
+        function runDemo(url)
+        {
+            window.location.href = url;
+        }
+    </script>
+</html>

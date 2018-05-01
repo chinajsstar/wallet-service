@@ -9,8 +9,6 @@ import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	l4g "github.com/alecthomas/log4go"
-	"github.com/satori/go.uuid"
-	"time"
 )
 
 const tableAccount = `CREATE TABLE account (
@@ -83,35 +81,18 @@ func GetOfflineUniDBName(uniName string) string {
 	return uniName + OfflineTag + ".db"
 }
 
-func ExportAddress(dataDir string, accs []*types.Account) (string, error) {
-	// uuid
-	uniName, err := func()(string, error) {
-		uuidv4, err := uuid.NewV4()
-		if err != nil {
-			return "", err
-		}
-		uuid := uuidv4.String()
-
-		datetime := time.Now().UTC().Format(time.RFC3339)
-		return datetime + uuid, nil
-	}()
-	if err != nil {
-		l4g.Error("生成唯一标示错误: %s", err.Error())
-		return "", err
-	}
-	fmt.Println("创建唯一标示：%s", uniName)
-
+func ExportAddress(dataDir string, uniName string, accs []*types.Account) (error) {
 	// online and offline path
 	dbOnlinePath := dataDir + "/" + GetOnlineUniDBName(uniName)
 	dbOfflinePath := dataDir + "/" + GetOfflineUniDBName(uniName)
 	fmt.Printf("在线DB文件名：%s\n", dbOnlinePath)
 	fmt.Printf("离线DB文件名：%s\n", dbOfflinePath)
 
-	bl, err := utils.PathExists(dbOnlinePath)
-	bl2, err := utils.PathExists(dbOfflinePath)
+	bl, _ := utils.PathExists(dbOnlinePath)
+	bl2, _ := utils.PathExists(dbOfflinePath)
 	if bl || bl2 {
 		l4g.Error("DB文件已经存在: %s-%s", dbOnlinePath, dbOfflinePath)
-		return "", errors.New("path exist")
+		return errors.New("path exist")
 	}
 
 	// db func
@@ -163,16 +144,16 @@ func ExportAddress(dataDir string, accs []*types.Account) (string, error) {
 	}
 
 	if err := dbFunc(dbOnlinePath, true); err != nil{
-		return "", err
+		return err
 	}
 	fmt.Printf("保存在线DB成功\n")
 
 	if err := dbFunc(dbOfflinePath, false); err != nil{
-		return "", err
+		return err
 	}
 	fmt.Printf("保存离线DB成功\n")
 
-	return uniName, nil
+	return nil
 }
 
 func ImportAddress(dataDir string, uniDBName string) ([]*types.Account, error) {

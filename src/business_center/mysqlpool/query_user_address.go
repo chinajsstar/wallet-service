@@ -4,213 +4,105 @@ import (
 	. "business_center/def"
 	"encoding/json"
 	"fmt"
+	l4g "github.com/alecthomas/log4go"
 	"time"
 )
 
-func QueryAllUserAddress() map[string]*UserAddress {
-	mapUserAddress := make(map[string]*UserAddress)
+func QueryUserAddress(query string) ([]UserAddress, bool) {
+	sqls := "select user_key,user_class,asset_id,address,private_key,available_amount,frozen_amount,enabled," +
+		" unix_timestamp(create_time),unix_timestamp(update_time) from user_address" +
+		" where true"
 
-	rows, err := db.Query("select b.user_key, b.user_name, b.user_class, c.id, c.name," +
-		" c.full_name, a.address, a.private_key, " +
-		" a.available_amount, a.frozen_amount, a.enabled, " +
-		" unix_timestamp(a.create_time), unix_timestamp(a.update_time)" +
-		" from user_address a " +
-		" left join user_property b on a.user_key = b.user_key" +
-		" left join asset_property c on a.asset_id = c.id;")
+	userAddress := make([]UserAddress, 0)
+	params := make([]interface{}, 0)
+
+	if len(query) > 0 {
+		var queryMap map[string]interface{}
+		err := json.Unmarshal([]byte(query), &queryMap)
+		if err != nil {
+			return userAddress, len(userAddress) > 0
+		}
+
+		sqls += andConditions(queryMap, &params)
+		sqls += andPagination(queryMap, &params)
+	}
+
+	db := Get()
+	rows, err := db.Query(sqls, params...)
 	if err != nil {
 		fmt.Println(err.Error())
-		return mapUserAddress
+		return userAddress, len(userAddress) > 0
 	}
 
+	var data UserAddress
 	for rows.Next() {
-		userAddress := &UserAddress{}
-		rows.Scan(&userAddress.UserKey, &userAddress.UserName, &userAddress.UserClass, &userAddress.AssetID,
-			&userAddress.AssetName, &userAddress.AssetFullName, &userAddress.Address, &userAddress.PrivateKey,
-			&userAddress.AvailableAmount, &userAddress.FrozenAmount,
-			&userAddress.Enabled, &userAddress.CreateTime, &userAddress.UpdateTime)
-		mapUserAddress[userAddress.AssetName+"_"+userAddress.Address] = userAddress
+		err := rows.Scan(&data.UserKey, &data.UserClass, &data.AssetID, &data.Address, &data.PrivateKey,
+			&data.AvailableAmount, &data.FrozenAmount, &data.Enabled, &data.CreateTime, &data.UpdateTime)
+		if err == nil {
+			userAddress = append(userAddress, data)
+		}
 	}
-	return mapUserAddress
+	return userAddress, len(userAddress) > 0
 }
 
-func QueryUserAddress(query string) string {
-	var dat map[string]interface{}
-	err := json.Unmarshal([]byte(query), &dat)
-	if err != nil {
-		return ""
-	}
+func QueryUserAddressCount(query string) int {
+	sqls := "select count(*) from user_address" +
+		" where true"
 
-	sqlCount := "select count(*)" +
-		" from user_address a " +
-		" left join user_property b on a.user_key = b.user_key" +
-		" left join asset_property c on a.asset_id = c.id"
-
-	sqlQuery := "select b.user_key, b.user_name, b.user_class, c.id, c.name," +
-		" c.full_name, a.address, a.private_key, " +
-		" a.available_amount, a.frozen_amount, a.enabled, " +
-		" unix_timestamp(a.create_time), unix_timestamp(a.update_time)" +
-		" from user_address a " +
-		" left join user_property b on a.user_key = b.user_key" +
-		" left join asset_property c on a.asset_id = c.id"
-
-	sqlWhere := ""
-	resMap := make(map[string]interface{})
-
+	count := 0
 	params := make([]interface{}, 0)
-	if len(dat) > 0 {
-		if v, ok := dat["user_key"]; ok {
-			if value, ok := v.(string); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " b.user_key = ?"
-				params = append(params, value)
-			}
-		}
 
-		if v, ok := dat["user_name"]; ok {
-			if value, ok := v.(string); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " b.user_name = ?"
-				params = append(params, value)
-			}
+	if len(query) > 0 {
+		var queryMap map[string]interface{}
+		err := json.Unmarshal([]byte(query), &queryMap)
+		if err != nil {
+			return count
 		}
-
-		if v, ok := dat["user_class"]; ok {
-			if value, ok := v.(float64); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " b.user_class = ?"
-				params = append(params, int(value))
-			}
-		}
-
-		if v, ok := dat["asset_name"]; ok {
-			if value, ok := v.(string); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " c.name = ?"
-				params = append(params, value)
-			}
-		}
-
-		if v, ok := dat["address"]; ok {
-			if value, ok := v.(string); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " a.address = ?"
-				params = append(params, value)
-			}
-		}
-
-		if v, ok := dat["max_amount"]; ok {
-			if value, ok := v.(float64); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " a.available_amount + a.frozen_amount <= ?"
-				params = append(params, int64(value))
-			}
-		}
-
-		if v, ok := dat["min_amount"]; ok {
-			if value, ok := v.(float64); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " a.available_amount + a.frozen_amount >= ?"
-				params = append(params, int64(value))
-			}
-		}
-
-		if v, ok := dat["create_time_begin"]; ok {
-			if value, ok := v.(float64); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " a.create_time >= ?"
-				params = append(params, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
-			}
-		}
-
-		if v, ok := dat["create_time_end"]; ok {
-			if value, ok := v.(float64); ok {
-				if len(params) > 0 {
-					sqlWhere += " and"
-				} else {
-					sqlWhere += " where"
-				}
-				sqlWhere += " a.create_time <= ?"
-				params = append(params, time.Unix(int64(value), 0).Format("2006-01-02 15:04:05"))
-			}
-		}
-
-		row := db.QueryRow(sqlCount+sqlWhere, params...)
-		if row != nil {
-			var value int
-			row.Scan(&value)
-			resMap["total"] = value
-		}
-
-		if v, ok := dat["max_display"]; ok {
-			if value, ok := v.(float64); ok {
-				resMap["max_display"] = value
-				sqlWhere += " limit ?, ?"
-
-				pageIndex := 1
-				if v, ok := dat["page_index"]; ok {
-					if value, ok := v.(float64); ok {
-						resMap["page_index"] = value
-						pageIndex = int(value)
-					}
-				}
-				params = append(params, (pageIndex-1)*int(value))
-				params = append(params, value)
-			}
-		}
+		sqls += andConditions(queryMap, &params)
 	}
 
-	rows, err := db.Query(sqlQuery+sqlWhere, params...)
+	db := Get()
+	db.QueryRow(sqls, params...).Scan(&count)
+	return count
+}
+
+func QueryUserAddressByIDAddress(assetID int, address string) (UserAddress, bool) {
+	query := fmt.Sprintf("{\"asset_id\":%d, \"address\":\"%s\"}", assetID, address)
+	if userAddress, ok := QueryUserAddress(query); ok {
+		return userAddress[0], true
+	}
+	return UserAddress{}, false
+}
+
+func AddUserAddress(userAddress []UserAddress) error {
+	tx, err := Get().Begin()
 	if err != nil {
-		return ""
+		_, errMsg := CheckError(ErrorDataBase, err.Error())
+		l4g.Error(errMsg)
+		return err
 	}
 
-	var userAddresses []UserAddress
-	for rows.Next() {
-		var userAddress UserAddress
-		rows.Scan(&userAddress.UserKey, &userAddress.UserName, &userAddress.UserClass, &userAddress.AssetID,
-			&userAddress.AssetName, &userAddress.AssetFullName, &userAddress.Address, &userAddress.PrivateKey,
-			&userAddress.AvailableAmount, &userAddress.FrozenAmount,
-			&userAddress.Enabled, &userAddress.CreateTime, &userAddress.UpdateTime)
-		userAddresses = append(userAddresses, userAddress)
+	for _, v := range userAddress {
+		_, err := tx.Exec("insert user_address (user_key, user_class, asset_id, address, private_key,"+
+			" available_amount, frozen_amount, enabled, create_time, update_time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+			v.UserKey, v.UserClass, v.AssetID, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
+			time.Unix(v.CreateTime, 0).UTC().Format(TimeFormat),
+			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
+		if err != nil {
+			tx.Rollback()
+			_, errMsg := CheckError(ErrorDataBase, err.Error())
+			l4g.Error(errMsg)
+			return err
+		}
 	}
-	resMap["address"] = userAddresses
 
-	pack, err := json.Marshal(resMap)
+	err = tx.Commit()
 	if err != nil {
-		return ""
+		tx.Rollback()
+		_, errMsg := CheckError(ErrorDataBase, err.Error())
+		l4g.Error(errMsg)
+		return err
 	}
 
-	return string(pack)
+	return nil
 }

@@ -8,3 +8,5 @@ pkg/
 bin/
 *.log
 src/github.com/
+*.exe
+*.db
