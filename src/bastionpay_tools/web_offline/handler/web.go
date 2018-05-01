@@ -134,7 +134,6 @@ func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
 		cointype := req.FormValue("cointype")
 		count := req.FormValue("count")
 		newaddresssavedir := req.FormValue("newaddresssavedir")
-		newaddressfilepath := ""
 
 		// new address
 		fmt.Println(cointype, "--", count, "--", newaddresssavedir)
@@ -144,20 +143,30 @@ func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
 			return err
 		}
 
-		uniName, err := self.NewAddress(cointype, uint32(c))
+		var newaddressfilepaths []string
+		uniNames, err := self.NewAddress(cointype, uint32(c))
 		if err != nil {
 			return err
 		}else{
-			onlineDBPath := self.GetAddressDataDir() + "/" + db.GetOnlineUniDBName(uniName)
-			newaddressfilepath = newaddresssavedir + "/" + db.GetOnlineUniDBName(uniName)
-			_, err = CopyFile(onlineDBPath, newaddressfilepath)
-			if err != nil {
-				return err
+			for _, uniName := range uniNames{
+				onlineDBPath := self.GetAddressDataDir() + "/" + db.GetOnlineUniDBName(uniName)
+				newaddressfilepath := newaddresssavedir + "/" + db.GetOnlineUniDBName(uniName)
+				_, err = CopyFile(onlineDBPath, newaddressfilepath)
+				if err != nil {
+					return err
+				}
+
+				newaddressfilepaths = append(newaddressfilepaths, newaddressfilepath)
 			}
 		}
 
+		bb, err := json.Marshal(newaddressfilepaths)
+		if err != nil {
+			return err
+		}
+
 		rb.Err = 0
-		rb.Value = "Db file save as：" + newaddressfilepath
+		rb.Value = "Db file save as：" + string(bb)
 		return nil
 	}()
 

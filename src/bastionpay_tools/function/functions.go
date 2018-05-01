@@ -6,6 +6,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"bastionpay_tools/handler"
 	"os"
+	"errors"
 	"bastionpay_tools/common"
 )
 
@@ -50,8 +51,25 @@ func (f *Functions) Init(clientManager *service.ClientManager, dataDir string) e
 
 // offline - newaddress
 // create addresses to a db file in data dir, named by uniname
-func (f *Functions) NewAddress(coinType string, count uint32) (string, error) {
-	return handler.NewAddress(f.clientManager, f.GetAddressDataDir(), coinType, count)
+func (f *Functions) NewAddress(coinType string, count uint32) ([]string, error) {
+	mul := count / common.MaxDbCountAddress
+	mod := count % common.MaxDbCountAddress
+	if mod != 0 {
+		return nil, errors.New("count must be 1000 times")
+	}
+
+	// 批量生成
+	var uniNames []string
+	var i uint32
+	for i = 0; i < mul; i++ {
+		uniName, err := handler.NewAddress(f.clientManager, f.GetAddressDataDir(), coinType, count)
+		if err != nil {
+			return nil, err
+		}
+		uniNames = append(uniNames, uniName)
+	}
+
+	return uniNames, nil
 }
 
 // offline - signtx

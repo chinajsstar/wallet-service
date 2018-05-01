@@ -63,10 +63,16 @@ func (ol *OnLine) Execute(argv []string) (string, error) {
 			log.Println("loadonlineaddress failed: ", err.Error())
 			return "", err
 		}
-		for i, acc := range accs {
+		len := len(accs)
+		for i := 0; i < len && i < 5; i++ {
 			fmt.Println("index: ", i)
-			fmt.Println("address: ", acc.Address)
-			fmt.Println("prikey: ", acc.PrivateKey)
+			fmt.Println("address: ", accs[i].Address)
+			fmt.Println("prikey: ", accs[i].PrivateKey)
+		}
+		for i := len-5; i>=0 && i < len; i++ {
+			fmt.Println("index: ", i)
+			fmt.Println("address: ", accs[i].Address)
+			fmt.Println("prikey: ", accs[i].PrivateKey)
 		}
 	} else if argv[0] == "buildtxcmd" {
 		err = BuildTxTest(ol.GetClientManager(), argv)

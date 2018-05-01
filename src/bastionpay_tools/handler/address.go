@@ -11,6 +11,32 @@ import (
 	"bastionpay_tools/common"
 )
 
+func NewMaxCountAddress(clientManager *service.ClientManager, coinType string, count uint32) ([]*types.Account, error) {
+	var aCcsAll []*types.Account
+
+	left := count
+
+	var realCount uint32
+	for left > 0 {
+		realCount = common.MaxCountAddress
+		if left < common.MaxCountAddress {
+			realCount = left
+		}
+
+		accCmd := service.NewAccountCmd("message id", coinType, uint32(realCount))
+		aCcs, err := clientManager.NewAccounts(accCmd)
+		if err != nil {
+			fmt.Printf("创建新地址失败: %s\n", err.Error())
+			return nil, err
+		}
+		aCcsAll = append(aCcsAll, aCcs...)
+
+		left -= realCount
+	}
+
+	return aCcsAll, nil
+}
+
 // 返回文件名的唯一标示
 func NewAddress(clientManager *service.ClientManager, addressDataDir string, coinType string, count uint32) (string, error) {
 	fmt.Printf("==============NewAddressByCmd================\n")
@@ -18,18 +44,8 @@ func NewAddress(clientManager *service.ClientManager, addressDataDir string, coi
 
 	var err error
 
-	// 创建新地址
-	accCmd := service.NewAccountCmd("message id", coinType, uint32(count))
-	var aCcs []*types.Account
-	aCcs, err = clientManager.NewAccounts(accCmd)
-	if err != nil {
-		fmt.Printf("创建新地址失败: %s\n", err.Error())
-		return "", err
-	}
-	fmt.Printf("创建新地址成功，数量: %d\n", len(aCcs))
-
 	// uuid
-	fmt.Printf("生成唯一标示，数量: %d\n", len(aCcs))
+	fmt.Printf("生成唯一标示\n")
 	uniName, err := func()(string, error) {
 		uuidv4, err := uuid.NewV4()
 		if err != nil {
@@ -45,6 +61,13 @@ func NewAddress(clientManager *service.ClientManager, addressDataDir string, coi
 		return "", err
 	}
 	fmt.Println("创建唯一标示：%s", uniName)
+
+	// 批量生成地址
+	aCcs, err := NewMaxCountAddress(clientManager, coinType, common.MaxDbCountAddress)
+	if err != nil {
+		fmt.Printf("创建新地址失败: %s\n", err.Error())
+		return "", err
+	}
 
 	// 保存新地址
 	err = db.ExportAddress(addressDataDir, uniName, aCcs)

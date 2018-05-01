@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"bastionpay_tools/function"
 	"log"
+	"encoding/json"
 )
 
 type OffLine struct{
@@ -57,7 +58,13 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 			return "", err
 		}
 
-		res, err = ol.NewAddress(coinType, uint32(count))
+		uniNames, err := ol.NewAddress(coinType, uint32(count))
+		bb, err := json.Marshal(uniNames)
+		if err != nil {
+			return "", err
+		}
+		res = string(bb)
+
 		if err != nil {
 			log.Println("newaddress failed: ", err.Error())
 			return "", err
@@ -74,10 +81,16 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 			log.Println("loadonlineaddress failed: ", err.Error())
 			return "", err
 		}
-		for i, acc := range accs {
+		len := len(accs)
+		for i := 0; i < len && i < 5; i++ {
 			fmt.Println("index: ", i)
-			fmt.Println("address: ", acc.Address)
-			fmt.Println("prikey: ", acc.PrivateKey)
+			fmt.Println("address: ", accs[i].Address)
+			fmt.Println("prikey: ", accs[i].PrivateKey)
+		}
+		for i := len-5; i>=0 && i < len; i++ {
+			fmt.Println("index: ", i)
+			fmt.Println("address: ", accs[i].Address)
+			fmt.Println("prikey: ", accs[i].PrivateKey)
 		}
 	}else if argv[0] == "loadofflineaddress" {
 		if len(argv) != 2 {
@@ -91,10 +104,16 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 			log.Println("loadofflineaddress failed: ", err.Error())
 			return "", err
 		}
-		for i, acc := range accs {
+		len := len(accs)
+		for i := 0; i < len && i < 5; i++ {
 			fmt.Println("index: ", i)
-			fmt.Println("address: ", acc.Address)
-			fmt.Println("prikey: ", acc.PrivateKey)
+			fmt.Println("address: ", accs[i].Address)
+			fmt.Println("prikey: ", accs[i].PrivateKey)
+		}
+		for i := len-5; i>=0 && i < len; i++ {
+			fmt.Println("index: ", i)
+			fmt.Println("address: ", accs[i].Address)
+			fmt.Println("prikey: ", accs[i].PrivateKey)
 		}
 	}else if argv[0] == "signtx" {
 		if len(argv) != 3 {
