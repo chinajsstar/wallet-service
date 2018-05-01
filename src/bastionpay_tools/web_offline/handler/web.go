@@ -6,50 +6,90 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"fmt"
 	"encoding/json"
-	"bastionpay_tools/tools"
 	"os"
 	"io"
 	"bastionpay_tools/db"
+	"blockchain_server/service"
+	"bastionpay_tools/function"
+	"strconv"
 )
 
+// copy file
+func CopyFile(src, dst string)(w int64, err error){
+	srcFile,err := os.Open(src)
+	if err!=nil{
+		fmt.Println(err.Error())
+		return
+	}
+	defer srcFile.Close()
+
+	dstFile,err := os.Create(dst)
+	if err!=nil{
+		fmt.Println(err.Error())
+		return
+	}
+
+	defer dstFile.Close()
+
+	return io.Copy(dstFile,srcFile)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
+type WebRes struct {
+	Err int 		`json:"err"`
+	ErrMsg string 	`json:"errmsg"`
+	Value string 	`json:"value"`
+}
+
 type Web struct{
-	offlineTool *tools.OffLine
+	*function.Functions
+
+	filesMap map[string]string
 }
 
-func NewWeb() *Web {
-	w := &Web{}
-	return w
-}
-
-func (self *Web)Init(ol *tools.OffLine) error {
-	if err := self.startHttpServer(); err != nil{
+func (self *Web)Init(clientManager *service.ClientManager, dataDir string) error {
+	// functions
+	self.Functions = &function.Functions{}
+	err := self.Functions.Init(clientManager, dataDir)
+	if err != nil {
 		return err
 	}
 
-	self.offlineTool = ol
+	self.filesMap = make(map[string]string)
+
 	return nil
 }
 
 // start http server
-func (self *Web) startHttpServer() error {
+func (self *Web) StartHttpServer(port string) error {
 	// http
-	l4g.Debug("Start http server on 8066")
+	l4g.Info("Start http server on: %s", port)
 
 	http.Handle("/",http.HandlerFunc(self.handle404))
-	http.Handle("/index",http.HandlerFunc(self.handleIndex))
-	http.Handle("/newaddress", http.HandlerFunc(self.handleNewAddress))
-	http.Handle("/signtx", http.HandlerFunc(self.handleSigntx))
-
-	http.Handle("/newaddressact", http.HandlerFunc(self.handleNewAddressAct))
-	http.Handle("/signtxact", http.HandlerFunc(self.handleSigntxAct))
-
 	http.Handle("/css/", http.FileServer(http.Dir("template")))
 	http.Handle("/js/", http.FileServer(http.Dir("template")))
 
+	var path string
+	// files
+	path = "index"
+	self.filesMap["/" + path] = path + ".html"
+	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+
+	path = "newaddress"
+	self.filesMap["/" + path] = path + ".html"
+	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+
+	path = "signtx"
+	self.filesMap["/" + path] = path + ".html"
+	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+
+	// act post
+	http.Handle("/newaddressact", http.HandlerFunc(self.handleNewAddressAct))
+	http.Handle("/signtxact", http.HandlerFunc(self.handleSigntxAct))
+
 	go func() {
 		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(":8066", nil)
+		err := http.ListenAndServe(":" + port, nil)
 		if err != nil {
 			l4g.Crashf("", err)
 			return
@@ -71,10 +111,15 @@ func (self *Web) handle404(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, nil)
 }
 
-// http handler
-func (self *Web) handleIndex(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/index.html")
+func (self *Web) handlePathFile(w http.ResponseWriter, req *http.Request) {
+	filename, ok := self.filesMap[req.URL.Path]
+	if ok == false {
+		filename = "404.html"
+	}
+
+	t, err := template.ParseFiles("template/html/" + filename)
 	if err != nil {
+		l4g.Error("%s", err.Error())
 		return
 	}
 
@@ -82,111 +127,75 @@ func (self *Web) handleIndex(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-type ResBack struct {
-	Err int `json:"err"`
-	ErrMsg string `json:"errmsg"`
-}
-
-// http handler
-func (self *Web) handleNewAddress(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/newaddress.html")
-	if err != nil {
-		return
-	}
-
-	t.Execute(w, nil)
-	return
-}
-
-func CopyFile(src,dst string)(w int64, err error){
-	srcFile,err := os.Open(src)
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-	defer srcFile.Close()
-
-	dstFile,err := os.Create(dst)
-
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-
-	defer dstFile.Close()
-
-	return io.Copy(dstFile,srcFile)
-}
-
-// http handler
 func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
-	cointype := req.FormValue("cointype")
-	count := req.FormValue("count")
-	newaddressdir := req.FormValue("newaddressdir")
-	newaddressfilepath := ""
+	rb := WebRes{Err:1, ErrMsg:""}
 
-	// new address
-	fmt.Println(cointype, "--", count, "--", newaddressdir)
+	err := func() error {
+		cointype := req.FormValue("cointype")
+		count := req.FormValue("count")
+		newaddresssavedir := req.FormValue("newaddresssavedir")
+		newaddressfilepath := ""
 
-	var argv []string
-	argv = append(argv, "newaddress")
-	argv = append(argv, cointype)
-	argv = append(argv, count)
-	uniName, err := self.offlineTool.Execute(argv)
+		// new address
+		fmt.Println(cointype, "--", count, "--", newaddresssavedir)
 
-	rb := ResBack{}
+		c, err := strconv.Atoi(count)
+		if err != nil {
+			return err
+		}
+
+		uniName, err := self.NewAddress(cointype, uint32(c))
+		if err != nil {
+			return err
+		}else{
+			onlineDBPath := self.GetAddressDataDir() + "/" + db.GetOnlineUniDBName(uniName)
+			newaddressfilepath = newaddresssavedir + "/" + db.GetOnlineUniDBName(uniName)
+			_, err = CopyFile(onlineDBPath, newaddressfilepath)
+			if err != nil {
+				return err
+			}
+		}
+
+		rb.Err = 0
+		rb.Value = "Db file save as：" + newaddressfilepath
+		return nil
+	}()
+
 	if err != nil {
 		rb.Err = 1
 		rb.ErrMsg = err.Error()
-	}else{
-		onlineDBPath := self.offlineTool.GetDataDir() + "/" + db.GetOnlineUniDBName(uniName)
-		newaddressfilepath = newaddressdir + "/" + db.GetOnlineUniDBName(uniName)
-		_, err = CopyFile(onlineDBPath, newaddressfilepath)
-	}
-
-	if err != nil {
-		rb.Err = 1
-		rb.ErrMsg = err.Error()
-	}else{
-		rb.ErrMsg = "文件保存在：" + newaddressfilepath
+		l4g.Error("handleNewAddressAct: %s", err.Error())
 	}
 
 	b, _ := json.Marshal(rb)
 	w.Write(b)
-
 	return
 }
 
-// http handler
-func (self *Web) handleSigntx(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/signtx.html")
-	if err != nil {
-		return
-	}
-
-	t.Execute(w, nil)
-	return
-}
-
-// http handler
 func (self *Web) handleSigntxAct(w http.ResponseWriter, req *http.Request) {
-	txfilepath := req.FormValue("txfilepath")
-	txsignedfilepath := req.FormValue("txsignedfilepath")
+	rb := WebRes{Err:1, ErrMsg:""}
 
-	// signtx
-	fmt.Println(txfilepath, "--", txsignedfilepath)
-	var argv []string
-	argv = append(argv, "signtx")
-	argv = append(argv, txfilepath)
-	argv = append(argv, txsignedfilepath)
-	_, err := self.offlineTool.Execute(argv)
+	err := func()error{
+		txfilepath := req.FormValue("txfilepath")
+		txsignedfilepath := req.FormValue("txsignedfilepath")
 
-	rb := ResBack{}
+		// signtx
+		fmt.Println(txfilepath, "--", txsignedfilepath)
+
+		err := self.SignTx(txfilepath, txsignedfilepath)
+		if err != nil {
+			return err
+		}
+
+		rb.Err = 0
+		rb.Value = "txsigned save ad：" + txsignedfilepath
+		return nil
+	}()
+
 	if err != nil {
 		rb.Err = 1
 		rb.ErrMsg = err.Error()
-	}else{
-		rb.ErrMsg = "文件保存在：" + txsignedfilepath
+		l4g.Error("handleSigntxAct: %s", err.Error())
 	}
 
 	b, _ := json.Marshal(rb)

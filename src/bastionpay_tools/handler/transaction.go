@@ -51,7 +51,7 @@ func BuildTx(clientManager *service.ClientManager, txArr []*types.CmdSendTx, txF
 	return nil
 }
 
-func SignTx(clientManager *service.ClientManager, dataDir string, txFilePath, txSignedFilePath string) (error) {
+func SignTx(clientManager *service.ClientManager, addressDataDir string, txFilePath, txSignedFilePath string) (error) {
 	txByte, err := ioutil.ReadFile(txFilePath)
 	if err != nil {
 		fmt.Printf("读取交易文件失败: %s\n", err.Error())
@@ -77,7 +77,7 @@ func SignTx(clientManager *service.ClientManager, dataDir string, txFilePath, tx
 	for uniName, txArr := range txDataMap {
 		// 加载离线DB
 		uniOfflineDBName := db.GetOfflineUniDBName(uniName)
-		aCcsOfflineMap, err := db.ImportAddressMap(dataDir, uniOfflineDBName)
+		aCcsOfflineMap, err := db.ImportAddressMap(addressDataDir, uniOfflineDBName)
 		if err != nil {
 			fmt.Printf("加载离线文件失败: %s\n", err.Error())
 			return err
