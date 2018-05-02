@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/satori/go.uuid"
 	"log"
+	"math"
 	"time"
 )
 
@@ -536,7 +537,7 @@ func unpackJson(s string) ParamsMapping {
 			}
 		case "amount":
 			if value, ok := v.(float64); ok {
-				params.Amount = value
+				params.Amount = int64(value * math.Pow10(8))
 			}
 		case "count":
 			if value, ok := v.(float64); ok {
