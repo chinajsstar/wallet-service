@@ -1,43 +1,82 @@
 package main
 
 import (
+	"blockchain_server/chains/eth"
+	"blockchain_server/service"
+	"blockchain_server/types"
 	"api_router/base/utils"
 	"bastionpay_tools/web_offline/handler"
 	"fmt"
-	"time"
 	l4g "github.com/alecthomas/log4go"
 	"os"
 	"bastionpay_tools/tools"
+	"time"
 	"strings"
 )
 
+const(
+	ConfigDirName = "BastionPayOffline" // app dir
+	DataDirName = "data"				// run dir
+)
 func main() {
-	appDir, _:= utils.GetAppDir()
-	appDir += "/SuperWallet"
+	appDir, err:= utils.GetAppDir()
+	if err != nil {
+		fmt.Println("Get App directory failed: ", err)
+		os.Exit(1)
+	}
+	runDir, err := utils.GetRunDir()
+	if err != nil {
+		fmt.Println("Get Run directory failed: ", err)
+		os.Exit(1)
+	}
 
-	l4g.LoadConfiguration(appDir + "/log.xml")
+	// 配置目录
+	cfgDir := appDir + "/" + ConfigDirName
+	l4g.Info("Config directory = %s", cfgDir)
+
+	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
 
-	curDir, _ := utils.GetCurrentDir()
-	dataDir := curDir + "/data"
-	err := os.Mkdir(dataDir, os.ModePerm)
+	// 数据目录
+	dataDir := runDir + "/" + DataDirName
+	err = os.Mkdir(dataDir, os.ModePerm)
 	if err != nil && !os.IsExist(err) {
-		fmt.Printf("创建数据目录失败：%s", err.Error())
+		l4g.Error("Create data directory failed: %s", err.Error())
 		return
 	}
-	ol := &tools.OffLine{}
-	err = ol.Start(dataDir)
-	if err != nil {
-		fmt.Printf("启动离线工具失败：%s", err.Error())
-		return
-	}
+	l4g.Info("Data directory = %s", dataDir)
 
+	// 创建chain service
+	clientManager := service.NewClientManager()
+	// eth client
+	ethClient, err := eth.ClientInstance()
+	if nil != err {
+		l4g.Error("Create client:%s error:%s", types.Chain_eth, err.Error())
+		return
+	}
+	clientManager.AddClient(ethClient)
+
+	// 启动服务
 	web := new(handler.Web)
-	if err := web.Init(ol); err != nil{
-		l4g.Error("Init service node failed: %s", err.Error())
+	if err := web.Init(clientManager, dataDir); err != nil{
+		l4g.Error("Init service failed: %s", err.Error())
+		return
+	}
+	if err := web.StartHttpServer("8066"); err != nil{
+		l4g.Error("Start http service failed: %s", err.Error())
 		return
 	}
 
+	fmt.Println("Input 'q' to exit...")
+
+	// debug mode
+	// 启动工具
+	ol := &tools.OffLine{}
+	err = ol.Init(clientManager, dataDir)
+	if err != nil {
+		l4g.Error("Start Bastion offline tool failed: %s", err.Error())
+		return
+	}
 	time.Sleep(time.Second*1)
 	for {
 		var input string
@@ -46,10 +85,10 @@ func main() {
 
 		if argv[0] == "q" {
 			break;
+		}else if argv[0] == "help" {
+			ol.Usage()
 		}else{
 			ol.Execute(argv)
 		}
 	}
-
-	l4g.Info("all routine quit...")
 }

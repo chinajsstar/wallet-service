@@ -7,20 +7,24 @@
         <script type="text/javascript" src="/js/jquery.js" ></script>
     </head>
     <body>
-        <h1>签名交易页面</h1>
-        <form data-type="formNewAddressAction" action="/signtxact" form-rediret="/index">
-            <table>
-                <tr>
-                    <td>交易文件：</td><td><input id="txfilepath" type="text" name="txfilepath"></input></td>
-                </tr>
-                <tr>
-                    <td>保存签名文件：</td><td><input id="txsignedfilepath" type="text" name="txsignedfilepath"></input></td>
-                </tr>
-                <tr>
-                    <td><input type="submit" value="签名" style="width:100px;height:25px"></input></td>
-                </tr>
-            </table>
-        </form>
+        <div class="head">
+            <h1>签名交易</h1>
+            <form data-type="formOperationAction" action="/signtxact" form-rediret="/index">
+                <table style="width:100%">
+                    <tr>
+                        <td style="width:20%">交易文件：</td>
+                        <td><input style="width:100%" id="txfilepath" type="text" name="txfilepath"></input></td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%">保存签名文件：</td>
+                        <td><input style="width:100%" id="txsignedfilepath" type="text" name="txsignedfilepath"></input></td>
+                    </tr>
+                    <tr>
+                        <td><input type="submit" value="签名" style="width:100px;height:25px"></input></td>
+                    </tr>
+                </table>
+            </form>
+        </div>
     </body>
     <script type="text/javascript" src="/js/md5.min.js" ></script>
     <script type="text/javascript" src="/js/base64js.min.js" ></script>

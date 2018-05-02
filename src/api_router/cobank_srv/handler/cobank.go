@@ -58,11 +58,10 @@ func (x *Cobank)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func() {
-		input := def.ReqNewAddress{}
-		b, _ := json.Marshal(input)
+		example := "{\"user_key\":\"\",\"asset_id\":2,\"count\":0}"
 		service.RegisterApi(&nam,
 			"new_address", data.APILevel_client, x.handler,
-			"获取新地址", string(b), input, "")
+			"获取新地址", example, "", "")
 	}()
 
 	func(){

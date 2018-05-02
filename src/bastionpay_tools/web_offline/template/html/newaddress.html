@@ -7,23 +7,28 @@
         <script type="text/javascript" src="/js/jquery.js" ></script>
     </head>
     <body>
-        <h1>生成新地址页面</h1>
-        <form data-type="formNewAddressAction" action="/newaddressact" form-rediret="/index">
-            <table>
-                <tr>
-                    <td>类型：</td><td><input id="cointype" type="text" name="cointype"></input></td>
-                </tr>
-                <tr>
-                    <td>个数：</td><td><input id="count" type="text" name="count"></input></td>
-                </tr>
-                <tr>
-                    <td>保存目录：</td><td><input id="newaddressdir" type="text" name="newaddressdir"></input></td>
-                </tr>
-                <tr>
-                    <td><input type="submit" value="生成" style="width:100px;height:25px"></input></td>
-                </tr>
-            </table>
-        </form>
+        <div class="head">
+            <h1>生成新地址页面</h1>
+            <form data-type="formOperationAction" action="/newaddressact" form-rediret="/index">
+                <table style="width:100%">
+                    <tr>
+                        <td style="width:20%">类型：</td>
+                        <td><input style="width:100%" id="cointype" type="text" name="cointype"></input></td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%">个数（10000的整数倍）：</td>
+                        <td><input style="width:100%" id="count" type="text" name="count"></input></td>
+                    </tr>
+                    <tr>
+                        <td style="width:20%">保存目录(请手动填写)：</td>
+                        <td><input style="width:100%" id="newaddresssavedir" type="text" name="newaddresssavedir"></input></td>
+                    </tr>
+                    <tr>
+                        <td><input type="submit" value="生成" style="width:100px;height:25px"></input></td>
+                    </tr>
+                </table>
+            </form>
+        </div>
     </body>
     <script type="text/javascript" src="/js/md5.min.js" ></script>
     <script type="text/javascript" src="/js/base64js.min.js" ></script>

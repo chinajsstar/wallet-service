@@ -19,12 +19,12 @@ const (
 )
 
 type ParamsMapping struct {
-	UserKey     string  `json:"user_key"`
-	UserOrderID string  `json:"user_order_id"`
-	AssetID     int     `json:"asset_id"`
-	Address     string  `json:"address"`
-	Amount      float64 `json:"amount"`
-	Count       int     `json:"count"`
+	UserKey     string `json:"user_key"`
+	UserOrderID string `json:"user_order_id"`
+	AssetID     int    `json:"asset_id"`
+	Address     string `json:"address"`
+	Amount      int64  `json:"amount"`
+	Count       int    `json:"count"`
 }
 
 type ReqHead struct {
@@ -59,13 +59,13 @@ type RspWithdrawal struct {
 }
 
 type UserAccount struct {
-	UserKey         string  `json:"user_key"`
-	UserClass       int     `json:"user_class"`
-	AssetID         int     `json:"asset_id"`
-	AvailableAmount float64 `json:"available_amount"`
-	FrozenAmount    float64 `json:"frozen_amount"`
-	CreateTime      uint64  `json:"create_time"`
-	UpdateTime      uint64  `json:"update_time"`
+	UserKey         string `json:"user_key"`
+	UserClass       int    `json:"user_class"`
+	AssetID         int    `json:"asset_id"`
+	AvailableAmount int64  `json:"available_amount"`
+	FrozenAmount    int64  `json:"frozen_amount"`
+	CreateTime      uint64 `json:"create_time"`
+	UpdateTime      uint64 `json:"update_time"`
 }
 
 type TransDetail struct {
@@ -119,7 +119,7 @@ type AssetProperty struct {
 	Logo                  string  `json:"logo"`
 	DepositMin            float64 `json:"deposit_min"`
 	WithdrawalRate        float64 `json:"withdrawal_rate"`
-	WithdrawalValue       float64 `json:"withdrawal_value"`
+	WithdrawalValue       int64   `json:"withdrawal_value"`
 	WithdrawalReserveRate float64 `json:"withdrawal_reserve_rate"`
 	WithdrawalAlertRate   float64 `json:"withdrawal_alert_rate"`
 	WithdrawalStategy     float64 `json:"withdrawal_stategy"`

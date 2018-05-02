@@ -7,6 +7,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"math"
 	"time"
+	"api_router/base/utils"
+	"api_router/base/config"
 )
 
 var db *sql.DB = nil
@@ -16,7 +18,20 @@ func Get() *sql.DB {
 }
 
 func init() {
-	d, err := sql.Open("mysql", "root:command@tcp(127.0.0.1:3306)/test?charset=utf8")
+	var dataSourceName string
+	configPath, err := utils.GetAppDir()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	err = config.LoadJsonNode(configPath + "/SuperWallet/cobank.json", "db", &dataSourceName)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	d, err := sql.Open("mysql", dataSourceName)
 	if err != nil {
 		fmt.Println(err.Error())
 		return

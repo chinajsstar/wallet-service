@@ -2,22 +2,25 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <title>发送签名交易</title>
+        <title>上传交易文件</title>
         <link rel="stylesheet" type="text/css" href="/css/main.css" />
         <script type="text/javascript" src="/js/jquery.js" ></script>
     </head>
     <body>
-        <h1>发送签名交易页面</h1>
-        <form data-type="formSendSignedtxAction" action="/sendsignedtxact" form-rediret="/index">
-            <table>
-                <tr>
-                    <td>签名文件名称：</td><td><input id="txsignedfilename" type="text" name="txsignedfilename"></input></td>
-                </tr>
-                <tr>
-                    <td><input type="submit" value="发送" style="width:100px;height:25px"></input></td>
-                </tr>
-            </table>
-        </form>
+        <div class="head">
+            <h1>上传交易文件</h1>
+            <form data-type="formUploadFileAction" action="/uploadtxact" enctype="multipart/form-data" form-rediret="/index">
+                <table style="width:100%">
+                    <tr>
+                        <td style="width:20%">交易文件：</td>
+                        <td><input style="width:100%" id="uploadfile" type="file" name="uploadfile"></input></td>
+                    </tr>
+                    <tr>
+                        <td><input type="submit" value="上传" style="width:100px;height:25px"></input></td>
+                    </tr>
+                </table>
+            </form>
+        </div>
     </body>
     <script type="text/javascript" src="/js/md5.min.js" ></script>
     <script type="text/javascript" src="/js/base64js.min.js" ></script>

@@ -6,68 +6,100 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"fmt"
 	"encoding/json"
-	"bastionpay_tools/tools"
 	"os"
 	"io"
-	"github.com/satori/go.uuid"
-	"time"
+	"blockchain_server/service"
+	"bastionpay_tools/function"
 )
 
+// copy file
+func CopyFile(src, dst string)(w int64, err error){
+	srcFile,err := os.Open(src)
+	if err!=nil{
+		fmt.Println(err.Error())
+		return
+	}
+	defer srcFile.Close()
+
+	dstFile,err := os.Create(dst)
+	if err!=nil{
+		fmt.Println(err.Error())
+		return
+	}
+
+	defer dstFile.Close()
+
+	return io.Copy(dstFile,srcFile)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
+type WebRes struct {
+	Err int 		`json:"err"`
+	ErrMsg string 	`json:"errmsg"`
+	Value string 	`json:"value"`
+}
+
 type Web struct{
-	onlineTool *tools.OnLine
+	*function.Functions
+
+	filesMap map[string]string
 }
 
-func NewWeb() *Web {
-	w := &Web{}
-	return w
-}
-
-func (self *Web)Init(ol *tools.OnLine) error {
-	if err := self.startHttpServer(); err != nil{
+func (self *Web)Init(clientManager *service.ClientManager, dataDir string) error {
+	// functions
+	self.Functions = &function.Functions{}
+	err := self.Functions.Init(clientManager, dataDir)
+	if err != nil {
 		return err
 	}
 
-	self.onlineTool = ol
+	self.filesMap = make(map[string]string)
+
 	return nil
 }
 
 // start http server
-func (self *Web) startHttpServer() error {
+func (self *Web) StartHttpServer(port string) error {
 	// http
-	l4g.Debug("Start http server on 8054")
+	l4g.Info("Start http server on: %s", port)
 
 	http.Handle("/",http.HandlerFunc(self.handle404))
-	http.Handle("/index",http.HandlerFunc(self.handleIndex))
-
-	// 上传地址文件
-	http.Handle("/uploadaddress", http.HandlerFunc(self.handleUploadAddress))
-	http.Handle("/uploadaddressact", http.HandlerFunc(self.handleUploadAddressAct))
-
-	// 生成交易
-	http.Handle("/buildtx", http.HandlerFunc(self.handleBuildtx))
-	http.Handle("/buildtxact", http.HandlerFunc(self.handleBuildtxAct))
+	http.Handle("/css/", http.FileServer(http.Dir("template")))
+	http.Handle("/js/", http.FileServer(http.Dir("template")))
 
 	// 下载交易文件
 	http.Handle("/data/", http.FileServer(http.Dir(".")))
 
-	// 上传签名交易
-	http.Handle("/uploadsignedtx", http.HandlerFunc(self.handleUploadSignedtx))
+	var path string
+	// files
+	path = "index"
+	self.filesMap["/" + path] = path + ".html"
+	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+
+	path = "uploadaddress"
+	self.filesMap["/" + path] = path + ".html"
+	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+
+	path = "uploadtx"
+	self.filesMap["/" + path] = path + ".html"
+	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+
+	path = "uploadsignedtx"
+	self.filesMap["/" + path] = path + ".html"
+	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+
+	// 上传地址文件
+	http.Handle("/uploadaddressact", http.HandlerFunc(self.handleUploadAddressAct))
+
+	// 上传交易文件
+	http.Handle("/uploadtxact", http.HandlerFunc(self.handleUploadTxAct))
+
+	// 上传签名交易文件
 	http.Handle("/uploadsignedtxact", http.HandlerFunc(self.handleUploadSignedtxAct))
-
-	// 发送签名交易
-	http.Handle("/sendsignedtx", http.HandlerFunc(self.handleSendSignedtx))
-	http.Handle("/sendsignedtxact", http.HandlerFunc(self.handleSendSignedtxAct))
-
-	//http.Handle("/newaddressact", http.HandlerFunc(self.handleNewAddressAct))
-	//http.Handle("/signtxact", http.HandlerFunc(self.handleSigntxAct))
-
-	http.Handle("/css/", http.FileServer(http.Dir("template")))
-	http.Handle("/js/", http.FileServer(http.Dir("template")))
 
 	go func() {
 		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(":8054", nil)
+		err := http.ListenAndServe(":" + port, nil)
 		if err != nil {
 			l4g.Crashf("", err)
 			return
@@ -89,10 +121,15 @@ func (self *Web) handle404(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, nil)
 }
 
-// http handler
-func (self *Web) handleIndex(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/index.html")
+func (self *Web) handlePathFile(w http.ResponseWriter, req *http.Request) {
+	filename, ok := self.filesMap[req.URL.Path]
+	if ok == false {
+		filename = "404.html"
+	}
+
+	t, err := template.ParseFiles("template/html/" + filename)
 	if err != nil {
+		l4g.Error("%s", err.Error())
 		return
 	}
 
@@ -100,175 +137,41 @@ func (self *Web) handleIndex(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-type ResBack struct {
-	Err int `json:"err"`
-	ErrMsg string `json:"errmsg"`
-}
-
-// http handler
-func (self *Web) handleBuildtx(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/buildtx.html")
-	if err != nil {
-		return
-	}
-
-	t.Execute(w, nil)
-	return
-}
-
-// http handler
-func (self *Web) handleBuildtxAct(w http.ResponseWriter, req *http.Request) {
-	cointype := req.FormValue("cointype")
-	chiperprikey := req.FormValue("chiperprikey")
-	fromaddr := req.FormValue("fromaddr")
-	toaddr := req.FormValue("toaddr")
-	count := req.FormValue("count")
-
-	// fmt.Println("正确格式：buildtxcmd 类型 加密私钥 从地址 去地址 数量 交易文件路径")
-	buildtxdir := self.onlineTool.GetDataDir()
-	// uuid
-	uniName, err := func()(string, error) {
-		uuidv4, err := uuid.NewV4()
-		if err != nil {
-			return "", err
-		}
-		uuid := uuidv4.String()
-
-		datetime := time.Now().UTC().Format(time.RFC3339)
-		return datetime + uuid, nil
-	}()
-
-	buildtxfilepath := buildtxdir + "/" + uniName + ".tx"
-
-	var argv []string
-	argv = append(argv, "buildtxcmd")
-	argv = append(argv, cointype)
-	argv = append(argv, chiperprikey)
-	argv = append(argv, fromaddr)
-	argv = append(argv, toaddr)
-	argv = append(argv, count)
-	argv = append(argv, buildtxfilepath)
-	_, err = self.onlineTool.Execute(argv)
-
-	rb := ResBack{}
-	if err != nil {
-		rb.Err = 1
-		rb.ErrMsg = err.Error()
-	}else{
-		rb.ErrMsg = "操作成功， 请到下载页面下载交易文件"
-	}
-
-	b, _ := json.Marshal(rb)
-	w.Write(b)
-
-	return
-}
-
-func CopyFile(src,dst string)(w int64, err error){
-	srcFile,err := os.Open(src)
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-	defer srcFile.Close()
-
-	dstFile,err := os.Create(dst)
-
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-
-	defer dstFile.Close()
-
-	return io.Copy(dstFile,srcFile)
-}
-
-// http handler
-func (self *Web) handleUploadSignedtx(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/uploadsignedtx.html")
-	if err != nil {
-		return
-	}
-
-	t.Execute(w, nil)
-	return
-}
-
-// http handler
-func (self *Web) handleUploadSignedtxAct(w http.ResponseWriter, req *http.Request) {
-	err := func() error {
-		req.ParseMultipartForm(32 << 20)
-		file, handler, err := req.FormFile("uploadfile")
-		if err != nil {
-			fmt.Println("1:", err)
-			return err
-		}
-		defer file.Close()
-		fmt.Fprintf(w, "%v", handler.Header)
-		f, err := os.OpenFile("./data/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
-		if err != nil {
-			fmt.Println("2", err)
-			return err
-		}
-
-		defer f.Close()
-		_, err = io.Copy(f, file)
-		return err
-	}()
-
-	rb := ResBack{}
-	if err != nil {
-		rb.Err = 1
-		rb.ErrMsg = err.Error()
-	}else{
-		rb.ErrMsg = "上传成功"
-	}
-
-	b, _ := json.Marshal(rb)
-	w.Write(b)
-	return
-}
-
-// http handler
-func (self *Web) handleUploadAddress(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/uploadaddress.html")
-	if err != nil {
-		return
-	}
-
-	t.Execute(w, nil)
-	return
-}
-
-// http handler
 func (self *Web) handleUploadAddressAct(w http.ResponseWriter, req *http.Request) {
+	rb := WebRes{Err:1, ErrMsg:""}
+
 	err := func() error {
 		req.ParseMultipartForm(32 << 20)
 		file, handler, err := req.FormFile("uploadfile")
 		if err != nil {
-			fmt.Println("1:", err)
 			return err
 		}
 		defer file.Close()
-		fmt.Fprintf(w, "%v", handler.Header)
-		f, err := os.OpenFile("./data/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
+
+		//fmt.Fprintf(w, "%v", handler.Header)
+
+		//saveFilePath := "./data/" + common.AddressDirName + handler.Filename
+		saveFilePath := self.GetAddressDataDir() + "/" + handler.Filename
+		f, err := os.OpenFile(saveFilePath, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
-			fmt.Println("2", err)
+			return err
+		}
+		defer f.Close()
+
+		_, err = io.Copy(f, file)
+		if err != nil {
 			return err
 		}
 
-		defer f.Close()
-		_, err = io.Copy(f, file)
-		return err
+		rb.Err = 0
+		rb.Value = "Address db file upload ok!"
+		return nil
 	}()
 
-	rb := ResBack{}
 	if err != nil {
 		rb.Err = 1
 		rb.ErrMsg = err.Error()
-	}else{
-		rb.ErrMsg = "上传成功"
+		l4g.Error("handleUploadAddressAct: %s", err.Error())
 	}
 
 	b, _ := json.Marshal(rb)
@@ -276,35 +179,84 @@ func (self *Web) handleUploadAddressAct(w http.ResponseWriter, req *http.Request
 	return
 }
 
-// http handler
-func (self *Web) handleSendSignedtx(w http.ResponseWriter, req *http.Request) {
-	t, err := template.ParseFiles("template/html/sendsignedtx.html")
-	if err != nil {
-		return
-	}
+func (self *Web) handleUploadTxAct(w http.ResponseWriter, req *http.Request) {
+	rb := WebRes{Err:1, ErrMsg:""}
 
-	t.Execute(w, nil)
-	return
-}
+	err := func() error {
+		req.ParseMultipartForm(32 << 20)
+		file, handler, err := req.FormFile("uploadfile")
+		if err != nil {
+			return err
+		}
+		defer file.Close()
 
-// http handler
-func (self *Web) handleSendSignedtxAct(w http.ResponseWriter, req *http.Request) {
-	txfilename := req.FormValue("txsignedfilename")
+		//fmt.Fprintf(w, "%v", handler.Header)
 
-	// signtx
-	fmt.Println("--", txfilename)
-	var argv []string
-	argv = append(argv, "sendsignedtx")
-	buildtxdir := self.onlineTool.GetDataDir()
-	argv = append(argv, buildtxdir + "/" + txfilename)
-	_, err := self.onlineTool.Execute(argv)
+		//saveFilePath := "./data/" + common.TxDirName + handler.Filename
+		//fmt.Println(handler.Filename)
+		saveFilePath := self.GetTxDataDir() + "/" + handler.Filename
+		f, err := os.OpenFile(saveFilePath, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
 
-	rb := ResBack{}
+		_, err = io.Copy(f, file)
+		if err != nil {
+			return err
+		}
+
+		rb.Err = 0
+		rb.Value = "tx file upload ok!"
+		return nil
+	}()
+
 	if err != nil {
 		rb.Err = 1
 		rb.ErrMsg = err.Error()
-	}else{
-		rb.ErrMsg = "发送完成"
+		l4g.Error("handleUploadTxAct: %s", err.Error())
+	}
+
+	b, _ := json.Marshal(rb)
+	w.Write(b)
+	return
+}
+
+func (self *Web) handleUploadSignedtxAct(w http.ResponseWriter, req *http.Request) {
+	rb := WebRes{Err:1, ErrMsg:""}
+
+	err := func() error {
+		req.ParseMultipartForm(32 << 20)
+		file, handler, err := req.FormFile("uploadfile")
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		//fmt.Fprintf(w, "%v", handler.Header)
+
+		//saveFilePath := "./data/" + common.TxDirName + handler.Filename
+		saveFilePath := self.GetTxDataDir() + "/" + handler.Filename
+		f, err := os.OpenFile(saveFilePath, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		_, err = io.Copy(f, file)
+		if err != nil {
+			return err
+		}
+
+		rb.Err = 0
+		rb.Value = "tx file upload ok!"
+		return nil
+	}()
+
+	if err != nil {
+		rb.Err = 1
+		rb.ErrMsg = err.Error()
+		l4g.Error("handleUploadSignedtxAct: %s", err.Error())
 	}
 
 	b, _ := json.Marshal(rb)
