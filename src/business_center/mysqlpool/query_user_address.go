@@ -74,6 +74,20 @@ func QueryUserAddressByIDAddress(assetID int, address string) (UserAddress, bool
 	return UserAddress{}, false
 }
 
+func QueryPayAddress(assetID int) (UserAddress, bool) {
+	db := Get()
+	row := db.QueryRow("select user_key,user_class,asset_id,address,private_key,available_amount,frozen_amount,"+
+		"enabled, unix_timestamp(create_time), unix_timestamp(update_time) from pay_address_view where asset_id = ?;", assetID)
+	var userAddress UserAddress
+	err := row.Scan(&userAddress.UserKey, &userAddress.UserClass, &userAddress.AssetID, &userAddress.Address,
+		&userAddress.PrivateKey, &userAddress.AvailableAmount, &userAddress.FrozenAmount, &userAddress.Enabled,
+		&userAddress.CreateTime, &userAddress.UpdateTime)
+	if err != nil {
+		return userAddress, false
+	}
+	return userAddress, true
+}
+
 func AddUserAddress(userAddress []UserAddress) error {
 	tx, err := Get().Begin()
 	if err != nil {
