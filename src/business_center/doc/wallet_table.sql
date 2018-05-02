@@ -197,7 +197,6 @@ DROP TABLE IF EXISTS `withdrawal_order`;
 CREATE TABLE `withdrawal_order` (
   `id` int(11) NOT NULL AUTO_INCREMENT,  
   `order_id` varchar(255) NOT NULL DEFAULT '',
-  `user_order_id` varchar(255) NOT NULL DEFAULT '',
   `user_key` varchar(255) NOT NULL DEFAULT '',
   `asset_id` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
