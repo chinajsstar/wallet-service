@@ -1,4 +1,4 @@
-package hd_wallet_tmp
+package hd_wallet_sample
 //import (
 //	"crypto/rand"
 //	"encoding/base64"

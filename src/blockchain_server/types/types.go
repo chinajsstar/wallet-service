@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"bytes"
 )
 
 
@@ -145,6 +146,9 @@ type Transfer struct {
 	Confirmationsnumber uint64	// 需要的确认数
 	Time                uint64
 	Token               *Token
+
+	// 根据不同种类的币种, 有不同!只有其自己才能理解
+	Additional_data 	[]byte
 	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
 }
 

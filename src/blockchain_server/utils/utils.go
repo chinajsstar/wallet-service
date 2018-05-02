@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"crypto/md5"
 	"encoding/hex"
+	"math"
 )
 
 func Faltal_error(err error) {
@@ -95,5 +96,31 @@ func MD5(text string) string{
 	ctx := md5.New()
 	ctx.Write([]byte(text))
 	return hex.EncodeToString(ctx.Sum(nil))
+}
+
+func ToSpecialDecimal_asBigint(v uint64, from, to int) *big.Int {
+	i := to - from
+	ibig :=  big.NewInt(int64(v))
+	if i>0 { return ibig.Div(ibig, big.NewInt(int64(math.Pow10( i))))
+	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))) }
+}
+
+// decimal convert int to f
+func DecimalCvt_i_f(v uint64, from, to int) *big.Float {
+	fbig :=  big.NewFloat(float64(v))
+	return fbig.Mul(fbig, big.NewFloat(math.Pow10(to - from)))
+}
+
+// this convert used for from < to
+func DecimalCvt_f_i(v float64, from, to int) int64 {
+	fbig :=  big.NewFloat(v)
+	i, _ := fbig.Mul(fbig, big.NewFloat(math.Pow10(to - from))).Float64()
+	return int64(i)
+}
+
+// decimal convert int to f
+func DecimalCvt_f_f(v float64, from, to int) *big.Float {
+	fbig :=  big.NewFloat(v)
+	return fbig.Mul(fbig, big.NewFloat(math.Pow10(to - from)))
 }
 

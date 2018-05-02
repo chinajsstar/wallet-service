@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"encoding/hex"
 	"github.com/btcsuite/btcd/chaincfg"
-	"blockchain_server/chains/btc"
+	"github.com/ethereum/go-ethereum/swarm/api/http"
 )
 
 const (
-	Name_KeySettings = "key_settings"
-	Name_RPCSettings = "rpc_settings"
+	Name_KeySettings = "Key_settings"
+	Name_RPCSettings = "Rpc_settings"
 
 	Networktype_test = "test"
 	Networktype_main = "main"
@@ -26,10 +26,49 @@ type RPCSettings struct {
 	Password 		string	`json:"password, string"`
 	Endpoint		string	`json:"endpoint, string"`
 	NetworkMode		string	`json:"network_mode, string"`
-	// test or main network
+	Http_server 	string	`json:"http_server"`
 }
 
+var (
+	init_ok             = false
+	Key_settings *KeySettings
+	Rpc_settings *RPCSettings
+)
+
+func InitOk () bool {return init_ok}
+
 func init() {
+	var err error
+	main_cfg := config.MainConfiger()
+
+	if main_cfg==nil {
+		l4g.Error("btc settings init faild, main config is nil")
+		return
+	}
+
+	if types.Onlinemode_online == main_cfg.Online_mode {
+		if Rpc_settings, err = RPCSettings_from_MainConfig(); err==nil {
+		} else {
+			l4g.Error("btc client init faild, message:%s", err)
+			return
+		}
+	}
+
+	if Key_settings, err = KeySettings_from_MainConfig(); err==nil {
+		// 在debug模式或者offline模式才会去创建主私钥,
+		// 在online模式, 只会从config文件中读取配置的主公钥, 用来生成子地址
+		if !config.Debugmode && main_cfg.Online_mode!=types.Onlinemode_offline {
+			init_ok = true
+			return
+		}
+		l4g.Trace("btc wallet will create keys!")
+		if err = initMajorkey (); err!=nil|| Key_settings ==nil {
+			l4g.Error("btc init major key faild, message:%s", err.Error())
+			return
+		}
+	}
+
+	init_ok = true
 }
 
 func (self *RPCSettings) Isvalid() bool {
@@ -52,26 +91,23 @@ func RPCSettings_from_MainConfig() (*RPCSettings, error) {
 
 	if v, isok := rpcsettings_tmp_json.(map[string]interface{}); isok {
 		if e := v["rpc_url"]; e != nil {
-			if t, isok := e.(string); isok {
-				rpc_settings_tmp.Rpc_url = t
-			}
+			if t, isok := e.(string); isok { rpc_settings_tmp.Rpc_url = t }
 		}
 		if e := v["name"]; e != nil {
-			if t, isok := e.(string); isok {
-				rpc_settings_tmp.Username = t
-			}
+			if t, isok := e.(string); isok { rpc_settings_tmp.Username = t }
 		}
 		if e := v["password"]; e != nil {
-			if t, isok := e.(string); isok {
-				rpc_settings_tmp.Password = t
-			}
+			if t, isok := e.(string); isok { rpc_settings_tmp.Password = t }
 		}
 
 		if e := v["endpoint"]; e != nil {
-			if t, isok := e.(string); isok {
-				rpc_settings_tmp.Endpoint = t
-			}
+			if t, isok := e.(string); isok { rpc_settings_tmp.Endpoint = t }
 		}
+
+		if e:= v["http_server"]; e!=nil {
+			if t, isok := e.(string); isok { rpc_settings_tmp.Http_server = t }
+		}
+
 		if e := v["network_mode"]; e!=nil {
 			if t, isok := e.(string); isok {
 				if t!= Networktype_main && t!= Networktype_test {
@@ -192,52 +228,7 @@ func KeySettings_from_MainConfig() (*KeySettings, error) {
 	return nil, fmt.Errorf("BTC key-setitngs Invalid!")
 }
 
-/*
-func load_keysettings() error {
-	var parent struct {
-		For_debug bool `json:"debug"`
-		sub struct {
-			sub struct {
-				Config *keySettingsUnmarshal `json:Key_settings`
-			} `josn:"btc"`
-		}`json:"Clientconfig"`
-	}
-	if Key_settings !=nil { return nil }
-
-	if Key_settings = KeySettings_from_MainConfig(); Key_settings ==nil {
-		message := "Load btc_settings settings faild!"
-		l4g.Trace(message)
-		return fmt.Errorf(message)
-	} else { l4g.Trace("Load btc_settings settings success!") }
-
-	// if try reload from settings from configuration file
-	if false {
-		cltconfig := Client_config()
-		if cltconfig == nil {
-			return fmt.Errorf("btc client is nil, no more to saying the key settings!")
-		}
-		configfile := config.GetConfigFilePath()
-		if dat, err := ioutil.ReadFile(configfile); err!=nil {
-			return err
-		} else {
-			err = json.Unmarshal(dat, &parent)
-			if err!=nil { return err }
-			if parent.sub.sub.Config!=nil {
-				Key_settings = parent.sub.sub.Config.keySettings()
-
-				if nil== Key_settings {
-					return fmt.Errorf("Invalid btc sub-config.")
-				}
-
-				cltconfig.SubConfigs[Name_KeySettings] = Key_settings
-			} else { return types.NewNotFound("btc sub-config not found!")}
-			l4g.Trace("BTC sub configurations : %s", Key_settings.String())
-		}
-	}
-	return nil
-}
-*/
-func new_majorkey() error {
+func initMajorkey() error {
 	// Generate a random SeedValue at the recommended length.
 	seed, err := hdkeychain.GenerateSeed(hdkeychain.RecommendedSeedLen)
 	if err != nil {
@@ -253,7 +244,7 @@ func new_majorkey() error {
 		netparam = &chaincfg.MainNetParams
 	}
 
-	tmp_keysettings := KeySettings{SeedValue:seed}
+	tmp_keysettings := &KeySettings{SeedValue:seed}
 
 	// Generate a new master node using the SeedValue.
 	if key, err := hdkeychain.NewMaster(seed, netparam); err!=nil {
@@ -276,13 +267,15 @@ func new_majorkey() error {
 		seed_value	  :[%s],
 		extend_private:[%s],
 		extend_public :[%s],
-		--------------------------------------`,		hex.EncodeToString(tmp_keysettings.SeedValue),
+		--------------------------------------`, hex.EncodeToString(tmp_keysettings.SeedValue),
 		tmp_keysettings.Ext_pri.String(),
 		tmp_keysettings.Ext_pub.String() )
 
 	// TODO:这里可能应该把秘钥配置导出到一个单独的文件中
 	// TODO:已方便备份
 	config.MainConfiger().Save()
+
+	Key_settings = tmp_keysettings
 	return nil
 }
 

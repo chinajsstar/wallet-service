@@ -30,6 +30,8 @@ type ChainClient interface {
 	GetBalance(address string, tokenname *string) (uint64, error)
 	Tx(tx_hash string)(*types.Transfer, error)
 
+	SetNotifyChannel(ch chan interface{})
+
 	Start() error
 	Stop()
 }

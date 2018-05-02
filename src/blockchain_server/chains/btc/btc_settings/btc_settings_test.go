@@ -23,14 +23,14 @@ func TestSettings  (t *testing.T) {
 	if Key_settings, err := KeySettings_from_MainConfig(); err!=nil {
 
 	} else if Key_settings ==nil || !Key_settings.IsValid() {
-		if err:=new_majorkey(); err!=nil {
+		if err:=initMajorkey(); err!=nil {
 			l4g.Error("HDWallet init error, message:%s", err.Error())
 		}
 	}
 
-	if rpc_settings, err := RPCSettings_from_MainConfig(); err!=nil {
-		l4g.Error("rpc settings faild, message:%s", err.Error())
-	}
+	//if rpc_settings, err := RPCSettings_from_MainConfig(); err!=nil {
+	//	l4g.Error("rpc settings faild, message:%s", err.Error())
+	//}
 
 	btcconfig.SubConfigs[Name_KeySettings] = key_settings
 	btcconfig.SubConfigs[Name_RPCSettings] = rpc_settings

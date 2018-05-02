@@ -29,11 +29,11 @@
 //
 // Extended Keys
 //
-// Hierarchical deterministic wallets are simply deserialized extended keys. Extended Keys can be imported and exported as base58-encoded strings. Here are two examples:
+// Hierarchical deterministic wallets are simply deserialized extended keys. Extended Keys can be imported and exported as base58-encoded strings. Here are two samples:
 //          public key:   "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
 //          private key:  "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
 //
-package hd_wallet_tmp
+package hd_wallet_sample
 
 import (
 	"crypto/sha256"

@@ -139,6 +139,10 @@ func (self *Client)init() error {
 	return nil
 }
 
+func (self *Client) SetNofityChannel(ch chan interface{}) {
+	return
+}
+
 func (self *Client) Start() error {
 	if err := self.beginSubscribeBlockHaders(); err!=nil {
 		self.Stop()
