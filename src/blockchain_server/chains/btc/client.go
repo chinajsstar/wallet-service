@@ -145,67 +145,6 @@ func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
 	return nil
 }
 
-/*
-func (m *memWallet) CreateTransaction(outputs []*wire.TxOut, feeRate btcutil.Amount) (*wire.MsgTx, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	tx := wire.NewMsgTx(wire.TxVersion)
-
-	// Tally up the total amount to be sent in order to perform coin
-	// selection shortly below.
-	var outputAmt btcutil.Amount
-	for _, output := range outputs {
-		outputAmt += btcutil.Amount(output.Value)
-		tx.AddTxOut(output)
-	}
-
-	// Attempt to fund the transaction with spendable utxos.
-	if err := m.fundTx(tx, outputAmt, feeRate); err != nil {
-		return nil, err
-	}
-
-	// Populate all the selected inputs with valid sigScript for spending.
-	// Along the way record all outputs being spent in order to avoid a
-	// potential double spend.
-	spentOutputs := make([]*utxo, 0, len(tx.TxIn))
-	for i, txIn := range tx.TxIn {
-		outPoint := txIn.PreviousOutPoint
-		utxo := m.utxos[outPoint]
-
-		extendedKey, err := m.hdRoot.Child(utxo.keyIndex)
-		if err != nil {
-			return nil, err
-		}
-
-		privKey, err := extendedKey.ECPrivKey()
-		if err != nil {
-			return nil, err
-		}
-
-		sigScript, err := txscript.SignatureScript(tx, i, utxo.pkScript,
-			txscript.SigHashAll, privKey, true)
-		if err != nil {
-			return nil, err
-		}
-
-		txIn.SignatureScript = sigScript
-
-		spentOutputs = append(spentOutputs, utxo)
-	}
-
-	// As these outputs are now being spent by this newly created
-	// transaction, mark the outputs are "locked". This action ensures
-	// these outputs won't be double spent by any subsequent transactions.
-	// These locked outputs can be freed via a call to UnlockOutputs.
-	for _, utxo := range spentOutputs {
-		utxo.isLocked = true
-	}
-
-	return tx, nil
-}
-*/
-
 func (c *Client)BuildTx(stx *types.Transfer) error {
 	var to, change btcutil.Address
 	var ads []btcutil.Address
