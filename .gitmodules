@@ -10,12 +10,6 @@
 [submodule "src/github.com/pki-io/ecies"]
 	path = src/github.com/pki-io/ecies
 	url = https://github.com/pki-io/ecies
-[submodule "src/golang.org/x/crypto/"]
-	path = src/golang.org/x/crypto
-	url = https://github.com/golang/crypto.git
-[submodule "src/src/golang.org/x/crypto"]
-	path = src/src/golang.org/x/crypto
-	url = https://github.com/golang/crypto.git
 [submodule "src/golang.org/x/crypto"]
 	path = src/golang.org/x/crypto
 	url = https://github.com/golang/crypto.git
