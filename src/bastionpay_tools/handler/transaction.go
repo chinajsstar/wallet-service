@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"encoding/json"
+	"bastionpay_tools/common"
 )
 
 type TxData struct{
@@ -76,8 +77,15 @@ func SignTx(clientManager *service.ClientManager, addressDataDir string, txFileP
 
 	for uniName, txArr := range txDataMap {
 		// 加载离线DB
-		uniOfflineDBName := db.GetOfflineUniDBName(uniName)
-		aCcsOfflineMap, err := db.ImportAddressMap(addressDataDir, uniOfflineDBName)
+		uniAddressInfo, err:= common.ParseUniAddressInfo(uniName)
+		if err != nil {
+			return err
+		}
+
+		uniAbsDir := uniAddressInfo.GetUniAbsDir(addressDataDir)
+
+		uniOfflineAbsDBName := uniAbsDir + "/" + uniName + common.GetOfflineDbNameSuffix()
+		aCcsOfflineMap, err := db.LoadAddressMap(uniOfflineAbsDBName)
 		if err != nil {
 			fmt.Printf("加载离线文件失败: %s\n", err.Error())
 			return err

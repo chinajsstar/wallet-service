@@ -13,6 +13,7 @@ import (
 	"strings"
 	"business_center/mysqlpool"
 	"time"
+	"bastionpay_tools/common"
 )
 
 type Cobank struct{
@@ -173,7 +174,8 @@ func (x *Cobank)importAddress(req *data.SrvRequestData, res *data.SrvResponseDat
 	}
 
 	// read db, import to free addrss
-	aCcs, err := handler.LoadOnlineAddress(x.dataDir, ia.UniName)
+	uniDbName := ia.UniName + "@" + common.GetOnlineDbNameSuffix()
+	aCcs, err := handler.LoadAddress(x.dataDir, uniDbName)
 	if err != nil {
 		res.Data.Err = 1
 		l4g.Error("load online address failed: %s", err.Error())
@@ -192,7 +194,7 @@ func (x *Cobank)importAddress(req *data.SrvRequestData, res *data.SrvResponseDat
 	coinType := uniNameTags[0]
 	dataTime := uniNameTags[1]
 
-	t, err := time.Parse("2006-01-02-15-04-05", dataTime)
+	t, err := time.Parse(common.TimeFormat, dataTime)
 	//uuid := uniNameTags[2]
 	asset_id := -1
 	row := db.QueryRow("select id from asset_property where name = ?", coinType)
@@ -213,7 +215,7 @@ func (x *Cobank)importAddress(req *data.SrvRequestData, res *data.SrvResponseDat
 	for _, acc := range aCcs  {
 		_, err = Tx.Exec("insert free_address (asset_id, address, private_key, create_time) values (?, ?, ?, ?);",
 			asset_id, acc.Address, acc.PrivateKey,
-			t.Format("2006-01-02 15:04:05"))
+			t.Format(def.TimeFormat))
 		if err != nil {
 			l4g.Error("写入失败：%s", err.Error())
 			break

@@ -9,10 +9,10 @@ function del_cookie(name)
     document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/;';
 }
 
-// function Base64Encode(str, encoding='utf-8') {
-//     var bytes = new (TextEncoder || TextEncoderLite)(encoding).encode(str);
-//     return base64js.fromByteArray(bytes);
-// }
+function Base64Encode(str, encoding='utf-8') {
+    var bytes = new (TextEncoder || TextEncoderLite)(encoding).encode(str);
+    return base64js.fromByteArray(bytes);
+}
 
 $("form[data-type=formRegisterAction]").submit(function(event){
     event.preventDefault();

@@ -12,6 +12,7 @@ import (
 	"bastionpay_tools/tools"
 	"time"
 	"strings"
+	"bastionpay_tools/common"
 )
 
 const(
@@ -87,7 +88,41 @@ func main() {
 			break;
 		}else if argv[0] == "help" {
 			ol.Usage()
-		}else{
+		}else if argv[0] == "test" {
+			if len(argv) < 2 {
+				continue
+			}
+
+			text := argv[1]
+
+			md5, _ := common.GetSaltMd5HexByText(text)
+			fmt.Println("md5: ", md5)
+
+			md52 := md5
+			if len(argv) == 3 {
+				md52 = argv[2]
+			}
+
+			err = common.CompareSaltMd5HexByText(text, md52)
+			fmt.Println("com: ", err)
+		}else if argv[0] == "test2" {
+			if len(argv) < 2 {
+				continue
+			}
+
+			path := argv[1]
+
+			md5, _ := common.GetSaltMd5HexByFile(path)
+			fmt.Println("md5: ", md5)
+
+			md52 := md5
+			if len(argv) == 3 {
+				md52 = argv[2]
+			}
+
+			err = common.CompareSaltMd5HexByFile(path, md52)
+			fmt.Println("com: ", err)
+		}else {
 			ol.Execute(argv)
 		}
 	}

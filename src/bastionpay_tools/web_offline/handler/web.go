@@ -6,33 +6,10 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"fmt"
 	"encoding/json"
-	"os"
-	"io"
-	"bastionpay_tools/db"
 	"blockchain_server/service"
 	"bastionpay_tools/function"
 	"strconv"
 )
-
-// copy file
-func CopyFile(src, dst string)(w int64, err error){
-	srcFile,err := os.Open(src)
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-	defer srcFile.Close()
-
-	dstFile,err := os.Create(dst)
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-
-	defer dstFile.Close()
-
-	return io.Copy(dstFile,srcFile)
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 type WebRes struct {
@@ -143,30 +120,13 @@ func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
 			return err
 		}
 
-		var newaddressfilepaths []string
-		uniNames, err := self.NewAddress(cointype, uint32(c))
-		if err != nil {
-			return err
-		}else{
-			for _, uniName := range uniNames{
-				onlineDBPath := self.GetAddressDataDir() + "/" + db.GetOnlineUniDBName(uniName)
-				newaddressfilepath := newaddresssavedir + "/" + db.GetOnlineUniDBName(uniName)
-				_, err = CopyFile(onlineDBPath, newaddressfilepath)
-				if err != nil {
-					return err
-				}
-
-				newaddressfilepaths = append(newaddressfilepaths, newaddressfilepath)
-			}
-		}
-
-		bb, err := json.Marshal(newaddressfilepaths)
+		dstUniDir, err := self.NewAddress(cointype, uint32(c), newaddresssavedir)
 		if err != nil {
 			return err
 		}
 
 		rb.Err = 0
-		rb.Value = "Db file save as：" + string(bb)
+		rb.Value = "Db file save as：" + dstUniDir
 		return nil
 	}()
 

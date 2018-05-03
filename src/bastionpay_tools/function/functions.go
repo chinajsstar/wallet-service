@@ -6,8 +6,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"bastionpay_tools/handler"
 	"os"
-	"errors"
 	"bastionpay_tools/common"
+	"api_router/base/utils"
 )
 
 type Functions struct{
@@ -51,25 +51,66 @@ func (f *Functions) Init(clientManager *service.ClientManager, dataDir string) e
 
 // offline - newaddress
 // create addresses to a db file in data dir, named by uniname
-func (f *Functions) NewAddress(coinType string, count uint32) ([]string, error) {
+func (f *Functions) NewAddress(coinType string, count uint32, savedDir string) (string, error) {
 	mul := count / common.MaxDbCountAddress
 	mod := count % common.MaxDbCountAddress
 	if mod != 0 {
-		return nil, errors.New("count must be 1000 times")
+		mul = mul + 1
+	}
+
+	// 生成本次唯一id
+	uniAddrInfo, err:= common.NewUniAddressInfo(coinType)
+	if err != nil {
+		return "", err
+	}
+
+	// 创建唯一目录
+	err = uniAddrInfo.MkUniAbsDir(f.GetAddressDataDir())
+	if err != nil {
+		return "", err
 	}
 
 	// 批量生成
-	var uniNames []string
-	var i uint32
-	for i = 0; i < mul; i++ {
-		uniName, err := handler.NewAddress(f.clientManager, f.GetAddressDataDir(), coinType, count)
-		if err != nil {
-			return nil, err
+	var addressDbInfos []*common.UniAddressDbInfo
+	left := count
+	var realCount uint32
+	for left > 0 {
+		realCount = common.MaxDbCountAddress
+		if left < common.MaxDbCountAddress {
+			realCount = left
 		}
-		uniNames = append(uniNames, uniName)
+
+		uniAddrDbInfo, err := handler.NewAddress(f.clientManager, f.GetAddressDataDir(), uniAddrInfo, realCount)
+		if err != nil {
+			return "", err
+		}
+
+		// next loop
+		addressDbInfos = append(addressDbInfos, uniAddrDbInfo)
+		left -= realCount
 	}
 
-	return uniNames, nil
+	// 创建目的唯一目录
+	err = uniAddrInfo.MkUniAbsDir(savedDir)
+	if err != nil {
+		return "", err
+	}
+
+	srcUniDir := uniAddrInfo.GetUniAbsDir(f.GetAddressDataDir())
+	dstUniDir := uniAddrInfo.GetUniAbsDir(savedDir)
+	for _, ai := range addressDbInfos {
+		fileName := uniAddrInfo.GetUniName() + "@" + ai.GetUniNameOnline() + "@" + common.GetOnlineDbNameSuffix()
+		// copy
+		srcPath := srcUniDir + "/" + fileName
+		dstPath := dstUniDir + "/" + fileName
+
+		_, err = utils.CopyFile(srcPath, dstPath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return dstUniDir, nil
 }
 
 // offline - signtx
@@ -78,16 +119,35 @@ func (f *Functions)SignTx(txFilePath, txSignedFilePath string) (error) {
  	return handler.SignTx(f.clientManager, f.GetAddressDataDir(), txFilePath, txSignedFilePath)
 }
 
-// offline - load offline address
-// load addresses form a db file in data dir, named by uniname
-func (f *Functions) LoadOfflineAddress(uniName string) ([]*types.Account, error) {
-	return handler.LoadOfflineAddress(f.GetAddressDataDir(), uniName)
+// offline/online - load address
+// load addresses form a db file in data dir, named by dbname
+func (f *Functions) LoadAddress(uniDbName string) ([]*types.Account, error) {
+	uniAddressInfo, err:= common.ParseUniAddressInfo(uniDbName)
+	if err != nil {
+		return nil, err
+	}
+
+	uniAbsDir := uniAddressInfo.GetUniAbsDir(f.GetAddressDataDir())
+	return handler.LoadAddress(uniAbsDir, uniDbName)
 }
 
-// offline/online - load online address
-// load addresses form a db file in data dir, named by uniname
-func (f *Functions) LoadOnlineAddress(uniName string) ([]*types.Account, error) {
-	return handler.LoadOnlineAddress(f.GetAddressDataDir(), uniName)
+// offline/online - load address
+// load addresses form a db file in data dir, named by dbname
+func (f *Functions) VerifyDbMd5(uniDbName string) (error) {
+	uniAddressInfo, err:= common.ParseUniAddressInfo(uniDbName)
+	if err != nil {
+		return err
+	}
+
+	uniAddressLineDbInfo, err := common.ParseUniAddressLineDbInfo(uniDbName)
+	if err != nil {
+		return err
+	}
+
+	uniAbsDir := uniAddressInfo.GetUniAbsDir(f.GetAddressDataDir())
+	uniAbsDbPath := uniAbsDir + "/" + uniDbName
+
+	return common.CompareSaltMd5HexByFile(uniAbsDbPath, uniAddressLineDbInfo.Md5)
 }
 
 // online - buildtx
