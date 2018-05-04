@@ -1,14 +1,14 @@
 package mysqlpool
 
 import (
+	"api_router/base/config"
+	"api_router/base/utils"
 	. "business_center/def"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"math"
 	"time"
-	"api_router/base/utils"
-	"api_router/base/config"
 )
 
 var db *sql.DB = nil
@@ -25,7 +25,7 @@ func init() {
 		return
 	}
 
-	err = config.LoadJsonNode(configPath + "/SuperWallet/cobank.json", "db", &dataSourceName)
+	err = config.LoadJsonNode(configPath+"/SuperWallet/cobank.json", "db", &dataSourceName)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -54,11 +54,6 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 		case "user_class":
 			if value, ok := v.(float64); ok {
 				sqls += " and user_class = ?"
-				*params = append(*params, value)
-			}
-		case "asset_id":
-			if value, ok := v.(float64); ok {
-				sqls += " and asset_id = ?"
 				*params = append(*params, value)
 			}
 		case "asset_name":

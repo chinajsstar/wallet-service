@@ -28,7 +28,7 @@ func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *Ass
 		data := UserAddress{
 			UserKey:         userProperty.UserKey,
 			UserClass:       userProperty.UserClass,
-			AssetID:         assetProperty.AssetID,
+			AssetName:       assetProperty.AssetName,
 			Address:         accounts[0].Address,
 			PrivateKey:      accounts[0].PrivateKey,
 			AvailableAmount: 0,
@@ -51,7 +51,7 @@ func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *Ass
 	if err != nil {
 		return []UserAddress{}
 	}
-	err = mysqlpool.AddUserAccount(userProperty.UserKey, userProperty.UserClass, assetProperty.AssetID)
+	err = mysqlpool.AddUserAccount(userProperty.UserKey, userProperty.UserClass, assetProperty.AssetName)
 	if err != nil {
 		return []UserAddress{}
 	}
@@ -74,7 +74,7 @@ func (a *Address) recvRechargeTxChannel() {
 					}
 
 					blockin2 := TransactionBlockin2{
-						AssetID:       assetProperty.AssetID,
+						AssetName:     assetProperty.AssetName,
 						Hash:          rct.Tx.Tx_hash,
 						MinerFee:      int64(rct.Tx.Minerfee()),
 						BlockinHeight: int64(rct.Tx.InBlock),
@@ -86,7 +86,6 @@ func (a *Address) recvRechargeTxChannel() {
 					case types.Tx_state_mined: //入块
 						{
 							var blockin TransactionBlockin
-							blockin.AssetID = assetProperty.AssetID
 							blockin.AssetName = assetProperty.AssetName
 							blockin.Hash = rct.Tx.Tx_hash
 							blockin.Status = 0
@@ -102,7 +101,6 @@ func (a *Address) recvRechargeTxChannel() {
 					case types.Tx_state_confirmed: //确认
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.AssetID
 							status.AssetName = assetProperty.AssetName
 							status.Hash = rct.Tx.Tx_hash
 							status.Status = 1
@@ -118,7 +116,6 @@ func (a *Address) recvRechargeTxChannel() {
 					case types.Tx_state_unconfirmed: //失败
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.AssetID
 							status.AssetName = assetProperty.AssetName
 							status.Hash = rct.Tx.Tx_hash
 							status.Status = 2
@@ -168,7 +165,6 @@ func (a *Address) recvCmdTxChannel() {
 					case types.Tx_state_mined: //入块
 						{
 							var blockin TransactionBlockin
-							blockin.AssetID = assetProperty.AssetID
 							blockin.AssetName = assetProperty.AssetName
 							blockin.Hash = cmdTx.Tx.Tx_hash
 							blockin.Status = 0
@@ -182,7 +178,6 @@ func (a *Address) recvCmdTxChannel() {
 					case types.Tx_state_confirmed: //确认
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.AssetID
 							status.AssetName = assetProperty.AssetName
 							status.Hash = cmdTx.Tx.Tx_hash
 							status.Status = 1
@@ -196,7 +191,6 @@ func (a *Address) recvCmdTxChannel() {
 					case types.Tx_state_unconfirmed: //失败
 						{
 							var status TransactionStatus
-							status.AssetID = assetProperty.AssetID
 							status.AssetName = assetProperty.AssetName
 							status.Hash = cmdTx.Tx.Tx_hash
 							status.Status = 2
@@ -222,12 +216,12 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 	db := mysqlpool.Get()
 
 	if len(blockin.OrderID) > 0 {
-		row := db.QueryRow("select user_key, asset_id, address, amount, wallet_fee, hash from withdrawal_order"+
+		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash from withdrawal_order"+
 			" where order_id = ?;",
 			blockin.OrderID)
 
 		var tn TransactionNotic
-		row.Scan(&tn.UserKey, &tn.AssetID, &tn.Address, &tn.Amount, &tn.WalletFee, &tn.Hash)
+		row.Scan(&tn.UserKey, &tn.AssetName, &tn.Address, &tn.Amount, &tn.PayFee, &tn.Hash)
 
 		if len(tn.Hash) <= 0 {
 			db.Exec("update withdrawal_order set hash = ? where order_id = ?;", blockin.Hash, blockin.OrderID)
@@ -243,9 +237,9 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 		a.sendTransactionNotic(&tn)
 	}
 
-	_, err := db.Exec("insert transaction_blockin (asset_id, hash, status, miner_fee, blockin_height, blockin_time,"+
+	_, err := db.Exec("insert transaction_blockin (asset_name, hash, status, miner_fee, blockin_height, blockin_time,"+
 		" confirm_height, confirm_time, order_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?);",
-		blockin.AssetID, blockin.Hash, blockin.Status, blockin.MinerFee, blockin.BlockinHeight,
+		blockin.AssetName, blockin.Hash, blockin.Status, blockin.MinerFee, blockin.BlockinHeight,
 		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat), blockin.BlockinHeight,
 		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat), blockin.OrderID)
 
@@ -272,7 +266,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 	case "eth":
 		{
 			//from
-			detail.AssetID = blockin.AssetID
+			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.From
 			detail.TransType = "from"
 			detail.Amount = -int64(transfer.Value)
@@ -281,7 +275,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//to
-			detail.AssetID = blockin.AssetID
+			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.To
 			detail.TransType = "to"
 			detail.Amount = int64(transfer.Value)
@@ -290,7 +284,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//miner_fee
-			detail.AssetID = blockin.AssetID
+			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.From
 			detail.TransType = "miner_fee"
 			detail.Amount = -int64(transfer.Minerfee())
@@ -308,17 +302,17 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 	}
 
 	for _, detail := range blockin.Detail {
-		userAddress, ok := mysqlpool.QueryUserAddressByIDAddress(blockin.AssetID, detail.Address)
+		userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(blockin.AssetName, detail.Address)
 		Tx.Exec("insert transaction_detail "+
-			"(asset_id, address, trans_type, amount, hash, detail_id) "+
+			"(asset_name, address, trans_type, amount, hash, detail_id) "+
 			"values (?, ?, ?, ?, ?, ?);",
-			blockin.AssetID, detail.Address, detail.TransType,
+			blockin.AssetName, detail.Address, detail.TransType,
 			detail.Amount, detail.Hash, detail.DetailID)
 
 		if ok {
 			Tx.Exec("update user_address set available_amount = available_amount + ?, update_time = ?"+
-				" where asset_id = ? and address = ?;",
-				detail.Amount, time.Now().UTC().Format(TimeFormat), userAddress.AssetID, userAddress.Address)
+				" where asset_name = ? and address = ?;",
+				detail.Amount, time.Now().UTC().Format(TimeFormat), userAddress.AssetName, userAddress.Address)
 		}
 
 		switch detail.TransType {
@@ -333,10 +327,10 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 				tn.Type = TypeDeposit
 				tn.Status = StatusBlockin
 				tn.BlockinHeight = blockin.BlockinHeight
-				tn.AssetID = blockin.AssetID
+				tn.AssetName = blockin.AssetName
 				tn.Address = userAddress.Address
 				tn.Amount = detail.Amount
-				tn.WalletFee = 0
+				tn.PayFee = 0
 				tn.Hash = blockin.Hash
 				tn.Time = blockin.BlockinTime
 
@@ -361,9 +355,9 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		return err
 	}
 
-	_, err = db.Exec("insert transaction_status (asset_id, hash, status, confirm_height, confirm_time, update_time, order_id) "+
+	_, err = db.Exec("insert transaction_status (asset_name, hash, status, confirm_height, confirm_time, update_time, order_id) "+
 		"values (?, ?, ?, ?, ?, ?, ?);",
-		status.AssetID, status.Hash, status.Status, status.ConfirmHeight,
+		status.AssetName, status.Hash, status.Status, status.ConfirmHeight,
 		time.Unix(status.ConfirmTime, 0).UTC().Format(TimeFormat),
 		time.Unix(status.UpdateTime, 0).UTC().Format(TimeFormat),
 		status.OrderID)
@@ -373,20 +367,20 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 	}
 
 	db.Exec("update transaction_blockin set status = ?, confirm_height = ?, confirm_time = ?"+
-		" where asset_id = ? and hash = ?;",
+		" where asset_name = ? and hash = ?;",
 		status.Status, status.ConfirmHeight, time.Unix(status.ConfirmTime, 0).UTC().Format(TimeFormat),
-		status.AssetID, status.Hash)
+		status.AssetName, status.Hash)
 
-	rows, _ := db.Query("select asset_id, address, trans_type, amount, hash, detail_id from transaction_detail"+
+	rows, _ := db.Query("select asset_name, address, trans_type, amount, hash, detail_id from transaction_detail"+
 		" where asset_id = ? and hash = ?;",
-		status.AssetID, status.Hash)
+		status.AssetName, status.Hash)
 
 	var detail TransactionDetail
 	for rows.Next() {
-		err := rows.Scan(&detail.AssetID, &detail.Address, &detail.TransType, &detail.Amount,
+		err := rows.Scan(&detail.AssetName, &detail.Address, &detail.TransType, &detail.Amount,
 			&detail.Hash, &detail.DetailID)
 		if err == nil {
-			userAddress, ok := mysqlpool.QueryUserAddressByIDAddress(blockin.AssetID, detail.Address)
+			userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(blockin.AssetName, detail.Address)
 			switch detail.TransType {
 			case "from":
 			case "to":
@@ -394,7 +388,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 					//充值帐户余额修改
 					db.Exec("update user_account set available_amount = available_amount + ?,"+
 						" update_time = ? where user_key = ? and asset_id = ?;",
-						detail.Amount, time.Now().UTC().Format(TimeFormat), userAddress.UserKey, detail.AssetID)
+						detail.Amount, time.Now().UTC().Format(TimeFormat), userAddress.UserKey, detail.AssetName)
 
 					//充值确认消息处理
 					var tn TransactionNotic
@@ -403,10 +397,10 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 					tn.Type = TypeDeposit
 					tn.Status = StatusConfirm
 					tn.BlockinHeight = blockin.BlockinHeight
-					tn.AssetID = blockin.AssetID
+					tn.AssetName = blockin.AssetName
 					tn.Address = detail.Address
 					tn.Amount = detail.Amount
-					tn.WalletFee = 0
+					tn.PayFee = 0
 					tn.Hash = blockin.Hash
 					tn.Time = blockin.BlockinTime
 
@@ -420,11 +414,11 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 
 	//结算提币订单
 	if len(blockin.OrderID) > 0 {
-		row := db.QueryRow("select user_key, asset_id, address, amount, wallet_fee, hash from withdrawal_order"+
+		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash from withdrawal_order"+
 			" where order_id = ?;", blockin.OrderID)
 
 		var tn TransactionNotic
-		err := row.Scan(&tn.UserKey, &tn.AssetID, &tn.Address, &tn.Amount, &tn.WalletFee, &tn.Hash)
+		err := row.Scan(&tn.UserKey, &tn.AssetName, &tn.Address, &tn.Amount, &tn.PayFee, &tn.Hash)
 		if err == nil {
 			tn.MsgID = 0
 			tn.Type = TypeWithdrawal
@@ -435,8 +429,8 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 			a.sendTransactionNotic(&tn)
 
 			_, err := db.Exec("update user_account set frozen_amount = frozen_amount - ?, update_time = ?"+
-				" where user_key = ? and asset_id = ?;",
-				tn.Amount+tn.WalletFee, time.Now().UTC().Format(TimeFormat), tn.UserKey, tn.AssetID)
+				" where user_key = ? and asset_name = ?;",
+				tn.Amount+tn.PayFee, time.Now().UTC().Format(TimeFormat), tn.UserKey, tn.AssetName)
 
 			if err != nil {
 				fmt.Println(err.Error())
@@ -450,14 +444,13 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 func (a *Address) preTransactionFinish(status *TransactionStatus, blockin *TransactionBlockin, transfer *types.Transfer) error {
 	db := mysqlpool.Get()
 	blockin.AssetName = status.AssetName
-	row := db.QueryRow("select asset_id, hash, status, miner_fee, blockin_height, unix_timestamp(blockin_time), order_id"+
+	row := db.QueryRow("select asset_name, hash, status, miner_fee, blockin_height, unix_timestamp(blockin_time), order_id"+
 		" from transaction_blockin where asset_id = ? and hash = ?;",
-		status.AssetID, status.Hash)
+		status.AssetName, status.Hash)
 
-	err := row.Scan(&blockin.AssetID, &blockin.Hash, &blockin.Status, &blockin.MinerFee,
+	err := row.Scan(&blockin.AssetName, &blockin.Hash, &blockin.Status, &blockin.MinerFee,
 		&blockin.BlockinHeight, &blockin.BlockinTime, &blockin.OrderID)
 	if err != nil {
-		blockin.AssetID = status.AssetID
 		blockin.AssetName = status.AssetName
 		blockin.Hash = transfer.Tx_hash
 		blockin.Status = 0
@@ -474,10 +467,10 @@ func (a *Address) sendTransactionNotic(tn *TransactionNotic) error {
 	db := mysqlpool.Get()
 
 	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id,"+
-		" type, status, blockin_height, asset_id, address, amount, wallet_fee, hash, time)"+
+		" type, status, blockin_height, asset_name, address, amount, pay_fee, hash, time)"+
 		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?;",
-		tn.UserKey, tn.Type, tn.Status, tn.BlockinHeight, tn.AssetID, tn.Address,
-		tn.Amount, tn.WalletFee, tn.Hash, time.Unix(tn.Time, 0).Format(TimeFormat), tn.UserKey)
+		tn.UserKey, tn.Type, tn.Status, tn.BlockinHeight, tn.AssetName, tn.Address,
+		tn.Amount, tn.PayFee, tn.Hash, time.Unix(tn.Time, 0).Format(TimeFormat), tn.UserKey)
 	if err != nil {
 		return err
 	}
@@ -538,7 +531,7 @@ func packJson(v interface{}) string {
 }
 
 func unpackJson(s string) ParamsMapping {
-	params := ParamsMapping{UserKey: "", UserOrderID: "", AssetID: 0, Address: "", Amount: 0, Count: 0}
+	params := ParamsMapping{UserKey: "", AssetName: "", Address: "", Amount: 0, Count: 0}
 	var jsonMap map[string]interface{}
 	err := json.Unmarshal([]byte(s), &jsonMap)
 	if err != nil {
@@ -551,13 +544,9 @@ func unpackJson(s string) ParamsMapping {
 			if value, ok := v.(string); ok {
 				params.UserKey = value
 			}
-		case "user_order_id":
+		case "asset_name":
 			if value, ok := v.(string); ok {
-				params.UserOrderID = value
-			}
-		case "asset_id":
-			if value, ok := v.(float64); ok {
-				params.AssetID = int(value)
+				params.AssetName = value
 			}
 		case "address":
 			if value, ok := v.(string); ok {
