@@ -39,7 +39,7 @@ func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callba
 	//添加监控地址
 	if userAddress, ok := mysqlpool.QueryUserAddress(""); ok {
 		for _, v := range userAddress {
-			if assetProperty, ok := mysqlpool.QueryAssetPropertyByID(v.AssetID); ok {
+			if assetProperty, ok := mysqlpool.QueryAssetPropertyByName(v.AssetName); ok {
 				rcaCmd := service.NewRechargeAddressCmd("", assetProperty.AssetName, []string{v.Address})
 				a.wallet.InsertRechargeAddress(rcaCmd)
 			}
@@ -61,12 +61,11 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 
 	paramsMapping := unpackJson(req.Data.Argv.Message)
 	resMap := make(map[string]interface{})
-	resMap["user_order_id"] = paramsMapping.UserOrderID
-	resMap["asset_id"] = paramsMapping.AssetID
+	resMap["asset_name"] = paramsMapping.AssetName
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByID(paramsMapping.AssetID)
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(paramsMapping.AssetName)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_id\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_name\"无效")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -76,7 +75,15 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
-	resMap["data"] = a.generateAddress(&userProperty, &assetProperty, paramsMapping.Count)
+
+	userAddress := a.generateAddress(&userProperty, &assetProperty, paramsMapping.Count)
+	if len(userAddress) > 0 {
+		data := make([]string, 0)
+		for _, v := range userAddress {
+			data = append(data, v.Address)
+		}
+		resMap["data"] = data
+	}
 	res.Data.Value.Message = packJson(resMap)
 
 	return nil
@@ -92,10 +99,8 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 
 	paramsMapping := unpackJson(req.Data.Argv.Message)
 	resMap := make(map[string]interface{})
-	resMap["user_order_id"] = paramsMapping.UserOrderID
-	resMap["asset_id"] = paramsMapping.AssetID
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByID(paramsMapping.AssetID)
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(paramsMapping.AssetName)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取用户帐户信息失败")
 		l4g.Error(res.Data.ErrMsg)
@@ -115,21 +120,21 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	walletFee := assetProperty.WithdrawalValue + int64(float64(paramsMapping.Amount)*assetProperty.WithdrawalRate)
-	if userAccount.AvailableAmount < paramsMapping.Amount+walletFee {
+	payFee := assetProperty.WithdrawalValue + int64(float64(paramsMapping.Amount)*assetProperty.WithdrawalRate)
+	if userAccount.AvailableAmount < paramsMapping.Amount+payFee {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetID)
+	userAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetName)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "没有设置可用的热钱包")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	if userAddress.AvailableAmount < paramsMapping.Amount+walletFee {
+	if userAddress.AvailableAmount < paramsMapping.Amount+payFee {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "热钱包资金不足，这里需要特殊处理")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
@@ -138,8 +143,8 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	uuID := a.generateUUID()
 	resMap["order_id"] = uuID
 
-	err := mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetID, paramsMapping.Address,
-		paramsMapping.Amount, walletFee, uuID)
+	err := mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, paramsMapping.Address,
+		paramsMapping.Amount, payFee, uuID)
 	if err != nil {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足!")
 		l4g.Error(res.Data.ErrMsg)
@@ -154,7 +159,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	if assetProperty.IsToken > 0 {
-		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.CoinName, userAddress.PrivateKey,
+		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
 			paramsMapping.Address, &assetProperty.AssetName, uint64(paramsMapping.Amount)))
 	} else {
 		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,

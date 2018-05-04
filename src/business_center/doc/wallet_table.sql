@@ -47,14 +47,14 @@ CREATE TABLE `user_account` (
   `id` int(11) NOT NULL AUTO_INCREMENT, 
   `user_key` varchar(255) NOT NULL DEFAULT '',
   `user_class` int(11) NOT NULL DEFAULT 0,
-  `asset_id` int(11) NOT NULL DEFAULT 0,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `available_amount` bigint(20) NOT NULL DEFAULT 0,
   `frozen_amount` bigint(20) NOT NULL DEFAULT 0,
   `create_time` datetime NOT NULL,
   `update_time` datetime NOT NULL,
-  PRIMARY KEY (`user_key`,`asset_id`),
+  PRIMARY KEY (`user_key`,`asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`),
-  UNIQUE KEY `user_key_asset` (`user_key`,`asset_id`)
+  UNIQUE KEY `user_key_asset` (`user_key`,`asset_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
@@ -62,11 +62,11 @@ CREATE TABLE `user_account` (
 -- ----------------------------
 DROP TABLE IF EXISTS `asset_property`;
 CREATE TABLE `asset_property` (
-  `asset_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '资产编号',
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '资产编号',
   `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '资产名称',
   `full_name` varchar(255) NOT NULL DEFAULT '' COMMENT '资产全称',
   `is_token` int(11) NOT NULL DEFAULT '0' COMMENT '资产所属类型',
-  `coin_name` varchar(255) NOT NULL DEFAULT '',
+  `parent_name` varchar(255) NOT NULL DEFAULT '',
   `logo` varchar(255) NOT NULL DEFAULT '' COMMENT '图标',
   `deposit_min` double NOT NULL DEFAULT '0' COMMENT '最小充值数量',
   `withdrawal_rate` double NOT NULL DEFAULT '0' COMMENT '提币手续费率(按交易百分比)',
@@ -79,9 +79,9 @@ CREATE TABLE `asset_property` (
   `gas_factor` double NOT NULL DEFAULT '0' COMMENT '矿工费乘数因子',
   `debt` double NOT NULL DEFAULT '0' COMMENT '资产缺口',
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',
-  PRIMARY KEY (`asset_id`),
-  UNIQUE KEY `id_UNIQUE` (`asset_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
 -- ----------------------------
 -- Records of `assets_property`
@@ -95,11 +95,11 @@ INSERT asset_property (asset_name, full_name) VALUES ('eth', 'Ethereum');
 DROP TABLE IF EXISTS `free_address`;
 CREATE TABLE `free_address` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `asset_id` int(11) NOT NULL,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
   `private_key` varchar(400) NOT NULL DEFAULT '',
   `create_time` datetime NOT NULL,
-  PRIMARY KEY (`asset_id`, `address`),
+  PRIMARY KEY (`asset_name`, `address`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -113,14 +113,14 @@ CREATE TABLE `user_address` (
   `user_class` int(11) NOT NULL DEFAULT 0,
   `available_amount` bigint(20) NOT NULL DEFAULT '0',
   `frozen_amount` bigint(20) NOT NULL DEFAULT '0', 
-  `asset_id` int(11) NOT NULL,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
   `private_key` varchar(400) NOT NULL DEFAULT '',
   `enabled` int(11) NOT NULL DEFAULT 1,
   `create_time` datetime NOT NULL,
   `allocation_time` datetime NOT NULL,
   `update_time` datetime NOT NULL,
-  PRIMARY KEY (`asset_id`,`address`),
+  PRIMARY KEY (`asset_name`,`address`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -130,10 +130,10 @@ CREATE TABLE `user_address` (
 DROP TABLE IF EXISTS `pay_address`;
 CREATE TABLE `pay_address` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `asset_id` int(11) NOT NULL,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
   `private_key` varchar(400) NOT NULL DEFAULT '',
-  PRIMARY KEY (`asset_id`),
+  PRIMARY KEY (`asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -144,7 +144,7 @@ CREATE TABLE `pay_address` (
 DROP TABLE IF EXISTS `transaction_blockin`;
 CREATE TABLE `transaction_blockin` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `asset_id` int(11) NOT NULL,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `hash` varchar(255) NOT NULL DEFAULT '',
   `status` int(11) NOT NULL DEFAULT '0' COMMENT '0入块,1已确认,>=2错误状态',
   `miner_fee` bigint(20) NOT NULL DEFAULT '0',
@@ -153,7 +153,7 @@ CREATE TABLE `transaction_blockin` (
   `confirm_height` bigint(20) NOT NULL,
   `confirm_time` datetime NOT NULL,
   `order_id` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`asset_id`,`hash`),
+  PRIMARY KEY (`asset_name`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -164,7 +164,7 @@ CREATE TABLE `transaction_blockin` (
 DROP TABLE IF EXISTS `transaction_detail`;
 CREATE TABLE `transaction_detail` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `asset_id` int(11) NOT NULL,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL,
   `trans_type` varchar(255) NOT NULL COMMENT '支出（from）, 收入(to), 矿工费(miner_fee), 找零(change)',
   `amount` bigint(20) NOT NULL,
@@ -181,14 +181,14 @@ CREATE TABLE `transaction_detail` (
 DROP TABLE IF EXISTS `transaction_status`;
 CREATE TABLE `transaction_status` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `asset_id` int(11) NOT NULL,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `hash` varchar(255) NOT NULL DEFAULT '',
   `status` int(11) NOT NULL DEFAULT '0' COMMENT '0入块,1已确认,>=2错误状态',
   `confirm_height` bigint(20) DEFAULT NULL,
   `confirm_time` datetime DEFAULT NULL,
   `update_time` datetime NOT NULL,
   `order_id` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`asset_id`,`hash`),
+  PRIMARY KEY (`asset_name`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
 
@@ -201,10 +201,10 @@ CREATE TABLE `withdrawal_order` (
   `id` int(11) NOT NULL AUTO_INCREMENT,  
   `order_id` varchar(255) NOT NULL DEFAULT '',
   `user_key` varchar(255) NOT NULL DEFAULT '',
-  `asset_id` varchar(255) NOT NULL DEFAULT '',
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
   `amount` bigint(20) NOT NULL DEFAULT 0,
-  `wallet_fee` bigint(20) NOT NULL DEFAULT 0,
+  `pay_fee` bigint(20) NOT NULL DEFAULT 0,
   `create_time` datetime NOT NULL, 
   `hash` varchar(255) DEFAULT NULL DEFAULT '',
   PRIMARY KEY (`order_id`),
@@ -223,10 +223,10 @@ CREATE TABLE `transaction_notice` (
   `type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
   `status` int(11) NOT NULL COMMENT '0:入块, 1:成功, >1:失败',
   `blockin_height` bigint(20) NOT NULL,
-  `asset_id` int(11) NOT NULL DEFAULT 0 COMMENT '币种',
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '' COMMENT '地址',
   `amount` bigint(20) NOT NULL DEFAULT 0 COMMENT '金额',
-  `wallet_fee` bigint(20) NOT NULL DEFAULT 0 COMMENT '手续费',
+  `pay_fee` bigint(20) NOT NULL DEFAULT 0 COMMENT '手续费',
   `hash` varchar(255) NOT NULL DEFAULT '',
   `time` datetime NOT NULL,
   PRIMARY KEY (`id`),

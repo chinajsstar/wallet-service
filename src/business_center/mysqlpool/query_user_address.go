@@ -9,7 +9,7 @@ import (
 )
 
 func QueryUserAddress(query string) ([]UserAddress, bool) {
-	sqls := "select user_key,user_class,asset_id,address,private_key,available_amount,frozen_amount,enabled," +
+	sqls := "select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount,enabled," +
 		" unix_timestamp(create_time),unix_timestamp(update_time) from user_address" +
 		" where true"
 
@@ -36,7 +36,7 @@ func QueryUserAddress(query string) ([]UserAddress, bool) {
 
 	var data UserAddress
 	for rows.Next() {
-		err := rows.Scan(&data.UserKey, &data.UserClass, &data.AssetID, &data.Address, &data.PrivateKey,
+		err := rows.Scan(&data.UserKey, &data.UserClass, &data.AssetName, &data.Address, &data.PrivateKey,
 			&data.AvailableAmount, &data.FrozenAmount, &data.Enabled, &data.CreateTime, &data.UpdateTime)
 		if err == nil {
 			userAddress = append(userAddress, data)
@@ -66,20 +66,20 @@ func QueryUserAddressCount(query string) int {
 	return count
 }
 
-func QueryUserAddressByIDAddress(assetID int, address string) (UserAddress, bool) {
-	query := fmt.Sprintf("{\"asset_id\":%d, \"address\":\"%s\"}", assetID, address)
+func QueryUserAddressByNameAddress(assetName string, address string) (UserAddress, bool) {
+	query := fmt.Sprintf("{\"asset_name\":%s, \"address\":\"%s\"}", assetName, address)
 	if userAddress, ok := QueryUserAddress(query); ok {
 		return userAddress[0], true
 	}
 	return UserAddress{}, false
 }
 
-func QueryPayAddress(assetID int) (UserAddress, bool) {
+func QueryPayAddress(assetName string) (UserAddress, bool) {
 	db := Get()
-	row := db.QueryRow("select user_key,user_class,asset_id,address,private_key,available_amount,frozen_amount,"+
-		"enabled, unix_timestamp(create_time), unix_timestamp(update_time) from pay_address_view where asset_id = ?;", assetID)
+	row := db.QueryRow("select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount,"+
+		"enabled, unix_timestamp(create_time), unix_timestamp(update_time) from pay_address_view where asset_name = ?;", assetName)
 	var userAddress UserAddress
-	err := row.Scan(&userAddress.UserKey, &userAddress.UserClass, &userAddress.AssetID, &userAddress.Address,
+	err := row.Scan(&userAddress.UserKey, &userAddress.UserClass, &userAddress.AssetName, &userAddress.Address,
 		&userAddress.PrivateKey, &userAddress.AvailableAmount, &userAddress.FrozenAmount, &userAddress.Enabled,
 		&userAddress.CreateTime, &userAddress.UpdateTime)
 	if err != nil {
@@ -97,9 +97,9 @@ func AddUserAddress(userAddress []UserAddress) error {
 	}
 
 	for _, v := range userAddress {
-		_, err := tx.Exec("insert user_address (user_key, user_class, asset_id, address, private_key,"+
+		_, err := tx.Exec("insert user_address (user_key, user_class, asset_name, address, private_key,"+
 			" available_amount, frozen_amount, enabled, create_time, update_time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
-			v.UserKey, v.UserClass, v.AssetID, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
+			v.UserKey, v.UserClass, v.AssetName, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
 			time.Unix(v.CreateTime, 0).UTC().Format(TimeFormat),
 			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
 		if err != nil {
