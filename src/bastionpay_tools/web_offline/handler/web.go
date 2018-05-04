@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"html/template"
 	l4g "github.com/alecthomas/log4go"
-	"fmt"
 	"encoding/json"
 	"blockchain_server/service"
 	"bastionpay_tools/function"
@@ -69,7 +68,6 @@ func (self *Web) StartHttpServer(port string) error {
 		err := http.ListenAndServe(":" + port, nil)
 		if err != nil {
 			l4g.Crashf("", err)
-			return
 		}
 	}()
 
@@ -84,7 +82,10 @@ func (self *Web) handle404(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("template/html/404.html")
 	if (err != nil) {
 		l4g.Error("%s", err.Error())
+		w.Write([]byte(err.Error()))
+		return
 	}
+
 	t.Execute(w, nil)
 }
 
@@ -97,30 +98,31 @@ func (self *Web) handlePathFile(w http.ResponseWriter, req *http.Request) {
 	t, err := template.ParseFiles("template/html/" + filename)
 	if err != nil {
 		l4g.Error("%s", err.Error())
+		w.Write([]byte(err.Error()))
 		return
 	}
 
 	t.Execute(w, nil)
-	return
 }
 
 func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
 	rb := WebRes{Err:1, ErrMsg:""}
 
 	err := func() error {
-		cointype := req.FormValue("cointype")
+		coinType := req.FormValue("cointype")
 		count := req.FormValue("count")
-		newaddresssavedir := req.FormValue("newaddresssavedir")
+		newAddressSaveDir := req.FormValue("newaddresssavedir")
+		//newAddressBackDir := req.FormValue("newaddressbackdir")
 
 		// new address
-		fmt.Println(cointype, "--", count, "--", newaddresssavedir)
+		l4g.Info("newaddress: %s-%s-%s", coinType, count,  newAddressSaveDir)
 
 		c, err := strconv.Atoi(count)
 		if err != nil {
 			return err
 		}
 
-		dstUniDir, err := self.NewAddress(cointype, uint32(c), newaddresssavedir)
+		dstUniDir, err := self.NewAddress(coinType, uint32(c), newAddressSaveDir)
 		if err != nil {
 			return err
 		}
@@ -145,19 +147,19 @@ func (self *Web) handleSigntxAct(w http.ResponseWriter, req *http.Request) {
 	rb := WebRes{Err:1, ErrMsg:""}
 
 	err := func()error{
-		txfilepath := req.FormValue("txfilepath")
-		txsignedfilepath := req.FormValue("txsignedfilepath")
+		txFilePath := req.FormValue("txfilepath")
+		txSignedSaveDir := req.FormValue("txsignedsavedir")
 
 		// signtx
-		fmt.Println(txfilepath, "--", txsignedfilepath)
+		l4g.Info("signtx: %s-%s", txFilePath, txSignedSaveDir)
 
-		err := self.SignTx(txfilepath, txsignedfilepath)
+		uniPath, err := self.SignTx(txFilePath, txSignedSaveDir)
 		if err != nil {
 			return err
 		}
 
 		rb.Err = 0
-		rb.Value = "txsigned save ad：" + txsignedfilepath
+		rb.Value = "txsigned save as：" + uniPath
 		return nil
 	}()
 

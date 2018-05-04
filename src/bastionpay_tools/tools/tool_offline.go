@@ -8,9 +8,6 @@ import (
 	"strconv"
 	"bastionpay_tools/function"
 	"log"
-	"crypto/md5"
-	"encoding/hex"
-	"bastionpay_tools/common"
 )
 
 type OffLine struct{
@@ -21,14 +18,14 @@ func (ol *OffLine)Usage()  {
 	fmt.Println("Usage: ")
 	fmt.Println(">newaddress type count saveddir")
 	fmt.Println("	create new address(parameter：chaintype count saveddir)")
-	fmt.Println(">loadaddress unidbname")
-	fmt.Println("	load format address(parameter：unidbname)")
-	fmt.Println(">checkmd5 unidbname")
-	fmt.Println("	check address md5(parameter：unidbname)")
-	fmt.Println(">testmd5 text")
-	fmt.Println("	testmd5 text md5(parameter：text)")
-	fmt.Println(">signtx txfilepath txsignedfilepath")
-	fmt.Println("	sign transaction(parameter：txfilepath txsignedfilepath)")
+	fmt.Println(">loadaddress uniaddressname")
+	fmt.Println("	load format address(parameter：uniaddressname)")
+	fmt.Println(">verifyaddressfile uniaddressname")
+	fmt.Println("	verify address file md5(parameter：uniaddressname)")
+	fmt.Println(">verifytxfile txpath")
+	fmt.Println("	verifytxfile tx file md5(parameter：txpath)")
+	fmt.Println(">signtx txfilepath saveddir")
+	fmt.Println("	sign transaction(parameter：txfilepath saveddir)")
 }
 
 func (ol *OffLine) Init(clientManager *service.ClientManager, dataDir string) error {
@@ -75,7 +72,7 @@ func (ol *OffLine)Execute(argv []string) (error) {
 		log.Println("newaddress fin: ", uniName)
 	}else if argv[0] == "loadaddress" {
 		if len(argv) != 2 {
-			log.Println("format：loadaddress unidbname")
+			log.Println("format：loadaddress uniaddressname")
 			return errors.New("command error")
 		}
 
@@ -97,49 +94,36 @@ func (ol *OffLine)Execute(argv []string) (error) {
 			fmt.Println("prikey: ", accs[i].PrivateKey)
 		}
 		log.Println("loadaddress fin: ", len)
-	} else if argv[0] == "checkmd5" {
+	} else if argv[0] == "verifyaddressfile" {
 		if len(argv) != 2 {
-			log.Println("format：loadaddress unidbname")
+			log.Println("format：verifyaddressfile uniaddressname")
 			return errors.New("command error")
 		}
 
 		dbName := argv[1]
-		err = ol.VerifyDbMd5(dbName)
-		log.Println("checkmd5 fin: ", err)
+		err = ol.VerifyAddressMd5(dbName)
+		log.Println("verifyaddressfile fin: ", err)
+	} else if argv[0] == "verifytxfile" {
+		if len(argv) != 2 {
+			log.Println("format：verifytxfile txpath")
+			return errors.New("command error")
+		}
+
+		txPath := argv[1]
+		err = ol.VerifyTxMd5(txPath)
+		log.Println("verifytxfile fin: ", err)
 	} else if argv[0] == "signtx" {
 		if len(argv) != 3 {
-			log.Println("format: signtx txfilepath txsignedfilepath")
+			log.Println("format: signtx txfilepath saveddir")
 			return errors.New("command error")
 		}
 
 		txFilePath := argv[1]
-		txSignedFilePath := argv[2]
-		err = ol.SignTx(txFilePath, txSignedFilePath)
-		log.Println("checkmd5 fin: ", err)
-	} else if argv[0] == "testmd5" {
-		if len(argv) != 2 {
-			log.Println("format: testmd5 text")
-			return errors.New("command error")
-		}
-		func(){
-			md5salt, err := common.GetSaltMd5HexByText(argv[1])
-			fmt.Println("salt md5: ", md5salt)
-
-			err = common.CompareSaltMd5HexByText(argv[1], md5salt)
-			fmt.Println("compare salt md5: ", err)
-		}()
-		func(){
-			h := md5.New()
-			h.Write([]byte(argv[1]))
-			sum := h.Sum(nil)
-
-			md5salt := hex.EncodeToString(sum)
-			fmt.Println("no salt md5: ", md5salt)
-
-			err := common.CompareSaltMd5HexByText(argv[1], md5salt)
-			fmt.Println("compare salt md5: ", err)
-		}()
-	}else{
+		txSavedDir := argv[2]
+		res, err := ol.SignTx(txFilePath, txSavedDir)
+		log.Println("signtx fin: ", err)
+		log.Println("signtx res: ", res)
+	} else{
 		ol.Usage()
 		err = errors.New("unknown command")
 	}
