@@ -7,10 +7,9 @@ import (
 )
 
 func QueryAssetProperty(query string) ([]AssetProperty, bool) {
-	sqls := "select asset_id,asset_name,full_name,is_token,coin_name,logo,deposit_min,withdrawal_rate,withdrawal_value," +
-		"withdrawal_reserve_rate,withdrawal_alert_rate,withdrawal_stategy,confirmation_num,decaimal,gas_factor," +
-		"debt,park_amount from asset_property" +
-		" where true"
+	sqls := "select asset_id,asset_name,full_name,is_token,coin_name,logo,deposit_min,withdrawal_rate," +
+		"withdrawal_value,withdrawal_reserve_rate,withdrawal_alert_rate,withdrawal_stategy,confirmation_num," +
+		"decaimal,gas_factor,debt,park_amount from asset_property where true"
 
 	assetProperty := make([]AssetProperty, 0)
 	params := make([]interface{}, 0)

@@ -73,6 +73,15 @@ func (a *Address) recvRechargeTxChannel() {
 						continue
 					}
 
+					blockin2 := TransactionBlockin2{
+						AssetID:       assetProperty.AssetID,
+						Hash:          rct.Tx.Tx_hash,
+						MinerFee:      int64(rct.Tx.Minerfee()),
+						BlockinHeight: int64(rct.Tx.InBlock),
+						OrderID:       "",
+						Time:          int64(rct.Tx.Time),
+					}
+
 					switch rct.Tx.State {
 					case types.Tx_state_mined: //入块
 						{
@@ -87,6 +96,8 @@ func (a *Address) recvRechargeTxChannel() {
 							blockin.OrderID = ""
 
 							a.transactionBegin(&blockin, rct.Tx)
+
+							blockin2.Status = 0
 						}
 					case types.Tx_state_confirmed: //确认
 						{
@@ -101,6 +112,8 @@ func (a *Address) recvRechargeTxChannel() {
 							status.OrderID = ""
 
 							a.transactionFinish(&status, rct.Tx)
+
+							blockin2.Status = 1
 						}
 					case types.Tx_state_unconfirmed: //失败
 						{
@@ -115,7 +128,16 @@ func (a *Address) recvRechargeTxChannel() {
 							status.OrderID = ""
 
 							a.transactionFinish(&status, rct.Tx)
+
+							blockin2.Status = 2
 						}
+					default:
+						continue
+					}
+
+					if blockin2.Status == 0 {
+						a.transactionBegin2(&blockin2, rct.Tx)
+					} else {
 					}
 				}
 			case <-ctx.Done():
@@ -221,17 +243,21 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 		a.sendTransactionNotic(&tn)
 	}
 
-	_, err := db.Exec("insert transaction_blockin (asset_id, hash, status, miner_fee, blockin_height, blockin_time, order_id)"+
-		" values (?, ?, ?, ?, ?, ?, ?);",
+	_, err := db.Exec("insert transaction_blockin (asset_id, hash, status, miner_fee, blockin_height, blockin_time,"+
+		" confirm_height, confirm_time, order_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?);",
 		blockin.AssetID, blockin.Hash, blockin.Status, blockin.MinerFee, blockin.BlockinHeight,
-		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat),
-		blockin.OrderID)
+		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat), blockin.BlockinHeight,
+		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat), blockin.OrderID)
 
 	if err != nil {
 		return err
 	}
 
 	return a.preSettlement(blockin, transfer)
+}
+
+func (a *Address) transactionBegin2(blockin *TransactionBlockin2, transfer *types.Transfer) error {
+	return nil
 }
 
 func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Transfer) error {
@@ -346,8 +372,10 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		return nil
 	}
 
-	db.Exec("update transaction_blockin set status = ? where asset_id = ? and hash = ?;",
-		status.Status, status.AssetID, status.Hash)
+	db.Exec("update transaction_blockin set status = ?, confirm_height = ?, confirm_time = ?"+
+		" where asset_id = ? and hash = ?;",
+		status.Status, status.ConfirmHeight, time.Unix(status.ConfirmTime, 0).UTC().Format(TimeFormat),
+		status.AssetID, status.Hash)
 
 	rows, _ := db.Query("select asset_id, address, trans_type, amount, hash, detail_id from transaction_detail"+
 		" where asset_id = ? and hash = ?;",

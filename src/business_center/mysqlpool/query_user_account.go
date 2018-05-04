@@ -78,8 +78,8 @@ func AddUserAccount(userKey string, userClass int, assetID int) error {
 	db := Get()
 	nowTM := time.Now().UTC().Format(TimeFormat)
 	_, err := db.Exec("insert user_account (user_key, user_class, asset_id, available_amount, frozen_amount,"+
-		" create_time, update_time) values (?, ?, ?, 0, 0, ?, ?);",
-		userKey, userClass, assetID, nowTM, nowTM)
+		" create_time, allocation_time, update_time) values (?, ?, ?, 0, 0, ?, ?, ?);",
+		userKey, userClass, assetID, nowTM, nowTM, nowTM)
 	if err != nil {
 		count := 0
 		row := db.QueryRow("select count(*) from user_account where user_key = ? and asset_id = ?;", userKey, assetID)

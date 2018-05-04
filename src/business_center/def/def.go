@@ -155,6 +155,17 @@ type TransactionBlockin struct {
 	Detail        []TransactionDetail `json:"detail"`
 }
 
+type TransactionBlockin2 struct {
+	AssetID       int                 `json:"asset_id"`
+	Hash          string              `json:"hash"`
+	Status        int                 `json:"status"`
+	MinerFee      int64               `json:"miner_fee"`
+	BlockinHeight int64               `json:"blockin_height"`
+	OrderID       string              `json:"order_id"`
+	Time          int64               `json:"blockin_time"`
+	Detail        []TransactionDetail `json:"detail"`
+}
+
 type TransactionDetail struct {
 	AssetID   int    `json:"asset_id"`
 	Address   string `json:"address"`

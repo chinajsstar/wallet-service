@@ -118,6 +118,7 @@ CREATE TABLE `user_address` (
   `private_key` varchar(400) NOT NULL DEFAULT '',
   `enabled` int(11) NOT NULL DEFAULT 1,
   `create_time` datetime NOT NULL,
+  `allocation_time` datetime NOT NULL,
   `update_time` datetime NOT NULL,
   PRIMARY KEY (`asset_id`,`address`),
   UNIQUE KEY `id_UNIQUE` (`id`)
@@ -147,8 +148,10 @@ CREATE TABLE `transaction_blockin` (
   `hash` varchar(255) NOT NULL DEFAULT '',
   `status` int(11) NOT NULL DEFAULT '0' COMMENT '0入块,1已确认,>=2错误状态',
   `miner_fee` bigint(20) NOT NULL DEFAULT '0',
-  `blockin_height` bigint(20) DEFAULT NULL,
+  `blockin_height` bigint(20) NOT NULL,
   `blockin_time` datetime NOT NULL,
+  `confirm_height` bigint(20) NOT NULL,
+  `confirm_time` datetime NOT NULL,
   `order_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`asset_id`,`hash`),
   UNIQUE KEY `id_UNIQUE` (`id`)

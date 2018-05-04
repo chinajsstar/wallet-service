@@ -9,12 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	l4g "github.com/alecthomas/log4go"
-	"github.com/satori/go.uuid"
-	"math"
 	"sync"
-	"time"
 )
 
 type Address struct {
@@ -158,121 +154,13 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	if assetProperty.IsToken > 0 {
-		a.wallet.SendTx(service.NewSendTxCmd(paramsMapping.UserOrderID, assetProperty.CoinName, userAddress.PrivateKey,
+		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.CoinName, userAddress.PrivateKey,
 			paramsMapping.Address, &assetProperty.AssetName, uint64(paramsMapping.Amount)))
 	} else {
-		a.wallet.SendTx(service.NewSendTxCmd(paramsMapping.UserOrderID, assetProperty.AssetName, userAddress.PrivateKey,
+		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
 			paramsMapping.Address, nil, uint64(paramsMapping.Amount)))
 	}
 	res.Data.Value.Message = string(pack)
-	return nil
-}
-
-func (a *Address) oldWithdrawal(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	var reqInfo ReqWithdrawal
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqInfo)
-	if err != nil {
-		fmt.Printf("Withdrawal Unmarshal Error : %s/n", err.Error())
-		return err
-	}
-
-	var rspInfo RspWithdrawal
-	rspInfo.UserOrderID = reqInfo.UserOrderID
-	rspInfo.Timestamp = time.Now().Unix()
-	res.Data.Err = 0
-	res.Data.ErrMsg = ""
-
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
-	if !ok {
-		err := errors.New("withdrawal UserProperty Find Error")
-		res.Data.Err = -1
-		res.Data.ErrMsg = err.Error()
-		return err
-	}
-
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(reqInfo.Symbol)
-	if !ok {
-		err := errors.New("withdrawal AssetProperty Find Error")
-		res.Data.Err = -1
-		res.Data.ErrMsg = err.Error()
-		return err
-	}
-
-	row := mysqlpool.Get().QueryRow("select a.address, a.private_key,"+
-		" b.available_amount, b.frozen_amount from pay_address a"+
-		" left join user_address b on a.asset_id = b.asset_id and a.address = b.address"+
-		" where a.asset_id = ?", assetProperty.AssetID)
-
-	var (
-		address         string
-		privateKey      string
-		availableAmount int64
-		frozenAmount    int64
-	)
-	err = row.Scan(&address, &privateKey, &availableAmount, &frozenAmount)
-	if err != nil {
-		fmt.Println("没有设置热钱包")
-		return err
-	}
-
-	amount := int64(reqInfo.Amount * math.Pow10(8))
-	fee := int64(float64(amount) * assetProperty.WithdrawalRate)
-
-	if availableAmount < amount+fee {
-		fmt.Println("热钱包资金不够")
-		return nil
-	}
-
-	Tx, err := mysqlpool.Get().Begin()
-	if err != nil {
-		return err
-	}
-
-	ret, err := Tx.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
-		" update_time = ? where user_key = ? and asset_id = ? and available_amount >= ?;",
-		amount+fee, amount+fee,
-		time.Now().UTC().Format(TimeFormat),
-		userProperty.UserKey,
-		assetProperty.AssetID,
-		amount+fee)
-
-	if err != nil {
-		Tx.Rollback()
-		return err
-	}
-
-	rows, _ := ret.RowsAffected()
-	if rows < 1 {
-		Tx.Rollback()
-		return nil
-	}
-
-	uID, _ := uuid.NewV4()
-	rspInfo.OrderID = uID.String()
-
-	_, err = Tx.Exec("insert withdrawal_order (order_id, user_order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
-		"values (?, ?, ?, ?, ?, ?, ?, ?);",
-		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.AssetID,
-		reqInfo.ToAddress, amount, fee,
-		time.Now().UTC().Format(TimeFormat))
-
-	Tx.Commit()
-
-	pack, err := json.Marshal(rspInfo)
-	if err != nil {
-		fmt.Printf("withdrawal RspNewAddress Marshal Error : %s/n", err.Error())
-		return err
-	}
-
-	if assetProperty.IsToken > 0 {
-		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.CoinName, privateKey, reqInfo.ToAddress, &assetProperty.AssetName, uint64(amount))
-		a.wallet.SendTx(txCmd)
-	} else {
-		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.AssetName, privateKey, reqInfo.ToAddress, nil, uint64(amount))
-		a.wallet.SendTx(txCmd)
-	}
-	res.Data.Value.Message = string(pack)
-
 	return nil
 }
 
