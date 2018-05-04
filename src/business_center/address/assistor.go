@@ -12,6 +12,7 @@ import (
 	"github.com/satori/go.uuid"
 	"log"
 	"math"
+	"reflect"
 	"time"
 )
 
@@ -35,6 +36,7 @@ func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *Ass
 			FrozenAmount:    0,
 			Enabled:         1,
 			CreateTime:      nowTM,
+			AllocationTime:  nowTM,
 			UpdateTime:      nowTM,
 		}
 
@@ -372,7 +374,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		status.AssetName, status.Hash)
 
 	rows, _ := db.Query("select asset_name, address, trans_type, amount, hash, detail_id from transaction_detail"+
-		" where asset_id = ? and hash = ?;",
+		" where asset_name = ? and hash = ?;",
 		status.AssetName, status.Hash)
 
 	var detail TransactionDetail
@@ -387,7 +389,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 				if ok && userAddress.UserClass == 0 {
 					//充值帐户余额修改
 					db.Exec("update user_account set available_amount = available_amount + ?,"+
-						" update_time = ? where user_key = ? and asset_id = ?;",
+						" update_time = ? where user_key = ? and asset_name = ?;",
 						detail.Amount, time.Now().UTC().Format(TimeFormat), userAddress.UserKey, detail.AssetName)
 
 					//充值确认消息处理
@@ -445,7 +447,7 @@ func (a *Address) preTransactionFinish(status *TransactionStatus, blockin *Trans
 	db := mysqlpool.Get()
 	blockin.AssetName = status.AssetName
 	row := db.QueryRow("select asset_name, hash, status, miner_fee, blockin_height, unix_timestamp(blockin_time), order_id"+
-		" from transaction_blockin where asset_id = ? and hash = ?;",
+		" from transaction_blockin where asset_name = ? and hash = ?;",
 		status.AssetName, status.Hash)
 
 	err := row.Scan(&blockin.AssetName, &blockin.Hash, &blockin.Status, &blockin.MinerFee,
@@ -532,33 +534,47 @@ func packJson(v interface{}) string {
 
 func unpackJson(s string) ParamsMapping {
 	params := ParamsMapping{UserKey: "", AssetName: "", Address: "", Amount: 0, Count: 0}
-	var jsonMap map[string]interface{}
-	err := json.Unmarshal([]byte(s), &jsonMap)
+
+	var v interface{}
+	err := json.Unmarshal([]byte(s), &v)
 	if err != nil {
 		return params
 	}
 
-	for k, v := range jsonMap {
-		switch k {
-		case "user_key":
-			if value, ok := v.(string); ok {
-				params.UserKey = value
+	switch reflect.TypeOf(v).Kind() {
+	case reflect.Slice:
+		if jsonArr, ok := v.([]interface{}); ok {
+			for _, v := range jsonArr {
+				if value, ok := v.(string); ok {
+					params.Params = append(params.Params, value)
+				}
 			}
-		case "asset_name":
-			if value, ok := v.(string); ok {
-				params.AssetName = value
-			}
-		case "address":
-			if value, ok := v.(string); ok {
-				params.Address = value
-			}
-		case "amount":
-			if value, ok := v.(float64); ok {
-				params.Amount = int64(value * math.Pow10(8))
-			}
-		case "count":
-			if value, ok := v.(float64); ok {
-				params.Count = int(value)
+		}
+	case reflect.Map:
+		if jsonMap, ok := v.(map[string]interface{}); ok {
+			for k, v := range jsonMap {
+				switch k {
+				case "user_key":
+					if value, ok := v.(string); ok {
+						params.UserKey = value
+					}
+				case "asset_name":
+					if value, ok := v.(string); ok {
+						params.AssetName = value
+					}
+				case "address":
+					if value, ok := v.(string); ok {
+						params.Address = value
+					}
+				case "amount":
+					if value, ok := v.(float64); ok {
+						params.Amount = int64(value * math.Pow10(8))
+					}
+				case "count":
+					if value, ok := v.(float64); ok {
+						params.Count = int(value)
+					}
+				}
 			}
 		}
 	}

@@ -19,11 +19,12 @@ const (
 )
 
 type ParamsMapping struct {
-	UserKey   string `json:"user_key"`
-	AssetName string `json:"asset_name"`
-	Address   string `json:"address"`
-	Amount    int64  `json:"amount"`
-	Count     int    `json:"count"`
+	UserKey   string   `json:"user_key"`
+	AssetName string   `json:"asset_name"`
+	Address   string   `json:"address"`
+	Amount    int64    `json:"amount"`
+	Count     int      `json:"count"`
+	Params    []string `json:"params"`
 }
 
 type ReqHead struct {
@@ -117,7 +118,7 @@ type AssetProperty struct {
 	Logo                  string  `json:"logo"`
 	DepositMin            float64 `json:"deposit_min"`
 	WithdrawalRate        float64 `json:"withdrawal_rate"`
-	WithdrawalValue       int64   `json:"withdrawal_value"`
+	WithdrawalValue       float64 `json:"withdrawal_value"`
 	WithdrawalReserveRate float64 `json:"withdrawal_reserve_rate"`
 	WithdrawalAlertRate   float64 `json:"withdrawal_alert_rate"`
 	WithdrawalStategy     float64 `json:"withdrawal_stategy"`
@@ -138,6 +139,7 @@ type UserAddress struct {
 	FrozenAmount    int64  `json:"frozen_amount"`
 	Enabled         int    `json:"enabled"`
 	CreateTime      int64  `json:"create_time"`
+	AllocationTime  int64  `json:"allocation_time"`
 	UpdateTime      int64  `json:"update_time"`
 }
 

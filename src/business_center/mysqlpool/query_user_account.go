@@ -66,20 +66,20 @@ func QueryUserAccountCount(query string) int {
 	return count
 }
 
-func QueryUserAccountByKey(userKey string) (UserAccount, bool) {
+func QueryUserAccountByUserKey(userKey string) ([]UserAccount, bool) {
 	query := fmt.Sprintf("{\"user_key\":\"%s\"}", userKey)
 	if assetProperty, ok := QueryUserAccount(query); ok {
-		return assetProperty[0], true
+		return assetProperty, true
 	}
-	return UserAccount{}, false
+	return []UserAccount{}, false
 }
 
 func AddUserAccount(userKey string, userClass int, assetName string) error {
 	db := Get()
 	nowTM := time.Now().UTC().Format(TimeFormat)
 	_, err := db.Exec("insert user_account (user_key, user_class, asset_name, available_amount, frozen_amount,"+
-		" create_time, allocation_time, update_time) values (?, ?, ?, 0, 0, ?, ?, ?);",
-		userKey, userClass, assetName, nowTM, nowTM, nowTM)
+		" create_time, update_time) values (?, ?, ?, 0, 0, ?, ?);",
+		userKey, userClass, assetName, nowTM, nowTM)
 	if err != nil {
 		count := 0
 		row := db.QueryRow("select count(*) from user_account where user_key = ? and asset_name = ?;", userKey, assetName)
