@@ -139,7 +139,7 @@ func (self *Client)init() error {
 	return nil
 }
 
-func (self *Client) SetNofityChannel(ch chan interface{}) {
+func (self *Client) SetNotifyChannel(ch chan interface{}) {
 	return
 }
 
