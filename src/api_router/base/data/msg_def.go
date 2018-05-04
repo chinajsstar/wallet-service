@@ -17,9 +17,9 @@ type UserMethod struct {
 type UserData struct {
 	// user unique key
 	UserKey string `json:"user_key"`
-	// message = origin data -> rsa encode -> base64
+	// message = (origin message -> rsa crypt) -> base64
 	Message    string `json:"message"`
-	// signature = origin data -> sha512 -> rsa sign -> base64
+	// signature = (origin message -> rsa crypt) -> sha512 -> rsa sign -> base64
 	Signature  string `json:"signature"`
 }
 

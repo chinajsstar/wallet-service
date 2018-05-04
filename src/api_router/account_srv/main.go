@@ -55,24 +55,60 @@ func installWallet(dir string) error {
 	}
 
 	l4g.Info("2. Create wallet genesis admin...")
-	uc, err := install.AddUser(true)
+
+	err = func() error {
+		uc, err := install.AddUser(true)
+		if err != nil {
+			return err
+		}
+		b, _ := json.Marshal(*uc)
+
+		var req data.SrvRequestData
+		var res data.SrvResponseData
+		req.Data.Argv.Message = string(b)
+		handler.AccountInstance().Create(&req, &res)
+		if res.Data.Err != data.NoErr {
+			return errors.New(res.Data.ErrMsg)
+		}
+
+		uca := user.AckUserCreate{}
+		err = json.Unmarshal([]byte(res.Data.Value.Message), &uca)
+
+		l4g.Info("3. Record genesis admin user key: %s", uca.UserKey)
+		return nil
+	}()
 	if err != nil {
 		return err
 	}
-	b, _ := json.Marshal(*uc)
 
-	var req data.SrvRequestData
-	var res data.SrvResponseData
-	req.Data.Argv.Message = string(b)
-	handler.AccountInstance().Create(&req, &res)
-	if res.Data.Err != data.NoErr {
-		return errors.New(res.Data.ErrMsg)
+
+	err = func() error {
+		l4g.Info("4. Update wallet genesis admin key...")
+
+		up, err := install.UpdateKey()
+		if err != nil {
+			return err
+		}
+		b, _ := json.Marshal(*up)
+
+		var req data.SrvRequestData
+		var res data.SrvResponseData
+		req.Data.Argv.Message = string(b)
+
+		handler.AccountInstance().UpdateKey(&req, &res)
+		if res.Data.Err != data.NoErr {
+			return errors.New(res.Data.ErrMsg)
+		}
+
+		upa := user.AckUserUpdateKey{}
+		err = json.Unmarshal([]byte(res.Data.Value.Message), &upa)
+
+		l4g.Info(upa)
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
-
-	uca := user.AckUserCreate{}
-	err = json.Unmarshal([]byte(res.Data.Value.Message), &uca)
-
-	l4g.Info("3. Record genesis admin user key: %s", uca.UserKey)
 
 	// write a tag file
 	fo, err := os.Create(dir+"/wallet.install")

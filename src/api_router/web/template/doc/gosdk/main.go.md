@@ -23,9 +23,9 @@ import (
 type userData struct {
 	// user unique key
 	UserKey string `json:"user_key"`
-	// message = origin data -> rsa encode -> base64
+	// message = (origin message -> rsa crypt) -> base64
 	Message    string `json:"message"`
-	// signature = origin data -> sha512 -> rsa sign -> base64
+	// signature = (origin message -> rsa crypt) -> sha512 -> rsa sign -> base64
 	Signature  string `json:"signature"`
 }
 
@@ -270,12 +270,12 @@ func sendDataWithNoCrypto(addr, message, version, srv, function string) (*userRe
 
 // http
 // 不加密示例：
-// curl -d '{"id":-1}' http://localhost:8077/wallettest/v1/account/listusers
-// curl -d '{"a":2, "b":1}' http://localhost:8077/wallettest/v1/arith/add
+// curl -d '{"id":-1}' http://localhost:8082/wallettest/v1/account/listusers
+// curl -d '{"a":2, "b":1}' http://localhost:8082/wallettest/v1/arith/add
 
 // 加密示例：message为加密数据
-// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"id\":-1}"' http://localhost:8077/wallet/v1/account/listusers
-// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"a\":2, \"b\":1}"' http://localhost:8077/wallet/v1/arith/add
+// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"id\":-1}"' http://localhost:8082/wallet/v1/account/listusers
+// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"a\":2, \"b\":1}"' http://localhost:8082/wallet/v1/arith/add
 func main() {
 	var err error
 
