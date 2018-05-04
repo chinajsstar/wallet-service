@@ -79,7 +79,7 @@ CREATE TABLE `asset_property` (
   `gas_factor` double NOT NULL DEFAULT '0' COMMENT '矿工费乘数因子',
   `debt` double NOT NULL DEFAULT '0' COMMENT '资产缺口',
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 

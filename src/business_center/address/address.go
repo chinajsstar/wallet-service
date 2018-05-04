@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	l4g "github.com/alecthomas/log4go"
+	"math"
 	"sync"
 )
 
@@ -107,7 +109,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAccount, ok := mysqlpool.QueryUserAccountByKey(userProperty.UserKey)
+	userAccount, ok := mysqlpool.QueryUserAccountByUserKey(userProperty.UserKey)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取用户帐户信息失败")
 		l4g.Error(res.Data.ErrMsg)
@@ -120,7 +122,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	payFee := assetProperty.WithdrawalValue + int64(float64(paramsMapping.Amount)*assetProperty.WithdrawalRate)
+	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(paramsMapping.Amount)*assetProperty.WithdrawalRate)
 	if userAccount.AvailableAmount < paramsMapping.Amount+payFee {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足")
 		l4g.Error(res.Data.ErrMsg)
@@ -166,6 +168,96 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 			paramsMapping.Address, nil, uint64(paramsMapping.Amount)))
 	}
 	res.Data.Value.Message = string(pack)
+	return nil
+}
+
+func (a *Address) SupportAssets(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	_, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	if assetProperty, ok := mysqlpool.QueryAssetProperty(""); ok {
+		data := make([]string, 0)
+		for _, v := range assetProperty {
+			data = append(data, v.AssetName)
+		}
+
+		pack, err := json.Marshal(data)
+		if err != nil {
+			res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+			l4g.Error(res.Data.ErrMsg)
+			return errors.New(res.Data.ErrMsg)
+		}
+		res.Data.Value.Message = string(pack)
+	}
+
+	return nil
+}
+
+func (a *Address) AssetAttributie(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	_, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	paramsMapping := unpackJson(req.Data.Argv.Message)
+	assetPropertyMap := make(map[string]map[string]interface{})
+
+	if assetProperty, ok := mysqlpool.QueryAssetProperty(""); ok {
+		for _, v := range assetProperty {
+			maps := make(map[string]interface{}, 0)
+			maps["asset_name"] = v.AssetName
+			maps["full_name"] = v.FullName
+			maps["is_token"] = v.IsToken
+			maps["parent_name"] = v.ParentName
+			maps["deposit_min"] = v.DepositMin
+			maps["withrawal_rate"] = v.WithdrawalRate
+			maps["withrawal_value"] = v.WithdrawalValue
+			maps["confirmation_num"] = v.ConfirmationNum
+			maps["decaimal"] = v.Decaimal
+			assetPropertyMap[v.AssetName] = maps
+		}
+	}
+
+	var data []map[string]interface{}
+	if len(paramsMapping.Params) <= 0 {
+		for _, v := range assetPropertyMap {
+			data = append(data, v)
+		}
+	} else {
+		for _, v := range paramsMapping.Params {
+			if value, ok := assetPropertyMap[v]; ok {
+				data = append(data, value)
+			}
+		}
+	}
+
+	pack, err := json.Marshal(data)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+	res.Data.Value.Message = string(pack)
+	return nil
+}
+
+func (a *Address) GetBalance(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	if userAccount, ok := mysqlpool.QueryUserAccountByUserKey(userProperty.UserKey); ok {
+		fmt.Println(userAccount)
+	}
 	return nil
 }
 

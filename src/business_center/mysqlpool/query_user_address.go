@@ -10,7 +10,7 @@ import (
 
 func QueryUserAddress(query string) ([]UserAddress, bool) {
 	sqls := "select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount,enabled," +
-		" unix_timestamp(create_time),unix_timestamp(update_time) from user_address" +
+		" unix_timestamp(create_time), unix_timestamp(allocation_time), unix_timestamp(update_time) from user_address" +
 		" where true"
 
 	userAddress := make([]UserAddress, 0)
@@ -37,7 +37,8 @@ func QueryUserAddress(query string) ([]UserAddress, bool) {
 	var data UserAddress
 	for rows.Next() {
 		err := rows.Scan(&data.UserKey, &data.UserClass, &data.AssetName, &data.Address, &data.PrivateKey,
-			&data.AvailableAmount, &data.FrozenAmount, &data.Enabled, &data.CreateTime, &data.UpdateTime)
+			&data.AvailableAmount, &data.FrozenAmount, &data.Enabled, &data.CreateTime, &data.AllocationTime,
+			&data.UpdateTime)
 		if err == nil {
 			userAddress = append(userAddress, data)
 		}
@@ -67,7 +68,7 @@ func QueryUserAddressCount(query string) int {
 }
 
 func QueryUserAddressByNameAddress(assetName string, address string) (UserAddress, bool) {
-	query := fmt.Sprintf("{\"asset_name\":%s, \"address\":\"%s\"}", assetName, address)
+	query := fmt.Sprintf("{\"asset_name\":\"%s\", \"address\":\"%s\"}", assetName, address)
 	if userAddress, ok := QueryUserAddress(query); ok {
 		return userAddress[0], true
 	}
@@ -98,9 +99,11 @@ func AddUserAddress(userAddress []UserAddress) error {
 
 	for _, v := range userAddress {
 		_, err := tx.Exec("insert user_address (user_key, user_class, asset_name, address, private_key,"+
-			" available_amount, frozen_amount, enabled, create_time, update_time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+			" available_amount, frozen_amount, enabled, create_time, allocation_time, update_time)"+
+			" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
 			v.UserKey, v.UserClass, v.AssetName, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
 			time.Unix(v.CreateTime, 0).UTC().Format(TimeFormat),
+			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat),
 			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
 		if err != nil {
 			tx.Rollback()
