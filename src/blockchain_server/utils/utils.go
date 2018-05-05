@@ -118,6 +118,10 @@ func DecimalCvt_f_i(v float64, from, to int) int64 {
 	return int64(i)
 }
 
+func Abs(i int64) uint64 {
+	if i>0 {return uint64(i)}
+	return uint64(-i)
+}
 // decimal convert int to f
 func DecimalCvt_f_f(v float64, from, to int) *big.Float {
 	fbig :=  big.NewFloat(v)

@@ -1,20 +1,20 @@
 package service
 
 import (
+	chainclient "blockchain_server/chains/client"
+	"blockchain_server/chains/event"
+	"blockchain_server/crypto"
 	"blockchain_server/types"
-	"fmt"
-	l4g "github.com/alecthomas/log4go"
-	"encoding/hex"
 	"blockchain_server/utils"
+	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
-	"blockchain_server"
-	"blockchain_server/chains/event"
-	chainclient "blockchain_server/chains/client"
-	"time"
-	"context"
-	"encoding/json"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	l4g "github.com/alecthomas/log4go"
+	"time"
 )
 
 const (
@@ -30,27 +30,26 @@ type ErrSendTx struct {
 }
 
 type ClientManager struct {
-	txCmdChannel types.CmdTxChannel			// txCmdChannel    用于接收外部调用的命令并执行
-	txRchChannel types.RechargeTxChannel	// txRchChannel    接收所有Client监听地址充值事件
-	txCmdqTxChannel types.CmdqTxChannel		// txCmdqTxChannel 通过hash值查询tx的channel
+	txCmdChannel    types.CmdTxChannel      // txCmdChannel    用于接收外部调用的命令并执行
+	txRchChannel    types.RechargeTxChannel // txRchChannel    接收所有Client监听地址充值事件
+	txCmdqTxChannel types.CmdqTxChannel     // txCmdqTxChannel 通过hash值查询tx的channel
 
-	clients      map[string]chainclient.ChainClient
+	clients map[string]chainclient.ChainClient
 
 	loopRechageRuning bool
 	loopTxCmdRuning   bool
 	txCmdFeed         event.Feed
 	rechTxFeed        event.Feed
 
-	ctx 			context.Context
-	ctx_cannel 		context.CancelFunc
-
+	ctx        context.Context
+	ctx_cannel context.CancelFunc
 
 	// TODO: try do all net command within one go routine
 	cmdChannel types.NetCmdChannel
 }
 
-func newInvalidParamError(msg string) *ErrorInvalideParam{
-	return &ErrorInvalideParam{message:msg}
+func newInvalidParamError(msg string) *ErrorInvalideParam {
+	return &ErrorInvalideParam{message: msg}
 }
 
 //-32700	Parse error	Invalid JSON was received by the server.
@@ -60,30 +59,34 @@ func newInvalidParamError(msg string) *ErrorInvalideParam{
 //-32602	Invalid params	Invalid method parameter(s).
 //-32603	Internal error	Internal JSON-RPC error.
 //-32000 to -32099	Server error	Reserved for implementation-defined server-errors.
-func newTxSendError(txCmd *types.CmdSendTx, message string, code int32)*ErrSendTx {
+func newTxSendError(txCmd *types.CmdSendTx, message string, code int32) *ErrSendTx {
 	return &ErrSendTx{types.NetCmdErr{
-		Message:fmt.Sprintf("Send %s Transaction error:%s\ntx detail:%s",
-		txCmd.Coinname, message, txCmd.Tx.String()), Code: code, Data: nil}}
+		Message: fmt.Sprintf("Send %s Transaction error:%s\ntx detail:%s",
+			txCmd.Coinname, message, txCmd.Tx.String()), Code: code, Data: nil}}
 }
 
 func (e ErrSendTx) Error() string {
 	return fmt.Sprintf("SendTransaction error, code:%d, message:%s", e.Code, e.Message)
 }
 
-func (self ErrorInvalideParam)Error() string {
+func (self ErrorInvalideParam) Error() string {
 	return self.message
 }
 
 func (self *ClientManager) AddClient(client chainclient.ChainClient) {
-	if self.clients==nil {
+	if self.clients == nil {
 		self.clients = make(map[string]chainclient.ChainClient)
 	}
-	client.SubscribeRechageTx(self.txRchChannel)
+	client.SubscribeRechargeTx(self.txRchChannel)
 	self.clients[client.Name()] = client
 }
 
 func (self *ClientManager) loopTxCmd() {
-	if self.loopTxCmdRuning {return} else {self.loopTxCmdRuning = true}
+	if self.loopTxCmdRuning {
+		return
+	} else {
+		self.loopTxCmdRuning = true
+	}
 
 	if self.txCmdChannel == nil {
 		l4g.Trace("self.txCmdChannel is nil , create new")
@@ -91,58 +94,66 @@ func (self *ClientManager) loopTxCmd() {
 	}
 
 	go func() {
-		defer func() {self.loopTxCmdRuning = false}()
+		defer func() { self.loopTxCmdRuning = false }()
 		l4g.Trace("start transaction command loop!!")
 		for {
 			select {
-			case txCmd := <- self.txCmdChannel: {
-				if txCmd==nil {
-					l4g.Trace("Transaction Cmd Channel was closed!")
-					goto endfor
-				} else {
-					l4g.Trace("recived TxCommand: %s \n", txCmd.MsgId)
-					go self.innerSendTx(txCmd)
+			case txCmd := <-self.txCmdChannel:
+				{
+					if txCmd == nil {
+						l4g.Trace("Transaction Cmd Channel was closed!")
+						goto endfor
+					} else {
+						l4g.Trace("recived TxCommand: %s \n", txCmd.MsgId)
+						go self.innerSendTx(txCmd)
+					}
 				}
-			}
-			case <-self.ctx.Done(): {
-				goto endfor
-			}
-			//default: {
-			//	fmt.Printf("looping Transaction command.....\n")
-			//	time.Sleep(time.Second * time.Duration(3))
-			//}
+			case <-self.ctx.Done():
+				{
+					goto endfor
+				}
+				//default: {
+				//	fmt.Printf("looping Transaction command.....\n")
+				//	time.Sleep(time.Second * time.Duration(3))
+				//}
 			}
 		}
-		endfor:
-			l4g.Trace("exit transaction command loop!!")
+	endfor:
+		l4g.Trace("exit transaction command loop!!")
 	}()
 }
 
-func (self *ClientManager) loopRechargeTxMessage () {
-	if self.loopRechageRuning {return} else {self.loopRechageRuning = true}
+func (self *ClientManager) loopRechargeTxMessage() {
+	if self.loopRechageRuning {
+		return
+	} else {
+		self.loopRechageRuning = true
+	}
 
 	go func() {
-		defer func(){self.loopRechageRuning = false}()
+		defer func() { self.loopRechageRuning = false }()
 		l4g.Trace("start recharge transaction loop!")
 		for {
 			select {
 			// txRchChannel 通过Client.SubscribeRecharge, 传递给Client
 			// 并在此用于接收Recharge的交易通知
-			case rechTx := <-self.txRchChannel:{
-				if rechTx!=nil {
-					go self.trackRechargeTx(rechTx)
-				} else {
-					l4g.Trace("Recharge Transaction channel was closed!")
+			case rechTx := <-self.txRchChannel:
+				{
+					if rechTx != nil {
+						go self.trackRechargeTx(rechTx)
+					} else {
+						l4g.Trace("Recharge Transaction channel was closed!")
+					}
+				}
+			case <-self.ctx.Done():
+				{
+					l4g.Trace(self.ctx.Err().Error())
+					goto endfor
 				}
 			}
-			case <-self.ctx.Done():{
-				l4g.Trace(self.ctx.Err().Error())
-				goto endfor
-			}
-			}
 		}
-		endfor:
-			l4g.Trace("exit recharge transaction loop!")
+	endfor:
+		l4g.Trace("exit recharge transaction loop!")
 	}()
 
 }
@@ -154,21 +165,38 @@ func (self *ClientManager) Start() {
 }
 
 func (self *ClientManager) startAllClient() error {
-	if self.clients==nil || len(self.clients)==0 {
+	if self.clients == nil || len(self.clients) == 0 {
 		return fmt.Errorf("There are 0 client instance. add client instance first!")
 	}
 
 	if self.txRchChannel == nil {
 		return fmt.Errorf("Recharge Transaction channel is nil, subscribe first!")
 	}
+
+	var invalid_inst []chainclient.ChainClient
+
 	for _, instance := range self.clients {
-		instance.SubscribeRechageTx(self.txRchChannel)
-		instance.Start()
+		l4g.Trace(`-----------start ***%s*** instance-----------`,
+			instance.Name())
+
+		instance.SubscribeRechargeTx(self.txRchChannel)
+
+		if err := instance.Start(); err != nil {
+			invalid_inst = append(invalid_inst,  instance)
+			l4g.Trace("start client instance : %s, faild, message:%s", instance.Name(), err.Error())
+		} else {
+			l4g.Trace("start client instance :  !!!!!>-%s,success<-!!!!!", instance.Name())
+		}
 	}
+
+	for _, inst := range invalid_inst {
+		delete(self.clients, inst.Name())
+	}
+
 	return nil
 }
 
-func (self *ClientManager) SubscribeTxCmdState (txCmdChannel types.CmdTxChannel) event.Subscription{
+func (self *ClientManager) SubscribeTxCmdState(txCmdChannel types.CmdTxChannel) event.Subscription {
 	return self.txCmdFeed.Subscribe(txCmdChannel)
 }
 
@@ -178,9 +206,9 @@ func (self *ClientManager) SubscribeTxRecharge(txRechageChannel types.RechargeTx
 }
 
 func (self *ClientManager) innerInsertRechargeAddress(coin string, addresses []string,
-	) (error) {
+) error {
 	client := self.clients[coin]
-	if nil==client {
+	if nil == client {
 		return fmt.Errorf("coin not supported:%s", coin)
 	}
 	client.InsertRechargeAddress(addresses)
@@ -200,23 +228,26 @@ func (self *ClientManager) trackRechargeTx(rechTx *types.RechargeTx) {
 	self.rechTxFeed.Send(rechTx)
 	for {
 		select {
-		case tx := <-tx_channel:{
-			rechTx.Tx = tx
-			l4g.Trace("Send Recharge Transaction to channel********")
-			self.rechTxFeed.Send(rechTx)
-			if tx.State==types.Tx_state_confirmed || tx.State==types.Tx_state_unconfirmed {
+		case tx := <-tx_channel:
+			{
+				rechTx.Tx = tx
+				l4g.Trace("Send Recharge Transaction to channel********")
+				self.rechTxFeed.Send(rechTx)
+				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
+					goto endfor
+				}
+			}
+		case rechTx.Err = <-err_channel:
+			{
+				self.rechTxFeed.Send(rechTx)
 				goto endfor
 			}
-		}
-		case rechTx.Err = <-err_channel:{
-			self.rechTxFeed.Send(rechTx)
-			goto endfor
-		}
-		case <-self.ctx.Done():{
-			rechTx.Err = self.ctx.Err()
-			self.rechTxFeed.Send(rechTx)
-			goto endfor
-		}
+		case <-self.ctx.Done():
+			{
+				rechTx.Err = self.ctx.Err()
+				self.rechTxFeed.Send(rechTx)
+				goto endfor
+			}
 		}
 	}
 endfor:
@@ -229,75 +260,78 @@ func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
 	go self.trackTxState(txCmd.Coinname, txCmd.Tx, tx_channel, err_channel)
 	for {
 		select {
-		case tx := <-tx_channel:{
-			txCmd.Tx = tx
-			self.txCmdFeed.Send(txCmd)
-			if tx.State==types.Tx_state_confirmed || tx.State==types.Tx_state_unconfirmed {
+		case tx := <-tx_channel:
+			{
+				txCmd.Tx = tx
+				self.txCmdFeed.Send(txCmd)
+				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
+					goto break_for
+				}
+			}
+		case err := <-err_channel:
+			{
+				txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
+				self.txCmdFeed.Send(txCmd)
 				goto break_for
 			}
-		}
-		case err := <-err_channel:{
-			txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
-			self.txCmdFeed.Send(txCmd)
-			goto break_for
-		}
-		case <-self.ctx.Done():{
-			txCmd.Error = types.NewNetCmdErr(-32000, self.ctx.Err().Error(), nil)
-			self.txCmdFeed.Send(txCmd)
-			goto break_for
-		}
+		case <-self.ctx.Done():
+			{
+				txCmd.Error = types.NewNetCmdErr(-32000, self.ctx.Err().Error(), nil)
+				self.txCmdFeed.Send(txCmd)
+				goto break_for
+			}
 		}
 	}
 break_for:
 }
 
 /* 查询地址中的资产余额, 使用 NewQueryBalanceCmd() 创建CmdqueryBalance对象, 作为参数传入.
-	如果doneChannel参数为空, 此函数为阻塞模式, 直接返回查询结果
-	如果doneChannel有值, 则此函数会立即返回0, nil, 并通过doneChanne通知外部,
-	如果doneChannel触发值为true, 表示查询成功, 通过CmdqueryBalance.Result可以获取资产余额
-	如果doneChannel触发值为false, 表示查询失败, 通过CmdQueryBalance.Error获取失败信息! */
-func (self *ClientManager)GetBalance(ctx context.Context, cmdBalance *types.CmdqueryBalance, doneChannel chan bool) (uint64, error) {
-	if nil==cmdBalance {
+如果doneChannel参数为空, 此函数为阻塞模式, 直接返回查询结果
+如果doneChannel有值, 则此函数会立即返回0, nil, 并通过doneChanne通知外部,
+如果doneChannel触发值为true, 表示查询成功, 通过CmdqueryBalance.Result可以获取资产余额
+如果doneChannel触发值为false, 表示查询失败, 通过CmdQueryBalance.Error获取失败信息! */
+func (self *ClientManager) GetBalance(ctx context.Context, cmdBalance *types.CmdqueryBalance, doneChannel chan bool) (uint64, error) {
+	if nil == cmdBalance {
 		return 0, fmt.Errorf("GetBalance error, Invalid paramater!")
 	}
 
 	instance := self.clients[cmdBalance.Coinname]
-	if instance==nil {
+	if instance == nil {
 		return 0, fmt.Errorf("Not supported assert!")
 	}
 
-	if nil==doneChannel {
+	if nil == doneChannel {
 		return instance.GetBalance(cmdBalance.Address, cmdBalance.Token)
 	} else {
 		go func() {
 			var err error
 			cmdBalance.Result, err = instance.GetBalance(cmdBalance.Address, cmdBalance.Token)
-			if err!=nil {
+			if err != nil {
 				cmdBalance.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
-				doneChannel<-false
+				doneChannel <- false
 			}
-			doneChannel<-true
+			doneChannel <- true
 		}()
 	}
-	return 0,nil
+	return 0, nil
 }
 
 /*  if qtxchannel is nil, block and returns tx or error
-	else no block, returns directly, with 2 nil,
-	then, send back cmdqtx from qtxchannel,
-	as tx information stored in the netcmd.result member*/
+else no block, returns directly, with 2 nil,
+then, send back cmdqtx from qtxchannel,
+as tx information stored in the netcmd.result member*/
 func (self *ClientManager) QuryTx(cmdqTx *types.CmdqueryTx, qTxChannel types.CmdqTxChannel) (tx *types.Transfer, err error) {
 
 	instance := self.clients[cmdqTx.Coinname]
-	if instance==nil {
+	if instance == nil {
 		return nil, fmt.Errorf("query on not supported coin type(%s)", cmdqTx.Coinname)
 	}
-	if qTxChannel==nil {
+	if qTxChannel == nil {
 		tx, err = instance.Tx(cmdqTx.Hash)
 	} else {
 		go func() {
 			cmdqTx.Result, err = instance.Tx(cmdqTx.Hash)
-			if err!=nil {
+			if err != nil {
 				cmdqTx.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 			}
 			qTxChannel <- cmdqTx
@@ -308,7 +342,7 @@ func (self *ClientManager) QuryTx(cmdqTx *types.CmdqueryTx, qTxChannel types.Cmd
 
 func (self *ClientManager) BlockHeight(assert string) uint64 {
 	instance := self.clients[assert]
-	if instance==nil {
+	if instance == nil {
 		l4g.Error("query on not supported coin type(%s)", assert)
 		return 0
 	}
@@ -325,20 +359,25 @@ func (self *ClientManager) trackTxState(clientName string,
 	l4g.Trace("********start trace transaction(%s)", tx.Tx_hash)
 	instance := self.clients[clientName]
 
+	max_try_count := 30
+	i := 0
+
 	// 每次有新块高增加, 才会去检查transaction的状态是否发生改变
 	// 如果状态没有改变, 说明tansaction还没有被打包到新的块中
 	// 直到transaction的状态变为了 mined, 再进入 确认的流程中
-	max_try_count := 30
-	i := 0
-	for i:=0; i<max_try_count; i++ {
+	for i := 0; i < max_try_count; i++ {
 		curBlockHeight := instance.BlockHeight()
-		for { time.Sleep(time.Second)
-		if curBlockHeight < instance.BlockHeight() { break } }
+		for {
+			time.Sleep(time.Second)
+			if curBlockHeight < instance.BlockHeight() {
+				break
+			}
+		}
 
 		state := tx.State
 
 		err := instance.UpdateTx(tx)
-		if err!=nil {
+		if err != nil {
 			if _, ok := err.(*types.NotFound); !ok {
 				l4g.Error("update Tx faild, message:%s", err.Error())
 				err_channel <- err
@@ -346,16 +385,18 @@ func (self *ClientManager) trackTxState(clientName string,
 			}
 		}
 
-		if state !=tx.State { tx_channel<-tx }
+		if state != tx.State {
+			tx_channel <- tx
+		}
 
-		if tx.State==types.Tx_state_unconfirmed && tx.State==types.Tx_state_confirmed {
+		if tx.State == types.Tx_state_unconfirmed && tx.State == types.Tx_state_confirmed {
 			tx_channel <- tx
 			goto endfor
 		}
 		i++
 	}
 
-	if i==max_try_count {
+	if i == max_try_count {
 		message := "Update Transaction state upto max count, still can not confirm!!!"
 		l4g.Error(message)
 		err_channel <- fmt.Errorf(message)
@@ -388,11 +429,11 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 
 			return nil
 		}()
-	}else{
+	} else {
 		err = instance.SendTx(txCmd.Chiperkey, txCmd.Tx)
 	}
 
-	if nil!=err {
+	if nil != err {
 		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 		l4g.Error("Send Transaction error:%s", txCmd.Error.Message)
@@ -404,7 +445,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	self.trackTxCmd(txCmd)
 
 	var message string
-	if txCmd.Error!=nil {
+	if txCmd.Error != nil {
 		message = txCmd.Error.Message
 	} else {
 		message = ""
@@ -413,75 +454,6 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	l4g.Trace("send transaction(%s), result: %s, message:", types.TxStateString(txCmd.Tx.State), message)
 	l4g.Trace("------------send transaction end------------")
 }
-
-/*
-func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
-	l4g.Trace("------------sendTransaction begin------------")
-	instance := self.clients[txCmd.Coinname]
-
-	err := instance.SendTx(txCmd.Chiperkey, txCmd.Tx)
-	if nil!=err {
-		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
-		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
-		l4g.Error("Send Transaction error:%s", txCmd.Error.Message)
-		self.txCmdFeed.Send(txCmd)
-		
-	}
-
-	txCmd.Tx.State = types.Tx_state_commited
-	self.txCmdFeed.Send(txCmd)
-
-	escapeloop := false
-	// Transaction state change : committed->waite confirm number -> confirmed/unconfirmed ??
-	for !escapeloop {
-		time.Sleep(time.Second)
-		tx, err := instance.Tx(txCmd.Tx.Tx_hash)
-		tx.Confirmationsnumber = txCmd.Tx.Confirmationsnumber
-
-		if err != nil {
-			if _, ok := err.(*types.NotFound); ok {
-				l4g.Trace("Transaction: %s have not found on node, please wait.....!", txCmd.Tx.Tx_hash)
-			} else {
-				escapeloop = true
-				txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
-				l4g.Error(err.Error())
-				self.txCmdFeed.Send(txCmd)
-			}
-			continue
-		}
-
-		if tx.State != txCmd.Tx.State {
-			if tx.State==types.Tx_state_confirmed {
-				escapeloop = true
-			}
-
-			l4g.Trace("Transaction state changed from:%s to %s",
-				types.TxStateString(txCmd.Tx.State), types.TxStateString(tx.State))
-
-			txCmd.Tx = tx
-			self.txCmdFeed.Send(txCmd)
-
-		} else if tx.State==types.Tx_state_mined {
-
-			if tx.ConfirmatedHeight !=txCmd.Tx.ConfirmatedHeight {
-
-				if tx.ConfirmatedHeight-tx.ConfirmatedHeight >tx.Confirmationsnumber {
-
-					tx.State = types.Tx_state_confirmed
-					escapeloop = true
-
-					l4g.Trace("Transaction state from:%s to %s",
-						types.TxStateString(types.Tx_state_mined), types.TxStateString(types.Tx_state_confirmed))
-				}
-
-				txCmd.Tx = tx
-				self.txCmdFeed.Send(txCmd)
-			}
-		}
-	}
-	l4g.Trace("------------SendTransaction   end------------")
-}
-*/
 
 func NewClientManager() *ClientManager {
 	//clientManager := &ClientManager{txCmdChannel:make(chan *types.CmdSendTx),
@@ -494,20 +466,20 @@ func NewClientManager() *ClientManager {
 	return clientManager
 }
 
-func (self *ClientManager) init () {
+func (self *ClientManager) init() {
 	self.txCmdChannel = make(types.CmdTxChannel, 256)
 	self.txRchChannel = make(types.RechargeTxChannel, 256)
 	self.clients = make(map[string]chainclient.ChainClient, 256)
 	self.ctx, self.ctx_cannel = context.WithCancel(context.Background())
 }
 
-func (self *ClientManager)NewAccounts(cmd *types.CmdNewAccounts) ([]*types.Account, error) {
-	if cmd.Amount==0 || cmd.Amount>max_once_account_number {
+func (self *ClientManager) NewAccounts(cmd *types.CmdNewAccounts) ([]*types.Account, error) {
+	if cmd.Amount == 0 || cmd.Amount > max_once_account_number {
 		return nil, newInvalidParamError(fmt.Sprintf("the count of account must >0 and <%d", max_once_account_number))
 	}
 
 	client := self.clients[cmd.Coinname]
-	if nil==client {
+	if nil == client {
 		return nil, fmt.Errorf("not found '%s' client!", cmd.Coinname)
 	}
 
@@ -516,29 +488,28 @@ func (self *ClientManager)NewAccounts(cmd *types.CmdNewAccounts) ([]*types.Accou
 
 func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 	chiper = utils.String_cat_prefix(chiper, "0x")
-	chiper_bytes, err := hex.DecodeString(chiper);
-	if nil!=err {
+	chiper_bytes, err := hex.DecodeString(chiper)
+	if nil != err {
 		return nil, err
 	}
-	plainKey, err := blockchain_server.Decrypto(chiper_bytes)
-	if err!=nil {
+	plainKey, err := crypto.Decrypto(chiper_bytes)
+	if err != nil {
 		return nil, err
 	}
 	return x509.ParseECPrivateKey(plainKey)
 }
 
-
 // 交易和充值中的单位都是10^8为一个单位
 // 即1^8 单位为一个bitcoin或者eth
 func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
-	if self.txCmdChannel==nil {
+	if self.txCmdChannel == nil {
 		l4g.Trace("txCmdChannel is nil, create new")
 		self.txCmdChannel = make(chan *types.CmdSendTx)
 	}
 	self.txCmdChannel <- cmdTx
 }
 
-func (self *ClientManager)Close() {
+func (self *ClientManager) Close() {
 	self.ctx_cannel()
 
 	close(self.txCmdChannel)
@@ -630,7 +601,7 @@ func (self *ClientManager) SignTx(chiperPrikey string, txCmdString string) (stri
 }
 
 // send transaction, txCmdString may signed, or unsigned, if unsigned, chiperprikey need real prikey
-func (self *ClientManager) SendSignedTx(txCmdString string) (error) {
+func (self *ClientManager) SendSignedTx(txCmdString string) error {
 	l4g.Trace("------------SendSignedTx transaction begin------------")
 
 	txCmdByte, err := base64.StdEncoding.DecodeString(txCmdString)

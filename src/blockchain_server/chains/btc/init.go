@@ -76,6 +76,16 @@ func (c *Client) init_rpc_client() error {
 	return nil
 }
 
+func (c *Client) init_key_settings() error {
+	if c.key_settings!=nil {return nil}
+
+	var err error
+	if c.key_settings, err = btc_settings.KeySettings_from_MainConfig(); err!=nil {
+		return err
+	}
+	return nil
+}
+
 
 // init_chain_params, 根据配置文件获取当前连接主网还是测试网路或者其他网络!
 // 生成pay-to-pubkey-hash address, 设置rpcclient配置的时候, 需要用到
@@ -88,8 +98,10 @@ func  (c *Client) init_chain_params() error {
 		}
 	}
 
-	if c.rpc_settings.NetworkMode== btc_settings.Networktype_main {
+	if c.rpc_settings.NetworkMode == btc_settings.Networktype_main {
 		c.chain_params = &chaincfg.MainNetParams
+	} else if c.rpc_settings.NetworkMode==btc_settings.Networktype_test {
+		c.chain_params = &chaincfg.TestNet3Params
 	} else {
 		c.chain_params = &chaincfg.RegressionNetParams
 	}
@@ -100,9 +112,9 @@ func  (c *Client) init_chain_params() error {
 }
 
 
-func ClientInstance(connect, user, pass string, httpAddr string) (*Client, error) {
+func ClientInstance() (*Client, error) {
 	if !btc_settings.InitOk() {
-		message := "btc settings invalid."
+		message := "btc settings init faild."
 		l4g.Trace(message)
 		return nil, fmt.Errorf(message)
 	}
@@ -127,6 +139,9 @@ func (c *Client) init () error {
 	if err := c.init_rpc_client(); err!=nil {return err}
 	if err := c.init_chain_params(); err!=nil {return err}
 	if _, err := c.refresh_blockheight(); err!=nil { return err }
+	if err := c.init_key_settings(); err!=nil {return nil}
+
+	l4g.Trace("coinname:%s, blockheight:%d", c.Name(), c.BlockHeight())
 
 	configer := btc_settings.Client_config()
 	atomic.StoreUint64(&c.startScanHeight, configer.Start_scan_Blocknumber)

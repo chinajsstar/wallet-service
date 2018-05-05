@@ -1,8 +1,7 @@
-package blockchain_server
+package crypto
 import (
 	"github.com/pki-io/core/crypto"
 	"crypto/ecdsa"
-	"blockchain_server/utils"
 	"blockchain_server/conf"
 	l4g "github.com/alecthomas/log4go"
 	"os"
@@ -10,32 +9,37 @@ import (
 	"io/ioutil"
 	"fmt"
 	"reflect"
+	"time"
+	"blockchain_server/utils"
 )
 
 var (
 	cryptoKey *ecdsa.PrivateKey
 )
 
-func l4g_fatalln(v ...interface{}) {
-	l4g.Error(v)
+func l4g_fatalln(v error) {
+	if v==nil {return}
+	l4g.Trace(`
+------------------Config init faild------------------
+message : %s
+appliaction will exit in 1 second!
+------------------Config init faild------------------`, v)
+	time.Sleep(time.Second)
 	os.Exit(1)
 }
 
 func init () {
 	configer := config.MainConfiger()
 	isExist, err := utils.PathExists(configer.Cryptofile)
-	if err!=nil {
-	}
+
+	l4g_fatalln(err)
 
 	if isExist {
 		priKeyBuffer, err := ioutil.ReadFile(configer.Cryptofile)
-		if err!=nil {
-			l4g_fatalln(err)
-		}
+		l4g_fatalln(err)
+
 		cryptoKey, err = x509.ParseECPrivateKey(priKeyBuffer)
-		if err!= nil {
-			l4g_fatalln(err)
-		}
+		l4g_fatalln(err)
 	} else {
 		newCryptoKey()
 	}

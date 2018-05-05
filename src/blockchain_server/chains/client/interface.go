@@ -16,7 +16,7 @@ type ChainClient interface {
 	SendTx(privkey string, transfer *types.Transfer) error
 	UpdateTx(tx *types.Transfer) error
 	BlockHeight() (uint64)
-	SubscribeRechageTx(txRechChannel types.RechargeTxChannel)
+	SubscribeRechargeTx(txRechChannel types.RechargeTxChannel)
 
 	InsertRechargeAddress(address []string) (invalid []string)
 

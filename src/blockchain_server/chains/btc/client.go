@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"net/http"
 )
 
 var (
@@ -88,13 +89,14 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 	var index_from, index_to uint32
 
 	c.childIndexMtx.Lock()
+	defer c.childIndexMtx.Unlock()
+
 	index_from = c.key_settings.Child_upto_index
 	index_to = index_from + co
-	c.childIndexMtx.Unlock()
 
 	accs := make([]*types.Account, co)
 
-	for i:=uint32(0); i<(index_to-index_from); i++ {
+	for i:=index_from; i<index_to; i++ {
 		if childpub, err := c.key_settings.Ext_pub.Child(index_from + i); err==nil {
 			// converts the extended key to a standard bitcoin pay-to-pubkey-hash
 			// address for the passed network.
@@ -117,6 +119,8 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 		}
 	}
 
+	c.key_settings.Child_upto_index = index_to
+	c.key_settings.Save()
 	return accs, nil
 }
 
@@ -158,7 +162,7 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 		return err
 	}
 
-	unspends, err := c.ListUnspentMinMaxAddresses(1, MaxConfiramtionNumber, ads)
+	unspends, err := c.ListUnspentMinMaxAddresses(int(c.confirminationNumber), MaxConfiramtionNumber, ads)
 	if err!=nil { return err }
 
 	amount, _ := utils.DecimalCvt_i_f(stx.Value, 8, 1).Float64()
@@ -282,7 +286,7 @@ func (c *Client)SendSignedTx(txByte []byte, tx *types.Transfer) (error) {
 
 func (c *Client) toTx(btx *btcjson.GetTransactionResult) (*types.Transfer, error) {
 	tx := &types.Transfer{}
-	err:=c.updateTxWithBtcTx(tx, btx);
+	err:=c.updateTxWithBtcTx(tx, btx)
 
 	if err!=nil {
 		return nil, err
@@ -291,36 +295,39 @@ func (c *Client) toTx(btx *btcjson.GetTransactionResult) (*types.Transfer, error
 }
 
 func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
-	if len(btx.Details)!=2 ||
-		(btx.Details[0].Category!="send" || btx.Details[0].Category!="receive") ||
-		(btx.Details[1].Category!="send" || btx.Details[1].Category!="receive") {
-		message := "btc the transaction details length should be 2"
-		l4g.Error(message)
-		return errors.New(message)
-	}
-
+	//l4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
 
-	if btx.Details[0].Category == "send" {
-		stx.From = btx.Details[0].Address
-		stx.To = btx.Details[1].Address
-	} else {
-		stx.From = btx.Details[1].Address
-		stx.To = btx.Details[0].Address
+	//l4g.Trace("Bitcoin Transaction details:")
+
+	if stx.From=="" {
+		stx.From = "Bitcoin have no 'from' concept!"
 	}
 
-	stx.Value = uint64(utils.DecimalCvt_f_i(btx.Details[0].Amount, 1, 8))
-	stx.Gas   = uint64(utils.DecimalCvt_f_i(btx.Details[0].Amount, 1, 8))
+	for _, d := range btx.Details {
+		//l4g.Trace("%#v", d)
+		if stx.To=="" {
+			stx.To = d.Address
+		}
+	}
+
+	stx.Value =  utils.Abs(utils.DecimalCvt_f_i(btx.Amount, 1, 8))
+	stx.Gas   = utils.Abs(utils.DecimalCvt_f_i(btx.Fee, 1, 8))
 	stx.Total = stx.Value + stx.Gas
 
 	if uint64(btx.Confirmations) > btc_settings.Client_config().TxConfirmNumber &&
 		btx.Confirmations > 0 {
 		stx.State = types.Tx_state_confirmed
+		//stx.ConfirmatedHeight = stx.InBlock + uint64(btx.Confirmations)
+	} else if btx.Confirmations>0 {
+		stx.State = types.Tx_state_mined
 	} else {
 		stx.State = types.Tx_state_commited
 	}
-	stx.InBlock = uint64(btx.BlockIndex)
-	stx.ConfirmatedHeight = stx.InBlock + uint64(btx.Confirmations)
+
+	// golang bitcoin rpcclient 'block' have not defined height
+	//stx.InBlock = uint64(btx.BlockIndex)
+
 	stx.Time = uint64(btx.Time)
 	stx.Token = nil
 	stx.Additional_data = nil
@@ -386,25 +393,42 @@ func (c *Client)SubscribeRechargeTx(txChannel types.RechargeTxChannel) {
 
 func (c *Client)InsertRechargeAddress(addresses []string) (invalid []string) {
 	for _, v := range addresses {
-		if add, err := btcutil.DecodeAddress(v, c.chain_params);err!=nil {
+		if address, err := btcutil.DecodeAddress(v, c.chain_params);err!=nil {
+			l4g.Error("bitcoin decode address faild, message:%s", err.Error())
 			invalid = append(invalid, v)
 		} else {
-			if err := c.SetAccount(add, "watcher"); err!=nil {
+			if err := c.SetAccount(address, "watchonly"); err!=nil {
 				invalid = append(invalid, v)
+				l4g.Trace("Bitcoin import address error:%s", err.Error())
+			} else {
+				l4g.Trace("bitcoin import wachonly address : %s", address)
 			}
+			//if err := c.ImportAddressRescan(address.EncodeAddress(), false); err!=nil {
+			//	l4g.Error("bitcoin import address faild, message:%s", err.Error())
+			//} else {
+			//	if err := c.SetAccount(address, "watched"); err!=nil {
+			//		invalid = append(invalid, v)
+			//	} else {
+			//		l4g.Trace("bitcoin import wachonly address : %s", address)
+			//	}
+			//	invalid = append(invalid, v)
+			//}
 		}
 	}
 	return
 }
 
 func (c *Client) GetBalance(address string, _beNil *string) (uint64, error) {
+	if _beNil !=nil {
+		l4g.Trace("bitcoin GetBalance,  not support tokens!")
+	}
 	//c.Client.get
-	add, err := btcutil.DecodeAddress(address, c.chain_params)
+	adds, err := btcutil.DecodeAddress(address, c.chain_params)
 	if err!=nil {
 		return 0, err
 	}
 
-	unspents, err := c.ListUnspentMinMaxAddresses(1, MaxConfiramtionNumber, []btcutil.Address{add})
+	unspents, err := c.ListUnspentMinMaxAddresses(1, MaxConfiramtionNumber, []btcutil.Address{adds})
 
 	if err!=nil {
 		return 0, err
@@ -418,6 +442,7 @@ func (c *Client) GetBalance(address string, _beNil *string) (uint64, error) {
 }
 
 func (c *Client)Tx(hash string)(*types.Transfer, error) {
+
 	return nil, nil
 }
 
@@ -436,29 +461,37 @@ func (c *Client) Start() error {
 	// 0 indcates an unlimited number of connection attmpts
 	// this is neccessary when a 'ws' client was created with the DisableConnectOnNew
 	// field of conn-config struct 'rpcclient.connConfig'
-	err := c.Connect(0)
-	if err != nil { return err }
+	if c.rpc_config.HTTPPostMode {
 
-	// Verify that the server is running on the expected network.
-	net, err := c.GetCurrentNet()
-	if err != nil {
-		c.Disconnect()
-		return err
-	}
-	if net != c.chain_params.Net {
-		c.Disconnect()
-		return errors.New("mismatched networks")
+		l4g.Trace("bitcoin net connect mode:'http rpc'")
+
+	} else if c.rpc_config.Endpoint=="ws" {
+
+		l4g.Trace("bitcoin net conncet mode:'ws rpc")
+		err := c.Connect(0)
+		if err != nil { return err }
+		// Verify that the server is running on the expected network.
+		net, err := c.GetCurrentNet()
+		if err != nil {
+			c.Disconnect()
+			return err
+		}
+		if net != c.chain_params.Net {
+			c.Disconnect()
+			return errors.New("mismatched networks")
+		}
 	}
 
+	// 发送一个close 到服务器, 服务器收到后退出循环
+	http.Post("http://127.0.0.1" + c.rpc_settings.Http_server + "/isok",
+		"text/plain; charset=utf-8", bytes.NewBuffer([]byte(`close`)))
 
 	c.quitMtx.Lock()
-	c.started = true
-	c.quitMtx.Unlock()
-
-	c.wg.Add(2)
-
 	go c.startHttpServer()
 	go c.handler()
+	c.started = true
+	c.wg.Add(2)
+	c.quitMtx.Unlock()
 	return nil
 }
 

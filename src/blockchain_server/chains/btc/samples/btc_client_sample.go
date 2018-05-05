@@ -1,0 +1,234 @@
+package main
+
+import (
+	"blockchain_server/service"
+	"blockchain_server/types"
+	"fmt"
+	l4g "github.com/alecthomas/log4go"
+	"time"
+	"blockchain_server/conf"
+	"blockchain_server/chains/btc"
+	"context"
+	"math"
+)
+
+var (
+	//seed_value	  :[3cfec70a88faa4c7a06aee3e869ff571c01673015610fb00830b16eff24eda3c],
+	//extend_private:[tprv8ZgxMBicQKsPe9vm1tJZK4pKXBHEWMy6uQNCjGv8EFGH7CxHWLpcAkhN5dbsEo7B3KheFnrSmyjM5mzL8Bon985pkZdC6xWpbiEp3PFgbrX],
+	//extend_public :[tpubD6NzVbkrYhZ4XcxYuXy9iUUS6CoAfhA1Uhxz1nxReX4fwhD48jeCMFKEFp2xPzmVLg3woBR1gnhHzbeL4JtvuVeByqvChjEfzC5dFYmGKpV],
+	//account[0], crypt private key:7ddb84e9463b51a87ffdbc467c42fb4e01000000Qs1fCJ2olOq6GWrwz5jyR3C0, address:muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb
+	//account[1], crypt private key:1af172762746ae5722948e342a0abddb01000000z3vJeCL4HSCXltOFuRlh8Vy1, address:mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy
+
+	// myrpyogHSub2bQgYHDUXMM4Y9YcprnMr7Y
+	from_acc = &types.Account{
+		PrivateKey: "7ddb84e9463b51a87ffdbc467c42fb4e01000000Qs1fCJ2olOq6GWrwz5jyR3C0",
+		Address:	"muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb" }
+	to_acc = &types.Account{
+		PrivateKey: "1af172762746ae5722948e342a0abddb01000000z3vJeCL4HSCXltOFuRlh8Vy1",
+		Address:	"mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy" }
+
+		//watchonly = []types.Account{
+		//	{"7ddb84e9463b51a87ffdbc467c42fb4e01000000wJNc61IJhWdoau5pCFHZSOU0","muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb"},
+		//	{"1af172762746ae5722948e342a0abddb01000000ES5fV9ShxQ71OfLKfhSafiR1","mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy"},
+		//	{"52e5f1cb31fec078b4891c2c05a96615010000008r2TlGCwDqd9eucreUVDMpm2","mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK"},
+		//	{"8dcd7c7cbae3bb60d1d89f6d6aed5ff301000000uSNwOmVRsQRTgiK3ZdiHVQt3","mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA"},
+		//	{"", "2NCqRAorbC1zvdiDDoTERUZ4XmPkwK9MTC1"},
+		//}
+	watchaddress = []string{
+		"muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb",
+		"mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy",
+		"mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK",
+		"mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA",
+		"2NCqRAorbC1zvdiDDoTERUZ4XmPkwK9MTC1" }
+
+	txid = "6f91ccf55f65806fbe161d64d3df5db8df9fbbc3108ac775345b560ff3834c5f"
+	Coinname = types.Chain_bitcoin
+	token string
+)
+
+func main() {
+	l4g.Trace("-------------------bitcoin client sample start-------------------")
+	clientManager := service.NewClientManager()
+	client, err := btc.ClientInstance()
+
+	if nil != err {
+		fmt.Printf("create client:%s error:%s", Coinname, err.Error())
+		return
+	}
+
+	// add client instance to manager
+	clientManager.AddClient(client)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	//*********批量创建账号示例*********/
+	if true {
+		accCmd := service.NewAccountCmd("message id", Coinname, 4)
+		var accs []*types.Account
+		accs, err = clientManager.NewAccounts(accCmd)
+		for i, account := range accs {
+			fmt.Printf("account[%d], crypt private key:%s, address:%s\n",
+				i, account.PrivateKey, account.Address)
+		}
+	}
+
+	clientManager.Start()
+
+	done_watchaddress := make(chan bool)
+	done_sendTx := make(chan bool)
+
+	i := 2
+	if true {
+		go testWatchAddress(ctx, clientManager, Coinname, nil, watchaddress, done_watchaddress)
+	}else {i--}
+
+	if false {
+		go testSendTokenTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
+			nil, 100 * uint64(math.Pow10(8)), done_sendTx)
+	} else{i--}
+
+	//testGetBalance(clientManager, from_acc.Address, token)
+
+	for ; i<2; i++ {
+		select {
+		case <-done_sendTx: {
+			l4g.Trace("SendTransaction done!")
+		}
+		case <-done_watchaddress: {
+			l4g.Trace("Watch Address done!")
+		}
+		}
+	}
+
+	clientManager.Close()
+
+	l4g.Trace("-------------------bitcoin client sample stop!-------------------")
+	config.MainConfiger().Save()
+	time.Sleep(time.Second)
+}
+
+func create_accounts () {
+
+}
+func testWatchAddress(ctx context.Context, clientManager *service.ClientManager, coin string, token *string, addresslist []string, done chan bool) {
+	defer l4g.Trace("exit watch address!!!")
+	rcTxChannel := make(types.RechargeTxChannel)
+	subscribe := clientManager.SubscribeTxRecharge(rcTxChannel)
+
+	rcaCmd := service.NewRechargeAddressCmd("message id", Coinname, addresslist)
+	clientManager.InsertRechargeAddress(rcaCmd)
+
+	if false {
+		addlist2 := []string{"0x8ce2af810e9f790e0a6d9f023ff3b7c35984aaad"}
+		rcaCmd = service.NewRechargeAddressCmd("message id", Coinname, addlist2)
+		clientManager.InsertRechargeAddress(rcaCmd)
+	}
+
+	watch_address_channel := make(chan bool)
+
+	subCtx, cancel := context.WithCancel(ctx)
+	go func(ctx context.Context, channel types.RechargeTxChannel) {
+		l4g.Trace("exit go routine of watch address!!")
+		defer subscribe.Unsubscribe()
+		defer close(channel)
+
+		exit:
+		for {
+			select {
+			case rct := <-channel:
+				{
+					if rct == nil {
+						l4g.Trace("Watch Address channel is close!")
+					} else {
+						l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+						if rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed {
+							watch_address_channel <- true
+						}
+					}
+				}
+			case <-ctx.Done():
+				{
+					fmt.Println("RechangeTx context done, because : ", ctx.Err())
+					break exit
+				}
+			}
+		}
+	}(subCtx, rcTxChannel)
+
+	select {
+	case <-watch_address_channel:
+		cancel()
+	}
+
+	done <- true
+}
+
+func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager, privatekey, to, coin string,
+	token *string, value uint64, done chan bool) {
+	txCmd := service.NewSendTxCmd("message id", coin, privatekey, to, token, value)
+	clientManager.SendTx(txCmd)
+
+	/*********监控提币交易的channel*********/
+	txStateChannel := make(types.CmdTxChannel)
+
+	// 创建并发送Transaction, 订阅只需要调用一次, 所有的Send的交易都会通过这个订阅channel传回来
+	subscribe := clientManager.SubscribeTxCmdState(txStateChannel)
+
+	txok_channel := make(chan bool)
+
+	subCtx, cancel := context.WithCancel(ctx)
+
+	go func(ctx context.Context, txstateChannel types.CmdTxChannel) {
+		defer subscribe.Unsubscribe()
+		defer close(txstateChannel)
+		close := false
+		for !close {
+			select {
+			case cmdTx := <-txStateChannel:
+				{
+					if cmdTx == nil {
+						l4g.Trace("Transaction Command Channel is closed!")
+						txok_channel <- false
+					} else {
+						l4g.Trace("Transaction state changed, transaction information:%s\n",
+							cmdTx.Tx.String())
+
+						if cmdTx.Tx.State == types.Tx_state_confirmed {
+							l4g.Trace("Transaction is confirmed! success!!!")
+							txok_channel <- true
+						}
+
+						if cmdTx.Tx.State == types.Tx_state_unconfirmed {
+							l4g.Trace("Transaction is unconfirmed! failed!!!!")
+							txok_channel <- false
+						}
+					}
+				}
+			case <-ctx.Done():
+				{
+					close = true
+				}
+			}
+		}
+	}(subCtx, txStateChannel)
+
+	select {
+	case <-txok_channel:
+		{
+			cancel()
+		}
+	}
+	done <- true
+	return
+}
+
+func testGetBalance(manager *service.ClientManager, address string, tokenname string) {
+	cmd_balance := service.NewQueryBalanceCmd("getbalance message id", Coinname, address, nil)
+	l4g.Trace("----------bitcoin get address balance---------")
+	if balance, err := manager.GetBalance(context.TODO(), cmd_balance, nil); err == nil {
+		l4g.Trace("address: %s balance: %d", address, balance)
+	} else {
+		l4g.Error("error : %s", err.Error())
+	}
+	l4g.Trace("----------bitcoin get address balance---------")
+}

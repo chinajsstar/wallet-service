@@ -26,9 +26,10 @@ func main() {
 				k, _ := exk.ECPubKey()
 				address, _ := exk.Address(netparam)
 
-				fmt.Printf("pub key hex string is %s\n, encode_address is : %s\n string_address  is : %s\n",
+				fmt.Printf("pub key hex string is %s | %s \n, encode_address is : %s\n string_address  is : %s\n",
 					// import to btcwallet should use this string!!!
 					hex.EncodeToString(k.SerializeCompressed()),
+					hex.EncodeToString(k.SerializeUncompressed()),
 					address.EncodeAddress(),
 					address.String())
 

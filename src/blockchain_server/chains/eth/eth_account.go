@@ -1,7 +1,6 @@
 package eth
 
 import (
-	"blockchain_server"
 	mrand "math/rand"
 	"time"
 	"crypto/ecdsa"
@@ -10,8 +9,9 @@ import (
 	"blockchain_server/utils"
 	wtypes "blockchain_server/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	//lg4 "github.com/alecthomas/log4go"
 	"encoding/hex"
+	bcrypto "blockchain_server/crypto"
+
 )
 
 func getPassphrase(length uint32) string {
@@ -44,7 +44,7 @@ func NewAccount() (*wtypes.Account, error) {
 	//keydata := crypto.FromECDSA(priKey)
 	//fmt.Printf("1: 0x%x\n", keydata)
 
-	cryptPrivKey, err := blockchain_server.Encrypt(priKey.D.Bytes())
+	cryptPrivKey, err := bcrypto.Encrypt(priKey.D.Bytes())
 	if err!=nil {
 		utils.Faltal_error(err)
 	}
@@ -71,7 +71,7 @@ func ParseChiperkey (keyChiper string) (*ecdsa.PrivateKey, error) {
 	if err!=nil {
 		return nil, fmt.Errorf("Invalid private key")
 	}
-	decryptBytes, err := blockchain_server.Decrypto(cryptKeyData)
+	decryptBytes, err := bcrypto.Decrypto(cryptKeyData)
 	if err!=nil {
 		return nil, err
 	}

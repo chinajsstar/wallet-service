@@ -4,22 +4,23 @@ import (
 	"github.com/btcsuite/btcutil/hdkeychain"
 	"fmt"
 	"blockchain_server/conf"
-	"blockchain_server/types"
 	l4g "github.com/alecthomas/log4go"
 	"strconv"
 	"encoding/hex"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/ethereum/go-ethereum/swarm/api/http"
+	"blockchain_server/types"
 )
 
 const (
-	Name_KeySettings = "Key_settings"
-	Name_RPCSettings = "Rpc_settings"
+	Name_KeySettings = "key_settings"
+	Name_RPCSettings = "rpc_settings"
 
 	Networktype_test = "test"
+	Networktype_regnet = "regnet"
 	Networktype_main = "main"
 )
 
+//type RPCSettings map[string]string
 type RPCSettings struct {
 	Rpc_url  		string 	`json:"rpc_url, string"`
 	Username 		string	`json:"name, string"`
@@ -27,12 +28,16 @@ type RPCSettings struct {
 	Endpoint		string	`json:"endpoint, string"`
 	NetworkMode		string	`json:"network_mode, string"`
 	Http_server 	string	`json:"http_server"`
+
+	HttpCallback_bl string  `json:"bl_notify"`
+	HttpCallback_wl string  `json:"wl_notify"`
+	HttpCallback_al string  `json:"al_notify"`
 }
 
 var (
 	init_ok             = false
-	Key_settings *KeySettings
-	Rpc_settings *RPCSettings
+	key_settings *KeySettings
+	rpc_settings *RPCSettings
 )
 
 func InitOk () bool {return init_ok}
@@ -47,22 +52,27 @@ func init() {
 	}
 
 	if types.Onlinemode_online == main_cfg.Online_mode {
-		if Rpc_settings, err = RPCSettings_from_MainConfig(); err==nil {
+		if rpc_settings, err = RPCSettings_from_MainConfig(); err==nil {
 		} else {
 			l4g.Error("btc client init faild, message:%s", err)
 			return
 		}
 	}
 
-	if Key_settings, err = KeySettings_from_MainConfig(); err==nil {
+	if key_settings, err = KeySettings_from_MainConfig(); err!=nil {
+
 		// 在debug模式或者offline模式才会去创建主私钥,
 		// 在online模式, 只会从config文件中读取配置的主公钥, 用来生成子地址
 		if !config.Debugmode && main_cfg.Online_mode!=types.Onlinemode_offline {
 			init_ok = true
 			return
 		}
+
+		if _, ok := err.(*types.NotFound); !ok { return }
+
 		l4g.Trace("btc wallet will create keys!")
-		if err = initMajorkey (); err!=nil|| Key_settings ==nil {
+
+		if err = initMajorkey (); err!=nil|| key_settings ==nil {
 			l4g.Error("btc init major key faild, message:%s", err.Error())
 			return
 		}
@@ -72,11 +82,18 @@ func init() {
 }
 
 func (self *RPCSettings) Isvalid() bool {
+	if config.IsOnlinemode {return true}
 	return self.Rpc_url=="" || self.Endpoint=="" || self.Username=="" ||
-		self.Password=="" || self.NetworkMode==""
+		self.Password=="" || self.NetworkMode=="" || self.HttpCallback_al=="" ||
+		self.HttpCallback_bl=="" || self.HttpCallback_wl=="" ||
+		self.HttpCallback_bl==self.HttpCallback_al ||
+		self.HttpCallback_wl==self.HttpCallback_al ||
+		self.HttpCallback_wl==self.HttpCallback_bl
 }
 
 func RPCSettings_from_MainConfig() (*RPCSettings, error) {
+	if rpc_settings!=nil {return rpc_settings, nil}
+
 	client_config := Client_config()
 	if client_config ==nil { return nil, fmt.Errorf("BTC get client config faild.")}
 
@@ -108,11 +125,23 @@ func RPCSettings_from_MainConfig() (*RPCSettings, error) {
 			if t, isok := e.(string); isok { rpc_settings_tmp.Http_server = t }
 		}
 
+		if e:= v["notify_bl"]; e!=nil {
+			if t, isok := e.(string); isok { rpc_settings_tmp.HttpCallback_bl = t }
+		}
+
+		if e:= v["notify_al"]; e!=nil {
+			if t, isok := e.(string); isok { rpc_settings_tmp.HttpCallback_al = t }
+		}
+
+		if e:= v["notify_wl"]; e!=nil {
+			if t, isok := e.(string); isok { rpc_settings_tmp.HttpCallback_wl = t }
+		}
+
 		if e := v["network_mode"]; e!=nil {
 			if t, isok := e.(string); isok {
-				if t!= Networktype_main && t!= Networktype_test {
-					l4g.Trace("Not supported network mode:[%s], set to:[%s]", t, Networktype_test)
-					rpc_settings_tmp.NetworkMode = Networktype_test
+				if t!= Networktype_main && t!= Networktype_test && t!=Networktype_regnet{
+					l4g.Trace("Not supported network mode:[%s], set to:[%s]", t, Networktype_regnet)
+					rpc_settings_tmp.NetworkMode = Networktype_regnet
 				} else { rpc_settings_tmp.NetworkMode = t }
 			}
 		}
@@ -130,11 +159,12 @@ type KeySettings struct {
 	Child_upto_index uint32
 }
 
+
 type keySettingsUnmarshal struct {
-	SeedValue        string `json:"SeedValue,string"`
-	Ext_pri          string `json:"extpri_primarykey,string"`
-	Ext_pub          string `json:"extpub_primarykey,string"`
-	Child_upto_index uint32 `json:"Child_upto_index,string"`
+	SeedValue        string `json:"SeedValue"`
+	Ext_pri          string `json:"extpri_primarykey"`
+	Ext_pub          string `json:"extpub_primarykey"`
+	Child_upto_index uint32 `json:"Child_upto_index"`
 }
 
 //func (self *KeySettings) UnmarshalJSON(input []byte) error {}
@@ -151,7 +181,7 @@ func (this *keySettingsUnmarshal) keySettings() (*KeySettings) {
 	return nil
 }
 
-func (this *KeySettings) save() {
+func (this *KeySettings) Save() {
 	clientconfig := Client_config()
 	clientconfig.SubConfigs[Name_KeySettings] = this.keySettingsUnmarshal()
 	clientconfig.Save()
@@ -184,11 +214,13 @@ func Client_config() *config.ClientConfig {
 }
 
 func KeySettings_from_MainConfig() (*KeySettings, error) {
+	if key_settings!=nil {return key_settings, nil}
+
 	client_config := Client_config()
 	if client_config ==nil { return nil, fmt.Errorf("BTC Client config not found!") }
 
 	if client_config.SubConfigs[Name_KeySettings]==nil {
-		return nil, fmt.Errorf("BTC key-settings not Founded")
+		return nil, types.NewNotFound("BTC key-settings not Founded")
 	}
 
 	keysettings_tmp := new(KeySettings)
@@ -275,7 +307,7 @@ func initMajorkey() error {
 	// TODO:已方便备份
 	config.MainConfiger().Save()
 
-	Key_settings = tmp_keysettings
+	key_settings = tmp_keysettings
 	return nil
 }
 

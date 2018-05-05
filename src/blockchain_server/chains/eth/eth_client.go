@@ -139,7 +139,7 @@ func (self *Client)init() error {
 	return nil
 }
 
-func (self *Client) SetNofityChannel(ch chan interface{}) {
+func (self *Client) SetNotifyChannel(ch chan interface{}) {
 	return
 }
 
@@ -173,7 +173,7 @@ func (self *Client) NewAccount(c uint32)([]*types.Account, error) {
 }
 
 
-func (self *Client)SubscribeRechageTx(txRechChannel types.RechargeTxChannel) {
+func (self *Client) SubscribeRechargeTx(txRechChannel types.RechargeTxChannel) {
 	self.rctChannel = txRechChannel
 }
 
@@ -184,6 +184,7 @@ func isTxToken(tx *types.Transfer) bool {
 
 // from is a crypted private key
 func (self *Client)SendTx(chiperKey string, tx *types.Transfer) error {
+
 	key, err := ParseChiperkey(chiperKey)
 	if err!= nil {
 		return err

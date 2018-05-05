@@ -10,6 +10,7 @@ import (
 	"blockchain_server/types"
 	"sync"
 	apiutils "api_router/base/utils"
+	"time"
 )
 
 var (
@@ -46,7 +47,6 @@ func (self *Configer) IsOnlineMode() bool {
 func (self *ClientConfig) Save() error {
 	return configer.Save()
 }
-
 
 func (self *ClientConfig) String() string {
 	str := fmt.Sprintf(`
@@ -105,25 +105,30 @@ func (self *Configer)ClientConfiger(coinname string) *ClientConfig{
 	return self.Clientconfig[coinname]
 }
 
-func check(err error) {
-    if err != nil {
-    	fmt.Printf("error :%s\n", err)
-    	os.Exit(1)
-    }
+func l4g_fatalln(err error) {
+	if err==nil {return}
+	l4g.Trace(`
+------------------Config init faild------------------
+message : %s
+appliaction will exit in 1 second!
+------------------Config init faild------------------`, err)
+	time.Sleep(time.Second)
+	os.Exit(1)
 }
 
 func init () {
 	configfile := GetConfigFilePath()
 	dat, err := ioutil.ReadFile(configfile)
-	check(err)
+	l4g_fatalln(err)
 	err = json.Unmarshal(dat, &configer)
-	var appDir string
-	appDir, err = apiutils.GetAppDir()
-	configer.Cryptofile = appDir + "/" + configer.Cryptofile
-	configer.Log_path = appDir + "/" + configer.Log_path
-	configer.Log_conf_file = appDir + "/" + configer.Log_conf_file
 
-	check(err)
+	//var appDir string
+	//appDir, err = apiutils.GetAppDir()
+	//configer.Cryptofile = appDir + "/" + configer.Cryptofile
+	//configer.Log_path = appDir + "/" + configer.Log_path
+	//configer.Log_conf_file = appDir + "/" + configer.Log_conf_file
+
+	l4g_fatalln(err)
 
 	IsOnlinemode = configer.Online_mode==types.Onlinemode_online
 
