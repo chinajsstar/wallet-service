@@ -228,6 +228,7 @@ CREATE TABLE `transaction_notice` (
   `amount` bigint(20) NOT NULL DEFAULT 0 COMMENT '金额',
   `pay_fee` bigint(20) NOT NULL DEFAULT 0 COMMENT '手续费',
   `hash` varchar(255) NOT NULL DEFAULT '',
+  `order_id` varchar(255) NOT NULL DEFAULT '',
   `time` datetime NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
