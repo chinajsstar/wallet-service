@@ -2,7 +2,8 @@ package handler
 
 import (
 	"api_router/base/data"
-	"api_router/base/service"
+	//"api_router/base/service"
+	service "api_router/base/service2"
 	"encoding/json"
 	l4g "github.com/alecthomas/log4go"
 )

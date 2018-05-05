@@ -149,16 +149,7 @@ func (self *Web) handleUploadAddressAct(w http.ResponseWriter, req *http.Request
 		defer file.Close()
 
 		//fmt.Fprintf(w, "%v", handler.Header)
-
-		//saveFilePath := "./data/" + common.AddressDirName + handler.Filename
-		saveFilePath := self.GetAddressDataDir() + "/" + handler.Filename
-		f, err := os.OpenFile(saveFilePath, os.O_WRONLY|os.O_CREATE, 0666)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		_, err = io.Copy(f, file)
+		err = self.SaveAddress(handler.Filename, file)
 		if err != nil {
 			return err
 		}

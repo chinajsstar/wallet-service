@@ -9,12 +9,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	l4g "github.com/alecthomas/log4go"
-	"github.com/satori/go.uuid"
 	"math"
 	"sync"
-	"time"
 )
 
 type Address struct {
@@ -43,7 +40,7 @@ func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callba
 	//添加监控地址
 	if userAddress, ok := mysqlpool.QueryUserAddress(""); ok {
 		for _, v := range userAddress {
-			if assetProperty, ok := mysqlpool.QueryAssetPropertyByID(v.AssetID); ok {
+			if assetProperty, ok := mysqlpool.QueryAssetPropertyByName(v.AssetName); ok {
 				rcaCmd := service.NewRechargeAddressCmd("", assetProperty.AssetName, []string{v.Address})
 				a.wallet.InsertRechargeAddress(rcaCmd)
 			}
@@ -65,12 +62,11 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 
 	paramsMapping := unpackJson(req.Data.Argv.Message)
 	resMap := make(map[string]interface{})
-	resMap["user_order_id"] = paramsMapping.UserOrderID
-	resMap["asset_id"] = paramsMapping.AssetID
+	resMap["asset_name"] = paramsMapping.AssetName
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByID(paramsMapping.AssetID)
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(paramsMapping.AssetName)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_id\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_name\"无效")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -80,7 +76,15 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
-	resMap["data"] = a.generateAddress(&userProperty, &assetProperty, paramsMapping.Count)
+
+	userAddress := a.generateAddress(&userProperty, &assetProperty, paramsMapping.Count)
+	if len(userAddress) > 0 {
+		data := make([]string, 0)
+		for _, v := range userAddress {
+			data = append(data, v.Address)
+		}
+		resMap["data"] = data
+	}
 	res.Data.Value.Message = packJson(resMap)
 
 	return nil
@@ -96,17 +100,15 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 
 	paramsMapping := unpackJson(req.Data.Argv.Message)
 	resMap := make(map[string]interface{})
-	resMap["user_order_id"] = paramsMapping.UserOrderID
-	resMap["asset_id"] = paramsMapping.AssetID
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByID(paramsMapping.AssetID)
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(paramsMapping.AssetName)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取用户帐户信息失败")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAccount, ok := mysqlpool.QueryUserAccountByKey(userProperty.UserKey)
+	userAccount, ok := mysqlpool.QueryUserAccountRow(userProperty.UserKey, assetProperty.AssetName)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取用户帐户信息失败")
 		l4g.Error(res.Data.ErrMsg)
@@ -119,21 +121,21 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	walletFee := assetProperty.WithdrawalValue + int64(float64(paramsMapping.Amount)*assetProperty.WithdrawalRate)
-	if userAccount.AvailableAmount < paramsMapping.Amount+walletFee {
+	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(paramsMapping.Amount)*assetProperty.WithdrawalRate)
+	if userAccount.AvailableAmount < paramsMapping.Amount+payFee {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetID)
+	userAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetName)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "没有设置可用的热钱包")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	if userAddress.AvailableAmount < paramsMapping.Amount+walletFee {
+	if userAddress.AvailableAmount < paramsMapping.Amount+payFee {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "热钱包资金不足，这里需要特殊处理")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
@@ -142,8 +144,8 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	uuID := a.generateUUID()
 	resMap["order_id"] = uuID
 
-	err := mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetID, paramsMapping.Address,
-		paramsMapping.Amount, walletFee, uuID)
+	err := mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, paramsMapping.Address,
+		paramsMapping.Amount, payFee, uuID)
 	if err != nil {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足!")
 		l4g.Error(res.Data.ErrMsg)
@@ -158,128 +160,258 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	if assetProperty.IsToken > 0 {
-		a.wallet.SendTx(service.NewSendTxCmd(paramsMapping.UserOrderID, assetProperty.CoinName, userAddress.PrivateKey,
+		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
 			paramsMapping.Address, &assetProperty.AssetName, uint64(paramsMapping.Amount)))
 	} else {
-		a.wallet.SendTx(service.NewSendTxCmd(paramsMapping.UserOrderID, assetProperty.AssetName, userAddress.PrivateKey,
+		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
 			paramsMapping.Address, nil, uint64(paramsMapping.Amount)))
 	}
 	res.Data.Value.Message = string(pack)
 	return nil
 }
 
-func (a *Address) oldWithdrawal(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	var reqInfo ReqWithdrawal
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqInfo)
-	if err != nil {
-		fmt.Printf("Withdrawal Unmarshal Error : %s/n", err.Error())
-		return err
-	}
-
-	var rspInfo RspWithdrawal
-	rspInfo.UserOrderID = reqInfo.UserOrderID
-	rspInfo.Timestamp = time.Now().Unix()
-	res.Data.Err = 0
-	res.Data.ErrMsg = ""
-
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+func (a *Address) SupportAssets(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	_, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		err := errors.New("withdrawal UserProperty Find Error")
-		res.Data.Err = -1
-		res.Data.ErrMsg = err.Error()
-		return err
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
 	}
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(reqInfo.Symbol)
+	if assetProperty, ok := mysqlpool.QueryAssetPropertyByJson(""); ok {
+		data := make([]string, 0)
+		for _, v := range assetProperty {
+			data = append(data, v.AssetName)
+		}
+
+		pack, err := json.Marshal(data)
+		if err != nil {
+			res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+			l4g.Error(res.Data.ErrMsg)
+			return errors.New(res.Data.ErrMsg)
+		}
+		res.Data.Value.Message = string(pack)
+	}
+
+	return nil
+}
+
+func (a *Address) AssetAttributie(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	_, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		err := errors.New("withdrawal AssetProperty Find Error")
-		res.Data.Err = -1
-		res.Data.ErrMsg = err.Error()
-		return err
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
 	}
 
-	row := mysqlpool.Get().QueryRow("select a.address, a.private_key,"+
-		" b.available_amount, b.frozen_amount from pay_address a"+
-		" left join user_address b on a.asset_id = b.asset_id and a.address = b.address"+
-		" where a.asset_id = ?", assetProperty.AssetID)
+	paramsMapping := unpackJson(req.Data.Argv.Message)
+	assetPropertyMap := make(map[string]map[string]interface{})
 
-	var (
-		address         string
-		privateKey      string
-		availableAmount int64
-		frozenAmount    int64
-	)
-	err = row.Scan(&address, &privateKey, &availableAmount, &frozenAmount)
-	if err != nil {
-		fmt.Println("没有设置热钱包")
-		return err
+	if assetProperty, ok := mysqlpool.QueryAssetPropertyByJson(""); ok {
+		for _, v := range assetProperty {
+			maps := make(map[string]interface{}, 0)
+			maps["asset_name"] = v.AssetName
+			maps["full_name"] = v.FullName
+			maps["is_token"] = v.IsToken
+			maps["parent_name"] = v.ParentName
+			maps["deposit_min"] = v.DepositMin
+			maps["withrawal_rate"] = v.WithdrawalRate
+			maps["withrawal_value"] = v.WithdrawalValue
+			maps["confirmation_num"] = v.ConfirmationNum
+			maps["decaimal"] = v.Decaimal
+			assetPropertyMap[v.AssetName] = maps
+		}
 	}
 
-	amount := int64(reqInfo.Amount * math.Pow10(8))
-	fee := int64(float64(amount) * assetProperty.WithdrawalRate)
-
-	if availableAmount < amount+fee {
-		fmt.Println("热钱包资金不够")
-		return nil
-	}
-
-	Tx, err := mysqlpool.Get().Begin()
-	if err != nil {
-		return err
-	}
-
-	ret, err := Tx.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
-		" update_time = ? where user_key = ? and asset_id = ? and available_amount >= ?;",
-		amount+fee, amount+fee,
-		time.Now().UTC().Format(TimeFormat),
-		userProperty.UserKey,
-		assetProperty.AssetID,
-		amount+fee)
-
-	if err != nil {
-		Tx.Rollback()
-		return err
-	}
-
-	rows, _ := ret.RowsAffected()
-	if rows < 1 {
-		Tx.Rollback()
-		return nil
-	}
-
-	uID, _ := uuid.NewV4()
-	rspInfo.OrderID = uID.String()
-
-	_, err = Tx.Exec("insert withdrawal_order (order_id, user_order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
-		"values (?, ?, ?, ?, ?, ?, ?, ?);",
-		rspInfo.OrderID, reqInfo.UserOrderID, userProperty.UserKey, assetProperty.AssetID,
-		reqInfo.ToAddress, amount, fee,
-		time.Now().UTC().Format(TimeFormat))
-
-	Tx.Commit()
-
-	pack, err := json.Marshal(rspInfo)
-	if err != nil {
-		fmt.Printf("withdrawal RspNewAddress Marshal Error : %s/n", err.Error())
-		return err
-	}
-
-	if assetProperty.IsToken > 0 {
-		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.CoinName, privateKey, reqInfo.ToAddress, &assetProperty.AssetName, uint64(amount))
-		a.wallet.SendTx(txCmd)
+	var data []map[string]interface{}
+	if len(paramsMapping.Params) <= 0 {
+		for _, v := range assetPropertyMap {
+			data = append(data, v)
+		}
 	} else {
-		txCmd := service.NewSendTxCmd(rspInfo.OrderID, assetProperty.AssetName, privateKey, reqInfo.ToAddress, nil, uint64(amount))
-		a.wallet.SendTx(txCmd)
+		for _, v := range paramsMapping.Params {
+			if value, ok := assetPropertyMap[v]; ok {
+				data = append(data, value)
+			}
+		}
+	}
+
+	pack, err := json.Marshal(data)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
 	}
 	res.Data.Value.Message = string(pack)
+	return nil
+}
 
+func (a *Address) GetBalance(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	paramsMapping := unpackJson(req.Data.Argv.Message)
+	userAccountMap := make(map[string]map[string]interface{})
+
+	if userAccount, ok := mysqlpool.QueryUserAccount(userProperty.UserKey, ""); ok {
+		for _, v := range userAccount {
+			maps := make(map[string]interface{}, 0)
+			maps["asset_name"] = v.AssetName
+			maps["available_amount"] = float64(v.AvailableAmount) * math.Pow10(-8)
+			maps["frozen_amount"] = float64(v.FrozenAmount) * math.Pow10(-8)
+			userAccountMap[v.AssetName] = maps
+		}
+	}
+
+	var data []map[string]interface{}
+	if len(paramsMapping.Params) <= 0 {
+		for _, v := range userAccountMap {
+			data = append(data, v)
+		}
+	} else {
+		for _, v := range paramsMapping.Params {
+			if value, ok := userAccountMap[v]; ok {
+				data = append(data, value)
+			}
+		}
+	}
+
+	pack, err := json.Marshal(data)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+	res.Data.Value.Message = string(pack)
+	return nil
+}
+
+func (a *Address) HistoryTransactionOrder(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	jsonMap := make(map[string]interface{})
+	if len(req.Data.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &jsonMap)
+		if err != nil {
+			res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "解析Json失败")
+			l4g.Error(res.Data.ErrMsg)
+			return errors.New(res.Data.ErrMsg)
+		}
+	}
+
+	paramsMap := make(map[string]interface{})
+	paramsMap["user_key"] = userProperty.UserKey
+
+	if value, ok := jsonMap["asset_name"]; ok {
+		paramsMap["asset_name"] = value
+	}
+
+	if value, ok := jsonMap["trans_type"]; ok {
+		paramsMap["trans_type"] = value
+	}
+
+	if value, ok := jsonMap["status"]; ok {
+		paramsMap["status"] = value
+	}
+
+	if value, ok := jsonMap["max_update_time"]; ok {
+		paramsMap["max_update_time"] = value
+	}
+
+	if value, ok := jsonMap["min_update_time"]; ok {
+		paramsMap["min_update_time"] = value
+	}
+
+	condi, err := json.Marshal(paramsMap)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "Json序列化失败")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	data, ok := mysqlpool.QueryTransactionOrderByJson(string(condi))
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "没有查询到任何数据")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	pack, err := json.Marshal(data)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+	res.Data.Value.Message = string(pack)
+	return nil
+}
+
+func (a *Address) HistoryTransactionMessage(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	jsonMap := make(map[string]interface{})
+	if len(req.Data.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &jsonMap)
+		if err != nil {
+			res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "解析Json失败")
+			l4g.Error(res.Data.ErrMsg)
+			return errors.New(res.Data.ErrMsg)
+		}
+	}
+
+	paramsMap := make(map[string]interface{})
+	paramsMap["user_key"] = userProperty.UserKey
+
+	if value, ok := jsonMap["max_msg_id"]; ok {
+		paramsMap["max_msg_id"] = value
+	}
+
+	if value, ok := jsonMap["min_msg_id"]; ok {
+		paramsMap["min_msg_id"] = value
+	}
+
+	condi, err := json.Marshal(paramsMap)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "Json序列化失败")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	data, ok := mysqlpool.QueryTransactionMessageByJson(string(condi))
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "没有查询到任何数据")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	pack, err := json.Marshal(data)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+	res.Data.Value.Message = string(pack)
 	return nil
 }
 
 func (a *Address) QueryAssetProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	query := req.Data.Argv.Message
-	resMap := responsePagination(query, mysqlpool.QueryAssetPropertyCount(query))
-	assetProperty, _ := mysqlpool.QueryAssetProperty(query)
+	resMap := responsePagination(query, mysqlpool.QueryAssetPropertyCountByJson(query))
+	assetProperty, _ := mysqlpool.QueryAssetPropertyByJson(query)
 	resMap["data"] = assetProperty
 
 	res.Data.Value.Message = packJson(resMap)
@@ -290,8 +422,8 @@ func (a *Address) QueryAssetProperty(req *data.SrvRequestData, res *data.SrvResp
 
 func (a *Address) QueryUserProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	query := req.Data.Argv.Message
-	resMap := responsePagination(query, mysqlpool.QueryUserPropertyCount(query))
-	userProperty, _ := mysqlpool.QueryUserProperty(query)
+	resMap := responsePagination(query, mysqlpool.QueryUserPropertyCountByJson(query))
+	userProperty, _ := mysqlpool.QueryUserPropertyByJson(query)
 	resMap["data"] = userProperty
 
 	res.Data.Value.Message = packJson(resMap)
@@ -302,8 +434,8 @@ func (a *Address) QueryUserProperty(req *data.SrvRequestData, res *data.SrvRespo
 
 func (a *Address) QueryUserAccount(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	query := req.Data.Argv.Message
-	resMap := responsePagination(query, mysqlpool.QueryUserAccountCount(query))
-	userAccount, _ := mysqlpool.QueryUserAccount(query)
+	resMap := responsePagination(query, mysqlpool.QueryUserAccountCountByJson(query))
+	userAccount, _ := mysqlpool.QueryUserAccountByJson(query)
 	resMap["data"] = userAccount
 
 	res.Data.Value.Message = packJson(resMap)

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"api_router/base/service"
+	//"api_router/base/service"
+	service "api_router/base/service2"
 	"fmt"
 	"time"
 	"context"
 	"api_router/base/utils"
-	"net/rpc"
 	l4g "github.com/alecthomas/log4go"
 )
 
@@ -28,7 +28,6 @@ func main() {
 		l4g.Error("Create service center failed: %s", err.Error())
 		return
 	}
-	rpc.Register(centerInstance)
 
 	// start service center
 	ctx, cancel := context.WithCancel(context.Background())

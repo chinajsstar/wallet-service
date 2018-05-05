@@ -77,13 +77,13 @@ func NewServiceNode(confPath string) (*ServiceNode, error){
 	// node info
 	serviceNode.registerData.Srv = cfgNode.SrvName
 	serviceNode.registerData.Version = cfgNode.SrvVersion
-	serviceNode.registerData.Addr = cfgNode.SrvAddr
 
 	// center info
 	serviceNode.serviceCenterAddr = cfgNode.CenterAddr
 
 	serviceNode.clientGroup = NewConnectionGroup()
 
+	rpc.Register(serviceNode)
 	return serviceNode, nil
 }
 
@@ -153,7 +153,7 @@ func (ni *ServiceNode) InnerCallByEncrypt(req *data.UserRequestData, res *data.U
 }
 
 func (ni *ServiceNode) startTcpServer(ctx context.Context) {
-	s :=strings.Split(ni.registerData.Addr, ":")
+	s :=strings.Split("", ":")
 	if len(s) != 2{
 		l4g.Crashf("#Error: Node addr is not ip:port format")
 	}

@@ -12,11 +12,14 @@ import (
 	"bastionpay_tools/tools"
 	"time"
 	"strings"
+	"api_router/base/config"
 )
 
 const(
-	ConfigDirName = "BastionPayOffline" // app dir
+	ConfigDirName = "BastionPay" 		// app dir
 	DataDirName = "data"				// run dir
+
+	ConfigFileName = "offline.json"		// config file
 )
 func main() {
 	appDir, err:= utils.GetAppDir()
@@ -37,12 +40,19 @@ func main() {
 	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
 
+	configPath := cfgDir + "/" + ConfigFileName
+
+	var port string
+	err = config.LoadJsonNode(configPath, "port", &port)
+	if err != nil {
+		l4g.Crashf("", err)
+	}
+
 	// 数据目录
 	dataDir := runDir + "/" + DataDirName
 	err = os.Mkdir(dataDir, os.ModePerm)
 	if err != nil && !os.IsExist(err) {
-		l4g.Error("Create data directory failed: %s", err.Error())
-		return
+		l4g.Crashf("Create data directory failed: %s", err.Error())
 	}
 	l4g.Info("Data directory = %s", dataDir)
 
@@ -51,22 +61,20 @@ func main() {
 	// eth client
 	ethClient, err := eth.ClientInstance()
 	if nil != err {
-		l4g.Error("Create client:%s error:%s", types.Chain_eth, err.Error())
-		return
+		l4g.Crashf("Create client:%s error:%s", types.Chain_eth, err.Error())
 	}
 	clientManager.AddClient(ethClient)
 
 	// 启动服务
 	web := new(handler.Web)
 	if err := web.Init(clientManager, dataDir); err != nil{
-		l4g.Error("Init service failed: %s", err.Error())
-		return
+		l4g.Crashf("Init service failed: %s", err.Error())
 	}
-	if err := web.StartHttpServer("8066"); err != nil{
-		l4g.Error("Start http service failed: %s", err.Error())
-		return
+	if err := web.StartHttpServer(port); err != nil{
+		l4g.Crashf("Start http service failed: %s", err.Error())
 	}
 
+	fmt.Println("Bastion pay offline tool started...")
 	fmt.Println("Input 'q' to exit...")
 
 	// debug mode
@@ -74,8 +82,7 @@ func main() {
 	ol := &tools.OffLine{}
 	err = ol.Init(clientManager, dataDir)
 	if err != nil {
-		l4g.Error("Start Bastion offline tool failed: %s", err.Error())
-		return
+		l4g.Crashf("Start Bastion offline tool failed: %s", err.Error())
 	}
 	time.Sleep(time.Second*1)
 	for {
@@ -87,7 +94,7 @@ func main() {
 			break;
 		}else if argv[0] == "help" {
 			ol.Usage()
-		}else{
+		}else {
 			ol.Execute(argv)
 		}
 	}

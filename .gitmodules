@@ -10,12 +10,6 @@
 [submodule "src/github.com/pki-io/ecies"]
 	path = src/github.com/pki-io/ecies
 	url = https://github.com/pki-io/ecies
-[submodule "src/golang.org/x/crypto/"]
-	path = src/golang.org/x/crypto
-	url = https://github.com/golang/crypto.git
-[submodule "src/src/golang.org/x/crypto"]
-	path = src/src/golang.org/x/crypto
-	url = https://github.com/golang/crypto.git
 [submodule "src/golang.org/x/crypto"]
 	path = src/golang.org/x/crypto
 	url = https://github.com/golang/crypto.git
@@ -55,3 +49,9 @@
 [submodule "src/github.com/mattn/go-sqlite3"]
 	path = src/github.com/mattn/go-sqlite3
 	url = https://github.com/mattn/go-sqlite3.git
+[submodule "src/github.com/cenkalti/rpc2"]
+	path = src/github.com/cenkalti/rpc2
+	url = https://github.com/cenkalti/rpc2.git
+[submodule "src/github.com/cenkalti/hub"]
+	path = src/github.com/cenkalti/hub
+	url = https://github.com/cenkalti/hub.git

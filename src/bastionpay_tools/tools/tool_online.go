@@ -5,7 +5,6 @@ import (
 	"log"
 	"blockchain_server/service"
 	"blockchain_server/types"
-	"bastionpay_tools/handler"
 	"errors"
 	"strconv"
 	"bastionpay_tools/function"
@@ -20,10 +19,14 @@ type OnLine struct{
 
 func (ol *OnLine) Usage() {
 	fmt.Println("Usage: ")
-	fmt.Println(">loadonlineaddress uniname")
-	fmt.Println("	load online format address(parameter：uniname)")
-	fmt.Println(">buildtxcmd type chiperprikey form to value txfilepath")
-	fmt.Println("	build a test tx(parameter：type chiperprikey form to value txfilepath)")
+	fmt.Println(">loadaddress uniaddressname")
+	fmt.Println("	load format address(parameter：uniaddressname)")
+	fmt.Println(">verifyaddressfile uniaddressname")
+	fmt.Println("	verify address file md5(parameter：uniaddressname)")
+	fmt.Println(">verifytxfile txpath")
+	fmt.Println("	verifytxfile tx file md5(parameter：txpath)")
+	fmt.Println(">buildtxcmd type chiperprikey form to value")
+	fmt.Println("	build a test tx(parameter：type chiperprikey form to value)")
 	fmt.Println(">sendsignedtx txsignedfilepath")
 	fmt.Println("	sendsignedtx(parameter: txsignedfilepath)")
 	fmt.Println(">downloadfile url")
@@ -48,20 +51,19 @@ func (ol *OnLine) Init(clientManager *service.ClientManager, dataDir string) err
 	return nil
 }
 
-func (ol *OnLine) Execute(argv []string) (string, error) {
+func (ol *OnLine) Execute(argv []string) (error) {
 	var err error
-	var res string
-	if argv[0] == "loadonlineaddress" {
+	if argv[0] == "loadaddress" {
 		if len(argv) != 2 {
-			log.Println("format：loadonlineaddress uniname")
-			return "", errors.New("command error")
+			log.Println("format：loadaddress uniaddressname")
+			return errors.New("command error")
 		}
 
-		uniName := argv[1]
-		accs, err := ol.LoadOnlineAddress(uniName)
+		dbName := argv[1]
+		accs, err := ol.LoadAddress(dbName)
 		if err != nil {
-			log.Println("loadonlineaddress failed: ", err.Error())
-			return "", err
+			log.Println("loadaddress failed: ", err.Error())
+			return err
 		}
 		len := len(accs)
 		for i := 0; i < len && i < 5; i++ {
@@ -74,12 +76,33 @@ func (ol *OnLine) Execute(argv []string) (string, error) {
 			fmt.Println("address: ", accs[i].Address)
 			fmt.Println("prikey: ", accs[i].PrivateKey)
 		}
+		log.Println("loadaddress fin: ", len)
+	} else if argv[0] == "verifyaddressfile" {
+		if len(argv) != 2 {
+			log.Println("format：verifyaddressfile uniaddressname")
+			return errors.New("command error")
+		}
+
+		dbName := argv[1]
+		err = ol.VerifyAddressMd5(dbName)
+		log.Println("verifyaddressfile fin: ", err)
+	} else if argv[0] == "verifytxfile" {
+		if len(argv) != 2 {
+			log.Println("format：verifytxfile txpath")
+			return errors.New("command error")
+		}
+
+		txPath := argv[1]
+		err = ol.VerifyTxMd5(txPath)
+		log.Println("verifytxfile fin: ", err)
 	} else if argv[0] == "buildtxcmd" {
-		err = BuildTxTest(ol.GetClientManager(), argv)
-	}else if argv[0] == "sendsignedtx" {
+		res, err := BuildTxTest(ol, argv)
+		log.Println("buildtxcmd fin: ", err)
+		log.Println("buildtxcmd res: ", res)
+	} else if argv[0] == "sendsignedtx" {
 		if len(argv) != 2 {
 			log.Println("format：sendsignedtx txsingedfilepath")
-			return "", errors.New("command is error")
+			return errors.New("command is error")
 		}
 
 		if ol.isStart == false{
@@ -89,17 +112,18 @@ func (ol *OnLine) Execute(argv []string) (string, error) {
 
 		txSignedFilePath := argv[1]
 		err = ol.SendSignedTx(txSignedFilePath)
+		log.Println("sendsignedtx fin: ", err)
 	}else if argv[0] == "downloadfile" {
 		if len(argv) != 2 {
 			log.Println("format：downloadfile url")
-			return "", errors.New("command is error")
+			return errors.New("command is error")
 		}
 
 		url := argv[1]
 		pps := strings.Split(url, "/")
 		if len(pps) == 0 {
 			log.Println("url error")
-			return "", errors.New("url error")
+			return errors.New("url error")
 		}
 
 		filePath := ol.GetDataDir() + "/" + pps[len(pps)-1]
@@ -108,26 +132,26 @@ func (ol *OnLine) Execute(argv []string) (string, error) {
 	}else if argv[0] == "uploadfile" {
 		if len(argv) != 3 {
 			log.Println("format：uploadfile filepath url")
-			return "", errors.New("command is error")
+			return errors.New("command is error")
 		}
 
 		filePath := argv[1]
 		url := argv[2]
-		res, err = httphandler.UploadFile(filePath, url)
+		res, err := httphandler.UploadFile(filePath, url)
 		fmt.Println("upload fin: ", err)
-		fmt.Println(res)
+		fmt.Println("res:", res)
 	}else{
 		ol.Usage()
 		err = errors.New("unknown command")
 	}
 
-	return res, err
+	return err
 }
 
-func BuildTxTest(clientManager *service.ClientManager, argv []string) (error) {
-	if len(argv) != 7 {
-		fmt.Println("正确格式：buildtxcmd 类型 加密私钥 从地址 去地址 数量 交易文件路径")
-		return errors.New("command is error")
+func BuildTxTest(ol *OnLine, argv []string) (string, error) {
+	if len(argv) != 6 {
+		fmt.Println("正确格式：buildtxcmd 类型 加密私钥 从地址 去地址 数量")
+		return "", errors.New("command is error")
 	}
 
 	t := argv[1]
@@ -137,13 +161,13 @@ func BuildTxTest(clientManager *service.ClientManager, argv []string) (error) {
 	value, err := strconv.Atoi(argv[5])
 	if err != nil {
 		fmt.Printf("数量不正确: %s\n", err.Error())
-		return err
+		return "", err
 	}
 
 	txCmd := service.NewSendTxCmd("message id", t, "", to, nil, uint64(value))
 	if txCmd == nil{
 		fmt.Printf("创建交易失败\n")
-		return errors.New("create tx failed")
+		return "", errors.New("create tx failed")
 	}
 	txCmd.Tx.From = from
 	txCmd.Chiperkey = chiperprikey
@@ -151,6 +175,5 @@ func BuildTxTest(clientManager *service.ClientManager, argv []string) (error) {
 	var txArr []*types.CmdSendTx
 	txArr = append(txArr, txCmd)
 
-	txFilePath := argv[6]
-	return handler.BuildTx(clientManager, txArr, txFilePath)
+	return ol.BuildTx(txArr)
 }

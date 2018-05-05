@@ -6,11 +6,10 @@ import (
 	"fmt"
 )
 
-func QueryAssetProperty(query string) ([]AssetProperty, bool) {
-	sqls := "select asset_id,asset_name,full_name,is_token,coin_name,logo,deposit_min,withdrawal_rate,withdrawal_value," +
-		"withdrawal_reserve_rate,withdrawal_alert_rate,withdrawal_stategy,confirmation_num,decaimal,gas_factor," +
-		"debt,park_amount from asset_property" +
-		" where true"
+func QueryAssetPropertyByJson(query string) ([]AssetProperty, bool) {
+	sqls := "select asset_name,full_name,is_token,parent_name,logo,deposit_min,withdrawal_rate," +
+		"withdrawal_value,withdrawal_reserve_rate,withdrawal_alert_rate,withdrawal_stategy,confirmation_num," +
+		"decaimal,gas_factor,debt,park_amount from asset_property where true"
 
 	assetProperty := make([]AssetProperty, 0)
 	params := make([]interface{}, 0)
@@ -35,7 +34,7 @@ func QueryAssetProperty(query string) ([]AssetProperty, bool) {
 
 	var data AssetProperty
 	for rows.Next() {
-		err := rows.Scan(&data.AssetID, &data.AssetName, &data.FullName, &data.IsToken, &data.CoinName, &data.Logo,
+		err := rows.Scan(&data.AssetName, &data.FullName, &data.IsToken, &data.ParentName, &data.Logo,
 			&data.DepositMin, &data.WithdrawalRate, &data.WithdrawalValue, &data.WithdrawalReserveRate,
 			&data.WithdrawalAlertRate, &data.WithdrawalStategy, &data.ConfirmationNum, &data.Decaimal,
 			&data.GasFactor, &data.Debt, &data.ParkAmount)
@@ -46,7 +45,7 @@ func QueryAssetProperty(query string) ([]AssetProperty, bool) {
 	return assetProperty, len(assetProperty) > 0
 }
 
-func QueryAssetPropertyCount(query string) int {
+func QueryAssetPropertyCountByJson(query string) int {
 	sqls := "select count(*) from asset_property" +
 		" where true"
 
@@ -67,17 +66,9 @@ func QueryAssetPropertyCount(query string) int {
 	return count
 }
 
-func QueryAssetPropertyByID(assetID int) (AssetProperty, bool) {
-	query := fmt.Sprintf("{\"asset_id\":%d}", assetID)
-	if assetProperty, ok := QueryAssetProperty(query); ok {
-		return assetProperty[0], true
-	}
-	return AssetProperty{}, false
-}
-
 func QueryAssetPropertyByName(assetName string) (AssetProperty, bool) {
 	query := fmt.Sprintf("{\"asset_name\":\"%s\"}", assetName)
-	if assetProperty, ok := QueryAssetProperty(query); ok {
+	if assetProperty, ok := QueryAssetPropertyByJson(query); ok {
 		return assetProperty[0], true
 	}
 	return AssetProperty{}, false

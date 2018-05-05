@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func QueryUserProperty(query string) ([]UserProperty, bool) {
+func QueryUserPropertyByJson(query string) ([]UserProperty, bool) {
 	sqls := "select user_key,user_name,user_class,phone,email,salt,password,google_auth,public_key," +
 		"callback_url,level,last_login_time,last_login_ip,last_login_mac,unix_timestamp(create_time)," +
 		"unix_timestamp(update_time),is_frozen,time_zone,country,language from user_property" +
@@ -47,7 +47,7 @@ func QueryUserProperty(query string) ([]UserProperty, bool) {
 	return userProperty, len(userProperty) > 0
 }
 
-func QueryUserPropertyCount(query string) int {
+func QueryUserPropertyCountByJson(query string) int {
 	sqls := "select count(*) from user_property" +
 		" where true"
 
@@ -70,7 +70,7 @@ func QueryUserPropertyCount(query string) int {
 
 func QueryUserPropertyByKey(userKey string) (UserProperty, bool) {
 	query := fmt.Sprintf("{\"user_key\":\"%s\"}", userKey)
-	if userProperty, ok := QueryUserProperty(query); ok {
+	if userProperty, ok := QueryUserPropertyByJson(query); ok {
 		return userProperty[0], true
 	}
 	return UserProperty{}, false

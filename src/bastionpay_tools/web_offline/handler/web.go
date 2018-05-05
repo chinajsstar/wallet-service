@@ -4,35 +4,11 @@ import (
 	"net/http"
 	"html/template"
 	l4g "github.com/alecthomas/log4go"
-	"fmt"
 	"encoding/json"
-	"os"
-	"io"
-	"bastionpay_tools/db"
 	"blockchain_server/service"
 	"bastionpay_tools/function"
 	"strconv"
 )
-
-// copy file
-func CopyFile(src, dst string)(w int64, err error){
-	srcFile,err := os.Open(src)
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-	defer srcFile.Close()
-
-	dstFile,err := os.Create(dst)
-	if err!=nil{
-		fmt.Println(err.Error())
-		return
-	}
-
-	defer dstFile.Close()
-
-	return io.Copy(dstFile,srcFile)
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 type WebRes struct {
@@ -92,7 +68,6 @@ func (self *Web) StartHttpServer(port string) error {
 		err := http.ListenAndServe(":" + port, nil)
 		if err != nil {
 			l4g.Crashf("", err)
-			return
 		}
 	}()
 
@@ -107,7 +82,10 @@ func (self *Web) handle404(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("template/html/404.html")
 	if (err != nil) {
 		l4g.Error("%s", err.Error())
+		w.Write([]byte(err.Error()))
+		return
 	}
+
 	t.Execute(w, nil)
 }
 
@@ -120,53 +98,37 @@ func (self *Web) handlePathFile(w http.ResponseWriter, req *http.Request) {
 	t, err := template.ParseFiles("template/html/" + filename)
 	if err != nil {
 		l4g.Error("%s", err.Error())
+		w.Write([]byte(err.Error()))
 		return
 	}
 
 	t.Execute(w, nil)
-	return
 }
 
 func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
 	rb := WebRes{Err:1, ErrMsg:""}
 
 	err := func() error {
-		cointype := req.FormValue("cointype")
+		coinType := req.FormValue("cointype")
 		count := req.FormValue("count")
-		newaddresssavedir := req.FormValue("newaddresssavedir")
+		newAddressSaveDir := req.FormValue("newaddresssavedir")
+		//newAddressBackDir := req.FormValue("newaddressbackdir")
 
 		// new address
-		fmt.Println(cointype, "--", count, "--", newaddresssavedir)
+		l4g.Info("newaddress: %s-%s-%s", coinType, count,  newAddressSaveDir)
 
 		c, err := strconv.Atoi(count)
 		if err != nil {
 			return err
 		}
 
-		var newaddressfilepaths []string
-		uniNames, err := self.NewAddress(cointype, uint32(c))
-		if err != nil {
-			return err
-		}else{
-			for _, uniName := range uniNames{
-				onlineDBPath := self.GetAddressDataDir() + "/" + db.GetOnlineUniDBName(uniName)
-				newaddressfilepath := newaddresssavedir + "/" + db.GetOnlineUniDBName(uniName)
-				_, err = CopyFile(onlineDBPath, newaddressfilepath)
-				if err != nil {
-					return err
-				}
-
-				newaddressfilepaths = append(newaddressfilepaths, newaddressfilepath)
-			}
-		}
-
-		bb, err := json.Marshal(newaddressfilepaths)
+		dstUniDir, err := self.NewAddress(coinType, uint32(c), newAddressSaveDir)
 		if err != nil {
 			return err
 		}
 
 		rb.Err = 0
-		rb.Value = "Db file save as：" + string(bb)
+		rb.Value = "Db file save as：" + dstUniDir
 		return nil
 	}()
 
@@ -185,19 +147,19 @@ func (self *Web) handleSigntxAct(w http.ResponseWriter, req *http.Request) {
 	rb := WebRes{Err:1, ErrMsg:""}
 
 	err := func()error{
-		txfilepath := req.FormValue("txfilepath")
-		txsignedfilepath := req.FormValue("txsignedfilepath")
+		txFilePath := req.FormValue("txfilepath")
+		txSignedSaveDir := req.FormValue("txsignedsavedir")
 
 		// signtx
-		fmt.Println(txfilepath, "--", txsignedfilepath)
+		l4g.Info("signtx: %s-%s", txFilePath, txSignedSaveDir)
 
-		err := self.SignTx(txfilepath, txsignedfilepath)
+		uniPath, err := self.SignTx(txFilePath, txSignedSaveDir)
 		if err != nil {
 			return err
 		}
 
 		rb.Err = 0
-		rb.Value = "txsigned save ad：" + txsignedfilepath
+		rb.Value = "txsigned save as：" + uniPath
 		return nil
 	}()
 

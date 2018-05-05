@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func WithDrawalSet(userKey string, assetID int, address string, amount int64, walletFee int64, uuID string) error {
+func WithDrawalSet(userKey string, assetName string, address string, amount int64, payFee int64, uuID string) error {
 	nowTM := time.Now().UTC().Format(TimeFormat)
 
 	tx, err := Get().Begin()
@@ -15,8 +15,8 @@ func WithDrawalSet(userKey string, assetID int, address string, amount int64, wa
 	}
 
 	ret, err := tx.Exec("update user_account set available_amount = available_amount - ?, frozen_amount = frozen_amount + ?,"+
-		" update_time = ? where user_key = ? and asset_id = ? and available_amount >= ?;",
-		amount+walletFee, amount+walletFee, nowTM, userKey, assetID, amount+walletFee)
+		" update_time = ? where user_key = ? and asset_name = ? and available_amount >= ?;",
+		amount+payFee, amount+payFee, nowTM, userKey, assetName, amount+payFee)
 
 	if err != nil {
 		tx.Rollback()
@@ -34,9 +34,9 @@ func WithDrawalSet(userKey string, assetID int, address string, amount int64, wa
 		return errors.New("update user_account rows < 1")
 	}
 
-	ret, err = tx.Exec("insert withdrawal_order (order_id, user_key, asset_id, address, amount, wallet_fee, create_time) "+
+	ret, err = tx.Exec("insert withdrawal_order (order_id, user_key, asset_name, address, amount, pay_fee, create_time) "+
 		"values (?, ?, ?, ?, ?, ?, ?);",
-		uuID, userKey, assetID, address, amount, walletFee, nowTM)
+		uuID, userKey, assetName, address, amount, payFee, nowTM)
 
 	if err != nil {
 		tx.Rollback()

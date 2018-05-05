@@ -46,7 +46,6 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 
 	serviceCenter.registerData.Srv = serviceCenter.cfgCenter.CenterName
 	serviceCenter.registerData.Version = serviceCenter.cfgCenter.CenterVersion
-	serviceCenter.registerData.Addr = ""
 
 	serviceCenter.apiHandler = make(map[string]*NodeApi)
 
@@ -58,7 +57,7 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 		icomment := "无参数"
 
 		var oargv []data.SrvRegisterData
-		oargv = append(oargv, data.SrvRegisterData{Version:"v1", Srv:"srv", Addr:""})
+		oargv = append(oargv, data.SrvRegisterData{Version:"v1", Srv:"srv"})
 		ocomment := data.FieldTag(oargv)
 
 		apiDoc := data.ApiDoc{Name:apiInfo.Name, Level:apiInfo.Level, Doc:"列出所有服务", Example:example, InComment:icomment, OutComment:ocomment}
@@ -71,6 +70,7 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 	var res string
 	serviceCenter.Register(&serviceCenter.registerData, &res)
 
+	rpc.Register(serviceCenter)
 	return serviceCenter, nil
 }
 
@@ -407,7 +407,6 @@ func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvRes
 		regData := data.SrvRegisterData{}
 		regData.Srv = req.Data.Method.Srv
 		regData.Version = req.Data.Method.Version
-		regData.Addr = nodeAddr
 		var rs string
 		mi.UnRegister(&regData, &rs)
 	}

@@ -4,14 +4,13 @@ import (
 	"blockchain_server/service"
 	"blockchain_server/types"
 	"bastionpay_tools/db"
-	l4g "github.com/alecthomas/log4go"
+	//l4g "github.com/alecthomas/log4go"
 	"fmt"
-	"github.com/satori/go.uuid"
-	"time"
 	"bastionpay_tools/common"
+	"os"
 )
 
-func NewMaxCountAddress(clientManager *service.ClientManager, coinType string, count uint32) ([]*types.Account, error) {
+func newMaxCountAddress(clientManager *service.ClientManager, coinType string, count uint32) ([]*types.Account, error) {
 	var aCcsAll []*types.Account
 
 	left := count
@@ -26,7 +25,6 @@ func NewMaxCountAddress(clientManager *service.ClientManager, coinType string, c
 		accCmd := service.NewAccountCmd("message id", coinType, uint32(realCount))
 		aCcs, err := clientManager.NewAccounts(accCmd)
 		if err != nil {
-			fmt.Printf("创建新地址失败: %s\n", err.Error())
 			return nil, err
 		}
 		aCcsAll = append(aCcsAll, aCcs...)
@@ -37,86 +35,131 @@ func NewMaxCountAddress(clientManager *service.ClientManager, coinType string, c
 	return aCcsAll, nil
 }
 
-// 返回文件名的唯一标示
-func NewAddress(clientManager *service.ClientManager, addressDataDir string, coinType string, count uint32) (string, error) {
-	fmt.Printf("==============NewAddressByCmd================\n")
-	fmt.Printf("您正在创建新地址，类型：%s, 数量为：%d\n", coinType, count)
-
+// 返回唯一标示
+func NewAddress(clientManager *service.ClientManager, addrDir string, uniAddrInfo *common.UniAddressInfo, count uint32)(*common.UniAddressDbInfo, error) {
 	var err error
 
-	// uuid
-	fmt.Printf("生成唯一标示\n")
-	uniName, err := func()(string, error) {
-		uuidv4, err := uuid.NewV4()
-		if err != nil {
-			return "", err
-		}
-		uuid := uuidv4.String()
-
-		datetime := time.Now().UTC().Format(common.TimeFormat)
-		return coinType + "@" + datetime + "@" + uuid, nil
-	}()
+	// 生成唯一
+	uniAddrDbInfo, err := common.NewUniAddressDbInfo()
 	if err != nil {
-		l4g.Error("生成唯一标示错误: %s", err.Error())
-		return "", err
-	}
-	fmt.Println("创建唯一标示：%s", uniName)
-
-	// 批量生成地址
-	aCcs, err := NewMaxCountAddress(clientManager, coinType, common.MaxDbCountAddress)
-	if err != nil {
-		fmt.Printf("创建新地址失败: %s\n", err.Error())
-		return "", err
+		return nil, err
 	}
 
-	// 保存新地址
-	err = db.ExportAddress(addressDataDir, uniName, aCcs)
+	// 生成离线
+	fmt.Println("生成离线地址...")
+	aCcsOffline, err := newMaxCountAddress(clientManager, uniAddrInfo.CoinType, count)
 	if err != nil {
-		fmt.Printf("导出新地址失败: %s\n", err.Error())
-		return "", err
-	}
-	fmt.Printf("导出新地址成功，唯一标示: %s\n", uniName)
-
-	// 校验一次
-	fmt.Printf("开始校验: %s\n", uniName)
-
-	// 校验在线文件
-	err = db.VerifyOnlineDBFile(addressDataDir, uniName, aCcs)
-	if err != nil {
-		fmt.Printf("校验在线文件失败：%s\n", err.Error())
-		return "", err
+		return nil, err
 	}
 
-	// 校验离线文件
-	err = db.VerifyOfflineDBFile(addressDataDir, uniName, aCcs)
+	// 保存离线
+	fmt.Println("保存离线地址...")
+	offlineTmpPath := uniAddrInfo.GetUniAbsDir(addrDir) + "/" + "offline.db"
+	uniAddrDbInfo.OfflineMd5, err = db.ExportLineAddress(offlineTmpPath, aCcsOffline)
 	if err != nil {
-		fmt.Printf("校验离线文件失败：%s\n", err.Error())
-		return "", err
+		return nil, err
 	}
 
-	fmt.Println("校验完成")
+	// 生成在线
+	fmt.Println("导出在线地址...")
+	var aCcsOnline []*types.Account
+	for _, acc := range aCcsOffline{
+		accOnline := &types.Account{Address:acc.Address, PrivateKey:uniAddrInfo.GetUniName() + uniAddrDbInfo.GetUniNameOffline()}
+		aCcsOnline = append(aCcsOnline, accOnline)
+	}
 
-	return uniName, nil
+	// 保存在线
+	fmt.Println("保存在线地址...")
+	onlineTmpPath := uniAddrInfo.GetUniAbsDir(addrDir) + "/" + "online.db"
+	uniAddrDbInfo.OnlineMd5, err = db.ExportLineAddress(onlineTmpPath, aCcsOnline)
+	if err != nil {
+		return nil, err
+	}
+
+	// 校验离线
+	fmt.Println("校验离线地址...")
+	offlineDbMd5_1, err := common.GetSaltMd5HexByFile(offlineTmpPath)
+	if err != nil {
+		return nil, err
+	}
+	if uniAddrDbInfo.OfflineMd5 != offlineDbMd5_1 {
+		fmt.Println("离线地址MD5错误...")
+		return nil, err
+	}
+
+	err = db.VerifyLineAddress(offlineTmpPath, aCcsOffline)
+	if err != nil {
+		fmt.Println("离线地址私钥有错误...")
+		return nil, err
+	}
+
+	// 校验在线
+	fmt.Println("校验在线地址...")
+	onlineDbMd5_1, err := common.GetSaltMd5HexByFile(onlineTmpPath)
+	if err != nil {
+		return nil, err
+	}
+	if uniAddrDbInfo.OnlineMd5 != onlineDbMd5_1 {
+		fmt.Println("在线地址MD5错误...")
+		return nil, err
+	}
+
+	err = db.VerifyLineAddress(onlineTmpPath, aCcsOnline)
+	if err != nil {
+		fmt.Println("在线地址私钥有错误...")
+		return nil, err
+	}
+
+	fmt.Println("校验成功")
+
+	// 重命名
+	fmt.Println("重命名")
+	uniAbsDir := uniAddrInfo.GetUniAbsDir(addrDir)
+	realOnlineTmpPath := uniAbsDir + "/" + uniAddrInfo.GetUniName() + uniAddrDbInfo.GetUniNameOnline() + common.GetOnlineExtension()
+	realOfflineTmpPath := uniAbsDir + "/" + uniAddrInfo.GetUniName() + uniAddrDbInfo.GetUniNameOffline() + common.GetOfflineExtension()
+
+	err = os.Rename(onlineTmpPath, realOnlineTmpPath)
+	if err != nil {
+		fmt.Printf("重命名在线文件失败：%s\n", err.Error())
+		return nil, err
+	}
+
+	err = os.Rename(offlineTmpPath, realOfflineTmpPath)
+	if err != nil {
+		fmt.Printf("重命名离线文件失败：%s\n", err.Error())
+		return nil, err
+	}
+
+	fmt.Printf("==============End NewAddress================\n")
+	return uniAddrDbInfo, nil
 }
 
-func LoadOnlineAddress(addressDataDir string, uniName string) ([]*types.Account, error) {
-	uniDBName := db.GetOnlineUniDBName(uniName)
-	aCcs, err := db.ImportAddress(addressDataDir, uniDBName)
+func LoadAddress(uniAbsDir string, uniDbName string) ([]*types.Account, error) {
+	err := VerifyAddressMd5(uniAbsDir + "/" + uniDbName)
 	if err != nil {
-		fmt.Printf("加载地址失败: %s\n", err.Error())
+		return nil, err
+	}
+
+	aCcs, err := db.LoadAddress(uniAbsDir + "/" + uniDbName)
+	if err != nil {
 		return nil, err
 	}
 
 	return aCcs, nil
 }
 
-func LoadOfflineAddress(addressDataDir string, uniName string) ([]*types.Account, error) {
-	uniDBName := db.GetOfflineUniDBName(uniName)
-	aCcs, err := db.ImportAddress(addressDataDir, uniDBName)
+
+func VerifyAddressMd5(addressFilePath string) error{
+	fileInfo, err := os.Stat(addressFilePath)
 	if err != nil {
-		fmt.Printf("加载地址失败: %s\n", err.Error())
-		return nil, err
+		return err
 	}
 
-	return aCcs, nil
+	fileName := fileInfo.Name()
+	uniAddress, err := common.ParseUniAddressLineDbInfo(fileName)
+	if err != nil {
+		return err
+	}
+
+	return common.CompareSaltMd5HexByFile(addressFilePath, uniAddress.Md5)
 }

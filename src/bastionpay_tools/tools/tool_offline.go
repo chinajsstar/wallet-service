@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"bastionpay_tools/function"
 	"log"
-	"encoding/json"
 )
 
 type OffLine struct{
@@ -17,14 +16,16 @@ type OffLine struct{
 
 func (ol *OffLine)Usage()  {
 	fmt.Println("Usage: ")
-	fmt.Println(">newaddress type count")
-	fmt.Println("	create new address(parameter：chaintype count)")
-	fmt.Println(">loadonlineaddress uniname")
-	fmt.Println("	load online format address(parameter：uniname)")
-	fmt.Println(">loadofflineaddress uniname")
-	fmt.Println("	load offline format address(parameter：uniname)")
-	fmt.Println(">signtx txfilepath txsignedfilepath")
-	fmt.Println("	sign transaction(parameter：txfilepath txsignedfilepath)")
+	fmt.Println(">newaddress type count saveddir")
+	fmt.Println("	create new address(parameter：chaintype count saveddir)")
+	fmt.Println(">loadaddress uniaddressname")
+	fmt.Println("	load format address(parameter：uniaddressname)")
+	fmt.Println(">verifyaddressfile uniaddressname")
+	fmt.Println("	verify address file md5(parameter：uniaddressname)")
+	fmt.Println(">verifytxfile txpath")
+	fmt.Println("	verifytxfile tx file md5(parameter：txpath)")
+	fmt.Println(">signtx txfilepath saveddir")
+	fmt.Println("	sign transaction(parameter：txfilepath saveddir)")
 }
 
 func (ol *OffLine) Init(clientManager *service.ClientManager, dataDir string) error {
@@ -41,45 +42,45 @@ func (ol *OffLine) Init(clientManager *service.ClientManager, dataDir string) er
 	return nil
 }
 
-func (ol *OffLine)Execute(argv []string) (string, error) {
+func (ol *OffLine)Execute(argv []string) (error) {
 	var err error
-	var res string
 	fmt.Println(argv)
 	if argv[0] == "newaddress" {
-		if len(argv) != 3 {
-			log.Println("format：newaddress type count")
-			return "", errors.New("command error")
+		if len(argv) != 4 {
+			log.Println("format：newaddress type count saveddir")
+			return errors.New("command error")
 		}
 
 		coinType := argv[1]
 		count, err := strconv.Atoi(argv[2])
 		if err != nil {
 			log.Println("newaddress failed: ", err.Error())
-			return "", err
+			return err
 		}
 
-		uniNames, err := ol.NewAddress(coinType, uint32(count))
-		bb, err := json.Marshal(uniNames)
+		savedDir := argv[3]
+		uniName, err := ol.NewAddress(coinType, uint32(count), savedDir)
 		if err != nil {
-			return "", err
+			log.Println("newaddress failed: ", err.Error())
+			return err
 		}
-		res = string(bb)
 
 		if err != nil {
 			log.Println("newaddress failed: ", err.Error())
-			return "", err
+			return err
 		}
-	}else if argv[0] == "loadonlineaddress" {
+		log.Println("newaddress fin: ", uniName)
+	}else if argv[0] == "loadaddress" {
 		if len(argv) != 2 {
-			log.Println("format：loadonlineaddress uniname")
-			return "", errors.New("command error")
+			log.Println("format：loadaddress uniaddressname")
+			return errors.New("command error")
 		}
 
 		uniName := argv[1]
-		accs, err := ol.LoadOnlineAddress(uniName)
+		accs, err := ol.LoadAddress(uniName)
 		if err != nil {
 			log.Println("loadonlineaddress failed: ", err.Error())
-			return "", err
+			return err
 		}
 		len := len(accs)
 		for i := 0; i < len && i < 5; i++ {
@@ -92,42 +93,40 @@ func (ol *OffLine)Execute(argv []string) (string, error) {
 			fmt.Println("address: ", accs[i].Address)
 			fmt.Println("prikey: ", accs[i].PrivateKey)
 		}
-	}else if argv[0] == "loadofflineaddress" {
+		log.Println("loadaddress fin: ", len)
+	} else if argv[0] == "verifyaddressfile" {
 		if len(argv) != 2 {
-			log.Println("format：loadofflineaddress uniname")
-			return "", errors.New("command error")
+			log.Println("format：verifyaddressfile uniaddressname")
+			return errors.New("command error")
 		}
 
-		uniName := argv[1]
-		accs, err := ol.LoadOfflineAddress(uniName)
-		if err != nil {
-			log.Println("loadofflineaddress failed: ", err.Error())
-			return "", err
+		dbName := argv[1]
+		err = ol.VerifyAddressMd5(dbName)
+		log.Println("verifyaddressfile fin: ", err)
+	} else if argv[0] == "verifytxfile" {
+		if len(argv) != 2 {
+			log.Println("format：verifytxfile txpath")
+			return errors.New("command error")
 		}
-		len := len(accs)
-		for i := 0; i < len && i < 5; i++ {
-			fmt.Println("index: ", i)
-			fmt.Println("address: ", accs[i].Address)
-			fmt.Println("prikey: ", accs[i].PrivateKey)
-		}
-		for i := len-5; i>=0 && i < len; i++ {
-			fmt.Println("index: ", i)
-			fmt.Println("address: ", accs[i].Address)
-			fmt.Println("prikey: ", accs[i].PrivateKey)
-		}
-	}else if argv[0] == "signtx" {
+
+		txPath := argv[1]
+		err = ol.VerifyTxMd5(txPath)
+		log.Println("verifytxfile fin: ", err)
+	} else if argv[0] == "signtx" {
 		if len(argv) != 3 {
-			log.Println("format: signtx txfilepath txsignedfilepath")
-			return "", errors.New("command error")
+			log.Println("format: signtx txfilepath saveddir")
+			return errors.New("command error")
 		}
 
 		txFilePath := argv[1]
-		txSignedFilePath := argv[2]
-		err = ol.SignTx(txFilePath, txSignedFilePath)
-	}else{
+		txSavedDir := argv[2]
+		res, err := ol.SignTx(txFilePath, txSavedDir)
+		log.Println("signtx fin: ", err)
+		log.Println("signtx res: ", res)
+	} else{
 		ol.Usage()
 		err = errors.New("unknown command")
 	}
 
-	return res, err
+	return err
 }

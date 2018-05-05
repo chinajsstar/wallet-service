@@ -1,14 +1,14 @@
 package mysqlpool
 
 import (
+	"api_router/base/config"
+	"api_router/base/utils"
 	. "business_center/def"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"math"
 	"time"
-	"api_router/base/utils"
-	"api_router/base/config"
 )
 
 var db *sql.DB = nil
@@ -25,7 +25,7 @@ func init() {
 		return
 	}
 
-	err = config.LoadJsonNode(configPath + "/SuperWallet/cobank.json", "db", &dataSourceName)
+	err = config.LoadJsonNode(configPath+"/SuperWallet/cobank.json", "db", &dataSourceName)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -56,11 +56,6 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				sqls += " and user_class = ?"
 				*params = append(*params, value)
 			}
-		case "asset_id":
-			if value, ok := v.(float64); ok {
-				sqls += " and asset_id = ?"
-				*params = append(*params, value)
-			}
 		case "asset_name":
 			if value, ok := v.(string); ok {
 				sqls += " and asset_name = ?"
@@ -71,15 +66,25 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				sqls += " and address = ?"
 				*params = append(*params, value)
 			}
+		case "trans_type":
+			if value, ok := v.(float64); ok {
+				sqls += " and trans_type = ?"
+				*params = append(*params, int(value))
+			}
+		case "status":
+			if value, ok := v.(float64); ok {
+				sqls += " and status = ?"
+				*params = append(*params, int(value))
+			}
 		case "max_amount":
 			if value, ok := v.(float64); ok {
 				sqls += " and amount <= ?"
-				*params = append(*params, value)
+				*params = append(*params, int64(value))
 			}
 		case "min_amount":
 			if value, ok := v.(float64); ok {
 				sqls += " and amount >= ?"
-				*params = append(*params, value)
+				*params = append(*params, int64(value))
 			}
 		case "max_create_time":
 			if value, ok := v.(float64); ok {
@@ -100,6 +105,16 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 			if value, ok := v.(float64); ok {
 				sqls += " and update_time >= ?"
 				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
+			}
+		case "max_msg_id":
+			if value, ok := v.(float64); ok {
+				sqls += " and msg_id <= ?"
+				*params = append(*params, int(value))
+			}
+		case "min_msg_id":
+			if value, ok := v.(float64); ok {
+				sqls += " and msg_id >= ?"
+				*params = append(*params, int(value))
 			}
 		}
 	}

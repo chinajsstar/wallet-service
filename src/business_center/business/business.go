@@ -55,17 +55,29 @@ func (b *Business) Stop() {
 func (b *Business) HandleMsg(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	switch req.Data.Method.Function {
 	case "new_address":
-		{
-			return b.address.NewAddress(req, res)
-		}
+		return b.address.NewAddress(req, res)
+
 	case "withdrawal":
-		{
-			return b.address.Withdrawal(req, res)
-		}
+		return b.address.Withdrawal(req, res)
+
+	case "support_assets":
+		return b.address.SupportAssets(req, res)
+
+	case "asset_attributie":
+		return b.address.AssetAttributie(req, res)
+
+	case "get_balance":
+		return b.address.GetBalance(req, res)
+
+	case "history_transaction_order":
+		return b.address.HistoryTransactionOrder(req, res)
+
+	case "history_transaction_message":
+		return b.address.HistoryTransactionMessage(req, res)
+
 	case "query_user_address":
-		{
-			return b.address.QueryUserAddress(req, res)
-		}
+		return b.address.QueryUserAddress(req, res)
+
 	}
 	return errors.New("invalid command")
 }
