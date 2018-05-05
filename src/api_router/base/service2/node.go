@@ -1,19 +1,18 @@
-package service
+package service2
 
 import (
 	"sync"
 	"api_router/base/data"
-	"api_router/base/nethelper"
 	"api_router/base/config"
 	"context"
 	"strings"
 	"log"
-	"net/rpc"
 	"time"
 	"errors"
 	"net"
 	l4g "github.com/alecthomas/log4go"
 	"reflect"
+	"github.com/cenkalti/rpc2"
 )
 
 // node api interface
@@ -58,11 +57,9 @@ type ServiceNode struct{
 	// wait group
 	wg sync.WaitGroup
 
-	// connection group
-	clientGroup *ConnectionGroup
-
 	// connection to center
-	client *rpc.Client
+	rwmu sync.RWMutex
+	client *rpc2.Client
 }
 
 // New a service node
@@ -81,9 +78,6 @@ func NewServiceNode(confPath string) (*ServiceNode, error){
 	// center info
 	serviceNode.serviceCenterAddr = cfgNode.CenterAddr
 
-	serviceNode.clientGroup = NewConnectionGroup()
-
-	rpc.Register(serviceNode)
 	return serviceNode, nil
 }
 
@@ -106,8 +100,6 @@ func RegisterNodeApi(ni *ServiceNode, nodeApiGroup NodeApiGroup) {
 
 // Start the service node
 func StartNode(ctx context.Context, ni *ServiceNode) {
-	ni.startTcpServer(ctx)
-
 	ni.startToCenter(ctx)
 }
 
@@ -117,7 +109,7 @@ func StopNode(ni *ServiceNode)  {
 }
 
 // RPC -- call
-func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData) error {
+func (ni *ServiceNode) call(client *rpc2.Client, req *data.SrvRequestData, res *data.SrvResponseData) error {
 	h := ni.apiHandler[strings.ToLower(req.Data.Method.Function)]
 	if h != nil {
 		h.ApiHandler(req, res)
@@ -132,82 +124,40 @@ func (ni *ServiceNode) Call(req *data.SrvRequestData, res *data.SrvResponseData)
 
 // inner call a request to router
 func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *data.UserResponseData) error {
+	ni.rwmu.RLock()
+	defer ni.rwmu.RUnlock()
+
 	var err error
 	if ni.client != nil {
-		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterInnerCall, req, res)
+		err = ni.client.Call(data.MethodCenterInnerCall, req, res)
 	}else{
-		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterInnerCall, req, res)
+		err = errors.New("client is nil")
 	}
 	return err
 }
 
 // inner call a request to router by encrypt
 func (ni *ServiceNode) InnerCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) error {
+	ni.rwmu.RLock()
+	defer ni.rwmu.RUnlock()
+
 	var err error
 	if ni.client != nil {
-		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterInnerCallByEncrypt, req, res)
+		err = ni.client.Call(data.MethodCenterInnerCallByEncrypt, req, res)
 	}else{
-		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterInnerCallByEncrypt, req, res)
+		err = errors.New("client is nil")
 	}
 	return err
 }
 
-func (ni *ServiceNode) startTcpServer(ctx context.Context) {
-	s :=strings.Split("", ":")
-	if len(s) != 2{
-		l4g.Crashf("#Error: Node addr is not ip:port format")
-	}
-
-	listener, err := nethelper.CreateTcpServer(":"+s[1])
-	if err != nil {
-		l4g.Crashf("", err)
-	}
-
-	go func() {
-		ni.wg.Add(1)
-		defer ni.wg.Done()
-
-		l4g.Debug("Tcp server routine running... ")
-		go func(){
-			for{
-				conn, err := listener.Accept();
-				if err != nil {
-					l4g.Error("%s", err.Error())
-					continue
-				}
-
-				l4g.Info("Tcp server Accept a client: %s", conn.RemoteAddr().String())
-				rc := ni.clientGroup.Register(conn)
-
-				go func() {
-					go rpc.ServeConn(rc)
-					<- rc.Done
-					l4g.Info("Tcp server close a client: %s", conn.RemoteAddr().String())
-				}()
-			}
-		}()
-
-		<- ctx.Done()
-		l4g.Debug("Tcp server routine stoped... ")
-	}()
-}
-
-// 内部方法
-func (ni *ServiceNode)connectToCenter() (*Connection, error){
-	var err error
-
+func (ni *ServiceNode)connectToCenter() (*rpc2.Client, error){
 	conn, err := net.Dial("tcp", ni.serviceCenterAddr)
 	if err != nil {
-		l4g.Error("%s", err.Error())
 		return nil, err
 	}
 
-	cn := &Connection{}
-	cn.Cg = nil
-	cn.Conn = conn
-	cn.Done = make(chan bool)
-
-	return cn, err
+	clt := rpc2.NewClient(conn)
+	return clt, nil
 }
 
 func (ni *ServiceNode)registToCenter() error{
@@ -216,7 +166,7 @@ func (ni *ServiceNode)registToCenter() error{
 	if ni.client != nil {
 		err = ni.client.Call(data.MethodCenterRegister, ni.registerData, &res)
 	}else{
-		errors.New("connection is closed")
+		err = errors.New("client is nil")
 	}
 	return err
 }
@@ -225,9 +175,9 @@ func (ni *ServiceNode)unRegistToCenter() error{
 	var err error
 	var res string
 	if ni.client != nil {
-		err = nethelper.CallJRPCToTcpServerOnClient(ni.client, data.MethodCenterUnRegister, ni.registerData, &res)
+		ni.client.Call(data.MethodCenterUnRegister, ni.registerData, &res)
 	}else{
-		err = nethelper.CallJRPCToTcpServer(ni.serviceCenterAddr, data.MethodCenterUnRegister, ni.registerData, &res)
+		err = errors.New("client is nil")
 	}
 
 	return err
@@ -239,26 +189,60 @@ func (ni *ServiceNode)startToCenter(ctx context.Context) {
 		defer ni.wg.Done()
 
 		go func() {
-			err := errors.New("not connect")
-			var cn *Connection
 			for {
-				if err != nil {
-					l4g.Info("Tcp client connect...")
-					cn, err = ni.connectToCenter()
-				}
+				// connect and regist
+				func(){
+					ni.rwmu.Lock()
+					defer ni.rwmu.Unlock()
 
-				if err == nil {
-					ni.client = rpc.NewClient(cn)
+					var err error
+					if ni.client == nil {
+						l4g.Info("client try to connect...")
+						ni.client, err = ni.connectToCenter()
+						if ni.client != nil && err == nil {
+							l4g.Info("client connect to center...")
+							ni.client.Handle(data.MethodNodeCall, ni.call)
 
-					ni.registToCenter()
+							go ni.client.Run()
 
-					l4g.Info("Tcp client connected...")
-					<-cn.Done
-					l4g.Info("Tcp client close... ")
+							ni.registToCenter()
+						}
+					}
 
-					err = errors.New("not connect")
-				}
+					if err != nil {
+						if(ni.client != nil){
+							ni.client.Close()
+							ni.client = nil
+						}
+						l4g.Error("connect failed, %s", err.Error())
+					}
+				}()
 
+				// listen
+				func() {
+					ni.rwmu.RLock()
+					defer ni.rwmu.RUnlock()
+
+					if ni.client == nil {
+						return
+					}
+
+					l4g.Info("client run...")
+					<- ni.client.DisconnectNotify()
+					l4g.Error("client disconnect...")
+				}()
+
+				func() {
+					ni.rwmu.Lock()
+					defer ni.rwmu.Unlock()
+					if(ni.client != nil){
+						ni.client.Close()
+						ni.client = nil
+					}
+					l4g.Info("reset client...")
+				}()
+
+				l4g.Info("wait 5 second to connect...")
 				time.Sleep(time.Second*5)
 			}
 		}()

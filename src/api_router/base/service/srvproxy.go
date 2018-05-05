@@ -24,7 +24,7 @@ func (srvNode *SrvNode)connect() error{
 	defer srvNode.rwmu.Unlock()
 
 	if srvNode.client == nil{
-		client, err := rpc.Dial("tcp", srvNode.registerData.Addr)
+		client, err := rpc.Dial("tcp", "")
 		if err != nil {
 			l4g.Error("connect srv node: %s", err.Error())
 			return err

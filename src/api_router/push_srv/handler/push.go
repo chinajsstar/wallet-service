@@ -3,7 +3,8 @@ package handler
 import (
 	"api_router/push_srv/db"
 	"api_router/base/data"
-	"api_router/base/service"
+	//"api_router/base/service"
+	service "api_router/base/service2"
 	"sync"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/nethelper"

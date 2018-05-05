@@ -3,9 +3,7 @@
 	{
 		"srv_name": "account",
 		"srv_version": "v1",
-		"srv_addr": "127.0.0.1:8090",
 		"center_addr": "127.0.0.1:8081"
 	},
-  "db":"root@tcp(127.0.0.1:3306)/wallet",
-  "db_bak":"root:root@tcp(127.0.0.1:3306)/wallet"
+  "db":"root@tcp(127.0.0.1:3306)/wallet"
 }

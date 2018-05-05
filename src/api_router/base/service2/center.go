@@ -1,8 +1,7 @@
-package service
+package service2
 
 import (
 	"sync"
-	"net/rpc"
 	"api_router/base/data"
 	"api_router/base/nethelper"
 	"api_router/base/config"
@@ -11,24 +10,30 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
-	"errors"
 	l4g "github.com/alecthomas/log4go"
+	"github.com/cenkalti/rpc2"
+)
+
+const (
+	HttpApi = "api"
+	HttpApiTest = "apitest"
 )
 
 type ServiceCenter struct{
+	// rpc2
+	*rpc2.Server
+
 	// config
 	cfgCenter config.ConfigCenter
 
 	// srv nodes
 	rwmu                       sync.RWMutex
-	SrvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
+	srvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
+	clientMapSrvNodeGroup 	   map[*rpc2.Client]*SrvNodeGroup // name+version mapto srvnodegroup
 	ApiInfo                    map[string]*data.ApiInfo
 
 	// wait group
 	wg sync.WaitGroup
-
-	// connection group
-	clientGroup *ConnectionGroup
 
 	// center's apis
 	registerData data.SrvRegisterData
@@ -38,11 +43,11 @@ type ServiceCenter struct{
 // new a center
 func NewServiceCenter(confPath string) (*ServiceCenter, error){
 	serviceCenter := &ServiceCenter{}
+
 	serviceCenter.cfgCenter.Load(confPath)
 
-	serviceCenter.SrvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
-
-	serviceCenter.clientGroup = NewConnectionGroup()
+	serviceCenter.srvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
+	serviceCenter.clientMapSrvNodeGroup = make(map[*rpc2.Client]*SrvNodeGroup)
 
 	serviceCenter.registerData.Srv = serviceCenter.cfgCenter.CenterName
 	serviceCenter.registerData.Version = serviceCenter.cfgCenter.CenterVersion
@@ -68,9 +73,11 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 
 	// register
 	var res string
-	serviceCenter.Register(&serviceCenter.registerData, &res)
+	serviceCenter.register(nil, &serviceCenter.registerData, &res)
 
-	rpc.Register(serviceCenter)
+	// rpc2
+	serviceCenter.Server = rpc2.NewServer()
+
 	return serviceCenter, nil
 }
 
@@ -86,20 +93,20 @@ func StopCenter(mi *ServiceCenter)  {
 	mi.wg.Wait()
 }
 
-// RPC -- register
-func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error {
+func (mi *ServiceCenter) register(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
 	err := func()error {
 		mi.rwmu.Lock()
 		defer mi.rwmu.Unlock()
 
 		versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
-		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
+		srvNodeGroup := mi.srvNodeNameMapSrvNodeGroup[versionSrvName]
 		if srvNodeGroup == nil {
 			srvNodeGroup = &SrvNodeGroup{}
-			mi.SrvNodeNameMapSrvNodeGroup[versionSrvName] = srvNodeGroup
+			mi.srvNodeNameMapSrvNodeGroup[versionSrvName] = srvNodeGroup
+			mi.clientMapSrvNodeGroup[client] = srvNodeGroup
 		}
 
-		err := srvNodeGroup.RegisterNode(reg)
+		err := srvNodeGroup.RegisterNode(client, reg)
 		if err == nil {
 			if mi.ApiInfo == nil {
 				mi.ApiInfo = make(map[string]*data.ApiInfo)
@@ -110,44 +117,24 @@ func (mi *ServiceCenter) Register(reg *data.SrvRegisterData, res *string) error 
 			}
 		}
 
+		*res = "ok"
 		return err
 	}()
 
 	return err
 }
 
-// RPC -- unregister
-func (mi *ServiceCenter) UnRegister(reg *data.SrvRegisterData, res *string) error {
-	err := func() error {
-		mi.rwmu.Lock()
-		defer mi.rwmu.Unlock()
-
-		versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
-		srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-		if srvNodeGroup == nil {
-			return nil
-		}
-
-		err := srvNodeGroup.UnRegisterNode(reg)
-		if err == nil {
-			if mi.ApiInfo != nil {
-				for _, v := range reg.Functions{
-					delete(mi.ApiInfo, strings.ToLower(versionSrvName+"."+v.Name))
-				}
-			}
-		}
-		return err
-	}()
-
-	return err
+func (mi *ServiceCenter) unRegister(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
+	mi.disconnectClient(client)
+	*res = "ok"
+	return nil
 }
 
-// RPC -- inner
-func (mi *ServiceCenter) InnerCall(req *data.UserRequestData, res *data.UserResponseData) error {
+func (mi *ServiceCenter) innerCall(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	mi.innerCall(req, res)
+	mi.srvCall(req, res)
 
 	// make sure no data if err
 	if res.Err != data.NoErr {
@@ -157,12 +144,11 @@ func (mi *ServiceCenter) InnerCall(req *data.UserRequestData, res *data.UserResp
 	return nil
 }
 
-// RPC -- inner
-func (mi *ServiceCenter) InnerCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) error {
+func (mi *ServiceCenter) innerCallByEncrypt(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	mi.innerCallByEncrypt(req, res)
+	mi.srvCallByEncrypt(req, res)
 
 	// make sure no data if err
 	if res.Err != data.NoErr {
@@ -177,11 +163,11 @@ func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
 	// http
 	l4g.Debug("Start http server on %s", mi.cfgCenter.Port)
 
-	http.Handle("/wallet/", http.HandlerFunc(mi.handleWallet))
+	http.Handle("/" + HttpApi + "/", http.HandlerFunc(mi.handleApi))
 
 	// test mode
 	if mi.cfgCenter.TestMode != 0 {
-		http.Handle("/wallettest/", http.HandlerFunc(mi.handleWalletTest))
+		http.Handle("/" + HttpApiTest + "/", http.HandlerFunc(mi.handleApiTest))
 	}
 
 	go func() {
@@ -193,9 +179,50 @@ func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
 	}()
 }
 
+func (mi *ServiceCenter)disconnectClient(client *rpc2.Client)  {
+	mi.rwmu.Lock()
+	defer mi.rwmu.Unlock()
+
+	srvNodeGroup, ok := mi.clientMapSrvNodeGroup[client]
+	if srvNodeGroup == nil || !ok {
+		return
+	}
+
+	srvNodeGroup.UnRegisterNode(client)
+	if srvNodeGroup.GetSrvNodes() == 0 {
+		// remove srv node group
+		reg := srvNodeGroup.GetSrvInfo()
+		versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
+		if mi.ApiInfo != nil {
+			for _, v := range reg.Functions{
+				delete(mi.ApiInfo, strings.ToLower(versionSrvName+"."+v.Name))
+			}
+		}
+
+		delete(mi.srvNodeNameMapSrvNodeGroup, versionSrvName)
+	}
+
+	delete(mi.clientMapSrvNodeGroup, client)
+}
+
 // start tcp server
 func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
-	l4g.Debug("Start Tcp server on ", mi.cfgCenter.CenterPort)
+	mi.Server.OnConnect(func(client *rpc2.Client) {
+		l4g.Info("rpc2 client connect...")
+	})
+
+	mi.Server.OnDisconnect(func(client *rpc2.Client) {
+		l4g.Info("rpc2 client disconnect...")
+
+		mi.disconnectClient(client)
+	})
+
+	mi.Server.Handle(data.MethodCenterRegister, mi.register)
+	mi.Server.Handle(data.MethodCenterUnRegister, mi.unRegister)
+	mi.Server.Handle(data.MethodCenterInnerCall, mi.innerCall)
+	mi.Server.Handle(data.MethodCenterInnerCallByEncrypt, mi.innerCallByEncrypt)
+
+	l4g.Debug("Start Tcp server on %s", mi.cfgCenter.CenterPort)
 
 	listener, err := nethelper.CreateTcpServer(":"+mi.cfgCenter.CenterPort)
 	if err != nil {
@@ -206,36 +233,19 @@ func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
 		defer mi.wg.Done()
 
 		l4g.Info("Tcp server routine running... ")
-		go func(){
-			for{
-				conn, err := listener.Accept();
-				if err != nil {
-					l4g.Error("%s", err.Error())
-					continue
-				}
 
-				l4g.Info("Tcp server Accept a client: %s", conn.RemoteAddr().String())
-				rc := mi.clientGroup.Register(conn)
-
-				go func() {
-					go rpc.ServeConn(rc)
-					<- rc.Done
-					l4g.Info("Tcp server close a client: %s", conn.RemoteAddr().String())
-				}()
-			}
-		}()
-
+		go mi.Server.Accept(listener)
 		<- ctx.Done()
+
 		l4g.Info("Tcp server routine stoped... ")
 	}()
 }
 
-// inner call by srv node
-func (mi *ServiceCenter) innerCall(req *data.UserRequestData, res *data.UserResponseData) {
+func (mi *ServiceCenter) srvCall(req *data.UserRequestData, res *data.UserResponseData) {
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
-		l4g.Error("%s %s", req.String(), res.ErrMsg)
+		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
 
@@ -252,12 +262,35 @@ func (mi *ServiceCenter) innerCall(req *data.UserRequestData, res *data.UserResp
 	*res = rpcSrvRes.Data
 }
 
+func (mi *ServiceCenter) srvCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) {
+	// encode and sign data
+	var reqEncrypted data.SrvRequestData
+	reqEncrypted.Data.Method = req.Method
+	reqEncrypted.Data.Argv = req.Argv
+	var reqEncryptedRes data.SrvResponseData
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
+		*res = reqEncryptedRes.Data
+		return
+	}
+
+	// push encode and sign data
+	var reqPush data.SrvRequestData
+	reqPush.Data.Method = req.Method
+	reqPush.Data.Argv = req.Argv
+	reqPush.Data.Argv.Message = reqEncryptedRes.Data.Value.Message
+	reqPush.Data.Argv.Signature = reqEncryptedRes.Data.Value.Signature
+	var reqPushRes data.SrvResponseData
+
+	mi.callFunction(&reqPush, &reqPushRes)
+	*res = reqPushRes.Data
+}
+
 // user call by user
 func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserResponseData) {
 	// can not call auth service
 	if req.Method.Srv == "auth" {
 		res.Err = data.ErrIllegallyCall
-		l4g.Error("%s %s", req.String(), res.ErrMsg)
+		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
 
@@ -265,7 +298,7 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
-		l4g.Error("%s %s", req.String(), res.ErrMsg)
+		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
 
@@ -304,42 +337,6 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 	*res = reqEncryptedRes.Data
 }
 
-// inner call by encrypt
-func (mi *ServiceCenter) innerCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) {
-	// encode and sign data
-	var reqEncrypted data.SrvRequestData
-	reqEncrypted.Data.Method = req.Method
-	reqEncrypted.Data.Argv = req.Argv
-	var reqEncryptedRes data.SrvResponseData
-	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
-		*res = reqEncryptedRes.Data
-		return
-	}
-
-	// push encode and sign data
-	var reqPush data.SrvRequestData
-	reqPush.Data.Method = req.Method
-	reqPush.Data.Argv = req.Argv
-	reqPush.Data.Argv.Message = reqEncryptedRes.Data.Value.Message
-	reqPush.Data.Argv.Signature = reqEncryptedRes.Data.Value.Signature
-	var reqPushRes data.SrvResponseData
-
-	mi.callFunction(&reqPush, &reqPushRes)
-	*res = reqPushRes.Data
-
-	// push data to user
-	//userPushData := data.UserResponseData{}
-	//userPushData.Method = req.Method
-	//userPushData.Value = reqEncryptedRes.Data.Value
-	//err := mi.pushWsData(&userPushData)
-	//if err != nil {
-	//	res.Err = data.ErrPushDataFailed
-	//	res.ErrMsg = data.ErrPushDataFailedText
-	//}else{
-	//	res.Err = data.NoErr
-	//}
-}
-
 // auth data
 func (mi *ServiceCenter) authData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	reqAuth := *req
@@ -367,48 +364,33 @@ func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResp
 
 //  call a srv node
 func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
-	var err error
-	var nodeAddr string
+	centerVersionSrvName := strings.ToLower(mi.registerData.Srv + "." + mi.registerData.Version)
+	versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
+	l4g.Debug("call %s", req.Data.String())
 
-	func() {
-		centerVersionSrvName := strings.ToLower(mi.registerData.Srv + "." + mi.registerData.Version)
-		versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
-		l4g.Debug("call %s", req.Data.String())
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
 
-		mi.rwmu.RLock()
-		defer mi.rwmu.RUnlock()
-
-		if centerVersionSrvName == versionSrvName {
-			h := mi.apiHandler[strings.ToLower(req.Data.Method.Function)]
-			if h != nil {
-				h.ApiHandler(req, res)
-			}else{
-				res.Data.Err = data.ErrNotFindFunction
-			}
-			if res.Data.Err != data.NoErr {
-				l4g.Error("call failed: %s", res.Data.ErrMsg)
-			}
-			return
+	if centerVersionSrvName == versionSrvName {
+		h := mi.apiHandler[strings.ToLower(req.Data.Method.Function)]
+		if h != nil {
+			h.ApiHandler(req, res)
 		}else{
-			srvNodeGroup := mi.SrvNodeNameMapSrvNodeGroup[versionSrvName]
-			if srvNodeGroup == nil{
-				res.Data.Err = data.ErrNotFindSrv
-				l4g.Error("%s %s", req.Data.String(), res.Data.ErrMsg)
-				err = errors.New(res.Data.ErrMsg)
-				return
-			}
-
-			nodeAddr, err = srvNodeGroup.Dispatch(req, res)
+			res.Data.Err = data.ErrNotFindFunction
 		}
-	}()
+		if res.Data.Err != data.NoErr {
+			l4g.Error("call failed: %d", res.Data.Err)
+		}
+		return
+	}else{
+		srvNodeGroup := mi.srvNodeNameMapSrvNodeGroup[versionSrvName]
+		if srvNodeGroup == nil{
+			res.Data.Err = data.ErrNotFindSrv
+			l4g.Error("%s %d", req.Data.String(), res.Data.Err)
+			return
+		}
 
-	// failed, remove this node
-	if err != nil && nodeAddr != ""{
-		regData := data.SrvRegisterData{}
-		regData.Srv = req.Data.Method.Srv
-		regData.Version = req.Data.Method.Version
-		var rs string
-		mi.UnRegister(&regData, &rs)
+		srvNodeGroup.Call(req, res)
 	}
 }
 
@@ -420,8 +402,7 @@ func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
 	return mi.ApiInfo[name]
 }
 
-// http handler
-func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) {
+func (mi *ServiceCenter) handleApi(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a client: %s", req.RemoteAddr)
 	//defer req.Body.Close()
 
@@ -436,7 +417,7 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 		//fmt.Println("path=", req.URL.Path)
 
 		path := req.URL.Path
-		path = strings.Replace(path, "wallet", "", -1)
+		path = strings.Replace(path, HttpApi, "", -1)
 		path = strings.TrimLeft(path, "/")
 		path = strings.TrimRight(path, "/")
 
@@ -489,8 +470,7 @@ func (mi *ServiceCenter) handleWallet(w http.ResponseWriter, req *http.Request) 
 	return
 }
 
-// http handler
-func (mi *ServiceCenter) handleWalletTest(w http.ResponseWriter, req *http.Request) {
+func (mi *ServiceCenter) handleApiTest(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server test Accept a client: %s", req.RemoteAddr)
 	//defer req.Body.Close()
 
@@ -505,7 +485,7 @@ func (mi *ServiceCenter) handleWalletTest(w http.ResponseWriter, req *http.Reque
 		//fmt.Println("path=", req.URL.Path)
 
 		path := req.URL.Path
-		path = strings.Replace(path, "wallettest", "", -1)
+		path = strings.Replace(path, HttpApiTest, "", -1)
 		path = strings.TrimLeft(path, "/")
 		path = strings.TrimRight(path, "/")
 
@@ -543,7 +523,7 @@ func (mi *ServiceCenter) handleWalletTest(w http.ResponseWriter, req *http.Reque
 			}
 		}
 
-		mi.innerCall(&reqData, &resData)
+		mi.srvCall(&reqData, &resData)
 		resData.Method = reqData.Method
 	}()
 
@@ -564,8 +544,9 @@ func (mi *ServiceCenter) listSrv(req *data.SrvRequestData, res *data.SrvResponse
 	defer mi.rwmu.RUnlock()
 
 	var nodes []data.SrvRegisterData
-	for _, v := range mi.SrvNodeNameMapSrvNodeGroup{
-		v.ListSrv(&nodes)
+	for _, v := range mi.srvNodeNameMapSrvNodeGroup{
+		node := v.GetSrvInfo()
+		nodes = append(nodes, node)
 	}
 
 	b, err := json.Marshal(nodes)

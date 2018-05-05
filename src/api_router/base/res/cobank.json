@@ -1,9 +1,9 @@
 {
 	"node":
 	{
-		"srv_name": "cobank",
+		"srv_name": "bastionpay",
 		"srv_version": "v1",
-		"srv_addr": "127.0.0.1:8055",
 		"center_addr": "127.0.0.1:8081"
-	}
+	},
+	"db":"root:command@tcp(127.0.0.1:3306)/test?charset=utf8"
 }

@@ -8,7 +8,6 @@ import (
 type ConfigNode struct{
 	SrvName 	string `json:"srv_name"`		// service name
 	SrvVersion 	string `json:"srv_version"`		// service version
-	SrvAddr 	string `json:"srv_addr"`		// service addr ip:port
 	CenterAddr 	string `json:"center_addr"`		// center addr ip:port
 }
 

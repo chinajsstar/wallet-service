@@ -21,7 +21,11 @@ import (
 	"sync"
 )
 
-const httpaddrGateway = "http://127.0.0.1:8082"
+const (
+	httpaddrGateway = "http://127.0.0.1:8082"
+	httpApi = "api"
+	httpApiTest = "apitest"
+)
 
 var web_admin_prikey []byte
 var web_admin_pubkey []byte
@@ -59,7 +63,7 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 	var ud data.UserData
 
 	// 构建path
-	path := "/wallet"
+	path := "/"+httpApi
 	path += "/"+version
 	path += "/"+srv
 	path += "/"+function
@@ -760,7 +764,7 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("path=", req.URL.Path)
 
 		path := req.URL.Path
-		path = strings.Replace(path, "wallet", "", -1)
+		path = strings.Replace(path, httpApi, "", -1)
 		path = strings.TrimLeft(path, "/")
 		path = strings.TrimRight(path, "/")
 

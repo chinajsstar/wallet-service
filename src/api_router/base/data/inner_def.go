@@ -114,7 +114,6 @@ type ApiInfo struct{
 type SrvRegisterData struct {
 	Version      string `json:"version"`    // srv version
 	Srv          string `json:"srv"`		// srv name
-	Addr         string `json:"addr"`		// srv ip address
 	Functions []ApiInfo `json:"functions"`  // srv functions
 	ApiDocs    []ApiDoc `json:"apidocs"`  	// srv apidocs
 }
@@ -142,5 +141,5 @@ func (urd UserRequestData)String() string {
 }
 
 func (srd SrvRegisterData)String() string {
-	return fmt.Sprintf("%s-%s-%s", srd.Srv, srd.Version, srd.Addr)
+	return fmt.Sprintf("%s-%s", srd.Srv, srd.Version)
 }

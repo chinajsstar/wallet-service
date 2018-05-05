@@ -2,7 +2,8 @@ package handler
 
 import (
 	"api_router/base/data"
-	"api_router/base/service"
+	//"api_router/base/service"
+	service "api_router/base/service2"
 	"bastionpay_tools/common"
 	"bastionpay_tools/handler"
 	bservice "blockchain_server/service"
@@ -59,7 +60,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 	nam := make(map[string]service.NodeApi)
 
 	func() {
-		example := "{\"user_key\":\"\",\"asset_id\":2,\"count\":0}"
+		example := "{\"asset_name\":\"\",\"count\":0}"
 		service.RegisterApi(&nam,
 			"new_address", data.APILevel_client, x.handler,
 			"获取新地址", example, "", "")
@@ -117,7 +118,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
 			"recharge", data.APILevel_client, x.recharge,
-			"模拟充值", string(b), input, "")
+			"模拟充值test", string(b), input, "")
 	}()
 
 	func() {
@@ -125,7 +126,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
 			"importaddress", data.APILevel_admin, x.importAddress,
-			"导入地址", string(b), input, "")
+			"导入地址test", string(b), input, "")
 	}()
 
 	func() {
@@ -133,7 +134,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
 			"sendsignedtx", data.APILevel_admin, x.sendSignedTx,
-			"发送签名交易", string(b), input, "")
+			"发送签名交易test", string(b), input, "")
 	}()
 
 	return nam

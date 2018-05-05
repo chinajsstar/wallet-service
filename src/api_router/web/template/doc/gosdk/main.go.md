@@ -23,9 +23,9 @@ import (
 type userData struct {
 	// user unique key
 	UserKey string `json:"user_key"`
-	// message = (origin message -> rsa crypt) -> base64
+	// message = origin data -> rsa encode -> base64
 	Message    string `json:"message"`
-	// signature = (origin message -> rsa crypt) -> sha512 -> rsa sign -> base64
+	// signature = origin data -> sha512 -> rsa sign -> base64
 	Signature  string `json:"signature"`
 }
 
@@ -47,6 +47,9 @@ type userResponseData struct{
 var (
 	// 接口地址
 	httpaddrGateway = "http://127.0.0.1:8082"
+
+	httpApi = "api"
+	httpApiTest = "apitest"
 
 	// 客户私钥
 	user_prikey []byte
@@ -190,7 +193,7 @@ func sendDataWithCrypto(addr, message, version, srv, function string) (*userResp
 		return nil, nil, err
 	}
 
-	path := "/wallet"
+	path := "/"+httpApi
 	path += "/"+version
 	path += "/"+srv
 	path += "/"+function
@@ -234,7 +237,7 @@ func sendDataWithNoCrypto(addr, message, version, srv, function string) (*userRe
 	ud.UserKey = user_key
 	ud.Message = message
 
-	path := "/wallettest"
+	path := "/"+httpApiTest
 	path += "/"+version
 	path += "/"+srv
 	path += "/"+function
@@ -270,12 +273,12 @@ func sendDataWithNoCrypto(addr, message, version, srv, function string) (*userRe
 
 // http
 // 不加密示例：
-// curl -d '{"id":-1}' http://localhost:8082/wallettest/v1/account/listusers
-// curl -d '{"a":2, "b":1}' http://localhost:8082/wallettest/v1/arith/add
+// curl -d '{"id":-1}' http://localhost:8077/wallettest/v1/account/listusers
+// curl -d '{"a":2, "b":1}' http://localhost:8077/wallettest/v1/arith/add
 
 // 加密示例：message为加密数据
-// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"id\":-1}"' http://localhost:8082/wallet/v1/account/listusers
-// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"a\":2, \"b\":1}"' http://localhost:8082/wallet/v1/arith/add
+// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"id\":-1}"' http://localhost:8077/wallet/v1/account/listusers
+// curl -d '{"license_key":"719101fe-93a0-44e5-909b-84a6e7fcb132", "signature":"", "message":"{\"a\":2, \"b\":1}"' http://localhost:8077/wallet/v1/arith/add
 func main() {
 	var err error
 
@@ -289,7 +292,7 @@ func main() {
 	fmt.Println(">load port name userkey: load")
 
 	fmt.Println(">api srv function message")
-	fmt.Println(">testapi srv function message")
+	fmt.Println(">apitest srv function message")
 	for ; ;  {
 		fmt.Println("Please input command: ")
 		var input string
@@ -358,10 +361,10 @@ func main() {
 				fmt.Println("err==", err)
 				fmt.Println("ack==", string(d))
 			}()
-		}else if argv[0] == "testapi"{
+		}else if argv[0] == "apitest"{
 			var srv, function, message string
 			if len(argv) != 4{
-				fmt.Println("格式：testapi srv function message")
+				fmt.Println("格式：apitest srv function message")
 				continue
 			}
 			srv = argv[1]

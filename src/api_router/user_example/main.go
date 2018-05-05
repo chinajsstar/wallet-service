@@ -48,6 +48,9 @@ var (
 	// 接口地址
 	httpaddrGateway = "http://127.0.0.1:8082"
 
+	httpApi = "api"
+	httpApiTest = "apitest"
+
 	// 客户私钥
 	user_prikey []byte
 
@@ -190,7 +193,7 @@ func sendDataWithCrypto(addr, message, version, srv, function string) (*userResp
 		return nil, nil, err
 	}
 
-	path := "/wallet"
+	path := "/"+httpApi
 	path += "/"+version
 	path += "/"+srv
 	path += "/"+function
@@ -234,7 +237,7 @@ func sendDataWithNoCrypto(addr, message, version, srv, function string) (*userRe
 	ud.UserKey = user_key
 	ud.Message = message
 
-	path := "/wallettest"
+	path := "/"+httpApiTest
 	path += "/"+version
 	path += "/"+srv
 	path += "/"+function
@@ -289,7 +292,7 @@ func main() {
 	fmt.Println(">load port name userkey: load")
 
 	fmt.Println(">api srv function message")
-	fmt.Println(">testapi srv function message")
+	fmt.Println(">apitest srv function message")
 	for ; ;  {
 		fmt.Println("Please input command: ")
 		var input string
@@ -358,10 +361,10 @@ func main() {
 				fmt.Println("err==", err)
 				fmt.Println("ack==", string(d))
 			}()
-		}else if argv[0] == "testapi"{
+		}else if argv[0] == "apitest"{
 			var srv, function, message string
 			if len(argv) != 4{
-				fmt.Println("格式：testapi srv function message")
+				fmt.Println("格式：apitest srv function message")
 				continue
 			}
 			srv = argv[1]

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"net/rpc"
-	"api_router/base/service"
+	//"api_router/base/service"
+	service "api_router/base/service2"
 	"api_router/base/utils"
 	"api_router/auth_srv/handler"
 	"fmt"
@@ -34,7 +34,6 @@ func main() {
 		l4g.Error("Create service node failed: %s", err.Error())
 		return
 	}
-	rpc.Register(nodeInstance)
 
 	// register apis
 	service.RegisterNodeApi(nodeInstance, handler.AuthInstance())
