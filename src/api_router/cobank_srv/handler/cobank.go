@@ -92,6 +92,24 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 			"查询币种属性", "", "", "")
 	}()
 
+	func() {
+		service.RegisterApi(&nam,
+			"get_balance", data.APILevel_client, x.handler,
+			"查询用户各币种余额", "", "", "")
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"history_transaction_order", data.APILevel_client, x.handler,
+			"查询历史交易订单", "", "", "")
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"history_transaction_message", data.APILevel_client, x.handler,
+			"查询历史交易消息通知", "", "", "")
+	}()
+
 	////////////////////////////////////////////////////////////////
 	// 以下方法liuheng添加测试
 	func() {

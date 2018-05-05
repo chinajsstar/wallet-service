@@ -66,15 +66,25 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				sqls += " and address = ?"
 				*params = append(*params, value)
 			}
+		case "trans_type":
+			if value, ok := v.(float64); ok {
+				sqls += " and trans_type = ?"
+				*params = append(*params, int(value))
+			}
+		case "status":
+			if value, ok := v.(float64); ok {
+				sqls += " and status = ?"
+				*params = append(*params, int(value))
+			}
 		case "max_amount":
 			if value, ok := v.(float64); ok {
 				sqls += " and amount <= ?"
-				*params = append(*params, value)
+				*params = append(*params, int64(value))
 			}
 		case "min_amount":
 			if value, ok := v.(float64); ok {
 				sqls += " and amount >= ?"
-				*params = append(*params, value)
+				*params = append(*params, int64(value))
 			}
 		case "max_create_time":
 			if value, ok := v.(float64); ok {
@@ -95,6 +105,16 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 			if value, ok := v.(float64); ok {
 				sqls += " and update_time >= ?"
 				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
+			}
+		case "max_msg_id":
+			if value, ok := v.(float64); ok {
+				sqls += " and msg_id <= ?"
+				*params = append(*params, int(value))
+			}
+		case "min_msg_id":
+			if value, ok := v.(float64); ok {
+				sqls += " and msg_id >= ?"
+				*params = append(*params, int(value))
 			}
 		}
 	}

@@ -69,6 +69,12 @@ func (b *Business) HandleMsg(req *data.SrvRequestData, res *data.SrvResponseData
 	case "get_balance":
 		return b.address.GetBalance(req, res)
 
+	case "history_transaction_order":
+		return b.address.HistoryTransactionOrder(req, res)
+
+	case "history_transaction_message":
+		return b.address.HistoryTransactionMessage(req, res)
+
 	case "query_user_address":
 		return b.address.QueryUserAddress(req, res)
 

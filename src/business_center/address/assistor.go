@@ -234,6 +234,7 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 		tn.Status = StatusBlockin
 		tn.BlockinHeight = blockin.BlockinHeight
 		tn.Hash = blockin.Hash
+		tn.OrderID = blockin.OrderID
 		tn.Time = blockin.BlockinTime
 
 		a.sendTransactionNotic(&tn)
@@ -334,6 +335,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 				tn.Amount = detail.Amount
 				tn.PayFee = 0
 				tn.Hash = blockin.Hash
+				tn.OrderID = detail.DetailID
 				tn.Time = blockin.BlockinTime
 
 				a.sendTransactionNotic(&tn)
@@ -404,6 +406,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 					tn.Amount = detail.Amount
 					tn.PayFee = 0
 					tn.Hash = blockin.Hash
+					tn.OrderID = detail.DetailID
 					tn.Time = blockin.BlockinTime
 
 					a.sendTransactionNotic(&tn)
@@ -426,6 +429,7 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 			tn.Type = TypeWithdrawal
 			tn.Status = StatusConfirm
 			tn.BlockinHeight = blockin.BlockinHeight
+			tn.OrderID = blockin.OrderID
 			tn.Time = blockin.BlockinTime
 
 			a.sendTransactionNotic(&tn)
@@ -469,10 +473,10 @@ func (a *Address) sendTransactionNotic(tn *TransactionNotic) error {
 	db := mysqlpool.Get()
 
 	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id,"+
-		" type, status, blockin_height, asset_name, address, amount, pay_fee, hash, time)"+
-		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?;",
+		" trans_type, status, blockin_height, asset_name, address, amount, pay_fee, hash, order_id, time)"+
+		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?;",
 		tn.UserKey, tn.Type, tn.Status, tn.BlockinHeight, tn.AssetName, tn.Address,
-		tn.Amount, tn.PayFee, tn.Hash, time.Unix(tn.Time, 0).Format(TimeFormat), tn.UserKey)
+		tn.Amount, tn.PayFee, tn.Hash, tn.OrderID, time.Unix(tn.Time, 0).Format(TimeFormat), tn.UserKey)
 	if err != nil {
 		return err
 	}
