@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func QueryUserAccount(query string) ([]UserAccount, bool) {
+func QueryUserAccountByJson(query string) ([]UserAccount, bool) {
 	sqls := "select user_key,user_class,asset_name,available_amount,frozen_amount," +
 		"unix_timestamp(create_time), unix_timestamp(update_time) from user_account" +
 		" where true"
@@ -45,7 +45,7 @@ func QueryUserAccount(query string) ([]UserAccount, bool) {
 	return userAccount, len(userAccount) > 0
 }
 
-func QueryUserAccountCount(query string) int {
+func QueryUserAccountCountByJson(query string) int {
 	sqls := "select count(*) from user_account" +
 		" where true"
 
@@ -66,9 +66,31 @@ func QueryUserAccountCount(query string) int {
 	return count
 }
 
-func QueryUserAccountByKey(userKey string) (UserAccount, bool) {
-	query := fmt.Sprintf("{\"user_key\":\"%s\"}", userKey)
-	if assetProperty, ok := QueryUserAccount(query); ok {
+func QueryUserAccount(userKey string, assetName string) ([]UserAccount, bool) {
+	assetProperty := make([]UserAccount, 0)
+	jsonMap := make(map[string]interface{})
+
+	if len(userKey) > 0 {
+		jsonMap["user_key"] = userKey
+	}
+
+	if len(assetName) > 0 {
+		jsonMap["asset_name"] = assetName
+	}
+
+	pack, err := json.Marshal(jsonMap)
+	if err != nil {
+		return assetProperty, false
+	}
+
+	if assetProperty, ok := QueryUserAccountByJson(string(pack)); ok {
+		return assetProperty, true
+	}
+	return assetProperty, false
+}
+
+func QueryUserAccountRow(userKey string, assetName string) (UserAccount, bool) {
+	if assetProperty, ok := QueryUserAccount(userKey, assetName); ok {
 		return assetProperty[0], true
 	}
 	return UserAccount{}, false
@@ -78,8 +100,8 @@ func AddUserAccount(userKey string, userClass int, assetName string) error {
 	db := Get()
 	nowTM := time.Now().UTC().Format(TimeFormat)
 	_, err := db.Exec("insert user_account (user_key, user_class, asset_name, available_amount, frozen_amount,"+
-		" create_time, allocation_time, update_time) values (?, ?, ?, 0, 0, ?, ?, ?);",
-		userKey, userClass, assetName, nowTM, nowTM, nowTM)
+		" create_time, update_time) values (?, ?, ?, 0, 0, ?, ?);",
+		userKey, userClass, assetName, nowTM, nowTM)
 	if err != nil {
 		count := 0
 		row := db.QueryRow("select count(*) from user_account where user_key = ? and asset_name = ?;", userKey, assetName)

@@ -79,7 +79,7 @@ CREATE TABLE `asset_property` (
   `gas_factor` double NOT NULL DEFAULT '0' COMMENT '矿工费乘数因子',
   `debt` double NOT NULL DEFAULT '0' COMMENT '资产缺口',
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',
-  PRIMARY KEY (`id`),
+  PRIMARY KEY (`asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
@@ -220,7 +220,7 @@ CREATE TABLE `transaction_notice` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_key` varchar(255) NOT NULL COMMENT '商户Key',
   `msg_id` bigint(20) NOT NULL DEFAULT 0 COMMENT '消息序号',
-  `type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
+  `trans_type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
   `status` int(11) NOT NULL COMMENT '0:入块, 1:成功, >1:失败',
   `blockin_height` bigint(20) NOT NULL,
   `asset_name` varchar(255) NOT NULL DEFAULT '',
