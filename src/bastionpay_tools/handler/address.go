@@ -64,7 +64,7 @@ func NewAddress(clientManager *service.ClientManager, addrDir string, uniAddrInf
 	fmt.Println("导出在线地址...")
 	var aCcsOnline []*types.Account
 	for _, acc := range aCcsOffline{
-		accOnline := &types.Account{Address:acc.Address, PrivateKey:uniAddrInfo.GetUniName() + "@" + uniAddrDbInfo.GetUniNameOffline()}
+		accOnline := &types.Account{Address:acc.Address, PrivateKey:uniAddrInfo.GetUniName() + uniAddrDbInfo.GetUniNameOffline()}
 		aCcsOnline = append(aCcsOnline, accOnline)
 	}
 
@@ -115,8 +115,8 @@ func NewAddress(clientManager *service.ClientManager, addrDir string, uniAddrInf
 	// 重命名
 	fmt.Println("重命名")
 	uniAbsDir := uniAddrInfo.GetUniAbsDir(addrDir)
-	realOnlineTmpPath := uniAbsDir + "/" + uniAddrInfo.GetUniName() + "@" + uniAddrDbInfo.GetUniNameOnline() + "@" + common.GetOnlineDbNameSuffix()
-	realOfflineTmpPath := uniAbsDir + "/" + uniAddrInfo.GetUniName() + "@" + uniAddrDbInfo.GetUniNameOffline() + "@" + common.GetOfflineDbNameSuffix()
+	realOnlineTmpPath := uniAbsDir + "/" + uniAddrInfo.GetUniName() + uniAddrDbInfo.GetUniNameOnline() + common.GetOnlineExtension()
+	realOfflineTmpPath := uniAbsDir + "/" + uniAddrInfo.GetUniName() + uniAddrDbInfo.GetUniNameOffline() + common.GetOfflineExtension()
 
 	err = os.Rename(onlineTmpPath, realOnlineTmpPath)
 	if err != nil {
@@ -135,10 +135,31 @@ func NewAddress(clientManager *service.ClientManager, addrDir string, uniAddrInf
 }
 
 func LoadAddress(uniAbsDir string, uniDbName string) ([]*types.Account, error) {
+	err := VerifyAddressMd5(uniAbsDir + "/" + uniDbName)
+	if err != nil {
+		return nil, err
+	}
+
 	aCcs, err := db.LoadAddress(uniAbsDir + "/" + uniDbName)
 	if err != nil {
 		return nil, err
 	}
 
 	return aCcs, nil
+}
+
+
+func VerifyAddressMd5(addressFilePath string) error{
+	fileInfo, err := os.Stat(addressFilePath)
+	if err != nil {
+		return err
+	}
+
+	fileName := fileInfo.Name()
+	uniAddress, err := common.ParseUniAddressLineDbInfo(fileName)
+	if err != nil {
+		return err
+	}
+
+	return common.CompareSaltMd5HexByFile(addressFilePath, uniAddress.Md5)
 }

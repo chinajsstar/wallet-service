@@ -19,8 +19,11 @@ const(
 )
 
 const(
-	onlineTag = "online"
-	offlineTag = "offline"
+	onlineExtension = ".online"
+	offlineExtension = ".offline"
+
+	txExtension = ".tx"
+	txSignedExtension = ".txs"
 )
 
 // uni address info
@@ -81,23 +84,23 @@ func (af *UniAddressInfo)GetUniAbsDir(dataDir string) string{
 }
 
 func (af *UniAddressInfo)GetUniName() string{
-	return af.CoinType + "@" + af.DateTime
+	return af.CoinType + "@" + af.DateTime + "@"
 }
 
 func (uadi *UniAddressDbInfo)GetUniNameOffline() string {
-	return uadi.Uuid + "@" + uadi.OfflineMd5
+	return uadi.Uuid + "@" + uadi.OfflineMd5 + "@"
 }
 
 func (uadi *UniAddressDbInfo)GetUniNameOnline() string {
-	return uadi.Uuid + "@" + uadi.OnlineMd5
+	return uadi.Uuid + "@" + uadi.OnlineMd5 + "@"
 }
 
-func GetOnlineDbNameSuffix() string {
-	return onlineTag + ".db"
+func GetOnlineExtension() string {
+	return onlineExtension
 }
 
-func GetOfflineDbNameSuffix() string {
-	return offlineTag + ".db"
+func GetOfflineExtension() string {
+	return offlineExtension
 }
 
 // uni address db info
@@ -106,10 +109,11 @@ type UniAddressLineDbInfo struct{
 	DateTime 	string
 	Uuid 		string
 	Md5  		string
+	Ext         string
 }
 func ParseUniAddressLineDbInfo(uniDbName string) (*UniAddressLineDbInfo, error) {
 	strs := strings.Split(uniDbName, "@")
-	if len(strs) < 4 {
+	if len(strs) < 5 {
 		return nil, errors.New("unidbname is error format")
 	}
 
@@ -119,6 +123,61 @@ func ParseUniAddressLineDbInfo(uniDbName string) (*UniAddressLineDbInfo, error) 
 	alf.DateTime = strs[1]
 	alf.Uuid = strs[2]
 	alf.Md5 = strs[3]
+	alf.Ext = strs[4]
 
 	return alf, nil
+}
+
+func (af *UniAddressLineDbInfo)GetUniName() string{
+	return af.CoinType + "@" + af.DateTime + "@" + af.Uuid + "@" + af.Md5 + "@"
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// transaction format
+type UniTransaction struct{
+	DateTime 	string
+	Uuid 		string
+	Md5  		string
+	Ext         string
+}
+func NewUniTransaction() (*UniTransaction, error) {
+	uadi := &UniTransaction{}
+
+	// uuid
+	uuidv4, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	uadi.DateTime = time.Now().Local().Format(TimeFormat)
+	uadi.Uuid = uuidv4.String()
+
+	return uadi, nil
+}
+
+func ParseUniTransaction(uniDbName string) (*UniTransaction, error) {
+	strs := strings.Split(uniDbName, "@")
+	if len(strs) < 4 {
+		return nil, errors.New("unitxname is error format")
+	}
+
+	af := &UniTransaction{}
+
+	af.DateTime = strs[0]
+	af.Uuid = strs[1]
+	af.Md5 = strs[2]
+	af.Ext = strs[3]
+
+	return af, nil
+}
+
+func (af *UniTransaction)GetUniName() string{
+	return af.DateTime + "@" + af.Uuid + "@" + af.Md5 + "@"
+}
+
+func GetTxExtension() string {
+	return txExtension
+}
+
+func GetTxSignedExtension() string {
+	return txSignedExtension
 }
