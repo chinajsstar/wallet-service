@@ -340,7 +340,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequestData, res *data.Sr
 
 	data, ok := mysqlpool.QueryTransactionOrderByJson(string(condi))
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "Json序列化失败")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "没有查询到任何数据")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -393,7 +393,7 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequestData, res *data.
 
 	data, ok := mysqlpool.QueryTransactionMessageByJson(string(condi))
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "Json序列化失败")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "没有查询到任何数据")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
