@@ -205,7 +205,7 @@ func (x *Cobank) importAddress(req *data.SrvRequestData, res *data.SrvResponseDa
 	}
 
 	// read db, import to free addrss
-	uniDbName := ia.UniName + "@" + common.GetOnlineDbNameSuffix()
+	uniDbName := ia.UniName + "@" + common.GetOnlineExtension()
 	aCcs, err := handler.LoadAddress(x.dataDir, uniDbName)
 	if err != nil {
 		res.Data.Err = 1
