@@ -36,7 +36,7 @@ func QueryAssetPropertyByJson(query string) ([]AssetProperty, bool) {
 	for rows.Next() {
 		err := rows.Scan(&data.AssetName, &data.FullName, &data.IsToken, &data.ParentName, &data.Logo,
 			&data.DepositMin, &data.WithdrawalRate, &data.WithdrawalValue, &data.WithdrawalReserveRate,
-			&data.WithdrawalAlertRate, &data.WithdrawalStategy, &data.ConfirmationNum, &data.Decaimal,
+			&data.WithdrawalAlertRate, &data.WithdrawalStategy, &data.ConfirmationNum, &data.Decimal,
 			&data.GasFactor, &data.Debt, &data.ParkAmount)
 		if err == nil {
 			assetProperty = append(assetProperty, data)

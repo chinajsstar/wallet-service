@@ -111,6 +111,12 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 			"查询历史交易消息通知", "", "", "")
 	}()
 
+	func() {
+		service.RegisterApi(&nam,
+			"set_pay_address", data.APILevel_client, x.handler,
+			"设置热钱包地址", "", "", "")
+	}()
+
 	////////////////////////////////////////////////////////////////
 	// 以下方法liuheng添加测试
 	func() {
