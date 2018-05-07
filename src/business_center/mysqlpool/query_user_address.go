@@ -89,6 +89,30 @@ func QueryPayAddress(assetName string) (UserAddress, bool) {
 	return userAddress, true
 }
 
+func SetPayAddress(assetName string, address string) error {
+	db := Get()
+	row := db.QueryRow("select private_key from user_address"+
+		" where user_class = 1 and asset_name = ? and address = ?;", assetName, address)
+
+	var privateKey string
+	err := row.Scan(&privateKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("insert pay_address (asset_name, address, private_key) values (?, ?, ?);",
+		assetName, address, privateKey)
+	if err != nil {
+		_, err := db.Exec("update pay_address set address = ?, private_key = ? where asset_name = ?;",
+			address, privateKey, assetName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func AddUserAddress(userAddress []UserAddress) error {
 	tx, err := Get().Begin()
 	if err != nil {

@@ -14,7 +14,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequestData
 	var res data.SrvResponseData
 
-	testType := 0
+	testType := 9
 	switch testType {
 	case 1:
 		req.Data.Method.Function = "new_address"
@@ -48,6 +48,10 @@ func TestHandleMsg(t *testing.T) {
 		req.Data.Method.Function = "history_transaction_message"
 		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
 		req.Data.Argv.Message = ""
+	case 9:
+		req.Data.Method.Function = "set_pay_address"
+		req.Data.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Data.Argv.Message = "{\"asset_name\":\"eth\", \"address\":\"0xC4CD9AA94a7F13dAF7Ff18DA9c830BaA71D41d17\"}"
 	}
 
 	if testType > 0 {
