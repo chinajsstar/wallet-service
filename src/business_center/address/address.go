@@ -11,6 +11,7 @@ import (
 	"errors"
 	l4g "github.com/alecthomas/log4go"
 	"math"
+	"strconv"
 	"sync"
 )
 
@@ -60,24 +61,43 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	paramsMapping := unpackJson(req.Data.Argv.Message)
 	resMap := make(map[string]interface{})
-	resMap["asset_name"] = paramsMapping.AssetName
+	jsonMap := json2map(req.Data.Argv.Message, []string{"asset_name", "count"})
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(paramsMapping.AssetName)
+	assetName, ok := jsonMap["asset_name"]
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+	resMap["asset_name"] = assetName
+
+	value, ok := jsonMap["count"]
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"count\"参数")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	count, err := strconv.Atoi(value)
+	if err != nil {
+		return nil
+	}
+
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_name\"无效")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	if paramsMapping.Count <= 0 {
+	if count <= 0 {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"count\"要大于0")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAddress := a.generateAddress(&userProperty, &assetProperty, paramsMapping.Count)
+	userAddress := a.generateAddress(&userProperty, &assetProperty, count)
 	if len(userAddress) > 0 {
 		data := make([]string, 0)
 		for _, v := range userAddress {
@@ -215,10 +235,10 @@ func (a *Address) AssetAttributie(req *data.SrvRequestData, res *data.SrvRespons
 			maps["is_token"] = v.IsToken
 			maps["parent_name"] = v.ParentName
 			maps["deposit_min"] = v.DepositMin
-			maps["withrawal_rate"] = v.WithdrawalRate
-			maps["withrawal_value"] = v.WithdrawalValue
+			maps["withdrawal_rate"] = v.WithdrawalRate
+			maps["withdrawal_value"] = v.WithdrawalValue
 			maps["confirmation_num"] = v.ConfirmationNum
-			maps["decaimal"] = v.Decaimal
+			maps["decimal"] = v.Decimal
 			assetPropertyMap[v.AssetName] = maps
 		}
 	}
@@ -453,5 +473,44 @@ func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvRespon
 	res.Data.Value.Message = packJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
+	return nil
+}
+
+func (a *Address) SetPayAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	if userProperty.UserClass != 1 {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParam, "不能操作此命令")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	jsonMap := json2map(req.Data.Argv.Message, []string{"asset_name", "address"})
+
+	assetName, ok := jsonMap["asset_name"]
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	address, ok := jsonMap["address"]
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"address\"参数")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	err := mysqlpool.SetPayAddress(assetName, address)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
 	return nil
 }

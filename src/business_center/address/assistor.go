@@ -13,6 +13,7 @@ import (
 	"log"
 	"math"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -585,41 +586,29 @@ func unpackJson(s string) ParamsMapping {
 	return params
 }
 
-func unpackJson2(s string, userClass int) string {
-	var v interface{}
-	err := json.Unmarshal([]byte(s), &v)
+func json2map(str string, params []string) map[string]string {
+	resMap := make(map[string]string)
+
+	var jsonMap map[string]interface{}
+	err := json.Unmarshal([]byte(str), &jsonMap)
 	if err != nil {
-		return ""
+		return resMap
 	}
 
-	switch reflect.TypeOf(v).Kind() {
-	case reflect.Slice:
-		resArr := make([]interface{}, 0)
-		if jsonArr, ok := v.([]interface{}); ok {
-			for _, value := range jsonArr {
-				resArr = append(resArr, value)
-			}
-		}
-	case reflect.Map:
-		resMap := make(map[string]interface{})
-		if jsonMap, ok := v.(map[string]interface{}); ok {
-			for key, value := range jsonMap {
-				switch key {
-				case "user_key":
-					if userClass == 1 {
-						resMap[key] = value
-					}
-				case "asset_name":
-					resMap[key] = value
-				case "address":
-					resMap[key] = value
-				case "amount":
-					resMap[key] = value
-				case "count":
-					resMap[key] = value
+	for _, key := range params {
+		if value, ok := jsonMap[key]; ok {
+			switch reflect.TypeOf(value).Kind() {
+			case reflect.String:
+				if v, ok := value.(string); ok {
+					resMap[key] = v
+				}
+			case reflect.Float64:
+				if v, ok := value.(float64); ok {
+					resMap[key] = strconv.FormatFloat(v, 'f', -1, 64)
 				}
 			}
 		}
 	}
-	return ""
+
+	return resMap
 }
