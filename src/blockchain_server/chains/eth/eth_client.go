@@ -375,7 +375,7 @@ func (self *Client) virtualBlockHeight() uint64 {
 //		From:              tx.From(),
 //		To :               tx.To().String(),
 //		Value:             tx.Value().Uint64(),
-//		Gas :             tx.Gas(),
+//		Fee :             tx.Fee(),
 //		Gaseprice:         tx.GasPrice().Uint64(),
 //		Total :            tx.Cost().Uint64(),
 //		blockNumber:       inblock,
@@ -530,7 +530,7 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 
 	tx.GasUsed = receipt.GasUsed
 	//if receipt.Status==etypes.ReceiptStatusFailed ||
-	if tx.GasUsed > tx.Gas {
+	if receipt.GasUsed > tx.Fee {
 		tx.State = types.Tx_state_unconfirmed
 	} else {
 		//else if  (height > srcTx.Inblock) && uint16(height-srcTx.Inblock) > self.confirm_count {
@@ -613,9 +613,10 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 	}
 
 	//destTx.Value = self.toStandardDecimalWithInt(srcTx.Value().Uint64())
-	destTx.Gas = srcTx.Gas()
+	destTx.GasUsed = srcTx.Gas()
 	destTx.Gaseprice = self.toStandardDecimalWithBig(srcTx.GasPrice())
 	destTx.Total = self.toStandardDecimalWithBig(srcTx.Cost())
+	destTx.Fee = destTx.GasUsed * destTx.Gaseprice
 	destTx.InBlock = srcTx.Inblock
 	destTx.State = state
 

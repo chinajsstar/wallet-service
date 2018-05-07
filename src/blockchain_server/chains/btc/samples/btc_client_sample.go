@@ -19,27 +19,36 @@ var (
 	//account[0], crypt private key:7ddb84e9463b51a87ffdbc467c42fb4e01000000Qs1fCJ2olOq6GWrwz5jyR3C0, address:muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb
 	//account[1], crypt private key:1af172762746ae5722948e342a0abddb01000000z3vJeCL4HSCXltOFuRlh8Vy1, address:mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy
 
-	// myrpyogHSub2bQgYHDUXMM4Y9YcprnMr7Y
+	// virtual
+	//-------≥≥≥≥≥≥≥≥≥ account[0], crypt private key:7ddb84e9463b51a87ffdbc467c42fb4e01000000Y9ZJED8gXxlonWxQ7SrsuDo0, address:muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb
+	//-------≥≥≥≥≥≥≥≥≥ account[1], crypt private key:1af172762746ae5722948e342a0abddb01000000LIuFf2sQeH65SD0ryO4mAxL1, address:mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy
+	//-------≥≥≥≥≥≥≥≥≥ account[2], crypt private key:52e5f1cb31fec078b4891c2c05a9661501000000O1qmt4M0TzMotp2AaKo3bH62, address:mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK
+	//-------≥≥≥≥≥≥≥≥≥ account[3], crypt private key:8dcd7c7cbae3bb60d1d89f6d6aed5ff3010000008AICdUMlWb0tipCJnmKhwx33, address:mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA
+
+	// real
+	//--->Privatekey:[1/0], [key:cW8oWt451wQSC8MuQur7Pqmy71pPGXVwgX5CWirn4v24FxSNM6vc,address:muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb]
+	//--->Privatekey:[1/1], [key:cTwx1uw9eRXh13zpFt28Y6P2k1crKfBx31F6cg7Z4F2mGZWueN7J,address:mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy]
+	//--->Privatekey:[1/2], [key:cVpJKAxu8GhBLdyufUp2XcLJuxznm96qG2KA2REqBgKEyCARwCpX,address:mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK]
+	//--->Privatekey:[1/3], [key:cPjkT4hJGRtj6MFuGKNg35BcMb9vvLg7t8Bo9NobZw3sncajy3KA,address:mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA]
+
 	from_acc = &types.Account{
 		PrivateKey: "7ddb84e9463b51a87ffdbc467c42fb4e01000000Qs1fCJ2olOq6GWrwz5jyR3C0",
 		Address:	"muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb" }
 	to_acc = &types.Account{
-		PrivateKey: "1af172762746ae5722948e342a0abddb01000000z3vJeCL4HSCXltOFuRlh8Vy1",
-		Address:	"mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy" }
+		PrivateKey: "8dcd7c7cbae3bb60d1d89f6d6aed5ff3010000008AICdUMlWb0tipCJnmKhwx33",
+		Address:	"mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA" }
 
-		//watchonly = []types.Account{
-		//	{"7ddb84e9463b51a87ffdbc467c42fb4e01000000wJNc61IJhWdoau5pCFHZSOU0","muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb"},
-		//	{"1af172762746ae5722948e342a0abddb01000000ES5fV9ShxQ71OfLKfhSafiR1","mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy"},
-		//	{"52e5f1cb31fec078b4891c2c05a96615010000008r2TlGCwDqd9eucreUVDMpm2","mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK"},
-		//	{"8dcd7c7cbae3bb60d1d89f6d6aed5ff301000000uSNwOmVRsQRTgiK3ZdiHVQt3","mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA"},
-		//	{"", "2NCqRAorbC1zvdiDDoTERUZ4XmPkwK9MTC1"},
-		//}
-	watchaddress = []string{
-		"muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb",
+	//watchonly = []types.Account{
+	//	{"7ddb84e9463b51a87ffdbc467c42fb4e01000000wJNc61IJhWdoau5pCFHZSOU0","muSaiagrEsf41xkMT2jrVfS7z1x9umCdYb"},
+	//	{"1af172762746ae5722948e342a0abddb01000000ES5fV9ShxQ71OfLKfhSafiR1","mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy"},
+	//	{"52e5f1cb31fec078b4891c2c05a96615010000008r2TlGCwDqd9eucreUVDMpm2","mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK"},
+	//	{"8dcd7c7cbae3bb60d1d89f6d6aed5ff301000000uSNwOmVRsQRTgiK3ZdiHVQt3","mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA"},
+	//}
+
+	watchaddress = []string {
 		"mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy",
 		"mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK",
-		"mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA",
-		"2NCqRAorbC1zvdiDDoTERUZ4XmPkwK9MTC1" }
+        "mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA"}
 
 	txid = "6f91ccf55f65806fbe161d64d3df5db8df9fbbc3108ac775345b560ff3834c5f"
 	Coinname = types.Chain_bitcoin
@@ -62,12 +71,12 @@ func main() {
 	defer cancel()
 
 	//*********批量创建账号示例*********/
-	if true {
+	if false {
 		accCmd := service.NewAccountCmd("message id", Coinname, 4)
 		var accs []*types.Account
 		accs, err = clientManager.NewAccounts(accCmd)
 		for i, account := range accs {
-			fmt.Printf("account[%d], crypt private key:%s, address:%s\n",
+			fmt.Printf("-------≥≥≥≥≥≥≥≥≥ account[%d], crypt private key:%s, address:%s\n",
 				i, account.PrivateKey, account.Address)
 		}
 	}
@@ -82,14 +91,14 @@ func main() {
 		go testWatchAddress(ctx, clientManager, Coinname, nil, watchaddress, done_watchaddress)
 	}else {i--}
 
-	if false {
+	if true {
 		go testSendTokenTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
-			nil, 100 * uint64(math.Pow10(8)), done_sendTx)
+			nil, 1 * uint64(math.Pow10(8)), done_sendTx)
 	} else{i--}
 
 	//testGetBalance(clientManager, from_acc.Address, token)
 
-	for ; i<2; i++ {
+	for ; i>0; i-- {
 		select {
 		case <-done_sendTx: {
 			l4g.Trace("SendTransaction done!")
@@ -107,9 +116,6 @@ func main() {
 	time.Sleep(time.Second)
 }
 
-func create_accounts () {
-
-}
 func testWatchAddress(ctx context.Context, clientManager *service.ClientManager, coin string, token *string, addresslist []string, done chan bool) {
 	defer l4g.Trace("exit watch address!!!")
 	rcTxChannel := make(types.RechargeTxChannel)
@@ -190,6 +196,11 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager, 
 						l4g.Trace("Transaction Command Channel is closed!")
 						txok_channel <- false
 					} else {
+						if cmdTx.Error!=nil {
+							l4g.Trace("SendTx error: %s", cmdTx.Error.Message)
+							txok_channel <-false
+							close = true
+						}
 						l4g.Trace("Transaction state changed, transaction information:%s\n",
 							cmdTx.Tx.String())
 

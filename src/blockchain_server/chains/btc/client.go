@@ -21,6 +21,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
+	"strings"
 )
 
 var (
@@ -85,53 +86,22 @@ func (c *Client) WaitForShutdown() {
 	c.wg.Wait()
 }
 
-func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
-	var index_from, index_to uint32
-
-	c.childIndexMtx.Lock()
-	defer c.childIndexMtx.Unlock()
-
-	index_from = c.key_settings.Child_upto_index
-	index_to = index_from + co
-
-	accs := make([]*types.Account, co)
-
-	for i:=index_from; i<index_to; i++ {
-		if childpub, err := c.key_settings.Ext_pub.Child(index_from + i); err==nil {
-			// converts the extended key to a standard bitcoin pay-to-pubkey-hash
-			// address for the passed network.
-			// AddressPubKeyHash is an Address for a pay-to-pubkey-hash (P2PKH)
-			// transaction.
-			if hash, err := childpub.Address(c.chain_params); err!=nil {
-				l4g.Error("Convert child-extended-pub-key to address faild, message:%s", err.Error())
-				return nil, err
-			} else {
-				if key, err := indexToKey(i, 64, index_prefix); err==nil {
-					accs[i] = &types.Account{Address:hash.String(), PrivateKey:key}
-				} else {
-					l4g.Error("BTC Convert index to child 'private key' faild, message:%s", err.Error())
-					return nil, err
-					}
-			}
-		} else {
-			l4g.Error("BTC Get child public key faild, message:%s", err.Error())
-			return nil, err
-		}
-	}
-
-	c.key_settings.Child_upto_index = index_to
-	c.key_settings.Save()
-	return accs, nil
-}
-
-
 // TODO: to implement client interfaces
 func (c *Client)Name() string {
 	return types.Chain_bitcoin
 }
 
+
+
 func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
-	if err:=c.BuildTx(tx); err!=nil {
+	var err error
+	if tx.From, err = c.virtualKeyToAddress(privkey); err!=nil {
+		l4g.Error("Bitcoin cannot deccrypt virtual key stirng to address, error:%s",
+			err.Error())
+		return err
+	}
+
+	if err=c.BuildTx(tx); err!=nil {
 		return err
 	}
 	signedTxBytes, err := c.SignTx(privkey, tx)
@@ -142,12 +112,9 @@ func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
 		return err
 	}
 
-	//btcjson.RawTxInput{}
-	//c.SendRawTransaction()
-	//c.CreateRawTransaction()
-	//c.SendRawTransaction()
 	return nil
 }
+
 
 func (c *Client)BuildTx(stx *types.Transfer) error {
 	var to, change btcutil.Address
@@ -155,9 +122,9 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 	var err error
 
 	if change, err = btcutil.DecodeAddress(stx.From, c.chain_params); err!=nil {
-		ads = append(ads, change)
 		return err
-	}
+	} else { ads = append(ads, change) }
+
 	if to, err = btcutil.DecodeAddress(stx.To, c.chain_params); err!=nil {
 		return err
 	}
@@ -165,33 +132,43 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 	unspends, err := c.ListUnspentMinMaxAddresses(int(c.confirminationNumber), MaxConfiramtionNumber, ads)
 	if err!=nil { return err }
 
-	amount, _ := utils.DecimalCvt_i_f(stx.Value, 8, 1).Float64()
+	amount, _ := utils.DecimalCvt_i_f(stx.Value, 8, 0).Float64()
 
 	var tmp_amount float64 = 0
 	var inputs []btcjson.TransactionInput
 	var change_amount float64
 
 	// 循环utxo, 获取相应资金的utxo
-	//var rawTxInput []btcjson.RawTxInput
+	// var rawTxInput []btcjson.RawTxInput
 
-	for _, utxo := range unspends {
+	//As for formulas, if you use standard addresses (not P2SH), the formula is:
+	// fee = (n_inputs * 148 + n_outputs * 34 + 10) * price_per_byte
+	//price_perbyte := 5
+
+	// 暂时使用 0.00015/bk 来计算矿工费, 小于1kb, 则提交0.00015
+	fee_estimat := 0.00015
+	for i, utxo := range unspends {
 		tmp_amount += utxo.Amount
 		inputs = append(inputs, btcjson.TransactionInput{Txid: utxo.TxID, Vout: utxo.Vout})
 
-		// maybe should Create []RawTxInput and stored some where,
+		// maybe should Create []btcjson.RawTxInput and stored some where,
 		// as the "[]RawTxinput" param for SignRawTransactions, to sign the transaction
-
 		// rawTxInput = append(rawTxInput,
-		//	btcjson.RawTxInput{Txid:utxo.TxID, Vout:utxo.Vout, ScriptPubKey:utxo.ScriptPubKey, RedeemScript:utxo.RedeemScript})
-		if tmp_amount >= amount {
-			change_amount = tmp_amount - amount
+		// btcjson.RawTxInput{Txid:utxo.TxID, Vout:utxo.Vout, ScriptPubKey:utxo.ScriptPubKey, RedeemScript:utxo.RedeemScript})
+
+		feeincrease := float64(i*180/1000) * 0.00015
+
+		if tmp_amount >= (amount + fee_estimat + feeincrease ) {
+			fee_estimat += feeincrease
+			change_amount = tmp_amount - amount - fee_estimat
 			break
 		}
 	}
 
-	if tmp_amount < amount { return errors.New("Not enougth bitcoin to send!") }
+	if tmp_amount < (amount + fee_estimat) { return errors.New("Not enougth bitcoin to send!") }
 
-	var amounts map[btcutil.Address]btcutil.Amount
+	amounts := make(map[btcutil.Address]btcutil.Amount)
+
 	if amounts[to], err = btcutil.NewAmount(amount); err!=nil {
 		return err
 	}
@@ -217,6 +194,8 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 	if err := msgTx.Serialize(txBuf); err != nil {
 		return err
 	}
+
+	stx.Fee = uint64(utils.DecimalCvt_f_i(fee_estimat, 0, 8))
 	stx.Additional_data = txBuf.Bytes()
 	return nil
 }
@@ -227,7 +206,9 @@ func (c *Client)SignTx(chiperKey string, stx *types.Transfer) ([]byte, error){
 	}
 
 	msgTx := wire.NewMsgTx(wire.TxVersion)
-	msgTx.Deserialize(bytes.NewBuffer(stx.Additional_data))
+	if err:=msgTx.Deserialize(bytes.NewBuffer(stx.Additional_data)); err!=nil {
+		return nil, err
+	}
 
 	var (
 		index uint32
@@ -278,6 +259,9 @@ func (c *Client)SendSignedTx(txByte []byte, tx *types.Transfer) (error) {
 	}
 
 	if hash, err = c.SendRawTransaction(msgTx, false);err!=nil {
+		l4g.Error("Bitcoin SendRawTransaction error: %s", err.Error())
+		return err
+	} else {
 		tx.Tx_hash = hash.String()
 	}
 
@@ -294,26 +278,62 @@ func (c *Client) toTx(btx *btcjson.GetTransactionResult) (*types.Transfer, error
 	return tx, nil
 }
 
+func (c *Client)msgTxGetTxinAddesFrom(msgTx *wire.MsgTx) ([]string, error) {
+	//for _, txIn:= range msgTx.TxIn {
+		//if tx, err := c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
+			// rawtransaction, should have a address
+			//tx.MsgTx().TxOut[txIn.PreviousOutPoint.Index].Address
+		//}
+	//}
+	return nil, nil
+}
+
 func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
 	//l4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
 
-	//l4g.Trace("Bitcoin Transaction details:")
-
-	if stx.From=="" {
-		stx.From = "Bitcoin have no 'from' concept!"
+	msgTx := &wire.MsgTx{}
+	if err:=msgTx.Deserialize(strings.NewReader(btx.Hex)); err!=nil {
+		l4g.Error("Bitcoin deserialize msgTx error:%s", err.Error())
 	}
 
-	for _, d := range btx.Details {
-		//l4g.Trace("%#v", d)
-		if stx.To=="" {
-			stx.To = d.Address
+	if stx.From=="" {
+		stx.From="Bitcoin have concept of 'from'"
+	}
+
+	var value float64
+	if stx.To=="" {
+		for _, d := range btx.Details {
+			addes, err := btcutil.DecodeAddress(d.Address, c.chain_params)
+			if err!=nil {
+				l4g.Trace("Bitcoin decode address error:%s, %s", addes, err.Error())
+				continue
+			}
+			// 不是比特币钱包的地址收到了币
+			if account, err := c.GetAccount(addes); err==nil {
+				// 地址为收到资金
+				if account=="receive" {
+
+					if d.Category=="receive"{}	//内部地址收到资金
+					if d.Category=="send"{}		//从自己的钱包充值到内部地址
+
+					stx.To = d.Address
+					value = d.Amount
+				}
+
+			}
 		}
 	}
 
-	stx.Value =  utils.Abs(utils.DecimalCvt_f_i(btx.Amount, 1, 8))
-	stx.Gas   = utils.Abs(utils.DecimalCvt_f_i(btx.Fee, 1, 8))
-	stx.Total = stx.Value + stx.Gas
+	if stx.Value==0 {
+		stx.Value =  utils.Abs(utils.DecimalCvt_f_i(value, 0, 8))
+	}
+	if stx.Fee==0 {
+		stx.Fee = utils.Abs(utils.DecimalCvt_f_i(btx.Fee, 0, 8))
+	}
+	if stx.Total==0 {
+		stx.Total = stx.Value + stx.Fee
+	}
 
 	if uint64(btx.Confirmations) > btc_settings.Client_config().TxConfirmNumber &&
 		btx.Confirmations > 0 {
@@ -392,27 +412,29 @@ func (c *Client)SubscribeRechargeTx(txChannel types.RechargeTxChannel) {
 }
 
 func (c *Client)InsertRechargeAddress(addresses []string) (invalid []string) {
+	accountname := "watchonly"
 	for _, v := range addresses {
 		if address, err := btcutil.DecodeAddress(v, c.chain_params);err!=nil {
 			l4g.Error("bitcoin decode address faild, message:%s", err.Error())
 			invalid = append(invalid, v)
 		} else {
-			if err := c.SetAccount(address, "watchonly"); err!=nil {
-				invalid = append(invalid, v)
-				l4g.Trace("Bitcoin import address error:%s", err.Error())
-			} else {
-				l4g.Trace("bitcoin import wachonly address : %s", address)
-			}
-			//if err := c.ImportAddressRescan(address.EncodeAddress(), false); err!=nil {
-			//	l4g.Error("bitcoin import address faild, message:%s", err.Error())
-			//} else {
-			//	if err := c.SetAccount(address, "watched"); err!=nil {
-			//		invalid = append(invalid, v)
-			//	} else {
-			//		l4g.Trace("bitcoin import wachonly address : %s", address)
-			//	}
+			//if err := c.SetAccount(address, accountname); err!=nil {
 			//	invalid = append(invalid, v)
+			//	l4g.Trace("Bitcoin import address error:%s", err.Error())
+			//} else {
+			//	l4g.Trace("-------::::::::::Bitcoin import address:'%s', to wallet account:'%s'",
+			//		address, "receive")
 			//}
+			if err := c.ImportAddress(address.EncodeAddress()); err!=nil {
+				l4g.Error("bitcoin import address faild, message:%s", err.Error())
+			} else {
+				if err := c.SetAccount(address, accountname); err!=nil {
+					invalid = append(invalid, v)
+				} else {
+					l4g.Trace("bitcoin import wachonly address : %s", address)
+				}
+				invalid = append(invalid, v)
+			}
 		}
 	}
 	return
