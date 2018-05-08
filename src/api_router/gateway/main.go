@@ -6,20 +6,19 @@ import (
 	"fmt"
 	"time"
 	"context"
-	"api_router/base/utils"
 	l4g "github.com/alecthomas/log4go"
+	"api_router/base/config"
 )
 
 const ServiceGatewayConfig = "gateway.json"
 
 func main() {
-	appDir, _:= utils.GetAppDir()
-	appDir += "/SuperWallet"
+	cfgDir := config.GetBastionPayConfigDir()
 
-	l4g.LoadConfiguration(appDir + "/log.xml")
+	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
 
-	cfgPath := appDir + "/" + ServiceGatewayConfig
+	cfgPath := cfgDir + "/" + ServiceGatewayConfig
 	fmt.Println("config path:", cfgPath)
 
 	// create service center

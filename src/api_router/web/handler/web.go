@@ -17,8 +17,7 @@ import (
 	"crypto/sha512"
 	"crypto"
 	"errors"
-	"golang.org/x/net/websocket"
-	"sync"
+	"api_router/base/config"
 )
 
 const (
@@ -48,9 +47,9 @@ func loadAdministratorRsaKeys(dataDir string) error {
 		return err
 	}
 
-	web_admin_userkey = "1c75c668-f1ab-474b-9dae-9ed7950604b4"
+	web_admin_userkey = "cc9545e7-49cb-4625-89ad-fe94e9212507"
 
-	wallet_server_pubkey, err = ioutil.ReadFile(dataDir + "/public.pem")
+	wallet_server_pubkey, err = ioutil.ReadFile(dataDir + "/" + config.BastionPayPublicKey)
 	if err != nil {
 		return err
 	}
@@ -168,18 +167,12 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 type Web struct{
 	nodes []*data.SrvRegisterData
 
-	loginUsers map[string]*user.AckUserLogin
-
-	// websocket
-	rwmuws sync.RWMutex
-	wsClients map[*websocket.Conn]interface{}
+	loginUsers map[string]interface{}
 }
 
 func NewWeb() *Web {
 	w := &Web{}
-	w.loginUsers = make(map[string]*user.AckUserLogin)
-
-	w.wsClients = make(map[*websocket.Conn]interface{})
+	w.loginUsers = make(map[string]interface{})
 
 	return w
 }
@@ -191,92 +184,6 @@ func (self *Web)Init(dataDir string) error {
 
 	if err := self.startHttpServer(); err != nil{
 		return err
-	}
-
-	self.startWsServer()
-
-	return nil
-}
-
-// start websocket server
-func (self *Web) startWsServer() {
-	// websocket
-	l4g.Debug("Start ws server on 8076")
-
-	http.Handle("/ws", websocket.Handler(self.handleWebSocket))
-
-	go func() {
-		l4g.Info("ws server routine running... ")
-		err := http.ListenAndServe(":8076", nil)
-		if err != nil {
-			l4g.Crashf("", err)
-		}
-	}()
-}
-
-
-// ws handler
-func (self *Web)handleWebSocket(conn *websocket.Conn) {
-	for {
-		l4g.Debug("ws handle data...")
-		var err error
-		var data string
-		err = websocket.Message.Receive(conn, &data)
-		if err == nil{
-			err = self.handleWsData(conn, data)
-		}
-
-		if err != nil {
-			//移除出错的链接
-			self.removeWsClient(conn)
-			l4g.Error("ws read failed, remove client:%s", err.Error())
-			break
-		}
-	}
-}
-
-func (self *Web)addWsClient(conn *websocket.Conn) error{
-	var err error
-
-	self.rwmuws.Lock()
-	defer self.rwmuws.Unlock()
-
-	if _, ok := self.wsClients[conn]; ok{
-		return nil
-	}
-	self.wsClients[conn] = ""
-
-	l4g.Debug("add, ws client = %d", len(self.wsClients))
-	return err
-}
-
-func (self *Web)removeWsClient(conn *websocket.Conn) error{
-	var err error
-
-	conn.Close()
-
-	self.rwmuws.Lock()
-	defer self.rwmuws.Unlock()
-
-	delete(self.wsClients, conn)
-
-	l4g.Debug("remove, ws client = %d", len(self.wsClients))
-	return err
-}
-
-
-func (self *Web)handleWsData(conn *websocket.Conn, msg string) error{
-	self.addWsClient(conn)
-
-	return nil
-}
-
-func (self *Web)pushWsData(d *data.UserResponseData) error {
-	self.rwmuws.RLock()
-	defer self.rwmuws.RUnlock()
-
-	for c, _ := range self.wsClients{
-		websocket.Message.Send(c, d.Value.Message)
 	}
 
 	return nil
@@ -582,16 +489,16 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("argv=", message)
 
-		ul := user.ReqUserLogin{}
+		ul := user.ReqUserReadProfile{}
 		json.Unmarshal(bb, &ul)
 
-		if ul.UserName == "" || ul.Password == ""{
+		if ul.UserKey == "" {
 			ures.Err = 1
-			ures.ErrMsg = "no username pr password"
+			ures.ErrMsg = "no user key"
 			return
 		}
 
-		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "login")
+		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "readprofile")
 		fmt.Println(d1)
 
 		ures = *d1
@@ -602,16 +509,9 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		aul := user.AckUserLogin{}
-		json.Unmarshal([]byte(d1.Value.Message), &aul)
-		if err != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-
 		// 存入cookie,使用cookie存储
 		//expiration := time.Unix(5, 0)
-		cookie := http.Cookie{Name: "name", Value: aul.UserKey, Path: "/"}
+		cookie := http.Cookie{Name: "name", Value: ul.UserKey, Path: "/"}
 		http.SetCookie(w, &cookie)
 	}()
 
@@ -642,12 +542,12 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("dev argv=", message)
 
-		ul := user.ReqUserUpdateKey{}
+		ul := user.ReqUserUpdateProfile{}
 		json.Unmarshal(bb, &ul)
 
-		if ul.PublicKey == "" && ul.CallbackUrl == ""{
+		if ul.PublicKey == "" && ul.SourceIP == "" && ul.CallbackUrl == ""{
 			ures.Err = 1
-			ures.ErrMsg = "no pubkey and url"
+			ures.ErrMsg = "no pubkey, sourceip and url"
 			return
 		}
 
@@ -662,7 +562,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 
 		m, err := json.Marshal(ul)
 
-		d1, _, err := sendPostData(httpaddrGateway, string(m), "v1", "account", "updatekey")
+		d1, _, err := sendPostData(httpaddrGateway, string(m), "v1", "account", "updateprofile")
 		fmt.Println(d1)
 
 		ures = *d1
@@ -695,16 +595,10 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("argv=", message)
 
-		uc := user.ReqUserCreate{}
+		uc := user.ReqUserRegister{}
 		json.Unmarshal(bb, &uc)
 
-		if uc.UserName == "" || uc.Password == ""{
-			ures.Err = 1
-			ures.ErrMsg = "no username pr password"
-			return
-		}
-
-		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "create")
+		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "register")
 		fmt.Println(d1)
 
 		ures = *d1

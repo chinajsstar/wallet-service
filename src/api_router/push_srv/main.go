@@ -3,25 +3,24 @@ package main
 import (
 	//"api_router/base/service"
 	service "api_router/base/service2"
-	"api_router/base/utils"
 	"api_router/push_srv/handler"
 	"fmt"
 	"context"
 	"time"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/push_srv/db"
+	"api_router/base/config"
 )
 
 const PushSrvConfig = "push.json"
 
 func main() {
-	appDir, _:= utils.GetAppDir()
-	appDir += "/SuperWallet"
+	cfgDir := config.GetBastionPayConfigDir()
 
-	l4g.LoadConfiguration(appDir + "/log.xml")
+	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
 
-	cfgPath := appDir + "/" + PushSrvConfig
+	cfgPath := cfgDir + "/" + PushSrvConfig
 	db.Init(cfgPath)
 
 	handler.PushInstance().Init()

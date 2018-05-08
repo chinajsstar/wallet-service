@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	_ "github.com/go-sql-driver/mysql"
-	"api_router/account_srv/user"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
 )
@@ -20,11 +19,19 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"readUserLevel": "SELECT level, is_frozen, public_key from %s.%s where user_key = ? limit ? offset ?",
+		"readUserLevel": "SELECT public_key, source_ip, level, is_frozen from %s.%s where user_key = ? limit ? offset ?",
 	}
 
 	st = map[string]*sql.Stmt{}
 )
+
+// 用户权限信息
+type UserLevel struct{
+	PublicKey		string  `json:"public_key"`
+	SourceIP		string  `json:"source_ip"`
+	Level 			int 	`json:"level"`
+	IsFrozen 		rune 	`json:"is_frozen"`
+}
 
 func Init(configPath string) {
 	var d *sql.DB
@@ -76,7 +83,7 @@ func Init(configPath string) {
 	}
 }
 
-func ReadUserLevel(userKey string) (*user.UserLevel, error) {
+func ReadUserLevel(userKey string) (*UserLevel, error) {
 	var r *sql.Rows
 	var err error
 
@@ -90,8 +97,8 @@ func ReadUserLevel(userKey string) (*user.UserLevel, error) {
 		return nil, errors.New("row no next")
 	}
 
-	ul := &user.UserLevel{}
-	if err := r.Scan(&ul.Level, &ul.IsFrozen, &ul.PublicKey); err != nil {
+	ul := &UserLevel{}
+	if err := r.Scan(&ul.PublicKey, &ul.SourceIP, &ul.Level, &ul.IsFrozen); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("no rows")
 		}

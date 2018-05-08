@@ -3,29 +3,28 @@ package main
 import (
 	//"api_router/base/service"
 	service "api_router/base/service2"
-	"api_router/base/utils"
 	"api_router/auth_srv/handler"
 	"fmt"
 	"context"
 	"time"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/auth_srv/db"
+	"api_router/base/config"
 )
 
 const AuthSrvConfig = "auth.json"
 
 func main() {
-	appDir, _:= utils.GetAppDir()
-	appDir += "/SuperWallet"
+	cfgDir := config.GetBastionPayConfigDir()
 
-	l4g.LoadConfiguration(appDir + "/log.xml")
+	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
 
-	cfgPath := appDir + "/" + AuthSrvConfig
+	cfgPath := cfgDir + "/" + AuthSrvConfig
 	fmt.Println("config path:", cfgPath)
 	db.Init(cfgPath)
 
-	accountDir := appDir + "/account"
+	accountDir := cfgDir + "/" + config.BastionPayAccountDirName
 	handler.AuthInstance().Init(accountDir)
 
 	// create service node

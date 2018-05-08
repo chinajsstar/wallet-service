@@ -65,7 +65,7 @@ func FieldTag2(v reflect.Value) string {
 			if tagJson == "-" {
 				continue
 			}
-			out += "" + tagJson + " // " + t.Field(i).Tag.Get("comment")
+			out += "" + tagJson + " (" + t.Field(i).Tag.Get("comment") + ") "
 		}
 		out += "}"
 	}else if t.Kind() == reflect.Slice || t.Kind() == reflect.Array{

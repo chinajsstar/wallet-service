@@ -3,25 +3,24 @@ package main
 import (
 	//"api_router/base/service"
 	service "api_router/base/service2"
-	"api_router/base/utils"
 	"api_router/cobank_srv/handler"
 	"fmt"
 	"context"
 	"time"
 	l4g "github.com/alecthomas/log4go"
+	"api_router/base/config"
 )
 
 const CobankSrvConfig = "cobank.json"
 
 func main() {
-	appDir, _:= utils.GetAppDir()
-	appDir += "/SuperWallet"
+	cfgDir := config.GetBastionPayConfigDir()
 
-	l4g.LoadConfiguration(appDir + "/log.xml")
+	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
 
 	// create service node
-	cfgPath := appDir + "/" + CobankSrvConfig
+	cfgPath := cfgDir + "/" + CobankSrvConfig
 	fmt.Println("config path:", cfgPath)
 	nodeInstance, err:= service.NewServiceNode(cfgPath)
 	if nodeInstance == nil || err != nil{

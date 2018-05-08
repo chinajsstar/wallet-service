@@ -1,84 +1,53 @@
 package user
 
-// 账号生成-输入
-type ReqUserCreate struct{
-	UserName 		string `json:"user_name" comment:"用户名"`
-	UserClass 		int `json:"user_class" comment:"用户类型"`
-	Phone 			string `json:"phone" comment:"电话好码"`
-	Email 			string `json:"email" comment:"电子邮箱"`
-	Password 		string `json:"password" comment:"密码"`
-	Level 			int `json:"level" comment:"级别"`
-	GoogleAuth 		string `json:"google_auth" comment:"Google验证"`
-	TimeZone 		int `json:"timezone" comment:"时区"`
-	Country 		string `json:"country" comment:"国家"`
-	Language 		string `json:"language" comment:"语言"`
+// 账号注册-输入--register
+type ReqUserRegister struct{
+	UserClass 		int `json:"user_class" comment:"用户类型，0:普通用户 1:热钱包; 2:管理员"`
+	Level 			int `json:"level" comment:"级别，0：用户，100：普通管理员"`
 }
-// 账号生成-输出
-type AckUserCreate struct{
+// 账号注册-输出
+type AckUserRegister struct{
 	UserKey 		string  `json:"user_key" comment:"用户唯一标示"`
 }
 
-// 账号登入-输入
-type ReqUserLogin struct{
-	UserName 		string `json:"user_name"`
-	Phone 			string `json:"phone"`
-	Email 			string `json:"email"`
-	Password 		string `json:"password"`
-}
-// 账号登入-输出
-type AckUserLogin struct{
-	UserKey 		string `json:"user_key"`
-	UserName 		string `json:"user_name"`
-	Phone 			string `json:"phone"`
-	Email 			string `json:"email"`
-}
-
-// 修改密码-输入
-type ReqUserUpdatePassword struct{
-	UserName 		string `json:"user_name"`
-	Phone 			string `json:"phone"`
-	Email 			string `json:"email"`
-	OldPassword		string `json:"old_password"`
-	NewPassword		string `json:"new_password"`
-}
-// 修改密码-输出
-type AckUserUpdatePassword struct{
-	Status 			string `json:"status"`
-}
-
-// 修改公钥和回调地址-输入
-type ReqUserUpdateKey struct{
-	UserKey			string `json:"user_key"`
-	PublicKey		string `json:"public_key"`
-	CallbackUrl		string `json:"callback_url"`
+// 修改公钥和回调地址-输入--update profile
+type ReqUserUpdateProfile struct{
+	UserKey			string `json:"user_key" comment:"用户唯一标示"`
+	PublicKey		string `json:"public_key" comment:"用户公钥"`
+	SourceIP		string `json:"source_ip" comment:"用户源IP"`
+	CallbackUrl		string `json:"callback_url" comment:"用户回调"`
 }
 // 修改公钥和回调地址-输出
-type AckUserUpdateKey struct{
-	Status 			string `json:"status"`
+type AckUserUpdateProfile struct{
+	Status 			string `json:"status" comment:"状态"`
+}
+
+// 获取公钥和回调地址-输入--read profile
+type ReqUserReadProfile struct{
+	UserKey			string `json:"user_key" comment:"用户唯一标示"`
+}
+// 获取公钥和回调地址-输出
+type AckUserReadProfile struct{
+	UserKey			string `json:"user_key" comment:"用户唯一标示"`
+	PublicKey		string `json:"public_key" comment:"用户公钥"`
+	SourceIP		string `json:"source_ip" comment:"用户源IP"`
+	CallbackUrl		string `json:"callback_url" comment:"用户回调"`
 }
 
 // 用户基本资料
-type UserProfile struct{
-	Id 				int    `json:"id"`
-	UserKey 		string `json:"user_key"`
-	UserName 		string `json:"user_name"`
-	UserClass 		int `json:"user_class"`
-	Phone 			string `json:"phone"`
-	Email 			string `json:"email"`
+type UserBasic struct{
+	Id 				int    	`json:"id" comment:"用户ID"`
+	UserKey 		string 	`json:"user_key" comment:"用户唯一标示"`
+	UserClass 		int 	`json:"user_class" comment:"用户类型"`
+	Level 			int 	`json:"level" comment:"级别"`
+	IsFrozen 		rune 	`json:"is_frozen" comment:"用户是否冻结"`
 }
 
-// 用户列表-输入
+// 用户列表-输入--list
 type ReqUserList struct{
-	Id 				int    `json:"id"`
+	Id 				int    `json:"id" comment:"用户当前最小ID"`
 }
 // 用户列表-输出
 type AckUserList struct{
-	Users []UserProfile `json:"users"`
-}
-
-// 权限信息
-type UserLevel struct{
-	Level 			int    `json:"level"`
-	IsFrozen 		rune   `json:"isfrozen"`
-	PublicKey 		string `json:"public_key"`
+	Users []UserBasic 	`json:"users" comment:"用户数组"`
 }

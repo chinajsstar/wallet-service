@@ -103,8 +103,9 @@ func (mi *ServiceCenter) register(client *rpc2.Client, reg *data.SrvRegisterData
 		if srvNodeGroup == nil {
 			srvNodeGroup = &SrvNodeGroup{}
 			mi.srvNodeNameMapSrvNodeGroup[versionSrvName] = srvNodeGroup
-			mi.clientMapSrvNodeGroup[client] = srvNodeGroup
 		}
+
+		mi.clientMapSrvNodeGroup[client] = srvNodeGroup
 
 		err := srvNodeGroup.RegisterNode(client, reg)
 		if err == nil {
@@ -116,6 +117,8 @@ func (mi *ServiceCenter) register(client *rpc2.Client, reg *data.SrvRegisterData
 				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &data.ApiInfo{v.Name, v.Level}
 			}
 		}
+
+		l4g.Info("%d-%d", len(mi.srvNodeNameMapSrvNodeGroup), len(mi.clientMapSrvNodeGroup))
 
 		*res = "ok"
 		return err

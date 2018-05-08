@@ -5,7 +5,16 @@ import (
 	"encoding/json"
 	l4g "github.com/alecthomas/log4go"
 	"errors"
+	"api_router/base/utils"
 )
+
+func GetBastionPayConfigDir() (string) {
+	appDir, err := utils.GetAppDir()
+	if err != nil {
+		l4g.Crashf("Get App dir crash %s", err.Error())
+	}
+	return appDir + "/" + BastionPayConfigDirName
+}
 
 func LoadJsonNode(absPath string, name string, value interface{}) error {
 	var err error

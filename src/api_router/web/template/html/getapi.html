@@ -13,9 +13,9 @@
                                     <p>
                                         API名称: {{.Name}} API权限: {{.Level}}
                                     </p>
-                                    <p>{{.Doc}}</p>
-                                    <div>{{.InComment}}</div>
-                                    <div>{{.OutComment}}</div>
+                                    <p>说明：{{.Doc}}</p>
+                                    <div>输入：{{.InComment}}</div>
+                                    <div>输出：{{.OutComment}}</div>
                                     <p>测试示例：</p>
                                     <form action="/runapi?srv={{$srvname}}&ver={{$srvversion}}&func={{.Name}}" method="POST">  
                                         <input style="width:100%" type="text" name="argv" value={{.Example}}></input><br/>  

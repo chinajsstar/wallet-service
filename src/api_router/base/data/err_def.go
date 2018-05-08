@@ -17,15 +17,8 @@ func init()  {
 	err_msg[ErrNotFindFunction] 					= "not find function"
 	err_msg[ErrConnectSrvFailed] 					= "connect service failed"
 
-	err_msg[ErrAccountSrvUsernameRepeated] 			= "user name is repeated"
-	err_msg[ErrAccountSrvPhoneRepeated] 			= "user phone is repeated"
-	err_msg[ErrAccountSrvEmailRepeated] 			= "user email is repeated"
-
 	err_msg[ErrAccountSrvNoUser] 					= "no user"
-	err_msg[ErrAccountSrvWrongPassword] 			= "wrong password"
-
-	err_msg[ErrAccountSrvUpdatePassword] 			= "update password failed"
-
+	err_msg[ErrAccountSrvUpdateProfile] 			= "update profile failed"
 	err_msg[ErrAccountSrvListUsers] 				= "list users failed"
 
 	err_msg[ErrAuthSrvNoUserKey] 					= "no user key"
@@ -46,80 +39,71 @@ func GetErrMsg(errId int) string {
 
 const(
 	// /////////////////////////////////////////////////////
-	// 0-1000 common errors
+	// 0, success
 	// /////////////////////////////////////////////////////
 	// no error
-	NoErr 						= 0
+	NoErr 							= 0
 
+	// /////////////////////////////////////////////////////
+	// 10001-11100 common errors
+	// /////////////////////////////////////////////////////
 	// internal err
-	ErrInternal					= 1
+	ErrInternal						= 10001
 
 	// data corrupted
-	ErrDataCorrupted			= 2
+	ErrDataCorrupted				= 10002
 
 	// call failed
-	ErrCallFailed				= 3
+	ErrCallFailed					= 10003
 
 	// illegally call
-	ErrIllegallyCall			= 4
+	ErrIllegallyCall				= 10004
 
 	// not find auth service
-	ErrNotFindAuth				= 5
+	ErrNotFindAuth					= 10005
 
 	// not find service
-	ErrNotFindSrv				= 100
+	ErrNotFindSrv					= 10006
 
 	// not find function
-	ErrNotFindFunction			= 101
+	ErrNotFindFunction				= 10007
 
 	// connect service failed
-	ErrConnectSrvFailed			= 102
+	ErrConnectSrvFailed				= 10008
 
 	// /////////////////////////////////////////////////////
-	// 1001-2000 account_srv errors
+	// 11101-11200 account_srv errors
 	// /////////////////////////////////////////////////////
-	// register - user name is repeated
-	ErrAccountSrvUsernameRepeated		= 1001
+	// no user
+	ErrAccountSrvNoUser				= 11101
 
-	// register - user phone is repeated
-	ErrAccountSrvPhoneRepeated			= 1002
-
-	// register - user email is repeated
-	ErrAccountSrvEmailRepeated			= 1003
-
-	// login - no user
-	ErrAccountSrvNoUser					= 1101
-
-	// login - wrong password
-	ErrAccountSrvWrongPassword			= 1102
-
-	// updatepassword - failed
-	ErrAccountSrvUpdatePassword			= 1201
+	// updateprofile - failed
+	ErrAccountSrvUpdateProfile		= 11102
 
 	// listusers - failed
-	ErrAccountSrvListUsers				= 1301
+	ErrAccountSrvListUsers			= 11103
 
 	// /////////////////////////////////////////////////////
-	// 2001-3000 auth_srv errors
+	// 11201-11300 auth_srv errors
 	// /////////////////////////////////////////////////////
 	// no user key
-	ErrAuthSrvNoUserKey				= 2001
+	ErrAuthSrvNoUserKey				= 11201
 
 	// no public key
-	ErrAuthSrvNoPublicKey  			= 2002
+	ErrAuthSrvNoPublicKey			= 11202
 
 	// no api level
-	ErrAuthSrvNoApiLevel			= 2003
+	ErrAuthSrvNoApiLevel			= 11203
 
 	// user frozen
-	ErrAuthSrvUserFrozen			= 2004
+	ErrAuthSrvUserFrozen			= 11204
 
 	// illegal data
-	ErrAuthSrvIllegalData 			= 2005
+	ErrAuthSrvIllegalData			= 11205
 
 	// /////////////////////////////////////////////////////
-	// 3001-4000 push_srv errors
+	// 11301-11400 push_srv errors
 	// /////////////////////////////////////////////////////
 	// illegal data
-	ErrPushSrvPushData 			= 3001
+	ErrPushSrvPushData 				= 11301
 )

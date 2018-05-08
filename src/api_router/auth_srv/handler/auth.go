@@ -12,15 +12,15 @@ import (
 	"io/ioutil"
 	"encoding/base64"
 	"sync"
-	"api_router/account_srv/user"
 	l4g "github.com/alecthomas/log4go"
+	"api_router/base/config"
 )
 
 type Auth struct{
 	privateKey []byte
 
 	rwmu     sync.RWMutex
-	usersKey map[string]*user.UserLevel
+	usersLevel map[string]*db.UserLevel
 }
 
 var defaultAuth = &Auth{}
@@ -31,30 +31,30 @@ func AuthInstance() *Auth{
 
 func (auth * Auth)Init(dir string) {
 	var err error
-	auth.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
+	auth.privateKey, err = ioutil.ReadFile(dir + "/"+ config.BastionPayPrivateKey)
 	if err != nil {
 		l4g.Crashf("", err)
 	}
 
-	auth.usersKey = make(map[string]*user.UserLevel)
+	auth.usersLevel = make(map[string]*db.UserLevel)
 }
 
-func (auth * Auth)getUserLevel(userKey string) (*user.UserLevel, error)  {
-	ul := func() *user.UserLevel{
+func (auth * Auth)getUserLevel(userKey string) (*db.UserLevel, error)  {
+	ul := func() *db.UserLevel{
 		auth.rwmu.RLock()
 		defer auth.rwmu.RUnlock()
 
-		return auth.usersKey[userKey]
+		return auth.usersLevel[userKey]
 	}()
 	if ul != nil {
 		return ul,nil
 	}
 
-	return func() (*user.UserLevel, error){
+	return func() (*db.UserLevel, error){
 		auth.rwmu.Lock()
 		defer auth.rwmu.Unlock()
 
-		ul := auth.usersKey[userKey]
+		ul := auth.usersLevel[userKey]
 		if ul != nil {
 			return ul, nil
 		}
@@ -62,7 +62,7 @@ func (auth * Auth)getUserLevel(userKey string) (*user.UserLevel, error)  {
 		if err != nil {
 			return nil, err
 		}
-		auth.usersKey[userKey] = ul
+		auth.usersLevel[userKey] = ul
 		return ul, nil
 	}()
 }

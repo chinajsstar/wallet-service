@@ -3,36 +3,15 @@ package handler
 import (
 	"api_router/account_srv/db"
 	"api_router/base/data"
-	"crypto/rand"
 	"io/ioutil"
 	"api_router/account_srv/user"
 	//service "api_router/base/service"
 	service "api_router/base/service2"
-	"encoding/base64"
-	"golang.org/x/crypto/bcrypt"
 	"encoding/json"
 	"github.com/satori/go.uuid"
 	l4g "github.com/alecthomas/log4go"
+	"api_router/base/config"
 )
-
-const (
-	//x = "cruft123"
-	x = "super999"
-)
-var (
-	alphanum = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-)
-func random(i int) string {
-	bytes := make([]byte, i)
-	for {
-		rand.Read(bytes)
-		for i, b := range bytes {
-			bytes[i] = alphanum[b%byte(len(alphanum))]
-		}
-		return string(bytes)
-	}
-	return "ughwhy?!!!"
-}
 
 ///////////////////////////////////////////////////////////////////////
 // 账号管理
@@ -50,11 +29,11 @@ func AccountInstance() *Account{
 // 初始化
 func (s *Account)Init(dir string) {
 	var err error
-	s.privateKey, err = ioutil.ReadFile(dir+"/private.pem")
+	s.privateKey, err = ioutil.ReadFile(dir + "/" + config.BastionPayPrivateKey)
 	if err != nil {
 		l4g.Crashf("", err)
 	}
-	s.serverPublicKey, err = ioutil.ReadFile(dir+"/public.pem")
+	s.serverPublicKey, err = ioutil.ReadFile(dir + "/" + config.BastionPayPublicKey)
 	if err != nil {
 		l4g.Crashf("", err)
 	}
@@ -64,12 +43,30 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func(){
-		input := user.ReqUserCreate{}
-		output := user.AckUserCreate{}
+		input := user.ReqUserRegister{}
+		output := user.AckUserRegister{}
 		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"create", data.APILevel_genesis, s.Create,
-			"创建用户", string(b), input, output)
+			"register", data.APILevel_genesis, s.Register,
+			"注册用户", string(b), input, output)
+	}()
+
+	func(){
+		input := user.ReqUserUpdateProfile{}
+		output := user.AckUserUpdateProfile{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"updateprofile", data.APILevel_admin, s.UpdateProfile,
+			"更新开发者配置信息", string(b), input, output)
+	}()
+
+	func(){
+		input := user.ReqUserReadProfile{}
+		output := user.AckUserReadProfile{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"readprofile", data.APILevel_admin, s.ReadProfile,
+			"读取开发者配置信息", string(b), input, output)
 	}()
 
 	func(){
@@ -82,56 +79,19 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 
 	}()
 
-	func(){
-		input := user.ReqUserLogin{}
-		output := user.AckUserLogin{}
-		b, _ := json.Marshal(input)
-		service.RegisterApi(&nam,
-			"login", data.APILevel_client, s.Login,
-			"用户登陆", string(b), input, output)
-	}()
-
-	func(){
-		input := user.ReqUserUpdatePassword{}
-		output := user.AckUserUpdatePassword{}
-		b, _ := json.Marshal(input)
-		service.RegisterApi(&nam,
-			"updatepassword", data.APILevel_admin, s.UpdatePassword,
-			"更新密码", string(b), input, output)
-	}()
-
-	func(){
-		input := user.ReqUserUpdateKey{}
-		output := user.AckUserUpdateKey{}
-		b, _ := json.Marshal(input)
-		service.RegisterApi(&nam,
-			"updatekey", data.APILevel_admin, s.UpdateKey,
-			"更新key", string(b), input, output)
-	}()
-
 	return nam
 }
 
 // 创建账号
-func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// from req
-	reqUserCreate := user.ReqUserCreate{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUserCreate)
+	reqUserRegister := user.ReqUserRegister{}
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUserRegister)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
 		res.Data.Err = data.ErrDataCorrupted
 		return
 	}
-
-	// password
-	salt := random(16)
-	pswByte, err := bcrypt.GenerateFromPassword([]byte(x+salt+reqUserCreate.Password), 10)
-	if err != nil {
-		l4g.Error("error create salt password: %s", err.Error())
-		res.Data.Err = data.ErrInternal
-		return
-	}
-	psw := base64.StdEncoding.EncodeToString(pswByte)
 
 	// userkey
 	uuid, err := uuid.NewV4()
@@ -142,36 +102,8 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 	}
 	userKey := uuid.String()
 
-	// find if exist a user
-	foundUser, err := db.ReadUser(userKey, reqUserCreate.UserName, reqUserCreate.Phone, reqUserCreate.Email)
-	if foundUser != nil {
-		if foundUser.UserKey == userKey {
-			l4g.Error("error create a repeat user key: %s", userKey)
-			res.Data.Err = data.ErrInternal
-			return
-		}
-
-		if foundUser.UserName == reqUserCreate.UserName {
-			l4g.Error("error create a repeat user name: %s", reqUserCreate.UserName)
-			res.Data.Err = data.ErrAccountSrvUsernameRepeated
-			return
-		}
-
-		if foundUser.Phone == reqUserCreate.Phone {
-			l4g.Error("error create a repeat user phone: %s", reqUserCreate.Phone)
-			res.Data.Err = data.ErrAccountSrvPhoneRepeated
-			return
-		}
-
-		if foundUser.Email == reqUserCreate.Email {
-			l4g.Error("error create a repeat user name: %s", reqUserCreate.Email)
-			res.Data.Err = data.ErrAccountSrvEmailRepeated
-			return
-		}
-	}
-
 	// db
-	err = db.Create(&reqUserCreate, userKey, salt, psw)
+	err = db.Register(&reqUserRegister, userKey)
 	if err != nil {
 		l4g.Error("error create user: %s", err.Error())
 		res.Data.Err = data.ErrInternal
@@ -179,7 +111,7 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 	}
 
 	// to ack
-	ackUserCreate := user.AckUserCreate{}
+	ackUserCreate := user.AckUserRegister{}
 	ackUserCreate.UserKey = userKey
 
 	dataAck, err := json.Marshal(ackUserCreate)
@@ -193,139 +125,6 @@ func (s *Account) Create(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// ok
 	res.Data.Value.Message = string(dataAck)
 	l4g.Info("create a new user: %s", res.Data.Value.Message)
-}
-
-// 登入
-func (s *Account) Login(req *data.SrvRequestData, res *data.SrvResponseData) {
-	// from req
-	reqUserLogin := user.ReqUserLogin{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUserLogin)
-	if err != nil {
-		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
-		return
-	}
-
-	// read password
-	user, salt, hashed, err := db.ReadPassword(reqUserLogin.UserName, reqUserLogin.Phone, reqUserLogin.Email)
-	if err != nil {
-		l4g.Error("error no user: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvNoUser
-		return
-	}
-
-	oldPswHash, err := base64.StdEncoding.DecodeString(hashed)
-	if err != nil {
-		l4g.Error("error base64: %s", err.Error())
-		res.Data.Err = data.ErrInternal
-		return
-	}
-
-	// compare password
-	if err := bcrypt.CompareHashAndPassword(oldPswHash, []byte(x+salt+reqUserLogin.Password)); err != nil {
-		l4g.Error("error password: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvWrongPassword
-		return
-	}
-
-	// TODO: add session
-	// save session
-	/*
-	sess := &account.Session{
-		Id:       random(128),
-		Username: username,
-		Created:  time.Now().Unix(),
-		Expires:  time.Now().Add(time.Hour * 24 * 7).Unix(),
-	}
-
-	if err := db.CreateSession(sess); err != nil {
-		return errors.InternalServerError("go.micro.srv.user.Login", err.Error())
-	}
-	rsp.Session = sess
-	*/
-
-	// to ack
-	dataAck, err := json.Marshal(user)
-	if err != nil {
-		l4g.Error("error Marshal: %s", err.Error())
-		res.Data.Err = data.ErrInternal
-		return
-	}
-
-	// ok
-	res.Data.Value.Message = string(dataAck)
-	l4g.Info("login a user: %s", res.Data.Value.Message)
-}
-
-// 登陆
-func (s *Account) Logout(req *data.SrvRequestData, res *data.SrvResponseData)  {
-	// TODO: 登出session处理
-	//return db.DeleteSession(req.SessionId)
-	return
-}
-
-// 更新密码
-func (s * Account) UpdatePassword(req *data.SrvRequestData, res *data.SrvResponseData) {
-	// from req
-	reqUpdatePsw := user.ReqUserUpdatePassword{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdatePsw)
-	if err != nil {
-		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
-		return
-	}
-
-	userInfo, salt, hashed, err := db.ReadPassword(reqUpdatePsw.UserName, reqUpdatePsw.Phone, reqUpdatePsw.Email)
-	if err != nil {
-		l4g.Error("error no user: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvNoUser
-		return
-	}
-
-	oldPswHash, err := base64.StdEncoding.DecodeString(hashed)
-	if err != nil {
-		l4g.Error("error base64: %s", err.Error())
-		res.Data.Err = data.ErrInternal
-		return
-	}
-
-	// compare old password
-	if err := bcrypt.CompareHashAndPassword(oldPswHash, []byte(x+salt+reqUpdatePsw.OldPassword)); err != nil {
-		l4g.Error("error password: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvWrongPassword
-		return
-	}
-
-	// reset new
-	newSalt := random(16)
-	newPswByte, err := bcrypt.GenerateFromPassword([]byte(x+newSalt+reqUpdatePsw.NewPassword), 10)
-	if err != nil {
-		l4g.Error("error create salt password: %s", err.Error())
-		res.Data.Err = data.ErrInternal
-		return
-	}
-	newPsw := base64.StdEncoding.EncodeToString(newPswByte)
-
-	if err := db.UpdatePassword(userInfo.UserKey, newSalt, newPsw); err != nil {
-		l4g.Error("error update password: %s", err.Error())
-		res.Data.Err = data.ErrInternal
-		return
-	}
-
-	// to ack
-	ackUpdatePsw := user.AckUserUpdatePassword{Status:"ok"}
-	dataAck, err := json.Marshal(ackUpdatePsw)
-	if err != nil {
-		// 写回去
-		db.UpdatePassword(userInfo.UserKey, salt, hashed)
-		l4g.Error("error Marshal: %s", err.Error())
-		res.Data.Err = data.ErrInternal
-		return
-	}
-
-	// ok
-	res.Data.Value.Message = string(dataAck)
-	l4g.Info("update a user password: %s", res.Data.Value.Message)
 }
 
 // 获取用户列表
@@ -361,11 +160,43 @@ func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData)
 	l4g.Info("list users: %s", res.Data.Value.Message)
 }
 
-// 更新密码
-func (s * Account) UpdateKey(req *data.SrvRequestData, res *data.SrvResponseData) {
+// 获取key
+func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// from req
-	reqUpdateKey := user.ReqUserUpdateKey{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateKey)
+	reqReadProfile := user.ReqUserReadProfile{}
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqReadProfile)
+	if err != nil {
+		l4g.Error("error json message: %s", err.Error())
+		res.Data.Err = data.ErrDataCorrupted
+		return
+	}
+
+	// load profile
+	ackReadProfile, err := db.ReadProfile(reqReadProfile.UserKey)
+	if err != nil {
+		l4g.Error("error ReadKey: %s", err.Error())
+		res.Data.Err = data.ErrAccountSrvNoUser
+		return
+	}
+
+	// to ack
+	dataAck, err := json.Marshal(ackReadProfile)
+	if err != nil {
+		l4g.Error("error Marshal: %s", err.Error())
+		res.Data.Err = data.ErrInternal
+		return
+	}
+
+	// ok
+	res.Data.Value.Message = string(dataAck)
+	l4g.Info("update a user key: %s", res.Data.Value.Message)
+}
+
+// 更新key
+func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponseData) {
+	// from req
+	reqUpdateProfile := user.ReqUserUpdateProfile{}
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateProfile)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
 		res.Data.Err = data.ErrDataCorrupted
@@ -373,35 +204,41 @@ func (s * Account) UpdateKey(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	// load old key
-	oldKey, err := db.ReadKey(reqUpdateKey.UserKey)
+	oldUserReadProfile, err := db.ReadProfile(reqUpdateProfile.UserKey)
 	if err != nil {
-		l4g.Error("error ReadKey: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		l4g.Error("error ReadProfile: %s", err.Error())
+		res.Data.Err = data.ErrAccountSrvNoUser
 		return
 	}
 
-	newPubKey := reqUpdateKey.PublicKey
-	newCbUrl := reqUpdateKey.CallbackUrl
-	if newPubKey == ""{
-		newPubKey = oldKey.PublicKey
+	if reqUpdateProfile.PublicKey == ""{
+		reqUpdateProfile.PublicKey = oldUserReadProfile.PublicKey
 	}
-	if newCbUrl == ""{
-		newCbUrl = oldKey.CallbackUrl
+	if reqUpdateProfile.SourceIP == ""{
+		reqUpdateProfile.SourceIP = oldUserReadProfile.SourceIP
+	}
+	if reqUpdateProfile.CallbackUrl == ""{
+		reqUpdateProfile.CallbackUrl = oldUserReadProfile.CallbackUrl
 	}
 
 	// update key
-	if err := db.UpdateKey(reqUpdateKey.UserKey, newPubKey, newCbUrl); err != nil {
-		l4g.Error("error update password: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+	if err := db.UpdateProfile(&reqUpdateProfile); err != nil {
+		l4g.Error("error update profile: %s", err.Error())
+		res.Data.Err = data.ErrAccountSrvUpdateProfile
 		return
 	}
 
 	// to ack
-	ackUpdateKey := user.AckUserUpdateKey{Status:"ok"}
-	dataAck, err := json.Marshal(ackUpdateKey)
+	ackUpdateProfile := user.AckUserUpdateProfile{Status:"ok"}
+	dataAck, err := json.Marshal(ackUpdateProfile)
 	if err != nil {
 		// 写回去
-		db.UpdateKey(reqUpdateKey.UserKey, oldKey.PublicKey, oldKey.CallbackUrl)
+		oldUserUpdateProfile := user.ReqUserUpdateProfile{}
+		oldUserUpdateProfile.UserKey = oldUserReadProfile.UserKey
+		oldUserUpdateProfile.PublicKey = oldUserReadProfile.PublicKey
+		oldUserUpdateProfile.SourceIP = oldUserReadProfile.SourceIP
+		oldUserUpdateProfile.CallbackUrl = oldUserReadProfile.CallbackUrl
+		db.UpdateProfile(&oldUserUpdateProfile)
 		l4g.Error("error Marshal: %s", err.Error())
 		res.Data.Err = data.ErrInternal
 		return

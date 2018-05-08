@@ -3,146 +3,167 @@ package install
 import (
 	"fmt"
 	"api_router/account_srv/user"
-	"strconv"
 	"api_router/base/utils"
 	"io/ioutil"
+	"errors"
+	"os"
+	"encoding/json"
+	"api_router/base/data"
+	l4g "github.com/alecthomas/log4go"
+	"api_router/account_srv/handler"
+	"api_router/base/config"
 )
 
-func AddUser(isinstall bool) (*user.ReqUserCreate, error) {
+func BuildWebAdmin() (*user.ReqUserRegister, *user.ReqUserUpdateProfile, error) {
+	uc := &user.ReqUserRegister{}
+	up := &user.ReqUserUpdateProfile{}
+
+	//0:普通用户 1:热钱包; 2:管理员
+	uc.UserClass = 2
+	// 100：普通管理员 200：创世管理员
+	uc.Level = 200
+
 	var input string
 
-	uc := &user.ReqUserCreate{}
-
-	fmt.Println("输入用户名: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.UserName = input
-
-	fmt.Println("输入电话: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.Phone = input
-
-	fmt.Println("输入邮箱: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.Email = input
-
-	if isinstall {
-		uc.UserClass = 2
-		uc.Level = 200
-	}else{
-		//0:普通用户 1:热钱包; 100:管理员
-		fmt.Println("输入用户类型: 0:普通用户 1:热钱包; 2:管理员")
-		input = ""
-		input = utils.ScanLine()
-		uc.UserClass, _ = strconv.Atoi(input)
-		if uc.UserClass == 100 {
-			fmt.Println("输入权限: 100：普通管理员 200：创世管理员")
-			fmt.Scanln(&input)
-			uc.Level, _ = strconv.Atoi(input)
-		}else{
-			uc.Level = 0
-		}
-	}
-
-	var pw1, pw2 string
-	for ; ; {
-		fmt.Println("输入密码6位或以上: ")
-		input = ""
-		input = utils.ScanLine()
-		pw1 = input
-
-		fmt.Println("再次输入密码: ")
-		input = ""
-		input = utils.ScanLine()
-		pw2 = input
-		if pw1 == pw2 && len(pw1) > 5{
-			break
-		}
-		pw1 = ""
-		pw2 = ""
-	}
-
-	uc.Password = utils.GetMd5Text(pw1)
-
-	fmt.Println("输入国家: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.Country = input
-
-	fmt.Println("输入语言: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.Language = input
-
-	fmt.Println("输入时区: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.TimeZone, _ = strconv.Atoi(input)
-
-	fmt.Println("输入google验证: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.GoogleAuth = input
-
-	return uc, nil
-}
-
-func UpdateKey()(*user.ReqUserUpdateKey, error){
-	var input string
-
-	userUpdateKey := &user.ReqUserUpdateKey{}
-
-	fmt.Println("请输入注册的user_key: ")
-	input = ""
-	input = utils.ScanLine()
-	userUpdateKey.UserKey = input
-
-	fmt.Println("请输入公钥路径: ")
+	// 1
+	fmt.Println("请输入后台公钥路径: ")
 	input = ""
 	input = utils.ScanLine()
 	pubKey, err := ioutil.ReadFile(input)
 	if err != nil {
-		return nil, err
+		return nil, nil,  err
 	}
-	userUpdateKey.PublicKey = string(pubKey)
+	up.PublicKey = string(pubKey)
 
-	fmt.Println("请输入回调地址: ")
+	// 2
+	fmt.Println("请输入后台限制IP: ")
 	input = ""
 	input = utils.ScanLine()
-	userUpdateKey.CallbackUrl = input
+	up.SourceIP = input
 
-	return userUpdateKey, nil
+	// 3
+	fmt.Println("请输入后台回调地址（后台可不填）: ")
+	input = ""
+	input = utils.ScanLine()
+	up.CallbackUrl = input
+
+	return uc, up, nil
 }
 
-func LoginUser() (*user.ReqUserLogin, error) {
-	var input string
+func InstallBastionPay(dir string) error {
+	var err error
 
-	uc := &user.ReqUserLogin{}
+	fi, err := os.Open(dir + "/" + config.BastionPayInstall)
+	if err == nil {
+		defer fi.Close()
+		l4g.Info("BastionPay已经安装！！！")
+		return nil
+	}
 
-	fmt.Println("用户名，电话，邮箱填一个: ")
-	fmt.Println("输入用户名: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.UserName = input
+	fmt.Println("***正在安装超级管理员，请谨慎操作***")
 
-	fmt.Println("输入电话: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.Phone = input
+	l4g.Info("1. 创建BastionPay RSA密钥对...")
+	bCreateNewRsa := false
+	priKeyPath := dir + "/" + config.BastionPayPrivateKey
+	pubKeyPath := dir + "/" + config.BastionPayPublicKey
+	_, err = os.Open(priKeyPath)
+	if err != nil {
+		bCreateNewRsa = true
+	}
+	_, err = os.Open(pubKeyPath)
+	if err != nil {
+		bCreateNewRsa = true
+	}
 
-	fmt.Println("输入邮箱: ")
-	input = ""
-	input = utils.ScanLine()
-	uc.Email = input
+	if bCreateNewRsa{
+		err = utils.RsaGen(2048, priKeyPath, pubKeyPath)
+		if err != nil {
+			return err
+		}
+		l4g.Info("~~~成功创建BastionPay RSA密钥对: %s", dir)
+	}else{
+		l4g.Info("!!!使用存在BastionPay RSA密钥对: %s", dir)
+	}
 
-	fmt.Println("输入密码: ")
-	input = ""
-	input = utils.ScanLine()
-	pw := input
+	l4g.Info("2. 创建Web超级管理员账号")
+	ackUc := user.AckUserRegister{}
+	ackUp := user.AckUserUpdateProfile{}
+	err = func() error {
+		uc, up, err := BuildWebAdmin()
+		if err != nil {
+			return err
+		}
 
-	uc.Password = utils.GetMd5Text(pw)
+		// register
+		err = func()error{
+			b, err := json.Marshal(*uc)
+			if err != nil {
+				return err
+			}
 
-	return uc, nil
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+			handler.AccountInstance().Register(&req, &res)
+			if res.Data.Err != data.NoErr {
+				return errors.New(res.Data.ErrMsg)
+			}
+
+			err = json.Unmarshal([]byte(res.Data.Value.Message), &ackUc)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+
+		// update profile
+		err = func()error{
+			up.UserKey = ackUc.UserKey
+			b, err := json.Marshal(*up)
+			if err != nil {
+				return err
+			}
+
+			var req data.SrvRequestData
+			var res data.SrvResponseData
+			req.Data.Argv.Message = string(b)
+			handler.AccountInstance().UpdateProfile(&req, &res)
+			if res.Data.Err != data.NoErr {
+				return errors.New(res.Data.ErrMsg)
+			}
+
+			err = json.Unmarshal([]byte(res.Data.Value.Message), &ackUp)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	// write a tag file
+	fo, err := os.Create(dir + "/" + config.BastionPayInstall)
+	if err != nil {
+		return err
+	}
+	defer fo.Close()
+
+	fmt.Println("～～～Web超级管理员安装成功～～～")
+	fmt.Println("请进行以下操作：")
+	fmt.Printf("1. 记录Web超级管理员user_key(%s)\n", ackUc.UserKey)
+	fmt.Printf("2. 将BastionPay公钥(%s)保存到Web后台\n", dir+"/public.pem")
+
+	return nil
 }

@@ -60,25 +60,21 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 	nam := make(map[string]service.NodeApi)
 
 	func() {
-		example := "{\"asset_name\":\"\",\"count\":0}"
 		service.RegisterApi(&nam,
 			"new_address", data.APILevel_client, x.handler,
-			"获取新地址", example, "", "")
+			"获取新地址", "", "", "")
 	}()
 
 	func() {
-		example := "{\"user_key\":\"\"}"
 		service.RegisterApi(&nam,
 			"query_user_address", data.APILevel_client, x.handler,
-			"查询用户地址", example, "", "")
+			"查询用户地址", "", "", "")
 	}()
 
 	func() {
-		input := def.ReqWithdrawal{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
 			"withdrawal", data.APILevel_client, x.handler,
-			"提币", string(b), input, "")
+			"提币", "", "", "")
 	}()
 
 	func() {
