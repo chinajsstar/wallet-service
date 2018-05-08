@@ -21,10 +21,9 @@ ADD configuration/bastionpay/supervisord.d/ /etc/supervisord.d/
 
 # Install api-admin
 # ADD cobank_srv /opt/
-ADD configuration/bastionpay/SuperWallet/ /root/SuperWallet/
+ADD configuration/bastionpay/BastionPay/ /root/BastionPay/
 ADD configuration/bastionpay/blockchain_server /root/blockchain_server/
 ADD bin/linux/ /opt/
-ADD configuration/bastionpay/blockchain_server /opt/cobank_srv_app/blockchain_server/
 ## EXPOSE
 EXPOSE  8081 8082 8077
 CMD ["/usr/bin/supervisord","-c","/etc/supervisord.d/supervisord.conf"]
