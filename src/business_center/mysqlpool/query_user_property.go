@@ -7,10 +7,8 @@ import (
 )
 
 func QueryUserPropertyByJson(query string) ([]UserProperty, bool) {
-	sqls := "select user_key,user_name,user_class,phone,email,salt,password,google_auth,public_key," +
-		"callback_url,level,last_login_time,last_login_ip,last_login_mac,unix_timestamp(create_time)," +
-		"unix_timestamp(update_time),is_frozen,time_zone,country,language from user_property" +
-		" where true"
+	sqls := "select user_key,user_class,is_frozen,unix_timestamp(create_time),unix_timestamp(update_time)" +
+		" from user_property where true "
 
 	userProperty := make([]UserProperty, 0)
 	params := make([]interface{}, 0)
@@ -35,11 +33,7 @@ func QueryUserPropertyByJson(query string) ([]UserProperty, bool) {
 
 	var data UserProperty
 	for rows.Next() {
-		err := rows.Scan(&data.UserKey, &data.UserName, &data.UserClass, &data.Phone,
-			&data.Email, &data.Salt, &data.Password, &data.GoogleAuth,
-			&data.PublicKey, &data.CallbackUrl, &data.Level, &data.LastLoginTime,
-			&data.LastLoginIp, &data.LastLoginMac, &data.CreateTime, &data.UpdateTime,
-			&data.IsFrozen, &data.TimeZone, &data.Conutry, &data.Language)
+		err := rows.Scan(&data.UserKey, &data.UserClass, &data.IsFrozen, &data.CreateTime, &data.UpdateTime)
 		if err == nil {
 			userProperty = append(userProperty, data)
 		}
