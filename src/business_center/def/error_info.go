@@ -3,11 +3,11 @@ package def
 import "fmt"
 
 const (
-	ErrorSuccess  = iota //成功
-	ErrorParse           //指令解析错误
-	ErrorParam           //指令参数错误
-	ErrorWallet          //钱包错误
-	ErrorDataBase        //数据库错误
+	ErrorSuccess  = 0            //成功
+	ErrorParse    = 20000 + iota //指令解析错误
+	ErrorParam                   //指令参数错误
+	ErrorWallet                  //钱包错误
+	ErrorDataBase                //数据库错误
 )
 
 var errorInfoMap map[int]string
