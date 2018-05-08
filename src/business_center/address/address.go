@@ -5,13 +5,14 @@ import (
 	"blockchain_server/service"
 	"blockchain_server/types"
 	. "business_center/def"
+	"business_center/jsonparse"
 	"business_center/mysqlpool"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	"math"
-	"strconv"
 	"sync"
 )
 
@@ -62,31 +63,25 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	resMap := make(map[string]interface{})
-	jsonMap := json2map(req.Data.Argv.Message, []string{"asset_name", "count"})
-
-	assetName, ok := jsonMap["asset_name"]
+	params := jsonparse.Parse(req.Data.Argv.Message)
+	assetName, ok := params.AssetName()
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
-	resMap["asset_name"] = assetName
-
-	value, ok := jsonMap["count"]
-	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"count\"参数")
-		l4g.Error(res.Data.ErrMsg)
-		return errors.New(res.Data.ErrMsg)
-	}
-
-	count, err := strconv.Atoi(value)
-	if err != nil {
-		return nil
-	}
 
 	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_name\"无效")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+	resMap["asset_name"] = assetProperty.AssetName
+
+	count, ok := params.Count()
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"count\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -118,32 +113,53 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	paramsMapping := unpackJson(req.Data.Argv.Message)
 	resMap := make(map[string]interface{})
+	params := jsonparse.Parse(req.Data.Argv.Message)
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(paramsMapping.AssetName)
+	assetName, ok := params.AssetName()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取用户帐户信息失败")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	amount, ok := params.Amount()
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"amount\"参数")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	address, ok := params.Address()
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"address\"参数")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取币种信息失败")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	userAccount, ok := mysqlpool.QueryUserAccountRow(userProperty.UserKey, assetProperty.AssetName)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取用户帐户信息失败")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取帐户信息失败")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	if userAccount.AvailableAmount < paramsMapping.Amount {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足")
+	if userAccount.AvailableAmount < amount {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "帐户可用资金不足")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(paramsMapping.Amount)*assetProperty.WithdrawalRate)
-	if userAccount.AvailableAmount < paramsMapping.Amount+payFee {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足")
+	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(amount)*assetProperty.WithdrawalRate)
+	if userAccount.AvailableAmount < amount+payFee {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "帐户可用资金不足")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -155,8 +171,8 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	if userAddress.AvailableAmount < paramsMapping.Amount+payFee {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "热钱包资金不足，这里需要特殊处理")
+	if userAddress.AvailableAmount < amount+payFee {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "热钱包资金不足(这里需要特殊处理)")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -164,10 +180,10 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	uuID := a.generateUUID()
 	resMap["order_id"] = uuID
 
-	err := mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, paramsMapping.Address,
-		paramsMapping.Amount, payFee, uuID)
+	err := mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, address,
+		amount, payFee, uuID)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "用户帐户可用资金不足!")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "帐户可用资金不足!")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -181,10 +197,10 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 
 	if assetProperty.IsToken > 0 {
 		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
-			paramsMapping.Address, &assetProperty.AssetName, uint64(paramsMapping.Amount)))
+			address, &assetProperty.AssetName, uint64(amount)))
 	} else {
 		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
-			paramsMapping.Address, nil, uint64(paramsMapping.Amount)))
+			address, nil, uint64(amount)))
 	}
 	res.Data.Value.Message = string(pack)
 	return nil
@@ -212,7 +228,6 @@ func (a *Address) SupportAssets(req *data.SrvRequestData, res *data.SrvResponseD
 		}
 		res.Data.Value.Message = string(pack)
 	}
-
 	return nil
 }
 
@@ -223,6 +238,10 @@ func (a *Address) AssetAttributie(req *data.SrvRequestData, res *data.SrvRespons
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
+
+	params := jsonparse.Parse(req.Data.Argv.Message)
+	arr, _ := params.AssetNameArray()
+	fmt.Println(arr)
 
 	paramsMapping := unpackJson(req.Data.Argv.Message)
 	assetPropertyMap := make(map[string]map[string]interface{})
