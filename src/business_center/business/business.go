@@ -2,6 +2,7 @@ package business
 
 import (
 	"api_router/base/data"
+	"blockchain_server/chains/btc"
 	"blockchain_server/chains/eth"
 	"blockchain_server/service"
 	"blockchain_server/types"
@@ -33,13 +34,21 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	b.wallet = service.NewClientManager()
 	b.address = &address.Address{}
 
-	//实例化以太坊客户端
-	client, err := eth.ClientInstance()
+	//实例化比特币客户端
+	btcClient, err := btc.ClientInstance()
 	if err != nil {
-		fmt.Printf("InitAndStart ClientInstance %s Error : %s\n", types.Chain_eth, err.Error())
+		fmt.Printf("InitAndStart btcClientInstance %s Error : %s\n", types.Chain_bitcoin, err.Error())
 		return err
 	}
-	b.wallet.AddClient(client)
+	b.wallet.AddClient(btcClient)
+
+	//实例化以太坊客户端
+	ethClient, err := eth.ClientInstance()
+	if err != nil {
+		fmt.Printf("InitAndStart ethClientInstance %s Error : %s\n", types.Chain_eth, err.Error())
+		return err
+	}
+	b.wallet.AddClient(ethClient)
 
 	b.address.Run(b.ctx, b.wallet, callback)
 	b.wallet.Start()
