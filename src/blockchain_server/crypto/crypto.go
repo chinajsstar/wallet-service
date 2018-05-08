@@ -30,12 +30,12 @@ appliaction will exit in 1 second!
 
 func init () {
 	configer := config.MainConfiger()
-	isExist, err := utils.PathExists(configer.Cryptofile)
+	isExist, err := utils.PathExists(configer.Cryptokeyfile())
 
 	l4g_fatalln(err)
 
 	if isExist {
-		priKeyBuffer, err := ioutil.ReadFile(configer.Cryptofile)
+		priKeyBuffer, err := ioutil.ReadFile(configer.Cryptokeyfile())
 		l4g_fatalln(err)
 
 		cryptoKey, err = x509.ParseECPrivateKey(priKeyBuffer)
@@ -46,7 +46,7 @@ func init () {
 }
 
 func newCryptoKey() () {
-	keyfile := config.MainConfiger().Cryptofile
+	keyfile := config.MainConfiger().Cryptokeyfile()
 	if false {
 		if nil!=cryptoKey {
 			return
