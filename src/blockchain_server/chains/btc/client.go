@@ -412,28 +412,22 @@ func (c *Client)SubscribeRechargeTx(txChannel types.RechargeTxChannel) {
 }
 
 func (c *Client)InsertRechargeAddress(addresses []string) (invalid []string) {
-	accountname := "watchonly"
+	labelname := "watchonly"
 	for _, v := range addresses {
 		if address, err := btcutil.DecodeAddress(v, c.chain_params);err!=nil {
 			l4g.Error("bitcoin decode address faild, message:%s", err.Error())
 			invalid = append(invalid, v)
 		} else {
-			//if err := c.SetAccount(address, accountname); err!=nil {
+			//if err := c.SetAccount(address, labelname); err!=nil {
 			//	invalid = append(invalid, v)
 			//	l4g.Trace("Bitcoin import address error:%s", err.Error())
 			//} else {
 			//	l4g.Trace("-------::::::::::Bitcoin import address:'%s', to wallet account:'%s'",
 			//		address, "receive")
 			//}
-			if err := c.ImportAddress(address.EncodeAddress()); err!=nil {
-				l4g.Error("bitcoin import address faild, message:%s", err.Error())
-			} else {
-				if err := c.SetAccount(address, accountname); err!=nil {
-					invalid = append(invalid, v)
-				} else {
-					l4g.Trace("bitcoin import wachonly address : %s", address)
-				}
+			if err := c.ImportAddress(address.EncodeAddress(), labelname, false); err!=nil {
 				invalid = append(invalid, v)
+				l4g.Error("bitcoin import address faild, message:%s", err.Error())
 			}
 		}
 	}

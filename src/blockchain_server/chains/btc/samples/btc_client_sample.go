@@ -91,7 +91,7 @@ func main() {
 		go testWatchAddress(ctx, clientManager, Coinname, nil, watchaddress, done_watchaddress)
 	}else {i--}
 
-	if true {
+	if false {
 		go testSendTokenTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
 			nil, 1 * uint64(math.Pow10(8)), done_sendTx)
 	} else{i--}

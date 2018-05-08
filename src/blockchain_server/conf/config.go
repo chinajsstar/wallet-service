@@ -31,11 +31,11 @@ type ClientConfig struct {
 }
 
 type Configer struct {
-	Online_mode		string  `json:"online_mode"`
-	Cryptofile  	string	`json:"crypto_file"`
-	Log_conf_file	string  `json:"log_conf_file"`
-	Log_path		string  `json:"log_path"`
-	Clientconfig    map[string]*ClientConfig
+	Online_mode   string `json:"online_mode"`
+	Cryptofile    string `json:"crypto_file"`
+	LogconfigFile string `json:"log_conf_file"`
+	LogsPath      string `json:"log_path"`
+	Clientconfig  map[string]*ClientConfig
 
 	mutx 			sync.Mutex
 }
@@ -46,6 +46,27 @@ func (self *Configer) IsOnlineMode() bool {
 
 func (self *ClientConfig) Save() error {
 	return configer.Save()
+}
+
+func (self *Configer) Cryptokeyfile() string {
+	appDir, err := apiutils.GetAppDir()
+
+	if err!=nil { return "" }
+	return appDir + "/" + configer.Cryptofile
+}
+
+func (self *Configer) LogPath() string {
+	appDir, err := apiutils.GetAppDir()
+
+	if err!=nil { return "" }
+	return  appDir + "/" + configer.LogsPath
+}
+
+func (self *Configer)LogConfigFile() string {
+	appDir, err := apiutils.GetAppDir()
+
+	if err!=nil { return "" }
+	return appDir + "/" + configer.LogconfigFile
 }
 
 func (self *ClientConfig) String() string {
@@ -95,7 +116,9 @@ func (self *Configer)Trace() {
 	crypte_key_file:			%s,
 	log_config_file:			%s,
 	log_path:					%s`,
-		self.Cryptofile, self.Log_conf_file, self.Log_path)
+		self.Cryptokeyfile(),
+		self.LogConfigFile(),
+		self.LogPath() )
 
 	for _, c := range self.Clientconfig {
 		l4g.Trace(c.String())
@@ -122,11 +145,6 @@ func init () {
 	l4g_fatalln(err)
 	err = json.Unmarshal(dat, &configer)
 
-	//var appDir string
-	//appDir, err = apiutils.GetAppDir()
-	//configer.Cryptofile = appDir + "/" + configer.Cryptofile
-	//configer.Log_path = appDir + "/" + configer.Log_path
-	//configer.Log_conf_file = appDir + "/" + configer.Log_conf_file
 
 	l4g_fatalln(err)
 
