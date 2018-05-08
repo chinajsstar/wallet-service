@@ -2,24 +2,17 @@ package mysqlpool
 
 import (
 	. "business_center/def"
-	"encoding/json"
 	"fmt"
 )
 
-func QueryTransactionMessageByJson(query string) ([]TransactionMessage, bool) {
+func QueryTransactionMessage(queryMap map[string]interface{}) ([]TransactionMessage, bool) {
 	sqls := "select user_key, msg_id, trans_type, status, blockin_height, asset_name, amount," +
 		" pay_fee, hash, order_id, unix_timestamp(time) from transaction_notice where true"
 
 	messages := make([]TransactionMessage, 0)
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return messages, len(messages) > 0
-		}
-
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 		sqls += andPagination(queryMap, &params)
 	}

@@ -44,75 +44,75 @@ func init() {
 
 func andConditions(queryMap map[string]interface{}, params *[]interface{}) string {
 	sqls := ""
-	for k, v := range queryMap {
-		switch k {
+	for key, value := range queryMap {
+		switch key {
 		case "user_key":
-			if value, ok := v.(string); ok {
+			if value, ok := value.(string); ok {
 				sqls += " and user_key = ?"
 				*params = append(*params, value)
 			}
 		case "user_class":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(string); ok {
 				sqls += " and user_class = ?"
 				*params = append(*params, value)
 			}
 		case "asset_name":
-			if value, ok := v.(string); ok {
+			if value, ok := value.(string); ok {
 				sqls += " and asset_name = ?"
 				*params = append(*params, value)
 			}
 		case "address":
-			if value, ok := v.(string); ok {
+			if value, ok := value.(string); ok {
 				sqls += " and address = ?"
 				*params = append(*params, value)
 			}
 		case "trans_type":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and trans_type = ?"
 				*params = append(*params, int(value))
 			}
 		case "status":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and status = ?"
 				*params = append(*params, int(value))
 			}
 		case "max_amount":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and amount <= ?"
 				*params = append(*params, int64(value))
 			}
 		case "min_amount":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and amount >= ?"
 				*params = append(*params, int64(value))
 			}
 		case "max_create_time":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and create_time <= ?"
 				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
 			}
 		case "min_create_time":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and create_time >= ?"
 				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
 			}
 		case "max_update_time":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and update_time <= ?"
 				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
 			}
 		case "min_update_time":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and update_time >= ?"
 				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
 			}
 		case "max_msg_id":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and msg_id <= ?"
 				*params = append(*params, int(value))
 			}
 		case "min_msg_id":
-			if value, ok := v.(float64); ok {
+			if value, ok := value.(float64); ok {
 				sqls += " and msg_id >= ?"
 				*params = append(*params, int(value))
 			}

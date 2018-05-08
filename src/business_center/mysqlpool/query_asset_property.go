@@ -2,11 +2,10 @@ package mysqlpool
 
 import (
 	. "business_center/def"
-	"encoding/json"
 	"fmt"
 )
 
-func QueryAssetPropertyByJson(query string) ([]AssetProperty, bool) {
+func QueryAssetProperty(queryMap map[string]interface{}) ([]AssetProperty, bool) {
 	sqls := "select asset_name,full_name,is_token,parent_name,logo,deposit_min,withdrawal_rate," +
 		"withdrawal_value,withdrawal_reserve_rate,withdrawal_alert_rate,withdrawal_stategy,confirmation_num," +
 		"decaimal,gas_factor,debt,park_amount from asset_property where true"
@@ -14,13 +13,7 @@ func QueryAssetPropertyByJson(query string) ([]AssetProperty, bool) {
 	assetProperty := make([]AssetProperty, 0)
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return assetProperty, len(assetProperty) > 0
-		}
-
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 		sqls += andPagination(queryMap, &params)
 	}
@@ -45,19 +38,14 @@ func QueryAssetPropertyByJson(query string) ([]AssetProperty, bool) {
 	return assetProperty, len(assetProperty) > 0
 }
 
-func QueryAssetPropertyCountByJson(query string) int {
+func QueryAssetPropertyCount(queryMap map[string]interface{}) int {
 	sqls := "select count(*) from asset_property" +
 		" where true"
 
 	count := 0
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return count
-		}
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 	}
 
@@ -67,8 +55,9 @@ func QueryAssetPropertyCountByJson(query string) int {
 }
 
 func QueryAssetPropertyByName(assetName string) (AssetProperty, bool) {
-	query := fmt.Sprintf("{\"asset_name\":\"%s\"}", assetName)
-	if assetProperty, ok := QueryAssetPropertyByJson(query); ok {
+	queryMap := make(map[string]interface{})
+	queryMap["asset_name"] = assetName
+	if assetProperty, ok := QueryAssetProperty(queryMap); ok {
 		return assetProperty[0], true
 	}
 	return AssetProperty{}, false

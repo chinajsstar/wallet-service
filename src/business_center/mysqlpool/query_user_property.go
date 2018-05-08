@@ -2,24 +2,17 @@ package mysqlpool
 
 import (
 	. "business_center/def"
-	"encoding/json"
 	"fmt"
 )
 
-func QueryUserPropertyByJson(query string) ([]UserProperty, bool) {
+func QueryUserProperty(queryMap map[string]interface{}) ([]UserProperty, bool) {
 	sqls := "select user_key,user_class,is_frozen,unix_timestamp(create_time),unix_timestamp(update_time)" +
 		" from user_property where true "
 
 	userProperty := make([]UserProperty, 0)
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return userProperty, len(userProperty) > 0
-		}
-
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 		sqls += andPagination(queryMap, &params)
 	}
@@ -41,19 +34,14 @@ func QueryUserPropertyByJson(query string) ([]UserProperty, bool) {
 	return userProperty, len(userProperty) > 0
 }
 
-func QueryUserPropertyCountByJson(query string) int {
+func QueryUserPropertyCount(queryMap map[string]interface{}) int {
 	sqls := "select count(*) from user_property" +
 		" where true"
 
 	count := 0
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return count
-		}
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 	}
 
@@ -63,8 +51,9 @@ func QueryUserPropertyCountByJson(query string) int {
 }
 
 func QueryUserPropertyByKey(userKey string) (UserProperty, bool) {
-	query := fmt.Sprintf("{\"user_key\":\"%s\"}", userKey)
-	if userProperty, ok := QueryUserPropertyByJson(query); ok {
+	queryMap := make(map[string]interface{})
+	queryMap["user_key"] = userKey
+	if userProperty, ok := QueryUserProperty(queryMap); ok {
 		return userProperty[0], true
 	}
 	return UserProperty{}, false

@@ -509,16 +509,11 @@ func (a *Address) generateUUID() string {
 	return uID
 }
 
-func responsePagination(query string, totalLines int) map[string]interface{} {
+func responsePagination(queryMap map[string]interface{}, totalLines int) map[string]interface{} {
 	resMap := make(map[string]interface{})
 	resMap["total_lines"] = totalLines
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return resMap
-		}
+	if len(queryMap) > 0 {
 		if value, ok := queryMap["page_index"]; ok {
 			resMap["page_index"] = value
 		}
