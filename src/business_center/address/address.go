@@ -475,16 +475,15 @@ func (a *Address) SetPayAddress(req *data.SrvRequestData, res *data.SrvResponseD
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	jsonMap := json2map(req.Data.Argv.Message, []string{"asset_name", "address"})
-
-	assetName, ok := jsonMap["asset_name"]
+	params := jsonparse.Parse(req.Data.Argv.Message)
+	assetName, ok := params.AssetName()
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	address, ok := jsonMap["address"]
+	address, ok := params.Address()
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"address\"参数")
 		l4g.Error(res.Data.ErrMsg)
