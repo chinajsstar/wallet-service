@@ -79,7 +79,7 @@ func (a *Address) recvRechargeTxChannel() {
 					blockin2 := TransactionBlockin2{
 						AssetName:     assetProperty.AssetName,
 						Hash:          rct.Tx.Tx_hash,
-						MinerFee:      int64(rct.Tx.Minerfee()),
+						MinerFee:      int64(rct.Tx.Fee),
 						BlockinHeight: int64(rct.Tx.InBlock),
 						OrderID:       "",
 						Time:          int64(rct.Tx.Time),
@@ -92,7 +92,7 @@ func (a *Address) recvRechargeTxChannel() {
 							blockin.AssetName = assetProperty.AssetName
 							blockin.Hash = rct.Tx.Tx_hash
 							blockin.Status = 0
-							blockin.MinerFee = int64(rct.Tx.Minerfee())
+							blockin.MinerFee = int64(rct.Tx.Fee)
 							blockin.BlockinHeight = int64(rct.Tx.InBlock)
 							blockin.BlockinTime = int64(rct.Tx.Time)
 							blockin.OrderID = ""
@@ -171,7 +171,7 @@ func (a *Address) recvCmdTxChannel() {
 							blockin.AssetName = assetProperty.AssetName
 							blockin.Hash = cmdTx.Tx.Tx_hash
 							blockin.Status = 0
-							blockin.MinerFee = int64(cmdTx.Tx.Minerfee())
+							blockin.MinerFee = int64(cmdTx.Tx.Fee)
 							blockin.BlockinHeight = int64(cmdTx.Tx.InBlock)
 							blockin.BlockinTime = int64(cmdTx.Tx.Time)
 							blockin.OrderID = cmdTx.NetCmd.MsgId
@@ -291,7 +291,7 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.From
 			detail.TransType = "miner_fee"
-			detail.Amount = -int64(transfer.Minerfee())
+			detail.Amount = -int64(transfer.Fee)
 			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
@@ -461,7 +461,7 @@ func (a *Address) preTransactionFinish(status *TransactionStatus, blockin *Trans
 		blockin.AssetName = status.AssetName
 		blockin.Hash = transfer.Tx_hash
 		blockin.Status = 0
-		blockin.MinerFee = int64(transfer.Minerfee())
+		blockin.MinerFee = int64(transfer.Fee)
 		blockin.BlockinHeight = int64(transfer.InBlock)
 		blockin.BlockinTime = int64(transfer.Time)
 		blockin.OrderID = status.OrderID
