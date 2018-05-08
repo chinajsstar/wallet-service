@@ -131,11 +131,11 @@ type RechargeTx struct {
 }
 
 type Transfer struct {
-	Tx_hash             string
-	From                string
-	To                  string
-	Value               uint64	// 交易金额
-	Gas                 uint64
+	Tx_hash string
+	From    string
+	To      string
+	Value   uint64	// 交易金额
+	Fee     uint64
 	Gaseprice           uint64
 	GasUsed             uint64
 	Total               uint64	// 总花费金额
@@ -151,12 +151,8 @@ type Transfer struct {
 	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
 }
 
-func (tx *Transfer) Minerfee() uint64 {
-	return 	tx.Gas * tx.Gaseprice
-}
-
 func (tx *Transfer) Tatolcost() uint64 {
-	return tx.Minerfee() + tx.Value
+	return tx.Fee + tx.Value
 }
 
 func TxStateString(state TxState) string {
@@ -202,7 +198,7 @@ func (tx *Transfer)String() string {
 	To:     %s
 	State:  %s
 	Value:  %d
-	gasfee: %d 
+	Fee: 	%d 
 	InBlock:%d
 	ConfirmtedBlockHeight: %d
 	Token information: %s`,
@@ -211,7 +207,7 @@ func (tx *Transfer)String() string {
 		tx.To,
 		TxStateString(tx.State),
 		tx.Value,
-		tx.Minerfee(),
+		tx.Fee,
 		tx.InBlock, tx.ConfirmatedHeight, token_str)
 }
 

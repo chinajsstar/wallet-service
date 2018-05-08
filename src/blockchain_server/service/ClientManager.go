@@ -438,6 +438,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 		l4g.Error("Send Transaction error:%s", txCmd.Error.Message)
 		self.txCmdFeed.Send(txCmd)
+		return
 	}
 
 	txCmd.Tx.State = types.Tx_state_commited
