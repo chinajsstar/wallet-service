@@ -2,13 +2,12 @@ package mysqlpool
 
 import (
 	. "business_center/def"
-	"encoding/json"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	"time"
 )
 
-func QueryUserAccountByJson(query string) ([]UserAccount, bool) {
+func QueryUserAccount(queryMap map[string]interface{}) ([]UserAccount, bool) {
 	sqls := "select user_key,user_class,asset_name,available_amount,frozen_amount," +
 		"unix_timestamp(create_time), unix_timestamp(update_time) from user_account" +
 		" where true"
@@ -16,13 +15,7 @@ func QueryUserAccountByJson(query string) ([]UserAccount, bool) {
 	userAccount := make([]UserAccount, 0)
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return userAccount, len(userAccount) > 0
-		}
-
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 		sqls += andPagination(queryMap, &params)
 	}
@@ -45,19 +38,14 @@ func QueryUserAccountByJson(query string) ([]UserAccount, bool) {
 	return userAccount, len(userAccount) > 0
 }
 
-func QueryUserAccountCountByJson(query string) int {
+func QueryUserAccountCount(queryMap map[string]interface{}) int {
 	sqls := "select count(*) from user_account" +
 		" where true"
 
 	count := 0
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return count
-		}
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 	}
 
@@ -66,32 +54,12 @@ func QueryUserAccountCountByJson(query string) int {
 	return count
 }
 
-func QueryUserAccount(userKey string, assetName string) ([]UserAccount, bool) {
-	assetProperty := make([]UserAccount, 0)
-	jsonMap := make(map[string]interface{})
-
-	if len(userKey) > 0 {
-		jsonMap["user_key"] = userKey
-	}
-
-	if len(assetName) > 0 {
-		jsonMap["asset_name"] = assetName
-	}
-
-	pack, err := json.Marshal(jsonMap)
-	if err != nil {
-		return assetProperty, false
-	}
-
-	if assetProperty, ok := QueryUserAccountByJson(string(pack)); ok {
-		return assetProperty, true
-	}
-	return assetProperty, false
-}
-
 func QueryUserAccountRow(userKey string, assetName string) (UserAccount, bool) {
-	if assetProperty, ok := QueryUserAccount(userKey, assetName); ok {
-		return assetProperty[0], true
+	queryMap := make(map[string]interface{})
+	queryMap["user_key"] = userKey
+	queryMap["asset_name"] = assetName
+	if userAccount, ok := QueryUserAccount(queryMap); ok {
+		return userAccount[0], ok
 	}
 	return UserAccount{}, false
 }

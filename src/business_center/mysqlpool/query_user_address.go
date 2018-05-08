@@ -2,13 +2,12 @@ package mysqlpool
 
 import (
 	. "business_center/def"
-	"encoding/json"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	"time"
 )
 
-func QueryUserAddress(query string) ([]UserAddress, bool) {
+func QueryUserAddress(queryMap map[string]interface{}) ([]UserAddress, bool) {
 	sqls := "select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount,enabled," +
 		" unix_timestamp(create_time), unix_timestamp(allocation_time), unix_timestamp(update_time) from user_address" +
 		" where true"
@@ -16,13 +15,7 @@ func QueryUserAddress(query string) ([]UserAddress, bool) {
 	userAddress := make([]UserAddress, 0)
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return userAddress, len(userAddress) > 0
-		}
-
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 		sqls += andPagination(queryMap, &params)
 	}
@@ -46,19 +39,14 @@ func QueryUserAddress(query string) ([]UserAddress, bool) {
 	return userAddress, len(userAddress) > 0
 }
 
-func QueryUserAddressCount(query string) int {
+func QueryUserAddressCount(queryMap map[string]interface{}) int {
 	sqls := "select count(*) from user_address" +
 		" where true"
 
 	count := 0
 	params := make([]interface{}, 0)
 
-	if len(query) > 0 {
-		var queryMap map[string]interface{}
-		err := json.Unmarshal([]byte(query), &queryMap)
-		if err != nil {
-			return count
-		}
+	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
 	}
 
@@ -68,8 +56,10 @@ func QueryUserAddressCount(query string) int {
 }
 
 func QueryUserAddressByNameAddress(assetName string, address string) (UserAddress, bool) {
-	query := fmt.Sprintf("{\"asset_name\":\"%s\", \"address\":\"%s\"}", assetName, address)
-	if userAddress, ok := QueryUserAddress(query); ok {
+	queryMap := make(map[string]interface{})
+	queryMap["asset_name"] = assetName
+	queryMap["address"] = address
+	if userAddress, ok := QueryUserAddress(queryMap); ok {
 		return userAddress[0], true
 	}
 	return UserAddress{}, false
