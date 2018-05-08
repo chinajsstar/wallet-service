@@ -1,6 +1,22 @@
 -- ----------------------------
--- Table structure for `user`
+-- Table structure for `user_property`
 -- ----------------------------
+DROP TABLE IF EXISTS `user_property`;
+CREATE TABLE `user_property` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_key` varchar(255) NOT NULL DEFAULT '',
+  `user_class` int(11) NOT NULL DEFAULT 0 COMMENT '0:普通用户 1:热钱包; 2:管理员',
+  `public_key` text DEFAULT NULL COMMENT '公钥',
+  `source_ip` varchar(255) NOT NULL DEFAULT '',
+  `callback_url` varchar(255) NOT NULL DEFAULT '',
+  `level` int(11) NOT NULL DEFAULT 0 COMMENT '级别，0：用户，100：普通管理员，200：创世管理员',
+  `is_frozen` int(11) NOT NULL DEFAULT 0,
+  `create_time` datetime NOT NULL,
+  `update_time` datetime NOT NULL,
+  PRIMARY KEY (`user_key`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 DROP TABLE IF EXISTS `user_property`;
 CREATE TABLE `user_property` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -30,6 +46,20 @@ CREATE TABLE `user_property` (
   UNIQUE KEY `phone_UNIQUE` (`phone`),
   UNIQUE KEY `email_UNIQUE` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE `user_property` DROP `user_name`;
+ALTER TABLE `user_property` DROP `phone`;
+ALTER TABLE `user_property` DROP `email`;
+ALTER TABLE `user_property` DROP `salt`;
+ALTER TABLE `user_property` DROP `password`;
+ALTER TABLE `user_property` DROP `google_auth`;
+ALTER TABLE `user_property` DROP `last_login_time`;
+ALTER TABLE `user_property` DROP `last_login_ip`;
+ALTER TABLE `user_property` DROP `last_login_mac`;
+ALTER TABLE `user_property` DROP `time_zone`;
+ALTER TABLE `user_property` DROP `country`;
+ALTER TABLE `user_property` DROP `language`;
+ALTER TABLE `user_property` ADD `source_ip` VARCHAR(255) NOT NULL DEFAULT '';
 
 -- ----------------------------
 -- Records of `user`
@@ -81,7 +111,7 @@ CREATE TABLE `asset_property` (
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',
   PRIMARY KEY (`asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 -- Records of `assets_property`
