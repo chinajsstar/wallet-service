@@ -27,7 +27,7 @@
 	url = https://go.googlesource.com/net
 [submodule "src/github.com/btcsuite/btcd"]
 	path = src/github.com/btcsuite/btcd
-	url = https://github.com/btcsuite/btcd.git
+	url = https://github.com/zl03jsj/btcd_fork.git
 [submodule "src/github.com/btcsuite/btcutil"]
 	path = src/github.com/btcsuite/btcutil
 	url = https://github.com/btcsuite/btcutil.git
