@@ -88,26 +88,11 @@ type TransDetail struct {
 }
 
 type UserProperty struct {
-	UserKey       string `json:"user_key"`
-	UserName      string `json:"user_name"`
-	UserClass     int    `json:"user_class"`
-	Phone         string `json:"phone"`
-	Email         string `json:"email"`
-	Salt          string `json:"salt"`
-	Password      string `json:"password"`
-	GoogleAuth    string `json:"google_auth"`
-	PublicKey     string `json:"public_key"`
-	CallbackUrl   string `json:"callback_url"`
-	Level         int    `json:"level"`
-	LastLoginTime string `json:"last_login_time"`
-	LastLoginIp   string `json:"last_login_ip"`
-	LastLoginMac  string `json:"last_login_mac"`
-	CreateTime    int64  `json:"create_date"`
-	UpdateTime    int64  `json:"update_date"`
-	IsFrozen      int    `json:"is_frozen"`
-	TimeZone      int    `json:"time_zone"`
-	Conutry       string `json:"conutry"`
-	Language      string `json:"language"`
+	UserKey    string `json:"user_key"`
+	UserClass  int    `json:"user_class"`
+	IsFrozen   int    `json:"is_frozen"`
+	CreateTime int64  `json:"create_time"`
+	UpdateTime int64  `json:"update_time"`
 }
 
 type AssetProperty struct {
