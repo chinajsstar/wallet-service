@@ -21,7 +21,6 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
-	"strings"
 )
 
 var (
@@ -279,26 +278,51 @@ func (c *Client) toTx(btx *btcjson.GetTransactionResult) (*types.Transfer, error
 }
 
 func (c *Client)msgTxGetTxinAddesFrom(msgTx *wire.MsgTx) ([]string, error) {
-	//for _, txIn:= range msgTx.TxIn {
+	var froms []string
+	for _, txIn:= range msgTx.TxIn {
+		if tx, err := c.GetTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
+			for _, detail := range tx.Details {
+				if detail.Vout == txIn.PreviousOutPoint.Index {
+					froms = append(froms, detail.Address)
+				}
+			}
+		} else {
+			return froms, err
+		}
 		//if tx, err := c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
-			// rawtransaction, should have a address
-			//tx.MsgTx().TxOut[txIn.PreviousOutPoint.Index].Address
+		// // there should have a address field in TxOut
+		//	tx.MsgTx().TxOut[txIn.PreviousOutPoint.Index]
 		//}
-	//}
-	return nil, nil
+	}
+	return froms, nil
 }
 
 func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
 	//l4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
-
-	msgTx := &wire.MsgTx{}
-	if err:=msgTx.Deserialize(strings.NewReader(btx.Hex)); err!=nil {
-		l4g.Error("Bitcoin deserialize msgTx error:%s", err.Error())
+	serializedTx, err := hex.DecodeString(btx.Hex)
+	if err != nil {
+		return err
 	}
 
-	if stx.From=="" {
-		stx.From="Bitcoin have concept of 'from'"
+	msgTx := &wire.MsgTx{}
+	// Deserialize the transaction and return it.
+	if err := msgTx.Deserialize(bytes.NewReader(serializedTx)); err != nil {
+		l4g.Error("Bitcoin deserialize msgTx error:%s", err.Error())
+		return err
+	} else {
+		if stx.From=="" {
+			froms, err := c.msgTxGetTxinAddesFrom(msgTx)
+			if len(froms)>0 {
+				stx.From = froms[0]
+				if err!=nil {
+					l4g.Error("bitcoin msgTxGetTxinAddesFrom error:%s", err.Error())
+				}
+			}
+			if stx.From=="" {
+				stx.From ="Cannot detect from address"
+			}
+		}
 	}
 
 	var value float64
@@ -312,16 +336,18 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 			// 不是比特币钱包的地址收到了币
 			if account, err := c.GetAccount(addes); err==nil {
 				// 地址为收到资金
-				if account=="receive" {
-
-					if d.Category=="receive"{}	//内部地址收到资金
-					if d.Category=="send"{}		//从自己的钱包充值到内部地址
-
+				if account=="watchonly" {
+					//if d.Category=="receive"{}	//内部地址收到资金
+					//if d.Category=="send"{}		//从自己的钱包充值到内部地址
 					stx.To = d.Address
 					value = d.Amount
 				}
-
 			}
+		}
+
+		if stx.To=="" {
+			stx.To = btx.Details[0].Address
+			value = btx.Details[0].Amount
 		}
 	}
 
