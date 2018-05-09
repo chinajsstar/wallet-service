@@ -47,7 +47,7 @@ func loadAdministratorRsaKeys(dataDir string) error {
 		return err
 	}
 
-	web_admin_userkey = "cc9545e7-49cb-4625-89ad-fe94e9212507"
+	web_admin_userkey = "1c75c668-f1ab-474b-9dae-9ed7950604b4"
 
 	wallet_server_pubkey, err = ioutil.ReadFile(dataDir + "/" + config.BastionPayPublicKey)
 	if err != nil {
