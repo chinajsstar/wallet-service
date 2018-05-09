@@ -130,17 +130,6 @@ type UserAddress struct {
 
 type TransactionBlockin struct {
 	AssetName     string              `json:"asset_name"`
-	Status        int                 `json:"status"`
-	MinerFee      int64               `json:"miner_fee"`
-	BlockinHeight int64               `json:"blockin_height"`
-	BlockinTime   int64               `json:"blockin_time"`
-	OrderID       string              `json:"order_id"`
-	Hash          string              `json:"hash"`
-	Detail        []TransactionDetail `json:"detail"`
-}
-
-type TransactionBlockin2 struct {
-	AssetName     string              `json:"asset_name"`
 	Hash          string              `json:"hash"`
 	Status        int                 `json:"status"`
 	MinerFee      int64               `json:"miner_fee"`
@@ -169,7 +158,7 @@ type TransactionStatus struct {
 	Hash          string `json:"hash"`
 }
 
-type TransactionNotic struct {
+type TransactionNotice struct {
 	UserKey       string `json:"user_key"`
 	MsgID         int64  `json:"msg_id"`
 	Type          int    `json:"type"`

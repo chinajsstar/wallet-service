@@ -5,5 +5,6 @@
 		"srv_version": "v1",
 		"center_addr": "127.0.0.1:8081"
 	},
-	"db":"root:command@tcp(127.0.0.1:3306)/test?charset=utf8"
+	"db":"root:command@tcp(127.0.0.1:3306)/test?charset=utf8",
+	"chains":["eth"]
 }

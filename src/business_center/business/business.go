@@ -1,6 +1,7 @@
 package business
 
 import (
+	"api_router/base/config"
 	"api_router/base/data"
 	"blockchain_server/chains/btc"
 	"blockchain_server/chains/eth"
@@ -34,21 +35,34 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	b.wallet = service.NewClientManager()
 	b.address = &address.Address{}
 
-	//实例化比特币客户端
-	btcClient, err := btc.ClientInstance()
+	var chains []string
+	err := config.LoadJsonNode(config.GetBastionPayConfigDir()+"/cobank.json", "chains", &chains)
 	if err != nil {
-		fmt.Printf("InitAndStart btcClientInstance %s Error : %s\n", types.Chain_bitcoin, err.Error())
 		return err
 	}
-	b.wallet.AddClient(btcClient)
 
-	//实例化以太坊客户端
-	ethClient, err := eth.ClientInstance()
-	if err != nil {
-		fmt.Printf("InitAndStart ethClientInstance %s Error : %s\n", types.Chain_eth, err.Error())
-		return err
+	for _, value := range chains {
+		switch value {
+		case "btc":
+			//实例化比特币客户端
+			btcClient, err := btc.ClientInstance()
+			if err == nil {
+				b.wallet.AddClient(btcClient)
+			} else {
+				fmt.Printf("InitAndStart btcClientInstance %s Error : %s\n", types.Chain_bitcoin, err.Error())
+			}
+
+		case "eth":
+			//实例化以太坊客户端
+			ethClient, err := eth.ClientInstance()
+			if err == nil {
+				b.wallet.AddClient(ethClient)
+			} else {
+				fmt.Printf("InitAndStart ethClientInstance %s Error : %s\n", types.Chain_eth, err.Error())
+			}
+
+		}
 	}
-	b.wallet.AddClient(ethClient)
 
 	b.address.Run(b.ctx, b.wallet, callback)
 	b.wallet.Start()
@@ -72,8 +86,8 @@ func (b *Business) HandleMsg(req *data.SrvRequestData, res *data.SrvResponseData
 	case "support_assets":
 		return b.address.SupportAssets(req, res)
 
-	case "asset_attributie":
-		return b.address.AssetAttributie(req, res)
+	case "asset_attribute":
+		return b.address.AssetAttribute(req, res)
 
 	case "get_balance":
 		return b.address.GetBalance(req, res)

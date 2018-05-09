@@ -14,7 +14,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequestData
 	var res data.SrvResponseData
 
-	testType := 5
+	testType := 2
 	switch testType {
 	case 1:
 		req.Data.Method.Function = "new_address"
@@ -23,7 +23,7 @@ func TestHandleMsg(t *testing.T) {
 	case 2:
 		req.Data.Method.Function = "withdrawal"
 		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Data.Argv.Message = "{\"asset_name\":\"eth\",\"amount\":0.9,\"address\":\"0x357859b176a72f3167e867b1cf0c1e04abba1ce1\"}"
+		req.Data.Argv.Message = "{\"asset_name\":\"eth\",\"amount\":0.1,\"address\":\"0x357859b176a72f3167e867b1cf0c1e04abba1ce1\"}"
 	case 3:
 		req.Data.Method.Function = "query_user_address"
 		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
