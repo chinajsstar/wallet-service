@@ -249,7 +249,8 @@ func KeySettings_from_MainConfig() (*KeySettings, error) {
 				} else {
 					keysettings_tmp.Child_upto_index = uint32(index)
 				}
-
+			} else if t, isok := e.(float64); isok {
+				keysettings_tmp.Child_upto_index = uint32(t)
 			}
 		}
 	}

@@ -77,8 +77,8 @@ func main() {
 	defer cancel()
 
 	//*********批量创建账号示例*********/
-	if false {
-		accCmd := service.NewAccountCmd("message id", Coinname, 4)
+	if true {
+		accCmd := service.NewAccountCmd("message id", Coinname, 20)
 		var accs []*types.Account
 		accs, err = clientManager.NewAccounts(accCmd)
 		for i, account := range accs {
@@ -93,7 +93,7 @@ func main() {
 	done_sendTx := make(chan bool)
 
 	i := 2
-	if true {
+	if false {
 		go testWatchAddress(ctx, clientManager, Coinname, nil, watchaddress, done_watchaddress)
 	}else {i--}
 
