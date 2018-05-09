@@ -248,7 +248,7 @@ func (self *Web) handleListSrv(w http.ResponseWriter, req *http.Request) {
 	}
 
 	self.nodes = self.nodes[:0]
-	d1, _, err := sendPostData(httpaddrGateway, "", "v1", "center", "listsrv")
+	d1, _, err := sendPostData(httpaddrGateway, "", "v1", "gateway", "listsrv")
 	if d1.Err != data.NoErr {
 		w.Write([]byte(d1.ErrMsg))
 		return
