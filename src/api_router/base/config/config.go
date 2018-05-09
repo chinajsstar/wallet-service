@@ -1,14 +1,13 @@
 package config
 
 import (
-	"io/ioutil"
+	"api_router/base/utils"
 	"encoding/json"
 	l4g "github.com/alecthomas/log4go"
-	"errors"
-	"api_router/base/utils"
+	"io/ioutil"
 )
 
-func GetBastionPayConfigDir() (string) {
+func GetBastionPayConfigDir() string {
 	appDir, err := utils.GetAppDir()
 	if err != nil {
 		l4g.Crashf("Get App dir crash %s", err.Error())
@@ -17,34 +16,18 @@ func GetBastionPayConfigDir() (string) {
 }
 
 func LoadJsonNode(absPath string, name string, value interface{}) error {
-	var err error
-	var data []byte
-	data, err = ioutil.ReadFile(absPath)
-	if err != nil {
-		l4g.Error("", err)
-		return err
-	}
-
-	var raw interface{}
-	err = json.Unmarshal(data, &raw)
-	if err != nil {
-		l4g.Error("", err)
-		return err
-	}
-
-	if v, ok := raw.(map[string]interface{}); ok {
-		v2 := v[name]
-		if v2 == nil {
-			return errors.New("no a node:"+name)
+	data, err := ioutil.ReadFile(absPath)
+	if err == nil {
+		var jsonMap map[string]interface{}
+		err = json.Unmarshal(data, &jsonMap)
+		if err == nil {
+			if v, ok := jsonMap[name]; ok {
+				data, err = json.Marshal(v)
+				if err == nil {
+					return json.Unmarshal(data, value)
+				}
+			}
 		}
-
-		b, err := json.Marshal(v2)
-		if err != nil {
-			l4g.Error("", err)
-			return err
-		}
-		return json.Unmarshal(b, value)
-	}else{
-		return errors.New("not a map json")
 	}
+	return err
 }

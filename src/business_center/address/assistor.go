@@ -9,11 +9,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	l4g "github.com/alecthomas/log4go"
 	"github.com/satori/go.uuid"
 	"log"
-	"math"
-	"reflect"
-	"strconv"
 	"time"
 )
 
@@ -76,68 +74,31 @@ func (a *Address) recvRechargeTxChannel() {
 						continue
 					}
 
-					blockin2 := TransactionBlockin2{
+					blockin := TransactionBlockin{
 						AssetName:     assetProperty.AssetName,
 						Hash:          rct.Tx.Tx_hash,
 						MinerFee:      int64(rct.Tx.Fee),
 						BlockinHeight: int64(rct.Tx.InBlock),
 						OrderID:       "",
-						Time:          int64(rct.Tx.Time),
 					}
 
 					switch rct.Tx.State {
 					case types.Tx_state_mined: //入块
-						{
-							var blockin TransactionBlockin
-							blockin.AssetName = assetProperty.AssetName
-							blockin.Hash = rct.Tx.Tx_hash
-							blockin.Status = 0
-							blockin.MinerFee = int64(rct.Tx.Fee)
-							blockin.BlockinHeight = int64(rct.Tx.InBlock)
-							blockin.BlockinTime = int64(rct.Tx.Time)
-							blockin.OrderID = ""
-
-							a.transactionBegin(&blockin, rct.Tx)
-
-							blockin2.Status = 0
-						}
+						blockin.Status = StatusBlockin
 					case types.Tx_state_confirmed: //确认
-						{
-							var status TransactionStatus
-							status.AssetName = assetProperty.AssetName
-							status.Hash = rct.Tx.Tx_hash
-							status.Status = 1
-							status.ConfirmHeight = int64(rct.Tx.ConfirmatedHeight)
-							status.ConfirmTime = int64(rct.Tx.Time)
-							status.UpdateTime = time.Now().Unix()
-							status.OrderID = ""
-
-							a.transactionFinish(&status, rct.Tx)
-
-							blockin2.Status = 1
-						}
+						blockin.Status = StatusConfirm
 					case types.Tx_state_unconfirmed: //失败
-						{
-							var status TransactionStatus
-							status.AssetName = assetProperty.AssetName
-							status.Hash = rct.Tx.Tx_hash
-							status.Status = 2
-							status.ConfirmHeight = int64(rct.Tx.ConfirmatedHeight)
-							status.ConfirmTime = int64(rct.Tx.Time)
-							status.UpdateTime = time.Now().Unix()
-							status.OrderID = ""
-
-							a.transactionFinish(&status, rct.Tx)
-
-							blockin2.Status = 2
-						}
+						blockin.Status = StatusFail
 					default:
 						continue
 					}
 
-					if blockin2.Status == 0 {
-						a.transactionBegin2(&blockin2, rct.Tx)
+					if blockin.Status == StatusBlockin {
+						blockin.Time = int64(rct.Tx.Time)
+						a.transactionBegin(&blockin, rct.Tx)
 					} else {
+						blockin.Time = time.Now().Unix()
+						a.transactionFinish(&blockin, rct.Tx)
 					}
 				}
 			case <-ctx.Done():
@@ -163,47 +124,31 @@ func (a *Address) recvCmdTxChannel() {
 						continue
 					}
 
+					blockin := TransactionBlockin{
+						AssetName:     assetProperty.AssetName,
+						Hash:          cmdTx.Tx.Tx_hash,
+						MinerFee:      int64(cmdTx.Tx.Fee),
+						BlockinHeight: int64(cmdTx.Tx.InBlock),
+						OrderID:       cmdTx.NetCmd.MsgId,
+					}
+
 					switch cmdTx.Tx.State {
-					case types.Tx_state_commited:
 					case types.Tx_state_mined: //入块
-						{
-							var blockin TransactionBlockin
-							blockin.AssetName = assetProperty.AssetName
-							blockin.Hash = cmdTx.Tx.Tx_hash
-							blockin.Status = 0
-							blockin.MinerFee = int64(cmdTx.Tx.Fee)
-							blockin.BlockinHeight = int64(cmdTx.Tx.InBlock)
-							blockin.BlockinTime = int64(cmdTx.Tx.Time)
-							blockin.OrderID = cmdTx.NetCmd.MsgId
-
-							a.transactionBegin(&blockin, cmdTx.Tx)
-						}
+						blockin.Status = StatusBlockin
 					case types.Tx_state_confirmed: //确认
-						{
-							var status TransactionStatus
-							status.AssetName = assetProperty.AssetName
-							status.Hash = cmdTx.Tx.Tx_hash
-							status.Status = 1
-							status.ConfirmHeight = int64(cmdTx.Tx.ConfirmatedHeight)
-							status.ConfirmTime = int64(cmdTx.Tx.Time)
-							status.OrderID = cmdTx.NetCmd.MsgId
-							status.UpdateTime = time.Now().Unix()
-
-							a.transactionFinish(&status, cmdTx.Tx)
-						}
+						blockin.Status = StatusConfirm
 					case types.Tx_state_unconfirmed: //失败
-						{
-							var status TransactionStatus
-							status.AssetName = assetProperty.AssetName
-							status.Hash = cmdTx.Tx.Tx_hash
-							status.Status = 2
-							status.ConfirmHeight = int64(cmdTx.Tx.ConfirmatedHeight)
-							status.ConfirmTime = int64(cmdTx.Tx.Time)
-							status.OrderID = cmdTx.NetCmd.MsgId
-							status.UpdateTime = time.Now().Unix()
+						blockin.Status = StatusFail
+					default:
+						continue
+					}
 
-							a.transactionFinish(&status, cmdTx.Tx)
-						}
+					if blockin.Status == StatusBlockin {
+						blockin.Time = int64(cmdTx.Tx.Time)
+						a.transactionBegin(&blockin, cmdTx.Tx)
+					} else {
+						blockin.Time = time.Now().Unix()
+						a.transactionFinish(&blockin, cmdTx.Tx)
 					}
 				}
 			case <-ctx.Done():
@@ -217,107 +162,90 @@ func (a *Address) recvCmdTxChannel() {
 
 func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.Transfer) error {
 	db := mysqlpool.Get()
-
 	if len(blockin.OrderID) > 0 {
-		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash from withdrawal_order"+
-			" where order_id = ?;",
-			blockin.OrderID)
+		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash"+
+			" from withdrawal_order where order_id = ?;", blockin.OrderID)
 
-		var tn TransactionNotic
-		row.Scan(&tn.UserKey, &tn.AssetName, &tn.Address, &tn.Amount, &tn.PayFee, &tn.Hash)
-
-		if len(tn.Hash) <= 0 {
-			db.Exec("update withdrawal_order set hash = ? where order_id = ?;", blockin.Hash, blockin.OrderID)
+		transNotice := TransactionNotice{
+			MsgID:         0,
+			Type:          TypeWithdrawal,
+			Status:        StatusBlockin,
+			BlockinHeight: blockin.BlockinHeight,
+			Hash:          blockin.Hash,
+			OrderID:       blockin.OrderID,
+			Time:          blockin.Time,
 		}
 
-		tn.MsgID = 0
-		tn.Type = TypeWithdrawal
-		tn.Status = StatusBlockin
-		tn.BlockinHeight = blockin.BlockinHeight
-		tn.Hash = blockin.Hash
-		tn.OrderID = blockin.OrderID
-		tn.Time = blockin.BlockinTime
-
-		a.sendTransactionNotic(&tn)
+		err := row.Scan(&transNotice.UserKey, &transNotice.AssetName, &transNotice.Address, &transNotice.Amount,
+			&transNotice.PayFee, &transNotice.Hash)
+		if err == nil {
+			if len(transNotice.Hash) <= 0 {
+				db.Exec("update withdrawal_order set hash = ? where order_id = ?;", blockin.Hash, blockin.OrderID)
+			}
+			a.sendTransactionNotic(&transNotice)
+		}
 	}
 
 	_, err := db.Exec("insert transaction_blockin (asset_name, hash, status, miner_fee, blockin_height, blockin_time,"+
 		" confirm_height, confirm_time, order_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?);",
 		blockin.AssetName, blockin.Hash, blockin.Status, blockin.MinerFee, blockin.BlockinHeight,
-		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat), blockin.BlockinHeight,
-		time.Unix(blockin.BlockinTime, 0).UTC().Format(TimeFormat), blockin.OrderID)
-
-	if err != nil {
-		return err
+		time.Unix(blockin.Time, 0).UTC().Format(TimeFormat), blockin.BlockinHeight,
+		time.Unix(blockin.Time, 0).UTC().Format(TimeFormat), blockin.OrderID)
+	if err == nil {
+		return a.preSettlement(blockin, transfer)
 	}
-
-	return a.preSettlement(blockin, transfer)
-}
-
-func (a *Address) transactionBegin2(blockin *TransactionBlockin2, transfer *types.Transfer) error {
-	return nil
+	return err
 }
 
 func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Transfer) error {
-	var detail TransactionDetail
-	blockin.Detail = make([]TransactionDetail, 0)
-
+	detail := TransactionDetail{
+		AssetName: blockin.AssetName,
+		Hash:      blockin.Hash,
+	}
 	switch blockin.AssetName {
 	case "btc":
 		{
 			//from
-			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.From
 			detail.TransType = "from"
 			detail.Amount = -int64(transfer.Value)
-			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//to
-			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.To
 			detail.TransType = "to"
 			detail.Amount = int64(transfer.Value)
-			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//miner_fee
-			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.From
 			detail.TransType = "miner_fee"
 			detail.Amount = -int64(transfer.Fee)
-			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
 		}
 	case "eth":
 		{
 			//from
-			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.From
 			detail.TransType = "from"
 			detail.Amount = -int64(transfer.Value)
-			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//to
-			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.To
 			detail.TransType = "to"
 			detail.Amount = int64(transfer.Value)
-			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
 
 			//miner_fee
-			detail.AssetName = blockin.AssetName
 			detail.Address = transfer.From
 			detail.TransType = "miner_fee"
 			detail.Amount = -int64(transfer.Fee)
-			detail.Hash = blockin.Hash
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
 		}
@@ -328,6 +256,15 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 	Tx, err := mysqlpool.Get().Begin()
 	if err != nil {
 		return err
+	}
+
+	transNotice := TransactionNotice{
+		MsgID:     0,
+		PayFee:    0,
+		AssetName: blockin.AssetName,
+		Hash:      blockin.Hash,
+		Time:      blockin.Time,
+		Status:    StatusBlockin,
 	}
 
 	for _, detail := range blockin.Detail {
@@ -350,60 +287,48 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			if ok && userAddress.UserClass == 0 {
 
 				//充值入块消息处理
-				var tn TransactionNotic
-				tn.UserKey = userAddress.UserKey
-				tn.MsgID = 0
-				tn.Type = TypeDeposit
-				tn.Status = StatusBlockin
-				tn.BlockinHeight = blockin.BlockinHeight
-				tn.AssetName = blockin.AssetName
-				tn.Address = userAddress.Address
-				tn.Amount = detail.Amount
-				tn.PayFee = 0
-				tn.Hash = blockin.Hash
-				tn.OrderID = detail.DetailID
-				tn.Time = blockin.BlockinTime
+				transNotice.UserKey = userAddress.UserKey
+				transNotice.Type = TypeDeposit
+				transNotice.BlockinHeight = blockin.BlockinHeight
+				transNotice.Address = userAddress.Address
+				transNotice.Amount = detail.Amount
+				transNotice.OrderID = detail.DetailID
 
-				a.sendTransactionNotic(&tn)
+				a.sendTransactionNotic(&transNotice)
 			}
 		case "miner_fee":
 		case "change":
 		}
 	}
-
 	Tx.Commit()
-
 	return nil
 }
 
-func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.Transfer) error {
-	db := mysqlpool.Get()
-
-	var blockin TransactionBlockin
-	err := a.preTransactionFinish(status, &blockin, transfer)
+func (a *Address) transactionFinish(blockin *TransactionBlockin, transfer *types.Transfer) error {
+	err := a.preTransactionFinish(*blockin, transfer)
 	if err != nil {
 		return err
 	}
 
+	db := mysqlpool.Get()
 	_, err = db.Exec("insert transaction_status (asset_name, hash, status, confirm_height, confirm_time, update_time, order_id) "+
 		"values (?, ?, ?, ?, ?, ?, ?);",
-		status.AssetName, status.Hash, status.Status, status.ConfirmHeight,
-		time.Unix(status.ConfirmTime, 0).UTC().Format(TimeFormat),
-		time.Unix(status.UpdateTime, 0).UTC().Format(TimeFormat),
-		status.OrderID)
-
+		blockin.AssetName, blockin.Hash, blockin.Status, transfer.ConfirmatedHeight,
+		time.Unix(blockin.Time, 0).UTC().Format(TimeFormat),
+		time.Unix(blockin.Time, 0).UTC().Format(TimeFormat),
+		blockin.OrderID)
 	if err != nil {
 		return nil
 	}
 
 	db.Exec("update transaction_blockin set status = ?, confirm_height = ?, confirm_time = ?"+
 		" where asset_name = ? and hash = ?;",
-		status.Status, status.ConfirmHeight, time.Unix(status.ConfirmTime, 0).UTC().Format(TimeFormat),
-		status.AssetName, status.Hash)
+		blockin.Status, transfer.ConfirmatedHeight, time.Unix(blockin.Time, 0).UTC().Format(TimeFormat),
+		blockin.AssetName, blockin.Hash)
 
-	rows, _ := db.Query("select asset_name, address, trans_type, amount, hash, detail_id from transaction_detail"+
+	rows, _ := db.Query("select asset_name,address,trans_type,amount,hash,detail_id from transaction_detail"+
 		" where asset_name = ? and hash = ?;",
-		status.AssetName, status.Hash)
+		blockin.AssetName, blockin.Hash)
 
 	var detail TransactionDetail
 	for rows.Next() {
@@ -421,21 +346,21 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 						detail.Amount, time.Now().UTC().Format(TimeFormat), userAddress.UserKey, detail.AssetName)
 
 					//充值确认消息处理
-					var tn TransactionNotic
-					tn.UserKey = userAddress.UserKey
-					tn.MsgID = 0
-					tn.Type = TypeDeposit
-					tn.Status = StatusConfirm
-					tn.BlockinHeight = blockin.BlockinHeight
-					tn.AssetName = blockin.AssetName
-					tn.Address = detail.Address
-					tn.Amount = detail.Amount
-					tn.PayFee = 0
-					tn.Hash = blockin.Hash
-					tn.OrderID = detail.DetailID
-					tn.Time = blockin.BlockinTime
-
-					a.sendTransactionNotic(&tn)
+					transNotice := TransactionNotice{
+						UserKey:       userAddress.UserKey,
+						MsgID:         0,
+						Type:          TypeDeposit,
+						Status:        StatusConfirm,
+						BlockinHeight: blockin.BlockinHeight,
+						AssetName:     blockin.AssetName,
+						Address:       detail.Address,
+						Amount:        detail.Amount,
+						PayFee:        0,
+						Hash:          blockin.Hash,
+						OrderID:       detail.DetailID,
+						Time:          blockin.Time,
+					}
+					a.sendTransactionNotic(&transNotice)
 				}
 			case "miner_fee":
 			case "change":
@@ -448,61 +373,49 @@ func (a *Address) transactionFinish(status *TransactionStatus, transfer *types.T
 		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash from withdrawal_order"+
 			" where order_id = ?;", blockin.OrderID)
 
-		var tn TransactionNotic
-		err := row.Scan(&tn.UserKey, &tn.AssetName, &tn.Address, &tn.Amount, &tn.PayFee, &tn.Hash)
+		transNotice := TransactionNotice{
+			MsgID:         0,
+			Type:          TypeWithdrawal,
+			Status:        StatusConfirm,
+			BlockinHeight: blockin.BlockinHeight,
+			OrderID:       blockin.OrderID,
+			Time:          blockin.Time,
+		}
+		err := row.Scan(&transNotice.UserKey, &transNotice.AssetName, &transNotice.Address, &transNotice.Amount, &transNotice.PayFee, &transNotice.Hash)
 		if err == nil {
-			tn.MsgID = 0
-			tn.Type = TypeWithdrawal
-			tn.Status = StatusConfirm
-			tn.BlockinHeight = blockin.BlockinHeight
-			tn.OrderID = blockin.OrderID
-			tn.Time = blockin.BlockinTime
-
-			a.sendTransactionNotic(&tn)
-
+			a.sendTransactionNotic(&transNotice)
 			_, err := db.Exec("update user_account set frozen_amount = frozen_amount - ?, update_time = ?"+
 				" where user_key = ? and asset_name = ?;",
-				tn.Amount+tn.PayFee, time.Now().UTC().Format(TimeFormat), tn.UserKey, tn.AssetName)
-
+				transNotice.Amount+transNotice.PayFee, time.Now().UTC().Format(TimeFormat), transNotice.UserKey, transNotice.AssetName)
 			if err != nil {
-				fmt.Println(err.Error())
+				l4g.Error(err.Error())
 			}
 		}
 	}
-
 	return nil
 }
 
-func (a *Address) preTransactionFinish(status *TransactionStatus, blockin *TransactionBlockin, transfer *types.Transfer) error {
+func (a *Address) preTransactionFinish(blockin TransactionBlockin, transfer *types.Transfer) error {
 	db := mysqlpool.Get()
-	blockin.AssetName = status.AssetName
-	row := db.QueryRow("select asset_name, hash, status, miner_fee, blockin_height, unix_timestamp(blockin_time), order_id"+
-		" from transaction_blockin where asset_name = ? and hash = ?;",
-		status.AssetName, status.Hash)
-
-	err := row.Scan(&blockin.AssetName, &blockin.Hash, &blockin.Status, &blockin.MinerFee,
-		&blockin.BlockinHeight, &blockin.BlockinTime, &blockin.OrderID)
-	if err != nil {
-		blockin.AssetName = status.AssetName
-		blockin.Hash = transfer.Tx_hash
+	count := 0
+	row := db.QueryRow("select count(*) from transaction_blockin where asset_name = ? and hash = ?;",
+		blockin.AssetName, blockin.Hash)
+	row.Scan(&count)
+	if count <= 0 {
 		blockin.Status = 0
-		blockin.MinerFee = int64(transfer.Fee)
-		blockin.BlockinHeight = int64(transfer.InBlock)
-		blockin.BlockinTime = int64(transfer.Time)
-		blockin.OrderID = status.OrderID
-		return a.transactionBegin(blockin, transfer)
+		blockin.Time = int64(transfer.Time)
+		return a.transactionBegin(&blockin, transfer)
 	}
 	return nil
 }
 
-func (a *Address) sendTransactionNotic(tn *TransactionNotic) error {
+func (a *Address) sendTransactionNotic(t *TransactionNotice) error {
 	db := mysqlpool.Get()
-
 	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id,"+
 		" trans_type, status, blockin_height, asset_name, address, amount, pay_fee, hash, order_id, time)"+
 		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?;",
-		tn.UserKey, tn.Type, tn.Status, tn.BlockinHeight, tn.AssetName, tn.Address,
-		tn.Amount, tn.PayFee, tn.Hash, tn.OrderID, time.Unix(tn.Time, 0).Format(TimeFormat), tn.UserKey)
+		t.UserKey, t.Type, t.Status, t.BlockinHeight, t.AssetName, t.Address,
+		t.Amount, t.PayFee, t.Hash, t.OrderID, time.Unix(t.Time, 0).Format(TimeFormat), t.UserKey)
 	if err != nil {
 		return err
 	}
@@ -513,16 +426,16 @@ func (a *Address) sendTransactionNotic(tn *TransactionNotic) error {
 	}
 
 	row := db.QueryRow("select msg_id from transaction_notice where id = ?;", insertID)
-	row.Scan(&tn.MsgID)
+	row.Scan(&t.MsgID)
 
 	return nil
 
 	// push notify by liuheng
-	b, err := json.Marshal(tn)
+	b, err := json.Marshal(t)
 	if err != nil {
 		log.Println("Push Error: json Marshal")
 	} else {
-		a.callback(tn.UserKey, string(b))
+		a.callback(t.UserKey, string(b))
 	}
 	return nil
 }
@@ -549,86 +462,10 @@ func responsePagination(queryMap map[string]interface{}, totalLines int) map[str
 	return resMap
 }
 
-func packJson(v interface{}) string {
+func responseJson(v interface{}) string {
 	s, err := json.Marshal(v)
 	if err != nil {
 		return ""
 	}
 	return string(s)
-}
-
-func unpackJson(s string) ParamsMapping {
-	params := ParamsMapping{UserKey: "", AssetName: "", Address: "", Amount: 0, Count: 0}
-
-	var v interface{}
-	err := json.Unmarshal([]byte(s), &v)
-	if err != nil {
-		return params
-	}
-
-	switch reflect.TypeOf(v).Kind() {
-	case reflect.Slice:
-		if jsonArr, ok := v.([]interface{}); ok {
-			for _, v := range jsonArr {
-				if value, ok := v.(string); ok {
-					params.Params = append(params.Params, value)
-				}
-			}
-		}
-	case reflect.Map:
-		if jsonMap, ok := v.(map[string]interface{}); ok {
-			for k, v := range jsonMap {
-				switch k {
-				case "user_key":
-					if value, ok := v.(string); ok {
-						params.UserKey = value
-					}
-				case "asset_name":
-					if value, ok := v.(string); ok {
-						params.AssetName = value
-					}
-				case "address":
-					if value, ok := v.(string); ok {
-						params.Address = value
-					}
-				case "amount":
-					if value, ok := v.(float64); ok {
-						params.Amount = int64(value * math.Pow10(8))
-					}
-				case "count":
-					if value, ok := v.(float64); ok {
-						params.Count = int(value)
-					}
-				}
-			}
-		}
-	}
-	return params
-}
-
-func json2map(str string, params []string) map[string]string {
-	resMap := make(map[string]string)
-
-	var jsonMap map[string]interface{}
-	err := json.Unmarshal([]byte(str), &jsonMap)
-	if err != nil {
-		return resMap
-	}
-
-	for _, key := range params {
-		if value, ok := jsonMap[key]; ok {
-			switch reflect.TypeOf(value).Kind() {
-			case reflect.String:
-				if v, ok := value.(string); ok {
-					resMap[key] = v
-				}
-			case reflect.Float64:
-				if v, ok := value.(float64); ok {
-					resMap[key] = strconv.FormatFloat(v, 'f', -1, 64)
-				}
-			}
-		}
-	}
-
-	return resMap
 }

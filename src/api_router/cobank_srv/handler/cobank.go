@@ -85,7 +85,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
-			"asset_attributie", data.APILevel_client, x.handler,
+			"asset_attribute", data.APILevel_client, x.handler,
 			"查询币种属性", "", "", "")
 	}()
 

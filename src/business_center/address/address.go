@@ -99,7 +99,7 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 		}
 		resMap["data"] = data
 	}
-	res.Data.Value.Message = packJson(resMap)
+	res.Data.Value.Message = responseJson(resMap)
 
 	return nil
 }
@@ -230,7 +230,7 @@ func (a *Address) SupportAssets(req *data.SrvRequestData, res *data.SrvResponseD
 	return nil
 }
 
-func (a *Address) AssetAttributie(req *data.SrvRequestData, res *data.SrvResponseData) error {
+func (a *Address) AssetAttribute(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	_, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
@@ -289,11 +289,19 @@ func (a *Address) GetBalance(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	paramsMapping := unpackJson(req.Data.Argv.Message)
-	userAccountMap := make(map[string]map[string]interface{})
-
 	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = userProperty.UserKey
+	params := jsonparse.Parse(req.Data.Argv.Message)
+
+	if userProperty.UserClass == 1 {
+		if value, ok := params.UserKey(); ok {
+			queryMap["user_key"] = value
+		}
+
+	} else {
+		queryMap["user_key"] = req.Data.Argv.UserKey
+	}
+
+	userAccountMap := make(map[string]map[string]interface{})
 	if userAccount, ok := mysqlpool.QueryUserAccount(queryMap); ok {
 		for _, v := range userAccount {
 			maps := make(map[string]interface{}, 0)
@@ -305,15 +313,15 @@ func (a *Address) GetBalance(req *data.SrvRequestData, res *data.SrvResponseData
 	}
 
 	var data []map[string]interface{}
-	if len(paramsMapping.Params) <= 0 {
-		for _, v := range userAccountMap {
-			data = append(data, v)
-		}
-	} else {
-		for _, v := range paramsMapping.Params {
+	if assetName, ok := params.AssetNameArray(); ok {
+		for _, v := range assetName {
 			if value, ok := userAccountMap[v]; ok {
 				data = append(data, value)
 			}
+		}
+	} else {
+		for _, v := range userAccountMap {
+			data = append(data, v)
 		}
 	}
 
@@ -422,7 +430,7 @@ func (a *Address) QueryAssetProperty(req *data.SrvRequestData, res *data.SrvResp
 	assetProperty, _ := mysqlpool.QueryAssetProperty(nil)
 	resMap["data"] = assetProperty
 
-	res.Data.Value.Message = packJson(resMap)
+	res.Data.Value.Message = responseJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil
@@ -433,7 +441,7 @@ func (a *Address) QueryUserProperty(req *data.SrvRequestData, res *data.SrvRespo
 	userProperty, _ := mysqlpool.QueryUserProperty(nil)
 	resMap["data"] = userProperty
 
-	res.Data.Value.Message = packJson(resMap)
+	res.Data.Value.Message = responseJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil
@@ -444,7 +452,7 @@ func (a *Address) QueryUserAccount(req *data.SrvRequestData, res *data.SrvRespon
 	userAccount, _ := mysqlpool.QueryUserAccount(nil)
 	resMap["data"] = userAccount
 
-	res.Data.Value.Message = packJson(resMap)
+	res.Data.Value.Message = responseJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil
@@ -455,7 +463,7 @@ func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvRespon
 	userAddress, _ := mysqlpool.QueryUserAddress(nil)
 	resMap["data"] = userAddress
 
-	res.Data.Value.Message = packJson(resMap)
+	res.Data.Value.Message = responseJson(resMap)
 	res.Data.Err = 0
 	res.Data.ErrMsg = ""
 	return nil

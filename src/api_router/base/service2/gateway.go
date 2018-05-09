@@ -19,12 +19,12 @@ const (
 	HttpApiTest = "apitest"
 )
 
-type ServiceCenter struct{
+type ServiceGateway struct{
 	// rpc2
 	*rpc2.Server
 
 	// config
-	cfgCenter config.ConfigCenter
+	cfgGateway config.ConfigGateway
 
 	// srv nodes
 	rwmu                       sync.RWMutex
@@ -41,18 +41,18 @@ type ServiceCenter struct{
 }
 
 // new a center
-func NewServiceCenter(confPath string) (*ServiceCenter, error){
-	serviceCenter := &ServiceCenter{}
+func NewServiceGateway(confPath string) (*ServiceGateway, error){
+	serviceGateway := &ServiceGateway{}
 
-	serviceCenter.cfgCenter.Load(confPath)
+	serviceGateway.cfgGateway.Load(confPath)
 
-	serviceCenter.srvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
-	serviceCenter.clientMapSrvNodeGroup = make(map[*rpc2.Client]*SrvNodeGroup)
+	serviceGateway.srvNodeNameMapSrvNodeGroup = make(map[string]*SrvNodeGroup)
+	serviceGateway.clientMapSrvNodeGroup = make(map[*rpc2.Client]*SrvNodeGroup)
 
-	serviceCenter.registerData.Srv = serviceCenter.cfgCenter.CenterName
-	serviceCenter.registerData.Version = serviceCenter.cfgCenter.CenterVersion
+	serviceGateway.registerData.Srv = serviceGateway.cfgGateway.GatewayName
+	serviceGateway.registerData.Version = serviceGateway.cfgGateway.GatewayVersion
 
-	serviceCenter.apiHandler = make(map[string]*NodeApi)
+	serviceGateway.apiHandler = make(map[string]*NodeApi)
 
 	func(){
 		// api listsrv
@@ -66,34 +66,34 @@ func NewServiceCenter(confPath string) (*ServiceCenter, error){
 		ocomment := data.FieldTag(oargv)
 
 		apiDoc := data.ApiDoc{Name:apiInfo.Name, Level:apiInfo.Level, Doc:"列出所有服务", Example:example, InComment:icomment, OutComment:ocomment}
-		serviceCenter.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceCenter.listSrv, ApiInfo:apiInfo, ApiDoc:apiDoc}
-		serviceCenter.registerData.Functions = append(serviceCenter.registerData.Functions, apiInfo)
-		serviceCenter.registerData.ApiDocs = append(serviceCenter.registerData.ApiDocs, apiDoc)
+		serviceGateway.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceGateway.listSrv, ApiInfo:apiInfo, ApiDoc:apiDoc}
+		serviceGateway.registerData.Functions = append(serviceGateway.registerData.Functions, apiInfo)
+		serviceGateway.registerData.ApiDocs = append(serviceGateway.registerData.ApiDocs, apiDoc)
 	}()
 
 	// register
 	var res string
-	serviceCenter.register(nil, &serviceCenter.registerData, &res)
+	serviceGateway.register(nil, &serviceGateway.registerData, &res)
 
 	// rpc2
-	serviceCenter.Server = rpc2.NewServer()
+	serviceGateway.Server = rpc2.NewServer()
 
-	return serviceCenter, nil
+	return serviceGateway, nil
 }
 
 // start the service center
-func StartCenter(ctx context.Context, mi *ServiceCenter) {
+func StartCenter(ctx context.Context, mi *ServiceGateway) {
 	mi.startHttpServer(ctx)
 
 	mi.startTcpServer(ctx)
 }
 
 // Stop the service center
-func StopCenter(mi *ServiceCenter)  {
+func StopCenter(mi *ServiceGateway)  {
 	mi.wg.Wait()
 }
 
-func (mi *ServiceCenter) register(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
+func (mi *ServiceGateway) register(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
 	err := func()error {
 		mi.rwmu.Lock()
 		defer mi.rwmu.Unlock()
@@ -127,13 +127,13 @@ func (mi *ServiceCenter) register(client *rpc2.Client, reg *data.SrvRegisterData
 	return err
 }
 
-func (mi *ServiceCenter) unRegister(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
+func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
 	mi.disconnectClient(client)
 	*res = "ok"
 	return nil
 }
 
-func (mi *ServiceCenter) innerCall(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
+func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -147,7 +147,7 @@ func (mi *ServiceCenter) innerCall(client *rpc2.Client, req *data.UserRequestDat
 	return nil
 }
 
-func (mi *ServiceCenter) innerCallByEncrypt(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
+func (mi *ServiceGateway) innerCallByEncrypt(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -162,27 +162,27 @@ func (mi *ServiceCenter) innerCallByEncrypt(client *rpc2.Client, req *data.UserR
 }
 
 // start http server
-func (mi *ServiceCenter) startHttpServer(ctx context.Context) {
+func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 	// http
-	l4g.Debug("Start http server on %s", mi.cfgCenter.Port)
+	l4g.Debug("Start http server on %s", mi.cfgGateway.Port)
 
 	http.Handle("/" + HttpApi + "/", http.HandlerFunc(mi.handleApi))
 
 	// test mode
-	if mi.cfgCenter.TestMode != 0 {
+	if mi.cfgGateway.TestMode != 0 {
 		http.Handle("/" + HttpApiTest + "/", http.HandlerFunc(mi.handleApiTest))
 	}
 
 	go func() {
 		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(":"+mi.cfgCenter.Port, nil)
+		err := http.ListenAndServe(":"+mi.cfgGateway.Port, nil)
 		if err != nil {
 			l4g.Crashf("", err)
 		}
 	}()
 }
 
-func (mi *ServiceCenter)disconnectClient(client *rpc2.Client)  {
+func (mi *ServiceGateway)disconnectClient(client *rpc2.Client)  {
 	mi.rwmu.Lock()
 	defer mi.rwmu.Unlock()
 
@@ -209,7 +209,7 @@ func (mi *ServiceCenter)disconnectClient(client *rpc2.Client)  {
 }
 
 // start tcp server
-func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
+func (mi *ServiceGateway) startTcpServer(ctx context.Context) {
 	mi.Server.OnConnect(func(client *rpc2.Client) {
 		l4g.Info("rpc2 client connect...")
 	})
@@ -225,9 +225,9 @@ func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
 	mi.Server.Handle(data.MethodCenterInnerCall, mi.innerCall)
 	mi.Server.Handle(data.MethodCenterInnerCallByEncrypt, mi.innerCallByEncrypt)
 
-	l4g.Debug("Start Tcp server on %s", mi.cfgCenter.CenterPort)
+	l4g.Debug("Start Tcp server on %s", mi.cfgGateway.GatewayPort)
 
-	listener, err := nethelper.CreateTcpServer(":"+mi.cfgCenter.CenterPort)
+	listener, err := nethelper.CreateTcpServer(":"+mi.cfgGateway.GatewayPort)
 	if err != nil {
 		l4g.Crashf("", err)
 	}
@@ -244,7 +244,7 @@ func (mi *ServiceCenter) startTcpServer(ctx context.Context) {
 	}()
 }
 
-func (mi *ServiceCenter) srvCall(req *data.UserRequestData, res *data.UserResponseData) {
+func (mi *ServiceGateway) srvCall(req *data.UserRequestData, res *data.UserResponseData) {
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
@@ -265,7 +265,7 @@ func (mi *ServiceCenter) srvCall(req *data.UserRequestData, res *data.UserRespon
 	*res = rpcSrvRes.Data
 }
 
-func (mi *ServiceCenter) srvCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) {
+func (mi *ServiceGateway) srvCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) {
 	// encode and sign data
 	var reqEncrypted data.SrvRequestData
 	reqEncrypted.Data.Method = req.Method
@@ -289,7 +289,7 @@ func (mi *ServiceCenter) srvCallByEncrypt(req *data.UserRequestData, res *data.U
 }
 
 // user call by user
-func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserResponseData) {
+func (mi *ServiceGateway) userCall(req *data.UserRequestData, res *data.UserResponseData) {
 	// can not call auth service
 	if req.Method.Srv == "auth" {
 		res.Err = data.ErrIllegallyCall
@@ -341,7 +341,7 @@ func (mi *ServiceCenter) userCall(req *data.UserRequestData, res *data.UserRespo
 }
 
 // auth data
-func (mi *ServiceCenter) authData(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) authData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	reqAuth := *req
 	reqAuth.Data.Method.Srv = "auth"
 	reqAuth.Data.Method.Function = "AuthData"
@@ -353,7 +353,7 @@ func (mi *ServiceCenter) authData(req *data.SrvRequestData, res *data.SrvRespons
 }
 
 // package data
-func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) encryptData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	reqEnc := *req
 	reqEnc.Data.Method.Srv = "auth"
 	reqEnc.Data.Method.Function = "EncryptData"
@@ -366,7 +366,7 @@ func (mi *ServiceCenter) encryptData(req *data.SrvRequestData, res *data.SrvResp
 }
 
 //  call a srv node
-func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) callFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
 	centerVersionSrvName := strings.ToLower(mi.registerData.Srv + "." + mi.registerData.Version)
 	versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
 	l4g.Debug("call %s", req.Data.String())
@@ -397,7 +397,7 @@ func (mi *ServiceCenter) callFunction(req *data.SrvRequestData, res *data.SrvRes
 	}
 }
 
-func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
+func (mi *ServiceGateway) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
@@ -405,7 +405,7 @@ func (mi *ServiceCenter) getApiInfo(req *data.UserRequestData) (*data.ApiInfo) {
 	return mi.ApiInfo[name]
 }
 
-func (mi *ServiceCenter) handleApi(w http.ResponseWriter, req *http.Request) {
+func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a client: %s", req.RemoteAddr)
 	//defer req.Body.Close()
 
@@ -473,7 +473,7 @@ func (mi *ServiceCenter) handleApi(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (mi *ServiceCenter) handleApiTest(w http.ResponseWriter, req *http.Request) {
+func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server test Accept a client: %s", req.RemoteAddr)
 	//defer req.Body.Close()
 
@@ -542,7 +542,7 @@ func (mi *ServiceCenter) handleApiTest(w http.ResponseWriter, req *http.Request)
 }
 
 // RPC -- listsrv
-func (mi *ServiceCenter) listSrv(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) listSrv(req *data.SrvRequestData, res *data.SrvResponseData) {
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 

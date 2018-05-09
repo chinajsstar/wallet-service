@@ -22,15 +22,15 @@ func main() {
 	fmt.Println("config path:", cfgPath)
 
 	// create service center
-	centerInstance, err := service.NewServiceCenter(cfgPath)
-	if centerInstance == nil || err != nil {
+	gatewayInstance, err := service.NewServiceGateway(cfgPath)
+	if gatewayInstance == nil || err != nil {
 		l4g.Error("Create service center failed: %s", err.Error())
 		return
 	}
 
 	// start service center
 	ctx, cancel := context.WithCancel(context.Background())
-	service.StartCenter(ctx, centerInstance)
+	service.StartCenter(ctx, gatewayInstance)
 
 	time.Sleep(time.Second*1)
 	for ; ;  {
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	l4g.Info("Waiting all routine quit...")
-	service.StopCenter(centerInstance)
+	service.StopCenter(gatewayInstance)
 	l4g.Info("All routine is quit...")
 }
 

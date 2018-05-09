@@ -2,7 +2,6 @@ package mysqlpool
 
 import (
 	"api_router/base/config"
-	"api_router/base/utils"
 	. "business_center/def"
 	"database/sql"
 	"fmt"
@@ -19,15 +18,8 @@ func Get() *sql.DB {
 
 func init() {
 	var dataSourceName string
-	configPath, err := utils.GetAppDir()
+	err := config.LoadJsonNode(config.GetBastionPayConfigDir()+"/cobank.json", "db", &dataSourceName)
 	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	err = config.LoadJsonNode(configPath+"/SuperWallet/cobank.json", "db", &dataSourceName)
-	if err != nil {
-		fmt.Println(err.Error())
 		return
 	}
 
