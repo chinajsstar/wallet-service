@@ -491,6 +491,10 @@ func (self *Client) beginScanBlock() error {
 			}
 
 			self.scanblock++
+			// scan 50 block, once save
+			if self.scanblock%50 == 0 {
+				self.saveConfigurations()
+			}
 
 			select {
 			case <-self.ctx.Done(): {
@@ -685,10 +689,17 @@ func (self *Client) InsertRechargeAddress(address []string) (invalid []string) {
 	return
 }
 
+func (self *Client) saveConfigurations() {
+	atomic.StoreUint64(
+		&config.MainConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber,
+		atomic.LoadUint64(&self.scanblock))
+
+	config.MainConfiger().Save()
+}
+
 func (self *Client) Stop() {
 	self.ctx_canncel()
-	atomic.StoreUint64(&config.MainConfiger().Clientconfig[types.Chain_eth].Start_scan_Blocknumber, atomic.LoadUint64(&self.blockHeight))
-	config.MainConfiger().Save()
+	self.saveConfigurations()
 }
 
 // from is a crypted private key, if ok, may replace SendTx
