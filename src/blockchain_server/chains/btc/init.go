@@ -86,7 +86,6 @@ func (c *Client) init_key_settings() error {
 	return nil
 }
 
-
 // init_chain_params, 根据配置文件获取当前连接主网还是测试网路或者其他网络!
 // 生成pay-to-pubkey-hash address, 设置rpcclient配置的时候, 需要用到
 func  (c *Client) init_chain_params() error {
