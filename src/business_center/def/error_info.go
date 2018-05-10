@@ -3,11 +3,8 @@ package def
 import "fmt"
 
 const (
-	ErrorSuccess  = 0            //成功
-	ErrorParse    = 20000 + iota //指令解析错误
-	ErrorParam                   //指令参数错误
-	ErrorWallet                  //钱包错误
-	ErrorDataBase                //数据库错误
+	ErrorSuccess = 0
+	ErrorFailed  = 20000 + iota
 )
 
 var errorInfoMap map[int]string
@@ -15,9 +12,7 @@ var errorInfoMap map[int]string
 func init() {
 	errorInfoMap = make(map[int]string)
 	errorInfoMap[ErrorSuccess] = "成功"
-	errorInfoMap[ErrorParse] = "指令解析错误"
-	errorInfoMap[ErrorParam] = "指令参数错误"
-	errorInfoMap[ErrorDataBase] = "数据库错误"
+	errorInfoMap[ErrorFailed] = "失败"
 }
 
 func GetErrorMsg(errorID int) string {

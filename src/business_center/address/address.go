@@ -56,23 +56,29 @@ func (a *Address) Stop() {
 func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	resMap := make(map[string]interface{})
-	params := jsonparse.Parse(req.Data.Argv.Message)
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
 	assetName, ok := params.AssetName()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"asset_name\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "参数:\"asset_name\"无效")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -80,13 +86,13 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 
 	count, ok := params.Count()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"count\"参数")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "缺少\"count\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	if count <= 0 {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"count\"要大于0")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "参数:\"count\"要大于0")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -107,71 +113,76 @@ func (a *Address) NewAddress(req *data.SrvRequestData, res *data.SrvResponseData
 func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	resMap := make(map[string]interface{})
-	params := jsonparse.Parse(req.Data.Argv.Message)
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
 
 	assetName, ok := params.AssetName()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	amount, ok := params.Amount()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"amount\"参数")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "缺少\"amount\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	address, ok := params.Address()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"address\"参数")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "缺少\"address\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取币种信息失败")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "获取币种信息失败")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	userAccount, ok := mysqlpool.QueryUserAccountRow(userProperty.UserKey, assetProperty.AssetName)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "获取帐户信息失败")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "获取帐户信息失败")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	if userAccount.AvailableAmount < amount {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "帐户可用资金不足")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(amount)*assetProperty.WithdrawalRate)
 	if userAccount.AvailableAmount < amount+payFee {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "帐户可用资金不足")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	userAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetName)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "没有设置可用的热钱包")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "没有设置可用的热钱包")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	if userAddress.AvailableAmount < amount+payFee {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorWallet, "热钱包资金不足(这里需要特殊处理)")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "热钱包可用资金不足(这里需要特殊处理)")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -179,17 +190,16 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 	uuID := a.generateUUID()
 	resMap["order_id"] = uuID
 
-	err := mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, address,
-		amount, payFee, uuID)
+	err = mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "帐户可用资金不足!")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足!")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	pack, err := json.Marshal(resMap)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -208,7 +218,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 func (a *Address) SupportAssets(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	_, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -221,7 +231,7 @@ func (a *Address) SupportAssets(req *data.SrvRequestData, res *data.SrvResponseD
 
 		pack, err := json.Marshal(data)
 		if err != nil {
-			res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+			res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 			l4g.Error(res.Data.ErrMsg)
 			return errors.New(res.Data.ErrMsg)
 		}
@@ -233,14 +243,19 @@ func (a *Address) SupportAssets(req *data.SrvRequestData, res *data.SrvResponseD
 func (a *Address) AssetAttribute(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	_, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	params := jsonparse.Parse(req.Data.Argv.Message)
-	assetNameArray, _ := params.AssetNameArray()
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
 
+	assetNameArray, _ := params.AssetNameArray()
 	assetPropertyMap := make(map[string]map[string]interface{})
 	if assetProperty, ok := mysqlpool.QueryAssetProperty(nil); ok {
 		for _, v := range assetProperty {
@@ -273,7 +288,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequestData, res *data.SrvResponse
 
 	pack, err := json.Marshal(data)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -284,13 +299,18 @@ func (a *Address) AssetAttribute(req *data.SrvRequestData, res *data.SrvResponse
 func (a *Address) GetBalance(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	queryMap := make(map[string]interface{})
-	params := jsonparse.Parse(req.Data.Argv.Message)
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
 
 	if userProperty.UserClass == 1 {
 		if value, ok := params.UserKey(); ok {
@@ -327,7 +347,7 @@ func (a *Address) GetBalance(req *data.SrvRequestData, res *data.SrvResponseData
 
 	pack, err := json.Marshal(data)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -338,13 +358,18 @@ func (a *Address) GetBalance(req *data.SrvRequestData, res *data.SrvResponseData
 func (a *Address) HistoryTransactionOrder(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	queryMap := make(map[string]interface{})
-	params := jsonparse.Parse(req.Data.Argv.Message)
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
 
 	if userProperty.UserClass == 1 {
 		if value, ok := params.UserKey(); ok {
@@ -378,7 +403,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequestData, res *data.Sr
 	data, _ := mysqlpool.QueryTransactionOrder(queryMap)
 	pack, err := json.Marshal(data)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -389,13 +414,18 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequestData, res *data.Sr
 func (a *Address) HistoryTransactionMessage(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	queryMap := make(map[string]interface{})
-	params := jsonparse.Parse(req.Data.Argv.Message)
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
 
 	if userProperty.UserClass == 1 {
 		if value, ok := params.UserKey(); ok {
@@ -406,18 +436,18 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequestData, res *data.
 		queryMap["user_key"] = req.Data.Argv.UserKey
 	}
 
-	if value, ok := params.AssetName(); ok {
+	if value, ok := params.MaxMessageID(); ok {
 		queryMap["max_msg_id"] = value
 	}
 
-	if value, ok := params.TransType(); ok {
+	if value, ok := params.MinMessageID(); ok {
 		queryMap["min_msg_id"] = value
 	}
 
 	data, _ := mysqlpool.QueryTransactionMessage(queryMap)
 	pack, err := json.Marshal(data)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "返回数据包错误")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
@@ -448,8 +478,36 @@ func (a *Address) QueryUserProperty(req *data.SrvRequestData, res *data.SrvRespo
 }
 
 func (a *Address) QueryUserAccount(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	resMap := responsePagination(nil, mysqlpool.QueryUserAccountCount(nil))
-	userAccount, _ := mysqlpool.QueryUserAccount(nil)
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	queryMap := make(map[string]interface{})
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	if userProperty.UserClass == 1 {
+		if value, ok := params.UserKey(); ok {
+			queryMap["user_key"] = value
+		}
+
+	} else {
+		queryMap["user_key"] = req.Data.Argv.UserKey
+	}
+
+	if value, ok := params.AssetName(); ok {
+		queryMap["asset_name"] = value
+	}
+
+	resMap := responsePagination(nil, mysqlpool.QueryUserAccountCount(queryMap))
+	userAccount, _ := mysqlpool.QueryUserAccount(queryMap)
 	resMap["data"] = userAccount
 
 	res.Data.Value.Message = responseJson(resMap)
@@ -459,8 +517,36 @@ func (a *Address) QueryUserAccount(req *data.SrvRequestData, res *data.SrvRespon
 }
 
 func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	resMap := responsePagination(nil, mysqlpool.QueryUserAddressCount(nil))
-	userAddress, _ := mysqlpool.QueryUserAddress(nil)
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	queryMap := make(map[string]interface{})
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	if userProperty.UserClass == 1 {
+		if value, ok := params.UserKey(); ok {
+			queryMap["user_key"] = value
+		}
+
+	} else {
+		queryMap["user_key"] = req.Data.Argv.UserKey
+	}
+
+	if value, ok := params.AssetName(); ok {
+		queryMap["asset_name"] = value
+	}
+
+	resMap := responsePagination(queryMap, mysqlpool.QueryUserAddressCount(queryMap))
+	userAddress, _ := mysqlpool.QueryUserAddress(queryMap)
 	resMap["data"] = userAddress
 
 	res.Data.Value.Message = responseJson(resMap)
@@ -472,35 +558,41 @@ func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvRespon
 func (a *Address) SetPayAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "参数:\"user_key\"无效")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	if userProperty.UserClass != 1 {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParam, "不能操作此命令")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "此不能操作此命令")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	params := jsonparse.Parse(req.Data.Argv.Message)
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
 	assetName, ok := params.AssetName()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"asset_name\"参数")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
 	address, ok := params.Address()
 	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, "缺少\"address\"参数")
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "缺少\"address\"参数")
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	err := mysqlpool.SetPayAddress(assetName, address)
+	err = mysqlpool.SetPayAddress(assetName, address)
 	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorParse, err.Error())
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
