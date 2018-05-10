@@ -15,6 +15,9 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"strings"
 	"time"
+	"os/exec"
+	"fmt"
+	"strconv"
 )
 
 type Cobank struct {
@@ -124,6 +127,14 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 	}()
 
 	func() {
+		input := Generate{}
+		b, _ := json.Marshal(input)
+		service.RegisterApi(&nam,
+			"generate", data.APILevel_client, x.generate,
+			"模拟挖矿test", string(b), "", "")
+	}()
+
+	func() {
 		input := ImportAddress{}
 		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
@@ -174,19 +185,85 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 		l4g.Error("json err: ", err)
 	}
 
-	go func(req *Recharge) {
-		clientManager := x.business.GetWallet()
-		tmp_account := &types.Account{
-			"0x04e2b6c9bfeacd4880d99790a03a3db4ad8d87c82bb7d72711b277a9a03e49743077f3ae6d0d40e6bc04eceba67c2b3ec670b22b30d57f9d6c42779a05fba097536c412af73be02d1642aecea9fa7082db301e41d1c3c2686a6a21ca431e7e8605f761d8e12d61ca77605b31d707abc3f17bc4a28f4939f352f283a48ed77fc274b039590cc2c43ef739bd3ea13e491316",
-			"0x54b2e44d40d3df64e38487dd4e145b3e6ae25927"}
+	if rc.Coin == "eth" {
+		go func(req *Recharge) {
+			clientManager := x.business.GetWallet()
+			tmp_account := &types.Account{
+				"0x04e2b6c9bfeacd4880d99790a03a3db4ad8d87c82bb7d72711b277a9a03e49743077f3ae6d0d40e6bc04eceba67c2b3ec670b22b30d57f9d6c42779a05fba097536c412af73be02d1642aecea9fa7082db301e41d1c3c2686a6a21ca431e7e8605f761d8e12d61ca77605b31d707abc3f17bc4a28f4939f352f283a48ed77fc274b039590cc2c43ef739bd3ea13e491316",
+				"0x54b2e44d40d3df64e38487dd4e145b3e6ae25927"}
 
-		var token *string
-		token = nil
-		privatekey := tmp_account.PrivateKey
+			var token *string
+			token = nil
+			privatekey := tmp_account.PrivateKey
 
-		txCmd := bservice.NewSendTxCmd("message id", req.Coin, privatekey, req.To, token, req.Value)
-		clientManager.SendTx(txCmd)
-	}(&rc)
+			txCmd := bservice.NewSendTxCmd("message id", req.Coin, privatekey, req.To, token, req.Value)
+			clientManager.SendTx(txCmd)
+		}(&rc)
+	} else if rc.Coin == "btc" {
+		//cmd, err := exec.LookPath("bitcoin-cli")
+		cmd := "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
+		if err != nil {
+			res.Data.Err = 1
+			res.Data.ErrMsg = err.Error()
+		}else{
+			fmt.Println("cmd: ", cmd)
+			c := exec.Command(cmd, "-conf=/data/btc_data/bitcoin.conf", "sendtoaddress", rc.To, strconv.FormatUint(rc.Value, 10))
+			if c != nil{
+				if err := c.Run(); err != nil {
+					fmt.Println(err)
+					res.Data.Err = 1
+					res.Data.ErrMsg = err.Error()
+				}
+			}else{
+				res.Data.Err = 1
+				res.Data.ErrMsg = "no bitcoin-cli command"
+			}
+		}
+	}
+
+	l4g.Debug("value: %s", res.Data.Value)
+}
+
+// 模拟充值
+type Generate struct {
+	Coin  string `json:"coin"`
+	Count int `json:"count"`
+}
+func (x *Cobank) generate(req *data.SrvRequestData, res *data.SrvResponseData) {
+	res.Data.Err = data.NoErr
+
+	l4g.Debug("argv: %s", req.Data.Argv)
+
+	rc := Generate{}
+	err := json.Unmarshal([]byte(req.Data.Argv.Message), &rc)
+	if err != nil {
+		l4g.Error("json err: ", err)
+	}
+
+	if rc.Coin == "eth" {
+		res.Data.Err = 1
+		res.Data.ErrMsg = "not support eth"
+	} else if rc.Coin == "btc" {
+		//cmd, err := exec.LookPath("bitcoin-cli")
+		cmd := "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
+		if err != nil {
+			res.Data.Err = 1
+			res.Data.ErrMsg = err.Error()
+		}else{
+			fmt.Println("cmd: ", cmd)
+			c := exec.Command(cmd, "-conf=/data/btc_data/bitcoin.conf", "generate", strconv.Itoa(rc.Count))
+			if c != nil{
+				if err := c.Run(); err != nil {
+					fmt.Println(err)
+					res.Data.Err = 1
+					res.Data.ErrMsg = err.Error()
+				}
+			}else{
+				res.Data.Err = 1
+				res.Data.ErrMsg = "no bitcoin-cli command"
+			}
+		}
+	}
 
 	l4g.Debug("value: %s", res.Data.Value)
 }
