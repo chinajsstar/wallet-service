@@ -200,7 +200,8 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 			clientManager.SendTx(txCmd)
 		}(&rc)
 	} else if rc.Coin == "btc" {
-		cmd, err := exec.LookPath("bitcoin-cli")
+		//cmd, err := exec.LookPath("bitcoin-cli")
+		cmd := "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
 		if err != nil {
 			res.Data.Err = 1
 			res.Data.ErrMsg = err.Error()
@@ -243,7 +244,8 @@ func (x *Cobank) generate(req *data.SrvRequestData, res *data.SrvResponseData) {
 		res.Data.Err = 1
 		res.Data.ErrMsg = "not support eth"
 	} else if rc.Coin == "btc" {
-		cmd, err := exec.LookPath("bitcoin-cli")
+		//cmd, err := exec.LookPath("bitcoin-cli")
+		cmd := "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
 		if err != nil {
 			res.Data.Err = 1
 			res.Data.ErrMsg = err.Error()
