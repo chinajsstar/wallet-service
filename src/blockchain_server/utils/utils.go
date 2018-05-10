@@ -128,3 +128,9 @@ func DecimalCvt_f_f(v float64, from, to int) *big.Float {
 	return fbig.Mul(fbig, big.NewFloat(math.Pow10(to - from)))
 }
 
+func StrSilenceContain(src []string, dest string)bool{
+	for _, value := range src {
+		if value==dest {return true}
+	}
+	return false
+}

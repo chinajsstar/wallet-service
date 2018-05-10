@@ -109,16 +109,21 @@ func (c *Client) handler() {
 					l4g.Error("bitcoin get transaction error, message:%s", hs.String())
 					return
 				} else {
-					// 挖矿产生的交易
-					if btx.Details[0].Category == "immature" { return }
-					// clientmanager会自动跟踪情况, 不需要再次发送
-					if btx.Confirmations>0 {return}
+					if len(btx.Details)==0 {
 
-					if tx, err := c.toTx(btx); err != nil {
-						l4g.Error("err:%v", err)
-						return
 					} else {
-						c.rechargeTxNotification <- &types.RechargeTx{Tx: tx, Coin_name: types.Chain_bitcoin, Err: nil}
+						//if len(btx.Details)>=0 {
+						//	if btx.Details[0].Category == "immature" { return }
+						//}
+						// clientmanager会自动跟踪情况, 不需要再次发送
+						if btx.Confirmations>0 {return}
+
+						if tx, err := c.toTx(btx); err != nil {
+							l4g.Error("err:%v", err)
+							return
+						} else {
+							c.rechargeTxNotification <- &types.RechargeTx{Tx: tx, Coin_name: types.Chain_bitcoin, Err: nil}
+						}
 					}
 				}
 				return

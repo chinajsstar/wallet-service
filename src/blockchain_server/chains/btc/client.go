@@ -277,77 +277,105 @@ func (c *Client) toTx(btx *btcjson.GetTransactionResult) (*types.Transfer, error
 	return tx, nil
 }
 
-func (c *Client)msgTxGetTxinAddesFrom(msgTx *wire.MsgTx) ([]string, error) {
-	var froms []string
-	for _, txIn:= range msgTx.TxIn {
-		if tx, err := c.GetTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
-			for _, detail := range tx.Details {
-				if detail.Vout == txIn.PreviousOutPoint.Index {
-					froms = append(froms, detail.Address)
+func (c *Client) scriptAddes(script []byte)(adds []string, err error) {
+	var t *btcjson.DecodeScriptResult
+	if t, err = c.DecodeScript(script); err==nil {
+		adds = t.Addresses
+	}
+	return
+}
+
+func (c *Client) msgTxOutAddes(txout []*wire.TxOut) (adds[]string, err error) {
+	var tmps []string
+	for _, txo := range txout {
+		if tmps, err = c.scriptAddes(txo.PkScript); err==nil {
+			adds = append(adds, tmps[:]...)
+		} else {
+			l4g.Error("Bitcoin InnerErr:get address(MsgTx.Out), message:%s",
+				err.Error())
+		}
+	}
+	return
+}
+
+func (c *Client) msgTxFrom(msgTx *wire.MsgTx)(from []string, err error) {
+	var tx *btcutil.Tx
+	for _, txIn :=  range msgTx.TxIn {
+		if tx, err = c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
+			var tmps []string
+			if tmps, err = c.msgTxOutAddes(tx.MsgTx().TxOut); err!=nil {
+				l4g.Error("Bitcoin InnerErr:msgTxAddresses, message:%s",
+					err.Error())
+			} else {
+				index := txIn.PreviousOutPoint.Index
+				if uint32(len(tmps))>index {
+					from = append(from, tmps[index])
 				}
 			}
 		} else {
-			return froms, err
+			l4g.Error("Bitcoin InnerErr:msgTxAddresses,message %s", err.Error())
 		}
-		//if tx, err := c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
-		// // there should have a address field in TxOut
-		//	tx.MsgTx().TxOut[txIn.PreviousOutPoint.Index]
-		//}
 	}
-	return froms, nil
+
+	return
 }
 
+// 暂时解决思路
+// 比特币获取from, to 的思想:
+// 首先在遍历txIn, 找出所有from地址
+// 遍历detial, 找出不在from中的地址作为to地址(所有txout中的地址, 有可能是找零地址)
+// 如果不存在detail, 则解析所有txout中的地址, 用上面的方法来比较, 得出to
+// 得出to以后, 在from中, 找到第一个不为to的地址, 作为from,
+// to地址对应的txout.Value,就是发送的amount
+// 后面需要把所有from和to返回出去.
+
+// blockin, 由于目前这个rpcclient库的transaction没有解析blockin, 所以
+// blockin和confirmheight, 暂时都为0
 func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
 	//l4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
-	serializedTx, err := hex.DecodeString(btx.Hex)
-	if err != nil {
-		return err
-	}
+	var (
+		serializedTx []byte
+		err          error
+		value        float64
+	)
+
+	serializedTx, err = hex.DecodeString(btx.Hex)
+	if err != nil { return err }
 
 	msgTx := &wire.MsgTx{}
-	// Deserialize the transaction and return it.
-	if err := msgTx.Deserialize(bytes.NewReader(serializedTx)); err != nil {
-		l4g.Error("Bitcoin deserialize msgTx error:%s", err.Error())
-		return err
-	} else {
-		if stx.From=="" {
-			froms, err := c.msgTxGetTxinAddesFrom(msgTx)
-			if len(froms)>0 {
-				stx.From = froms[0]
-				if err!=nil {
-					l4g.Error("bitcoin msgTxGetTxinAddesFrom error:%s", err.Error())
+	err = msgTx.Deserialize(bytes.NewReader(serializedTx))
+	if err!=nil { return err }
+
+	froms, err := c.msgTxFrom(msgTx)
+
+	toOk:
+	for _, detail := range btx.Details {
+		if !utils.StrSilenceContain(froms, detail.Address) {
+			stx.To = detail.Address
+			value = detail.Amount
+			break toOk
+		}
+	}
+
+	if stx.To=="" {
+		for _, txout := range msgTx.TxOut {
+			if decodScritp, err := c.DecodeScript(txout.PkScript); len(decodScritp.Addresses)>0 && err!=nil {
+				for _, tmp := range decodScritp.Addresses {
+					if !utils.StrSilenceContain(froms, tmp) {
+						value = btcutil.Amount(txout.Value).ToBTC()
+						stx.To = decodScritp.Addresses[0]
+					}
 				}
-			}
-			if stx.From=="" {
-				stx.From ="Cannot detect from address"
 			}
 		}
 	}
 
-	var value float64
-	if stx.To=="" {
-		for _, d := range btx.Details {
-			addes, err := btcutil.DecodeAddress(d.Address, c.chain_params)
-			if err!=nil {
-				l4g.Trace("Bitcoin decode address error:%s, %s", addes, err.Error())
-				continue
+	if stx.From=="" {
+		for _, tmp := range froms {
+			if tmp!= stx.To {
+				stx.From = tmp
 			}
-			// 不是比特币钱包的地址收到了币
-			if account, err := c.GetAccount(addes); err==nil {
-				// 地址为收到资金
-				if account=="watchonly" {
-					//if d.Category=="receive"{}	//内部地址收到资金
-					//if d.Category=="send"{}		//从自己的钱包充值到内部地址
-					stx.To = d.Address
-					value = d.Amount
-				}
-			}
-		}
-
-		if stx.To=="" {
-			stx.To = btx.Details[0].Address
-			value = btx.Details[0].Amount
 		}
 	}
 
