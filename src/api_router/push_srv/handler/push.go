@@ -75,21 +75,27 @@ func (push *Push)PushData(req *data.SrvRequestData, res *data.SrvResponseData) {
 		return
 	}
 
-	// call url
-	b, err := json.Marshal(req.Data.Argv)
-	if err != nil {
-		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
-		return
-	}
-	var ret string
-	err = nethelper.CallToHttpServer(url, "", string(b), &ret)
-	if err != nil {
-		l4g.Error("push http: %s", err.Error())
-		res.Data.Err = data.ErrPushSrvPushData
-		return
-	}
+	func(){
+		pushData := data.UserResponseData{}
+		pushData.Value = req.Data.Argv
 
-	res.Data.Value.Message = ret
+		// call url
+		b, err := json.Marshal(pushData)
+		if err != nil {
+			l4g.Error("error json message: %s", err.Error())
+			res.Data.Err = data.ErrDataCorrupted
+			return
+		}
+		var ret string
+		err = nethelper.CallToHttpServer(url, "", string(b), &ret)
+		if err != nil {
+			l4g.Error("push http: %s", err.Error())
+			res.Data.Err = data.ErrPushSrvPushData
+			return
+		}
+
+		res.Data.Value.Message = ret
+	}()
+
 	l4g.Info("push:", req.Data.Argv.Message)
 }
