@@ -213,7 +213,7 @@ CREATE TABLE `transaction_status` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `asset_name` varchar(255) NOT NULL DEFAULT '',
   `hash` varchar(255) NOT NULL DEFAULT '',
-  `status` int(11) NOT NULL DEFAULT '0' COMMENT '0入块,1已确认,>=2错误状态',
+  `status` int(11) NOT NULL DEFAULT 0 COMMENT '0入块,1已确认,>=2错误状态',
   `confirm_height` bigint(20) DEFAULT NULL,
   `confirm_time` datetime DEFAULT NULL,
   `update_time` datetime NOT NULL,
@@ -237,6 +237,7 @@ CREATE TABLE `withdrawal_order` (
   `pay_fee` bigint(20) NOT NULL DEFAULT 0,
   `create_time` datetime NOT NULL, 
   `hash` varchar(255) DEFAULT NULL DEFAULT '',
+  `status` int(11) NOT NULL DEFAULT 0 COMMENT '0入块,1已确认,>=2错误状态',
   PRIMARY KEY (`order_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

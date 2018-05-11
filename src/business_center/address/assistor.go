@@ -181,8 +181,8 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 		if err == nil {
 			if len(transNotice.Hash) <= 0 {
 				db.Exec("update withdrawal_order set hash = ? where order_id = ?;", blockin.Hash, blockin.OrderID)
+				a.sendTransactionNotic(&transNotice)
 			}
-			a.sendTransactionNotic(&transNotice)
 		}
 	}
 
