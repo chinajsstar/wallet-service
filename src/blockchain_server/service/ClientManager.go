@@ -407,7 +407,11 @@ endfor:
 }
 
 func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
-	l4g.Trace("------------send transaction begin------------")
+	l4g.Trace(`
+------------send transaction begin------------
+Asset:%s , Crypted Key:%s
+TxInfo : %s`, txCmd.Coinname, txCmd.Chiperkey, txCmd.Tx.String() )
+
 	instance := self.clients[txCmd.Coinname]
 
 	// liuheng add

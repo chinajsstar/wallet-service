@@ -193,7 +193,7 @@ func (tx *Transfer)String() string {
 	}
 
 	return fmt.Sprintf(`
-	TX      %s
+	TxHash: %s
 	From:   %s
 	To:     %s
 	State:  %s

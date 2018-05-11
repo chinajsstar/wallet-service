@@ -21,6 +21,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
+	"fmt"
 )
 
 var (
@@ -128,14 +129,17 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 		return err
 	}
 
-	unspends, err := c.ListUnspentMinMaxAddresses(int(c.confirminationNumber), MaxConfiramtionNumber, ads)
+	unspends, err := c.ListUnspentMinMaxAddresses(0, MaxConfiramtionNumber, ads)
 	if err!=nil { return err }
 
 	amount, _ := utils.DecimalCvt_i_f(stx.Value, 8, 0).Float64()
 
-	var tmp_amount float64 = 0
-	var inputs []btcjson.TransactionInput
-	var change_amount float64
+	var (
+		tmp_amount = 0.0
+		change_amount = 0.0
+		unuseable = 0.0
+		inputs []btcjson.TransactionInput
+	)
 
 	// 循环utxo, 获取相应资金的utxo
 	// var rawTxInput []btcjson.RawTxInput
@@ -146,7 +150,13 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 
 	// 暂时使用 0.00015/bk 来计算矿工费, 小于1kb, 则提交0.00015
 	fee_estimat := 0.00015
+
 	for i, utxo := range unspends {
+		if uint64(utxo.Confirmations)<c.confirminationNumber {
+			unuseable += utxo.Amount
+			continue
+		}
+
 		tmp_amount += utxo.Amount
 		inputs = append(inputs, btcjson.TransactionInput{Txid: utxo.TxID, Vout: utxo.Vout})
 
@@ -164,7 +174,23 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 		}
 	}
 
-	if tmp_amount < (amount + fee_estimat) { return errors.New("Not enougth bitcoin to send!") }
+
+	if true {
+		l4g.Trace("list all unspend utxo!")
+		var allutxo float64 =0
+		for i, utxo := range unspends {
+			l4g.Trace("index:%d, address:%s, amount:%f", i, utxo.Address, utxo.Amount)
+			allutxo += utxo.Amount
+		}
+		l4g.Trace("\nTxInfomation: from:%s, to:%s, need:(%f + %f), have:%f",
+			stx.From, stx.To, amount, fee_estimat, allutxo)
+	}
+
+	if tmp_amount < (amount + fee_estimat) {
+		return fmt.Errorf("SendTx Not enougth bitcoin to send! Information:\n" +
+			"from:%s, to:%s, need:(%f + %f), have:(%f[confirmed] + %f[need to confirmed])",
+				stx.From, stx.To, amount, fee_estimat, tmp_amount, unuseable)
+	}
 
 	amounts := make(map[btcutil.Address]btcutil.Amount)
 

@@ -77,7 +77,7 @@ func main() {
 	defer cancel()
 
 	//*********批量创建账号示例*********/
-	if true {
+	if false {
 		accCmd := service.NewAccountCmd("message id", Coinname, 20)
 		var accs []*types.Account
 		accs, err = clientManager.NewAccounts(accCmd)
@@ -97,9 +97,9 @@ func main() {
 		go testWatchAddress(ctx, clientManager, Coinname, nil, watchaddress, done_watchaddress)
 	}else {i--}
 
-	if false {
+	if true {
 		go testSendTokenTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
-			nil, 1 * uint64(math.Pow10(8)), done_sendTx)
+			nil, uint64(0.2 * math.Pow10(8)), done_sendTx)
 	} else{i--}
 
 	//testGetBalance(clientManager, from_acc.Address, token)
