@@ -106,7 +106,7 @@ func SetPayAddress(assetName string, address string) error {
 func AddUserAddress(userAddress []UserAddress) error {
 	tx, err := Get().Begin()
 	if err != nil {
-		_, errMsg := CheckError(ErrorDataBase, err.Error())
+		_, errMsg := CheckError(ErrorFailed, err.Error())
 		l4g.Error(errMsg)
 		return err
 	}
@@ -121,7 +121,7 @@ func AddUserAddress(userAddress []UserAddress) error {
 			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
 		if err != nil {
 			tx.Rollback()
-			_, errMsg := CheckError(ErrorDataBase, err.Error())
+			_, errMsg := CheckError(ErrorFailed, err.Error())
 			l4g.Error(errMsg)
 			return err
 		}
@@ -130,7 +130,7 @@ func AddUserAddress(userAddress []UserAddress) error {
 	err = tx.Commit()
 	if err != nil {
 		tx.Rollback()
-		_, errMsg := CheckError(ErrorDataBase, err.Error())
+		_, errMsg := CheckError(ErrorFailed, err.Error())
 		l4g.Error(errMsg)
 		return err
 	}
