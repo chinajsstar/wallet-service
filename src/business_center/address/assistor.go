@@ -428,8 +428,6 @@ func (a *Address) sendTransactionNotic(t *TransactionNotice) error {
 	row := db.QueryRow("select msg_id from transaction_notice where id = ?;", insertID)
 	row.Scan(&t.MsgID)
 
-	//return nil
-
 	// push notify by liuheng
 	b, err := json.Marshal(t)
 	if err != nil {
