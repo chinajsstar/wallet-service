@@ -14,11 +14,11 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequestData
 	var res data.SrvResponseData
 
-	testType := 0
+	testType := 2
 	switch testType {
 	case 1:
 		req.Data.Method.Function = "new_address"
-		req.Data.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
 		req.Data.Argv.Message = "{\"asset_name\":\"btc\",\"count\":1}"
 	case 2:
 		time.Sleep(time.Second * 5)

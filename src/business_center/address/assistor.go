@@ -433,7 +433,9 @@ func (a *Address) sendTransactionNotic(t *TransactionNotice) error {
 	if err != nil {
 		log.Println("Push Error: json Marshal")
 	} else {
-		a.callback(t.UserKey, string(b))
+		if a.callback != nil {
+			a.callback(t.UserKey, string(b))
+		}
 	}
 	return nil
 }
