@@ -1,0 +1,11 @@
+{
+  "bastionpay":{
+    "url":"http://35.173.156.149:8082",
+    "pubkey_path":"test_bastionpay_public.pem"
+  },
+  "user":{
+    "user_key":"ca63dc7f-ba35-4b73-8dc5-642b726cdfe3",
+    "pubkey_path":"public_user.pem",
+    "privkey_path":"private_user.pem"
+  }
+}
