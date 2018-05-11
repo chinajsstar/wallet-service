@@ -118,6 +118,7 @@ CREATE TABLE `asset_property` (
 -- ----------------------------
 INSERT asset_property (asset_name, full_name) VALUES ('btc', 'Bitcoin');
 INSERT asset_property (asset_name, full_name) VALUES ('eth', 'Ethereum');
+INSERT asset_property (asset_name, full_name, is_token, parent_name) VALUES ('ZToken', 'ZToken', 1, 'eth')
 
 -- ----------------------------
 -- Table structure for `user_address`

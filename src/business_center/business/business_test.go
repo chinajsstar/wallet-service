@@ -24,7 +24,7 @@ func TestHandleMsg(t *testing.T) {
 		time.Sleep(time.Second * 5)
 		req.Data.Method.Function = "withdrawal"
 		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Data.Argv.Message = "{\"asset_name\":\"btc\",\"amount\":0.12,\"address\":\"2N1qQLQrgsUqaARky3QnLsDkqnbP8qVZy5P\"}"
+		req.Data.Argv.Message = "{\"asset_name\":\"btc\",\"amount\":1, \"address\":\"2N1qQLQrgsUqaARky3QnLsDkqnbP8qVZy5P\"}"
 	case 3:
 		req.Data.Method.Function = "query_user_address"
 		req.Data.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"

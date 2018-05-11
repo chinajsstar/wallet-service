@@ -455,67 +455,6 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequestData, res *data.
 	return nil
 }
 
-func (a *Address) QueryAssetProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	resMap := responsePagination(nil, mysqlpool.QueryAssetPropertyCount(nil))
-	assetProperty, _ := mysqlpool.QueryAssetProperty(nil)
-	resMap["data"] = assetProperty
-
-	res.Data.Value.Message = responseJson(resMap)
-	res.Data.Err = 0
-	res.Data.ErrMsg = ""
-	return nil
-}
-
-func (a *Address) QueryUserProperty(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	resMap := responsePagination(nil, mysqlpool.QueryUserPropertyCount(nil))
-	userProperty, _ := mysqlpool.QueryUserProperty(nil)
-	resMap["data"] = userProperty
-
-	res.Data.Value.Message = responseJson(resMap)
-	res.Data.Err = 0
-	res.Data.ErrMsg = ""
-	return nil
-}
-
-func (a *Address) QueryUserAccount(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
-	if !ok {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
-		l4g.Error(res.Data.ErrMsg)
-		return errors.New(res.Data.ErrMsg)
-	}
-
-	queryMap := make(map[string]interface{})
-	params, err := jsonparse.Parse(req.Data.Argv.Message)
-	if err != nil {
-		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
-		l4g.Error(res.Data.ErrMsg)
-		return errors.New(res.Data.ErrMsg)
-	}
-
-	if userProperty.UserClass == 1 {
-		if value, ok := params.UserKey(); ok {
-			queryMap["user_key"] = value
-		}
-
-	} else {
-		queryMap["user_key"] = req.Data.Argv.UserKey
-	}
-
-	if value, ok := params.AssetName(); ok {
-		queryMap["asset_name"] = value
-	}
-
-	resMap := responsePagination(nil, mysqlpool.QueryUserAccountCount(queryMap))
-	userAccount, _ := mysqlpool.QueryUserAccount(queryMap)
-	resMap["data"] = userAccount
-
-	res.Data.Value.Message = responseJson(resMap)
-	res.Data.Err = 0
-	res.Data.ErrMsg = ""
-	return nil
-}
-
 func (a *Address) QueryUserAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
 	if !ok {
