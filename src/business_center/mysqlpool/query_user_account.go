@@ -75,7 +75,7 @@ func AddUserAccount(userKey string, userClass int, assetName string) error {
 		row := db.QueryRow("select count(*) from user_account where user_key = ? and asset_name = ?;", userKey, assetName)
 		err := row.Scan(&count)
 		if err != nil {
-			_, errMsg := CheckError(ErrorDataBase, err.Error())
+			_, errMsg := CheckError(ErrorFailed, err.Error())
 			l4g.Error(errMsg)
 			return err
 		}

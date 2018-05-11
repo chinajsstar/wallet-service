@@ -21,7 +21,7 @@ func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *Ass
 	for i := 0; i < count; i++ {
 		accounts, err := a.wallet.NewAccounts(cmd)
 		if err != nil {
-			CheckError(ErrorWallet, err.Error())
+			CheckError(ErrorFailed, err.Error())
 			return []UserAddress{}
 		}
 		nowTM := time.Now().Unix()
@@ -43,7 +43,7 @@ func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *Ass
 		cmd := service.NewRechargeAddressCmd("", assetProperty.AssetName, []string{data.Address})
 		err = a.wallet.InsertRechargeAddress(cmd)
 		if err != nil {
-			CheckError(ErrorWallet, err.Error())
+			CheckError(ErrorFailed, err.Error())
 			return []UserAddress{}
 		}
 		userAddress = append(userAddress, data)
@@ -181,8 +181,8 @@ func (a *Address) transactionBegin(blockin *TransactionBlockin, transfer *types.
 		if err == nil {
 			if len(transNotice.Hash) <= 0 {
 				db.Exec("update withdrawal_order set hash = ? where order_id = ?;", blockin.Hash, blockin.OrderID)
+				a.sendTransactionNotic(&transNotice)
 			}
-			a.sendTransactionNotic(&transNotice)
 		}
 	}
 

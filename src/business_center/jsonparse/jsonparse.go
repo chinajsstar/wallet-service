@@ -10,10 +10,10 @@ type JsonParse struct {
 	jsonValue interface{}
 }
 
-func Parse(data string) *JsonParse {
+func Parse(data string) (*JsonParse, error) {
 	p := new(JsonParse)
-	json.Unmarshal([]byte(data), &p.jsonValue)
-	return p
+	err := json.Unmarshal([]byte(data), &p.jsonValue)
+	return p, err
 }
 
 func (p *JsonParse) UserKey() (string, bool) {
