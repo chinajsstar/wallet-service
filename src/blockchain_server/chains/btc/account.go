@@ -58,10 +58,10 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 	l4g.Trace("Bitcoin Create new child new account (from:%d, to:%d)", index_from, index_to)
 
 	for i:=index_from; i<index_to; i++ {
-		if childpub, err := c.key_settings.Ext_pub.Child(index_from + i); err==nil {
+		if childpub, err := c.key_settings.Ext_pub.Child(i); err==nil {
 
 			if config.Debugmode {
-				childpri, _ := c.key_settings.Ext_pri.Child(index_from + i)
+				childpri, _ := c.key_settings.Ext_pri.Child(i)
 
 				childpri.SetNet(c.chain_params)
 				depth := childpri.Depth()
@@ -83,7 +83,9 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 				return nil, err
 			} else {
 				if key, err := indexToKey(i, 64, index_prefix); err==nil {
-					accs[ i-index_from ] = &types.Account{Address:hash.String(), PrivateKey:key}
+					//itmp, _ := keyToIndex(key, index_prefix)
+					//l4g.Trace("child index = %d", itmp)
+					accs[ i-index_from ] = &types.Account{Address:hash.EncodeAddress(), PrivateKey:key}
 				} else {
 					l4g.Error("BTC Convert index to child 'private key' faild, message:%s", err.Error())
 					return nil, err
