@@ -35,6 +35,7 @@ func RegisterApi(nap *map[string]NodeApi, name string, level int, handler NodeAp
 }
 type NodeApiGroup interface {
 	GetApiGroup()(map[string]NodeApi)
+ 	HandleNotify(req *data.SrvRequestData)
 }
 
 // service node
@@ -54,6 +55,9 @@ type ServiceNode struct{
 	// connection to center
 	rwmu sync.RWMutex
 	client *rpc2.Client
+
+	// handler
+	nodeApiGroup NodeApiGroup
 }
 
 // New a service node
@@ -77,10 +81,12 @@ func NewServiceNode(confPath string) (*ServiceNode, error){
 
 // register api group
 func RegisterNodeApi(ni *ServiceNode, nodeApiGroup NodeApiGroup) {
+	ni.nodeApiGroup = nodeApiGroup
 	if(nodeApiGroup == nil){
 		return
 	}
-	nam := nodeApiGroup.GetApiGroup()
+
+	nam := ni.nodeApiGroup.GetApiGroup()
 
 	for k, v := range nam{
 		if ni.apiHandler[k] != nil {
@@ -115,6 +121,17 @@ func (ni *ServiceNode) call(client *rpc2.Client, req *data.SrvRequestData, res *
 	return nil
 }
 
+// RPC -- call
+func (ni *ServiceNode) notify(client *rpc2.Client, req *data.SrvRequestData, res *data.SrvResponseData) error {
+	l4g.Info("got notify:", req.Data.Method)
+
+	if ni.nodeApiGroup != nil {
+		ni.nodeApiGroup.HandleNotify(req)
+	}
+
+	return nil
+}
+
 // inner call a request to router
 func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *api.UserResponseData) error {
 	ni.rwmu.RLock()
@@ -123,6 +140,20 @@ func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *api.UserRespons
 	var err error
 	if ni.client != nil {
 		err = ni.client.Call(data.MethodCenterInnerCall, req, res)
+	}else{
+		err = errors.New("client is nil")
+	}
+	return err
+}
+
+// inner notify a request to router
+func (ni *ServiceNode) InnerNotify(req *data.UserRequestData, res *api.UserResponseData) error {
+	ni.rwmu.RLock()
+	defer ni.rwmu.RUnlock()
+
+	var err error
+	if ni.client != nil {
+		err = ni.client.Notify(data.MethodCenterInnerNotify, req)
 	}else{
 		err = errors.New("client is nil")
 	}
@@ -195,6 +226,7 @@ func (ni *ServiceNode)startToCenter(ctx context.Context) {
 						if ni.client != nil && err == nil {
 							l4g.Info("client connect to center...")
 							ni.client.Handle(data.MethodNodeCall, ni.call)
+							ni.client.Handle(data.MethodNodeNotify, ni.notify)
 
 							go ni.client.Run()
 

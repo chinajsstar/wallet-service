@@ -126,6 +126,10 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 	return nam
 }
 
+func (x *Cobank)HandleNotify(req *data.SrvRequestData){
+	l4g.Info("HandleNotify-reloadUserLevel: do nothing")
+}
+
 func (x *Cobank) handler(req *data.SrvRequestData, res *data.SrvResponseData) {
 	res.Data.Err = data.NoErr
 

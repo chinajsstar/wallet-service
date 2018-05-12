@@ -14,9 +14,13 @@ import (
 	"sync"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
+	"bastionpay_api/api/v1"
+	"encoding/json"
 )
 
 type Auth struct{
+	node *service.ServiceNode
+
 	privateKey []byte
 
 	rwmu     sync.RWMutex
@@ -29,13 +33,14 @@ func AuthInstance() *Auth{
 	return defaultAuth
 }
 
-func (auth * Auth)Init(dir string) {
+func (auth * Auth)Init(dir string, node *service.ServiceNode) {
 	var err error
 	auth.privateKey, err = ioutil.ReadFile(dir + "/"+ config.BastionPayPrivateKey)
 	if err != nil {
 		l4g.Crashf("", err)
 	}
 
+	auth.node = node
 	auth.usersLevel = make(map[string]*db.UserLevel)
 }
 
@@ -67,6 +72,18 @@ func (auth * Auth)getUserLevel(userKey string) (*db.UserLevel, error)  {
 	}()
 }
 
+func (auth * Auth)reloadUserLevel(userKey string) (*db.UserLevel, error)  {
+	auth.rwmu.Lock()
+	defer auth.rwmu.Unlock()
+
+	ul, err := db.ReadUserLevel(userKey)
+	if err != nil {
+		return nil, err
+	}
+	auth.usersLevel[userKey] = ul
+	return ul, nil
+}
+
 func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
@@ -81,6 +98,26 @@ func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 	}()
 
 	return nam
+}
+
+func (auth * Auth)HandleNotify(req *data.SrvRequestData){
+	if req.Data.Method.Srv == "account" && req.Data.Method.Function == "updateprofile" {
+		reqUpdateProfile := v1.ReqUserUpdateProfile{}
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateProfile)
+		if err != nil {
+			l4g.Error("HandleNotify-Unmarshal: %s", err.Error())
+			return
+		}
+
+		// reload profile
+		ndata, err := auth.reloadUserLevel(reqUpdateProfile.UserKey)
+		if err != nil {
+			l4g.Error("HandleNotify-reloadUserLevel: %s", err.Error())
+			return
+		}
+
+		l4g.Info("HandleNotify-reloadUserLevel: ", ndata)
+	}
 }
 
 // 验证数据
