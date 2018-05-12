@@ -19,6 +19,7 @@ import (
 	"errors"
 	"api_router/base/config"
 	"bastionpay_api/api"
+	"bastionpay_api/apigroup"
 )
 
 const (
@@ -166,7 +167,7 @@ func sendPostData(addr, message, version, srv, function string) (*api.UserRespon
 
 ////////////////////////////////////////////////////////////////////////////////
 type Web struct{
-	nodes []*data.SrvRegisterData
+	nodes []*v1.SrvRegisterData
 
 	loginUsers map[string]interface{}
 }
@@ -300,20 +301,27 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 	srvname := vv.Get("srv")
 	vername := vv.Get("ver")
 
-	srvNode := data.SrvRegisterData{}
-	for _, v := range self.nodes {
-		if v.Srv == srvname && v.Version == vername{
-			srvNode = *v
-			break
-		}
+	apiGroup, err := apigroup.ListApiGroupBySrv(vername, srvname)
+	if err != nil {
+		w.Write([]byte("获取API失败"))
+		return
 	}
+	fmt.Println(apiGroup)
+
+	//srvNode := data.SrvRegisterData{}
+	//for _, v := range self.nodes {
+	//	if v.Srv == srvname && v.Version == vername{
+	//		srvNode = *v
+	//		break
+	//	}
+	//}
 
 	t, err := template.ParseFiles("template/html/getapi.html")
 	if err != nil {
 		return
 	}
 
-	t.Execute(w, srvNode)
+	t.Execute(w, apiGroup)
 	return
 }
 

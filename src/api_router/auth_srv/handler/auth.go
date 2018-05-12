@@ -72,14 +72,12 @@ func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 
 	func(){
 		service.RegisterApi(&nam,
-			"authdata", data.APILevel_client, auth.AuthData,
-			"验证解密数据", "", "", "")
+			"authdata", data.APILevel_client, auth.AuthData)
 	}()
 
 	func(){
 		service.RegisterApi(&nam,
-			"encryptdata", data.APILevel_client, auth.EncryptData,
-			"加密签名数据", "", "", "")
+			"encryptdata", data.APILevel_client, auth.EncryptData)
 	}()
 
 	return nam

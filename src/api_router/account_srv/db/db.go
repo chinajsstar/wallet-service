@@ -177,7 +177,7 @@ func ListUsers(id int, num int) (*v1.AckUserList, error) {
 			continue
 		}
 
-		ul.Users = append(ul.Users, up)
+		*ul = append(*ul, up)
 	}
 
 	if r.Err() != nil {

@@ -3,29 +3,24 @@
         </head>  
         <body>  
             <div>
-                {{with .}}
-                {{$srvname := .Srv}}
-                {{$srvversion := .Version}}
-                <p>{{.Srv}}--{{.Version}}<p>  
-                        <ul>
-                            {{range .ApiDocs}}
-                                <li>
-                                    <p>
-                                        API名称: {{.Name}} API权限: {{.Level}}
-                                    </p>
-                                    <p>说明：{{.Doc}}</p>
-                                    <div>输入：{{.InComment}}</div>
-                                    <div>输出：{{.OutComment}}</div>
-                                    <p>测试示例：</p>
-                                    <form action="/runapi?srv={{$srvname}}&ver={{$srvversion}}&func={{.Name}}" method="POST">  
-                                        <input style="width:100%" type="text" name="argv" value={{.Example}}></input><br/>  
-                                        <input type="submit" value="submit"/>  
-                                    </form>
-                                </li>
-                                <br/>  
-                            {{end}}  
-                        </ul>
-                {{end}}
+                <ul>
+                    {{range .}}
+                        <li>
+                            <p> 服务名称: {{.ApiDocInfo.SrvName}} 服务版本: {{.ApiDocInfo.VerName}} </p>
+                            <p> 方法名称: {{.ApiDocInfo.FuncName}} 方法权限: {{.ApiDocInfo.Level}} </p>
+                            <p>说明：{{.ApiDocInfo.Comment}}</p>
+                            <p>路径：{{.ApiDocInfo.Path}}</p>
+                            <div>输入：{{.ApiDocInfo.InputComment}}</div>
+                            <div>输出：{{.ApiDocInfo.OutputComment}}</div>
+                            <p>测试示例：</p>
+                            <form action="/runapi?srv={{.ApiDocInfo.SrvName}}&ver={{.ApiDocInfo.VerName}}&func={{.ApiDocInfo.FuncName}}" method="POST">
+                                <input style="width:100%" type="text" name="argv" value={{.ApiDocInfo.Example}}></input><br/>
+                                <input type="submit" value="submit"/>
+                            </form>
+                        </li>
+                        <br/>
+                    {{end}}
+                </ul>
             </div>  
         </body>  
 </html>

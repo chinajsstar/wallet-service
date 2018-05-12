@@ -29,30 +29,6 @@ const(
 	APILevel_genesis = 200
 )
 
-// API doc
-type ApiDoc struct{
-	Name 		string 	`json:"name"`    	// api name
-	Level 		int		`json:"level"`		// api level, refer APILevel_*
-	Doc 		string 	`json:"doc"`    	// api doc
-	Example 	string  `json:"example"`	// api example string
-	InComment 	string  `json:"incomment"`	// api input comment string
-	OutComment 	string  `json:"outcomment"`	// api output comment string
-}
-
-// API info
-type ApiInfo struct{
-	Name 	string 	`json:"name"`    	// api name
-	Level 	int		`json:"level"`		// api level, refer APILevel_*
-}
-
-// register data
-type SrvRegisterData struct {
-	Version      string `json:"version"`    // srv version
-	Srv          string `json:"srv"`		// srv name
-	Functions []ApiInfo `json:"functions"`  // srv functions
-	ApiDocs    []ApiDoc `json:"apidocs"`  	// srv apidocs
-}
-
 // srv context
 type SrvContext struct{
 	ApiLever int `json:"apilevel"`	// api info level
@@ -79,8 +55,4 @@ type SrvResponseData struct{
 //////////////////////////////////////////////////////////////////////
 func (urd UserRequestData)String() string {
 	return fmt.Sprintf("%s %s-%s-%s", urd.Argv.UserKey, urd.Method.Srv, urd.Method.Version, urd.Method.Function)
-}
-
-func (srd SrvRegisterData)String() string {
-	return fmt.Sprintf("%s-%s", srd.Srv, srd.Version)
 }

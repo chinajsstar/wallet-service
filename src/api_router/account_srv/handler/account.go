@@ -43,39 +43,23 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func(){
-		input := v1.ReqUserRegister{}
-		output := v1.AckUserRegister{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"register", data.APILevel_genesis, s.Register,
-			"注册用户", string(b), input, output)
+			"register", data.APILevel_genesis, s.Register)
 	}()
 
 	func(){
-		input := v1.ReqUserUpdateProfile{}
-		output := v1.AckUserUpdateProfile{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"updateprofile", data.APILevel_admin, s.UpdateProfile,
-			"更新开发者配置信息", string(b), input, output)
+			"updateprofile", data.APILevel_admin, s.UpdateProfile)
 	}()
 
 	func(){
-		input := v1.ReqUserReadProfile{}
-		output := v1.AckUserReadProfile{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"readprofile", data.APILevel_admin, s.ReadProfile,
-			"读取开发者配置信息", string(b), input, output)
+			"readprofile", data.APILevel_admin, s.ReadProfile)
 	}()
 
 	func(){
-		input := v1.ReqUserList{}
-		output := v1.AckUserList{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"listusers", data.APILevel_admin, s.ListUsers,
-			"列出所有用户", string(b), input, output)
+			"listusers", data.APILevel_admin, s.ListUsers)
 
 	}()
 

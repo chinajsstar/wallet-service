@@ -62,7 +62,15 @@ func space(level int) string {
 	return out
 }
 
-func FieldTag(v reflect.Value, level int) string {
+func FieldTag(v interface{}, level int) string {
+	if v == nil {
+		return ""
+	}
+
+	return fieldFormat(reflect.ValueOf(v), level)
+}
+
+func fieldFormat(v reflect.Value, level int) string {
 	t := v.Type()
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -78,7 +86,7 @@ func FieldTag(v reflect.Value, level int) string {
 				continue
 			}
 			out += space(level+1) + tagJson + "--(" + t.Field(i).Tag.Get("comment") + ") "
-			out += FieldTag(v.Field(i), level + 1)
+			out += fieldFormat(v.Field(i), level + 1)
 			out += "\n"
 		}
 		out += space(level) + "}"
@@ -87,7 +95,7 @@ func FieldTag(v reflect.Value, level int) string {
 		out += space(level) + "[\n"
 		for i := 0; i < n; i++ {
 			rs := v.Index(i)
-			out += FieldTag(rs, level + 1)
+			out += fieldFormat(rs, level + 1)
 			out += "\n"
 		}
 		out += space(level) + "]"
@@ -95,10 +103,10 @@ func FieldTag(v reflect.Value, level int) string {
 		ks := v.MapKeys()
 		out += "{\n"
 		for i := 0; i < len(ks); i++ {
-			out += FieldTag(ks[i], level + 1)
+			out += fieldFormat(ks[i], level + 1)
 			out += ":"
 			key := v.MapIndex(ks[i])
-			out += FieldTag(key, level + 1)
+			out += fieldFormat(key, level + 1)
 		}
 		out += "\n}"
 	}else{

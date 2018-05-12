@@ -60,8 +60,7 @@ func (push * Push)GetApiGroup()(map[string]service.NodeApi){
 
 	func(){
 		service.RegisterApi(&nam,
-			"pushdata", data.APILevel_client, push.PushData,
-			"推送数据", "", "", "")
+			"pushdata", data.APILevel_client, push.PushData)
 	}()
 
 	return nam

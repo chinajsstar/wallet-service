@@ -6,11 +6,12 @@ import (
 	"sync/atomic"
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
+	"bastionpay_api/api/v1"
 )
 
 // service node group
 type SrvNodeGroup struct{
-	registerData data.SrvRegisterData 	// register data
+	registerData v1.SrvRegisterData 	// register data
 
 	rwmu sync.RWMutex					// read/write lock
 	index int64							// index for use
@@ -18,7 +19,7 @@ type SrvNodeGroup struct{
 }
 
 // register a service node
-func (sng *SrvNodeGroup) RegisterNode(client *rpc2.Client, reg *data.SrvRegisterData) error {
+func (sng *SrvNodeGroup) RegisterNode(client *rpc2.Client, reg *v1.SrvRegisterData) error {
 	sng.rwmu.Lock()
 	defer sng.rwmu.Unlock()
 
@@ -26,7 +27,7 @@ func (sng *SrvNodeGroup) RegisterNode(client *rpc2.Client, reg *data.SrvRegister
 
 	sng.nodes = append(sng.nodes, client)
 
-	l4g.Debug("reg-%s, all-%d", reg.String(), len(sng.nodes))
+	l4g.Debug("reg-%s.%s, all-%d", reg.Version, reg.Srv, len(sng.nodes))
 	return nil
 }
 
@@ -42,11 +43,11 @@ func (sng *SrvNodeGroup) UnRegisterNode(client *rpc2.Client) error {
 		}
 	}
 
-	l4g.Debug("unreg-%s, all-%d", sng.registerData.String(), len(sng.nodes))
+	l4g.Debug("unreg-%s.%s, all-%d", sng.registerData.Version, sng.registerData.Srv, len(sng.nodes))
 	return nil
 }
 
-func (sng *SrvNodeGroup) GetSrvInfo() (data.SrvRegisterData) {
+func (sng *SrvNodeGroup) GetSrvInfo() (v1.SrvRegisterData) {
 	sng.rwmu.RLock()
 	defer sng.rwmu.RUnlock()
 

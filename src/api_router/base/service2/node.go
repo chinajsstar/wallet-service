@@ -11,33 +11,25 @@ import (
 	"errors"
 	"net"
 	l4g "github.com/alecthomas/log4go"
-	"reflect"
 	"github.com/cenkalti/rpc2"
-	"bastionpay_api/utils"
 	"bastionpay_api/api"
+	"bastionpay_api/api/v1"
 )
 
 // node api interface
 type NodeApiHandler func(req *data.SrvRequestData, res *data.SrvResponseData)
 type NodeApi struct{
-	ApiInfo 	data.ApiInfo
-	ApiDoc 		data.ApiDoc
+	ApiInfo 	v1.ApiInfo
 	ApiHandler 	NodeApiHandler
 }
 
-func RegisterApi(nap *map[string]NodeApi, name string, level int, handler NodeApiHandler,
-	doc, example string, input, output interface{}) error {
+func RegisterApi(nap *map[string]NodeApi, name string, level int, handler NodeApiHandler) error {
 	if _, ok := (*nap)[name]; ok {
 		return errors.New("function exist")
 	}
 
-	apiInfo := data.ApiInfo{Name:name, Level:level}
-
-	incomment := utils.FieldTag(reflect.ValueOf(input), 0)
-	outcomment := utils.FieldTag(reflect.ValueOf(output), 0)
-	apiDoc := data.ApiDoc{Name:name, Level:level, Doc:doc, Example:example, InComment:incomment, OutComment:outcomment}
-
-	(*nap)[name] = NodeApi{ApiHandler:handler, ApiInfo:apiInfo, ApiDoc:apiDoc}
+	apiInfo := v1.ApiInfo{Name:name, Level:level}
+	(*nap)[name] = NodeApi{ApiHandler:handler, ApiInfo:apiInfo}
 
 	return nil
 }
@@ -48,7 +40,7 @@ type NodeApiGroup interface {
 // service node
 type ServiceNode struct{
 	// register data
-	registerData data.SrvRegisterData
+	registerData v1.SrvRegisterData
 
 	// callback
 	apiHandler map[string]*NodeApi
@@ -96,7 +88,6 @@ func RegisterNodeApi(ni *ServiceNode, nodeApiGroup NodeApiGroup) {
 		}
 		ni.apiHandler[k] = &NodeApi{ApiInfo:v.ApiInfo, ApiHandler:v.ApiHandler}
 		ni.registerData.Functions = append(ni.registerData.Functions, v.ApiInfo)
-		ni.registerData.ApiDocs = append(ni.registerData.ApiDocs, v.ApiDoc)
 	}
 }
 
@@ -251,6 +242,6 @@ func (ni *ServiceNode)startToCenter(ctx context.Context) {
 
 		<-ctx.Done()
 		ni.unRegistToCenter()
-		l4g.Info("UnRegist to center ok %s", ni.registerData.String())
+		l4g.Info("UnRegist to center ok %s.%s", ni.registerData.Version, ni.registerData.Srv)
 	}()
 }

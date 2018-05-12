@@ -9,7 +9,6 @@ import (
 	"bastionpay_api/api"
 	"bastionpay_api/utils"
 	"bastionpay_api/gateway"
-	"reflect"
 	"bastionpay_api/apigroup"
 )
 
@@ -26,8 +25,8 @@ func usage()  {
 	fmt.Println("		call api with json message")
 	fmt.Println(">apitest srv function jsonmessage")
 	fmt.Println("		call apitest with json message")
-	fmt.Println(">apidoc [name]")
-	fmt.Println("		list all apis path or by name")
+	fmt.Println(">apidoc [ver srv function]")
+	fmt.Println("		list all apis path or by ver srv funcion")
 	fmt.Println(">help")
 	fmt.Println("		print this")
 }
@@ -135,58 +134,87 @@ func main()  {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "apidoc"{
-			var name string
+			var ver string
+			var srv string
+			var function string
 			if len(argv) > 1{
-				name = argv[1]
+				ver = argv[1]
+			}
+			if len(argv) > 2{
+				srv = argv[2]
+			}
+			if len(argv) > 3{
+				function = argv[3]
 			}
 
-			if name == "" {
+			if ver == "" && srv == ""{
 				var index = 1
-				apiAll := apigroup.ListAllApiDocHandlers()
-				for name, apiProxy := range apiAll{
+				apiAll := apigroup.ListApiGroup()
+				for srv, apiGroup := range apiAll {
 					fmt.Println("---------------------")
-					fmt.Println(index, ")")
-					fmt.Println("标示名称：")
-					fmt.Println(name)
-					fmt.Println("说明：")
-					fmt.Println(apiProxy.Help().Name)
-					fmt.Println("---------------------")
+					fmt.Println("服务：")
+					fmt.Println(srv)
+					var subIndex = 1
+					for _, apiProxy := range apiGroup{
+						fmt.Println("---------------------")
+						fmt.Println(index, ".", subIndex, ")")
+						fmt.Println("方法：")
+						fmt.Println(apiProxy.Help().FuncName)
+						fmt.Println("说明：")
+						fmt.Println(apiProxy.Help().Comment)
+						fmt.Println("---------------------")
+						subIndex++
+					}
+
 					index++
 				}
-			} else {
-				apiProxy, err := apigroup.FindApiDocHandler(name)
+
+			} else if function == ""{
+				var index = 1
+				apiGroup, err := apigroup.ListApiGroupBySrv(ver, srv)
 				if err != nil {
-					fmt.Println("not find api")
+					fmt.Println("not find srv: ", err)
 					continue
 				}
 				fmt.Println("---------------------")
-				fmt.Println("标示名称：")
-				fmt.Println(name)
-				fmt.Println("说明：")
-				fmt.Println(apiProxy.Help().Name)
+				fmt.Println("服务：")
+				fmt.Println(srv)
+				for _, apiProxy := range apiGroup{
+					fmt.Println("---------------------")
+					fmt.Println(index, ")")
+					fmt.Println("方法：")
+					fmt.Println(apiProxy.Help().FuncName)
+					fmt.Println("说明：")
+					fmt.Println(apiProxy.Help().Comment)
+					fmt.Println("---------------------")
+					index++
+				}
+			}else {
+				apiProxy, err := apigroup.FindApiBySrvFunction(ver, srv, function)
+				if err != nil {
+					fmt.Println("not find function: ", err)
+					continue
+				}
+				fmt.Println("---------------------")
+				fmt.Println("版本：")
+				fmt.Println(apiProxy.Help().VerName)
+				fmt.Println("服务：")
+				fmt.Println(apiProxy.Help().SrvName)
+				fmt.Println("方法：")
+				fmt.Println(apiProxy.Help().FuncName)
 				fmt.Println("备注：")
 				fmt.Println(apiProxy.Help().Comment)
 				fmt.Println("路径：")
 				fmt.Println(apiProxy.Help().Path)
-				fmt.Println("示例：")
-				example, _ := json.Marshal(apiProxy.Help().Input)
-				fmt.Println(string(example))
 
 				fmt.Println("输入：")
-				if apiProxy.Help().Input == nil{
-					fmt.Println("null")
-				} else{
-					input := utils.FieldTag(reflect.ValueOf(apiProxy.Help().Input), 0)
-					fmt.Println(input)
-				}
+				fmt.Println(apiProxy.Help().InputComment)
 
 				fmt.Println("输出：")
-				if apiProxy.Help().Output == nil{
-					fmt.Println("")
-				} else{
-					output := utils.FieldTag(reflect.ValueOf(apiProxy.Help().Output), 0)
-					fmt.Println(output)
-				}
+				fmt.Println(apiProxy.Help().OutputComment)
+
+				fmt.Println("示例：")
+				fmt.Println(apiProxy.Help().Example)
 
 				fmt.Println("---------------------")
 			}
