@@ -16,7 +16,11 @@ import (
 )
 
 func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *AssetProperty, count int) []UserAddress {
-	cmd := service.NewAccountCmd("", assetProperty.AssetName, 1)
+	assetName := assetProperty.AssetName
+	if assetProperty.IsToken > 0 {
+		assetName = assetProperty.ParentName
+	}
+	cmd := service.NewAccountCmd("", assetName, 1)
 	userAddress := make([]UserAddress, 0)
 	for i := 0; i < count; i++ {
 		accounts, err := a.wallet.NewAccounts(cmd)
@@ -40,7 +44,7 @@ func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *Ass
 		}
 
 		//添加地址监控
-		cmd := service.NewRechargeAddressCmd("", assetProperty.AssetName, []string{data.Address})
+		cmd := service.NewRechargeAddressCmd("", assetName, []string{data.Address})
 		err = a.wallet.InsertRechargeAddress(cmd)
 		if err != nil {
 			CheckError(ErrorFailed, err.Error())
@@ -69,7 +73,16 @@ func (a *Address) recvRechargeTxChannel() {
 			select {
 			case rct := <-channel:
 				{
-					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(rct.Coin_name)
+					if rct.Err != nil {
+						continue
+					}
+
+					assetName := rct.Coin_name
+					if rct.Tx.IsTokenTx() {
+						assetName = rct.Tx.Token.Symbol
+					}
+
+					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
 					if !ok {
 						continue
 					}
@@ -119,7 +132,17 @@ func (a *Address) recvCmdTxChannel() {
 			select {
 			case cmdTx := <-channel:
 				{
-					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(cmdTx.Coinname)
+					if cmdTx.Error.Code != 0 {
+						l4g.Error("%s", cmdTx.Error.Message)
+						continue
+					}
+
+					assetName := cmdTx.Coinname
+					if cmdTx.Tx.IsTokenTx() {
+						assetName = cmdTx.Tx.Token.Symbol
+					}
+
+					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
 					if !ok {
 						continue
 					}

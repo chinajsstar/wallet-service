@@ -12,12 +12,12 @@ import (
 	"business_center/def"
 	"business_center/mysqlpool"
 	"encoding/json"
+	"fmt"
 	l4g "github.com/alecthomas/log4go"
+	"os/exec"
+	"strconv"
 	"strings"
 	"time"
-	"os/exec"
-	"fmt"
-	"strconv"
 )
 
 type Cobank struct {
@@ -116,6 +116,12 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 			"设置热钱包地址", "", "", "")
 	}()
 
+	func() {
+		service.RegisterApi(&nam,
+			"query_pay_address", data.APILevel_client, x.handler,
+			"查询热钱包地址及余额", "", "", "")
+	}()
+
 	////////////////////////////////////////////////////////////////
 	// 以下方法liuheng添加测试
 	func() {
@@ -205,16 +211,16 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 		if err != nil {
 			res.Data.Err = 1
 			res.Data.ErrMsg = err.Error()
-		}else{
+		} else {
 			fmt.Println("cmd: ", cmd)
 			c := exec.Command(cmd, "-conf=/data/btc_data/bitcoin.conf", "sendtoaddress", rc.To, strconv.FormatUint(rc.Value, 10))
-			if c != nil{
+			if c != nil {
 				if err := c.Run(); err != nil {
 					fmt.Println(err)
 					res.Data.Err = 1
 					res.Data.ErrMsg = err.Error()
 				}
-			}else{
+			} else {
 				res.Data.Err = 1
 				res.Data.ErrMsg = "no bitcoin-cli command"
 			}
@@ -227,8 +233,9 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 // 模拟充值
 type Generate struct {
 	Coin  string `json:"coin"`
-	Count int `json:"count"`
+	Count int    `json:"count"`
 }
+
 func (x *Cobank) generate(req *data.SrvRequestData, res *data.SrvResponseData) {
 	res.Data.Err = data.NoErr
 
@@ -249,16 +256,16 @@ func (x *Cobank) generate(req *data.SrvRequestData, res *data.SrvResponseData) {
 		if err != nil {
 			res.Data.Err = 1
 			res.Data.ErrMsg = err.Error()
-		}else{
+		} else {
 			fmt.Println("cmd: ", cmd)
 			c := exec.Command(cmd, "-conf=/data/btc_data/bitcoin.conf", "generate", strconv.Itoa(rc.Count))
-			if c != nil{
+			if c != nil {
 				if err := c.Run(); err != nil {
 					fmt.Println(err)
 					res.Data.Err = 1
 					res.Data.ErrMsg = err.Error()
 				}
-			}else{
+			} else {
 				res.Data.Err = 1
 				res.Data.ErrMsg = "no bitcoin-cli command"
 			}
