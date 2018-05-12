@@ -174,7 +174,7 @@ func (a *Address) Withdrawal(req *data.SrvRequestData, res *data.SrvResponseData
 		return errors.New(res.Data.ErrMsg)
 	}
 
-	userAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetName)
+	userAddress, ok := mysqlpool.QueryPayAddress([]string{assetProperty.AssetName})
 	if !ok {
 		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "没有设置可用的热钱包")
 		l4g.Error(res.Data.ErrMsg)
@@ -535,5 +535,35 @@ func (a *Address) SetPayAddress(req *data.SrvRequestData, res *data.SrvResponseD
 		l4g.Error(res.Data.ErrMsg)
 		return errors.New(res.Data.ErrMsg)
 	}
+	return nil
+}
+
+func (a *Address) QueryPayAddress(req *data.SrvRequestData, res *data.SrvResponseData) error {
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Data.Argv.UserKey)
+	if !ok {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Data.Argv.UserKey)
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	if userProperty.UserClass != 1 {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, "此不能操作此命令")
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	params, err := jsonparse.Parse(req.Data.Argv.Message)
+	if err != nil {
+		res.Data.Err, res.Data.ErrMsg = CheckError(ErrorFailed, err.Error())
+		l4g.Error(res.Data.ErrMsg)
+		return errors.New(res.Data.ErrMsg)
+	}
+
+	assetName, _ := params.AssetNameArray()
+	userAddress, _ := mysqlpool.QueryPayAddress(assetName)
+	res.Data.Value.Message = responseJson(userAddress)
+	res.Data.Err = 0
+	res.Data.ErrMsg = ""
+
 	return nil
 }

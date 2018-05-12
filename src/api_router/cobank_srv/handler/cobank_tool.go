@@ -43,9 +43,12 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 
 			var token *string
 			token = nil
+			if req.Token != "" {
+				token = &req.Token
+			}
 			privatekey := tmp_account.PrivateKey
 
-			txCmd := bservice.NewSendTxCmd("message id", req.Coin, privatekey, req.To, token, req.Value)
+			txCmd := bservice.NewSendTxCmd("", req.Coin, privatekey, req.To, token, req.Value)
 			clientManager.SendTx(txCmd)
 		}(&rc)
 	} else if rc.Coin == "btc" {
