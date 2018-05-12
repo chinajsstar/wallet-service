@@ -16,6 +16,7 @@ import (
 	"business_center/def"
 	l4g "github.com/alecthomas/log4go"
 	"bastionpay_api/api/v1"
+	"math"
 )
 
 ////////////////////////////////////////////////////////////
@@ -58,8 +59,10 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 			res.Data.ErrMsg = err.Error()
 		}else{
 			fmt.Println("cmd: ", cmd)
-			rc.Value = rc.Value / (10^8)
-			c := exec.Command(cmd, arg, "sendtoaddress", rc.To, strconv.FormatUint(rc.Value, 10))
+			var a float64
+			a = (float64)(rc.Value) / math.Pow10(8)
+			aa := fmt.Sprintf("%.8f", a)
+			c := exec.Command(cmd, arg, "sendtoaddress", aa)
 			if c != nil{
 				if err := c.Run(); err != nil {
 					fmt.Println(err)
