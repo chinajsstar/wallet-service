@@ -25,8 +25,8 @@ func usage()  {
 	fmt.Println("		call api with json message")
 	fmt.Println(">apitest srv function jsonmessage")
 	fmt.Println("		call apitest with json message")
-	fmt.Println(">apidoc")
-	fmt.Println("		list all apis")
+	fmt.Println(">apidoc [ver srv function]")
+	fmt.Println("		list all apis path or by ver srv funcion")
 	fmt.Println(">help")
 	fmt.Println("		print this")
 }
@@ -94,13 +94,16 @@ func main()  {
 			}
 			fmt.Println("==switch cfg ok==")
 		} else if argv[0] == "api"{
-			if len(argv) != 4 {
+			if len(argv) < 3 {
 				fmt.Println("格式：api srv function message")
 				continue
 			}
 			srv := argv[1]
 			function := argv[2]
-			message := argv[3]
+			message := ""
+			if len(argv) > 3 {
+				message = argv[3]
+			}
 
 			fmt.Println(message)
 
@@ -112,13 +115,16 @@ func main()  {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "apitest"{
-			if len(argv) != 4{
+			if len(argv) != 3{
 				fmt.Println("格式：apitest srv function message")
 				continue
 			}
 			srv := argv[1]
 			function := argv[2]
-			message := argv[3]
+			message := ""
+			if len(argv) > 3 {
+				message = argv[3]
+			}
 
 			ack, err := gateway.OutputTest("/apitest/v1/"+srv+"/"+function, []byte(message))
 			if err != nil {
@@ -128,7 +134,90 @@ func main()  {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "apidoc"{
-			fmt.Println(apigroup.ListAll())
+			var ver string
+			var srv string
+			var function string
+			if len(argv) > 1{
+				ver = argv[1]
+			}
+			if len(argv) > 2{
+				srv = argv[2]
+			}
+			if len(argv) > 3{
+				function = argv[3]
+			}
+
+			if ver == "" && srv == ""{
+				var index = 1
+				apiAll := apigroup.ListApiGroup()
+				for srv, apiGroup := range apiAll {
+					fmt.Println("---------------------")
+					fmt.Println("服务：")
+					fmt.Println(srv)
+					var subIndex = 1
+					for _, apiProxy := range apiGroup{
+						fmt.Println("---------------------")
+						fmt.Println(index, ".", subIndex, ")")
+						fmt.Println("方法：")
+						fmt.Println(apiProxy.Help().FuncName)
+						fmt.Println("说明：")
+						fmt.Println(apiProxy.Help().Comment)
+						fmt.Println("---------------------")
+						subIndex++
+					}
+
+					index++
+				}
+
+			} else if function == ""{
+				var index = 1
+				apiGroup, err := apigroup.ListApiGroupBySrv(ver, srv)
+				if err != nil {
+					fmt.Println("not find srv: ", err)
+					continue
+				}
+				fmt.Println("---------------------")
+				fmt.Println("服务：")
+				fmt.Println(srv)
+				for _, apiProxy := range apiGroup{
+					fmt.Println("---------------------")
+					fmt.Println(index, ")")
+					fmt.Println("方法：")
+					fmt.Println(apiProxy.Help().FuncName)
+					fmt.Println("说明：")
+					fmt.Println(apiProxy.Help().Comment)
+					fmt.Println("---------------------")
+					index++
+				}
+			}else {
+				apiProxy, err := apigroup.FindApiBySrvFunction(ver, srv, function)
+				if err != nil {
+					fmt.Println("not find function: ", err)
+					continue
+				}
+				fmt.Println("---------------------")
+				fmt.Println("版本：")
+				fmt.Println(apiProxy.Help().VerName)
+				fmt.Println("服务：")
+				fmt.Println(apiProxy.Help().SrvName)
+				fmt.Println("方法：")
+				fmt.Println(apiProxy.Help().FuncName)
+				fmt.Println("备注：")
+				fmt.Println(apiProxy.Help().Comment)
+				fmt.Println("路径：")
+				fmt.Println(apiProxy.Help().Path)
+
+				fmt.Println("输入：")
+				fmt.Println(apiProxy.Help().InputComment)
+
+				fmt.Println("输出：")
+				fmt.Println(apiProxy.Help().OutputComment)
+
+				fmt.Println("示例：")
+				fmt.Println(apiProxy.Help().Example)
+
+				fmt.Println("---------------------")
+			}
 		} else {
 			usage()
 		}

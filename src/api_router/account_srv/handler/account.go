@@ -4,7 +4,7 @@ import (
 	"api_router/account_srv/db"
 	"api_router/base/data"
 	"io/ioutil"
-	"api_router/account_srv/user"
+	"bastionpay_api/api/v1"
 	//service "api_router/base/service"
 	service "api_router/base/service2"
 	"encoding/json"
@@ -43,39 +43,23 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func(){
-		input := user.ReqUserRegister{}
-		output := user.AckUserRegister{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"register", data.APILevel_genesis, s.Register,
-			"注册用户", string(b), input, output)
+			"register", data.APILevel_genesis, s.Register)
 	}()
 
 	func(){
-		input := user.ReqUserUpdateProfile{}
-		output := user.AckUserUpdateProfile{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"updateprofile", data.APILevel_admin, s.UpdateProfile,
-			"更新开发者配置信息", string(b), input, output)
+			"updateprofile", data.APILevel_admin, s.UpdateProfile)
 	}()
 
 	func(){
-		input := user.ReqUserReadProfile{}
-		output := user.AckUserReadProfile{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"readprofile", data.APILevel_admin, s.ReadProfile,
-			"读取开发者配置信息", string(b), input, output)
+			"readprofile", data.APILevel_admin, s.ReadProfile)
 	}()
 
 	func(){
-		input := user.ReqUserList{}
-		output := user.AckUserList{}
-		b, _ := json.Marshal(input)
 		service.RegisterApi(&nam,
-			"listusers", data.APILevel_admin, s.ListUsers,
-			"列出所有用户", string(b), input, output)
+			"listusers", data.APILevel_admin, s.ListUsers)
 
 	}()
 
@@ -85,7 +69,7 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 // 创建账号
 func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// from req
-	reqUserRegister := user.ReqUserRegister{}
+	reqUserRegister := v1.ReqUserRegister{}
 	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUserRegister)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -111,7 +95,7 @@ func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) 
 	}
 
 	// to ack
-	ackUserCreate := user.AckUserRegister{}
+	ackUserCreate := v1.AckUserRegister{}
 	ackUserCreate.UserKey = userKey
 
 	dataAck, err := json.Marshal(ackUserCreate)
@@ -131,7 +115,7 @@ func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) 
 // 登入
 func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// from req
-	reqUserList := user.ReqUserList{}
+	reqUserList := v1.ReqUserList{}
 	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUserList)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -163,7 +147,7 @@ func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData)
 // 获取key
 func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// from req
-	reqReadProfile := user.ReqUserReadProfile{}
+	reqReadProfile := v1.ReqUserReadProfile{}
 	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqReadProfile)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -195,7 +179,7 @@ func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseDa
 // 更新key
 func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponseData) {
 	// from req
-	reqUpdateProfile := user.ReqUserUpdateProfile{}
+	reqUpdateProfile := v1.ReqUserUpdateProfile{}
 	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateProfile)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -229,11 +213,11 @@ func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponse
 	}
 
 	// to ack
-	ackUpdateProfile := user.AckUserUpdateProfile{Status:"ok"}
+	ackUpdateProfile := v1.AckUserUpdateProfile{Status:"ok"}
 	dataAck, err := json.Marshal(ackUpdateProfile)
 	if err != nil {
 		// 写回去
-		oldUserUpdateProfile := user.ReqUserUpdateProfile{}
+		oldUserUpdateProfile := v1.ReqUserUpdateProfile{}
 		oldUserUpdateProfile.UserKey = oldUserReadProfile.UserKey
 		oldUserUpdateProfile.PublicKey = oldUserReadProfile.PublicKey
 		oldUserUpdateProfile.SourceIP = oldUserReadProfile.SourceIP

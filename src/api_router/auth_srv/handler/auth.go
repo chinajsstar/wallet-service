@@ -3,7 +3,7 @@ package handler
 import (
 	"fmt"
 	"api_router/auth_srv/db"
-	"api_router/base/utils"
+	"bastionpay_api/utils"
 	"api_router/base/data"
 	//"api_router/base/service"
 	service "api_router/base/service2"
@@ -72,14 +72,12 @@ func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 
 	func(){
 		service.RegisterApi(&nam,
-			"authdata", data.APILevel_client, auth.AuthData,
-			"验证解密数据", "", "", "")
+			"authdata", data.APILevel_client, auth.AuthData)
 	}()
 
 	func(){
 		service.RegisterApi(&nam,
-			"encryptdata", data.APILevel_client, auth.EncryptData,
-			"加密签名数据", "", "", "")
+			"encryptdata", data.APILevel_client, auth.EncryptData)
 	}()
 
 	return nam

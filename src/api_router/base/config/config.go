@@ -1,7 +1,7 @@
 package config
 
 import (
-	"api_router/base/utils"
+	"bastionpay_api/utils"
 	"encoding/json"
 	l4g "github.com/alecthomas/log4go"
 	"io/ioutil"

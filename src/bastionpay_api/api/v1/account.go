@@ -1,4 +1,4 @@
-package user
+package v1
 
 // 账号注册-输入--register
 type ReqUserRegister struct{
@@ -48,6 +48,4 @@ type ReqUserList struct{
 	Id 				int    `json:"id" comment:"用户当前最小ID"`
 }
 // 用户列表-输出
-type AckUserList struct{
-	Users []UserBasic 	`json:"users" comment:"用户数组"`
-}
+type AckUserList []UserBasic

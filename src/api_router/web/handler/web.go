@@ -5,19 +5,21 @@ import (
 	"encoding/json"
 	"net/http"
 	"html/template"
-	"api_router/base/utils"
+	"bastionpay_api/utils"
 	"io/ioutil"
 	"net/url"
 	"strings"
 	l4g "github.com/alecthomas/log4go"
 	"fmt"
-	"api_router/account_srv/user"
+	"bastionpay_api/api/v1"
 	"api_router/base/nethelper"
 	"encoding/base64"
 	"crypto/sha512"
 	"crypto"
 	"errors"
 	"api_router/base/config"
+	"bastionpay_api/api"
+	"bastionpay_api/apigroup"
 )
 
 const (
@@ -57,9 +59,9 @@ func loadAdministratorRsaKeys(dataDir string) error {
 	return nil
 }
 
-func sendPostData(addr, message, version, srv, function string) (*data.UserResponseData, []byte, error) {
+func sendPostData(addr, message, version, srv, function string) (*api.UserResponseData, []byte, error) {
 	// 用户数据
-	var ud data.UserData
+	var ud api.UserData
 
 	// 构建path
 	path := "/"+httpApi
@@ -118,7 +120,7 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 	fmt.Println("ok get ack:", res)
 
 	// 解包数据
-	ackData := &data.UserResponseData{}
+	ackData := &api.UserResponseData{}
 	err = json.Unmarshal([]byte(res), &ackData)
 	if err != nil {
 		return nil, nil, err
@@ -165,7 +167,7 @@ func sendPostData(addr, message, version, srv, function string) (*data.UserRespo
 
 ////////////////////////////////////////////////////////////////////////////////
 type Web struct{
-	nodes []*data.SrvRegisterData
+	nodes []*v1.SrvRegisterData
 
 	loginUsers map[string]interface{}
 }
@@ -299,20 +301,27 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 	srvname := vv.Get("srv")
 	vername := vv.Get("ver")
 
-	srvNode := data.SrvRegisterData{}
-	for _, v := range self.nodes {
-		if v.Srv == srvname && v.Version == vername{
-			srvNode = *v
-			break
-		}
+	apiGroup, err := apigroup.ListApiGroupBySrv(vername, srvname)
+	if err != nil {
+		w.Write([]byte("获取API失败"))
+		return
 	}
+	fmt.Println(apiGroup)
+
+	//srvNode := data.SrvRegisterData{}
+	//for _, v := range self.nodes {
+	//	if v.Srv == srvname && v.Version == vername{
+	//		srvNode = *v
+	//		break
+	//	}
+	//}
 
 	t, err := template.ParseFiles("template/html/getapi.html")
 	if err != nil {
 		return
 	}
 
-	t.Execute(w, srvNode)
+	t.Execute(w, apiGroup)
 	return
 }
 
@@ -359,7 +368,7 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 	ver := vv.Get("ver")
 	function := vv.Get("func")
 
-	var ures data.UserResponseData
+	var ures api.UserResponseData
 	if example != ""{
 		d1, _, err := sendPostData(httpaddrGateway, example, ver, srv, function)
 		if d1.Err != data.NoErr {
@@ -477,7 +486,7 @@ func (self *Web) handleRegister(w http.ResponseWriter, req *http.Request) {
 func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
-	ures := data.UserResponseData{}
+	ures := api.UserResponseData{}
 
 	func(){
 		message := ""
@@ -489,7 +498,7 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("argv=", message)
 
-		ul := user.ReqUserReadProfile{}
+		ul := v1.ReqUserReadProfile{}
 		json.Unmarshal(bb, &ul)
 
 		if ul.UserKey == "" {
@@ -530,7 +539,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 
-	ures := data.UserResponseData{}
+	ures := api.UserResponseData{}
 
 	func(){
 		message := ""
@@ -542,7 +551,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("dev argv=", message)
 
-		ul := user.ReqUserUpdateProfile{}
+		ul := v1.ReqUserUpdateProfile{}
 		json.Unmarshal(bb, &ul)
 
 		if ul.PublicKey == "" && ul.SourceIP == "" && ul.CallbackUrl == ""{
@@ -583,7 +592,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
-	ures := data.UserResponseData{}
+	ures := api.UserResponseData{}
 
 	func(){
 		message := ""
@@ -595,7 +604,7 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("argv=", message)
 
-		uc := user.ReqUserRegister{}
+		uc := v1.ReqUserRegister{}
 		json.Unmarshal(bb, &uc)
 
 		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "register")
@@ -653,7 +662,7 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 	//	return
 	//}
 
-	var ures data.UserResponseData
+	var ures api.UserResponseData
 	func(){
 		fmt.Println("path=", req.URL.Path)
 
