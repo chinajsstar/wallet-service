@@ -90,7 +90,7 @@ func (self *ClientManager) loopTxCmd() {
 
 	if self.txCmdChannel == nil {
 		l4g.Trace("self.txCmdChannel is nil , create new")
-		self.txCmdChannel = make(types.CmdTxChannel)
+		self.txCmdChannel = make(types.CmdTxChannel, 256)
 	}
 
 	go func() {
@@ -507,10 +507,14 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 // 交易和充值中的单位都是10^8为一个单位
 // 即1^8 单位为一个bitcoin或者eth
 func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
+
+	l4g.Trace("Recived one SendTx command:%s", cmdTx.MsgId)
+
 	if self.txCmdChannel == nil {
 		l4g.Trace("txCmdChannel is nil, create new")
-		self.txCmdChannel = make(chan *types.CmdSendTx)
+		self.txCmdChannel = make(chan *types.CmdSendTx, 256)
 	}
+
 	self.txCmdChannel <- cmdTx
 }
 
