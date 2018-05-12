@@ -135,10 +135,9 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 	amount, _ := utils.DecimalCvt_i_f(stx.Value, 8, 0).Float64()
 
 	var (
-		tmp_amount = 0.0
-		change_amount = 0.0
-		unuseable = 0.0
-		inputs []btcjson.TransactionInput
+		totalunspent_amount = 0.0
+		change_amount       = 0.0
+		inputs              []btcjson.TransactionInput
 	)
 
 	// 循环utxo, 获取相应资金的utxo
@@ -152,12 +151,12 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 	fee_estimat := 0.00015
 
 	for i, utxo := range unspends {
-		if uint64(utxo.Confirmations)<c.confirminationNumber {
-			unuseable += utxo.Amount
-			continue
-		}
+		//if uint64(utxo.Confirmations) < c.confirminationNumber {
+		//	unuseable += utxo.Amount
+		//	//continue
+		//}
 
-		tmp_amount += utxo.Amount
+		totalunspent_amount += utxo.Amount
 		inputs = append(inputs, btcjson.TransactionInput{Txid: utxo.TxID, Vout: utxo.Vout})
 
 		// maybe should Create []btcjson.RawTxInput and stored some where,
@@ -167,9 +166,9 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 
 		feeincrease := float64(i*180/1000) * 0.00015
 
-		if tmp_amount >= (amount + fee_estimat + feeincrease ) {
+		if totalunspent_amount >= (amount + fee_estimat + feeincrease ) {
 			fee_estimat += feeincrease
-			change_amount = tmp_amount - amount - fee_estimat
+			change_amount = totalunspent_amount - amount - fee_estimat
 			break
 		}
 	}
@@ -186,10 +185,10 @@ func (c *Client)BuildTx(stx *types.Transfer) error {
 			stx.From, stx.To, amount, fee_estimat, allutxo)
 	}
 
-	if tmp_amount < (amount + fee_estimat) {
+	if totalunspent_amount < (amount + fee_estimat) {
 		return fmt.Errorf("SendTx Not enougth bitcoin to send! Information:\n" +
-			"from:%s, to:%s, need:(%f + %f), have:(%f[confirmed] + %f[need to confirmed])",
-				stx.From, stx.To, amount, fee_estimat, tmp_amount, unuseable)
+			"from:%s, to:%s, need_amount:(%f + %f), have_amount:(%f)",
+				stx.From, stx.To, amount, fee_estimat, totalunspent_amount)
 	}
 
 	amounts := make(map[btcutil.Address]btcutil.Amount)
