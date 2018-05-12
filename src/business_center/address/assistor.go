@@ -132,7 +132,7 @@ func (a *Address) recvCmdTxChannel() {
 			select {
 			case cmdTx := <-channel:
 				{
-					if cmdTx.Error.Code != 0 {
+					if cmdTx.Error != nil {
 						l4g.Error("%s", cmdTx.Error.Message)
 						continue
 					}
