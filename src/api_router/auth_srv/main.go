@@ -24,15 +24,15 @@ func main() {
 	fmt.Println("config path:", cfgPath)
 	db.Init(cfgPath)
 
-	accountDir := cfgDir + "/" + config.BastionPayAccountDirName
-	handler.AuthInstance().Init(accountDir)
-
 	// create service node
 	nodeInstance, err := service.NewServiceNode(cfgPath)
 	if nodeInstance == nil || err != nil{
 		l4g.Error("Create service node failed: %s", err.Error())
 		return
 	}
+
+	accountDir := cfgDir + "/" + config.BastionPayAccountDirName
+	handler.AuthInstance().Init(accountDir, nodeInstance)
 
 	// register apis
 	service.RegisterNodeApi(nodeInstance, handler.AuthInstance())
