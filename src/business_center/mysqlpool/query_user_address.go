@@ -65,10 +65,18 @@ func QueryUserAddressByNameAddress(assetName string, address string) (UserAddres
 	return UserAddress{}, false
 }
 
-func QueryPayAddress(assetName string) (UserAddress, bool) {
+func QueryPayAddress(assetName []string) (UserAddress, bool) {
 	db := Get()
-	row := db.QueryRow("select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount,"+
-		"enabled, unix_timestamp(create_time), unix_timestamp(update_time) from pay_address_view where asset_name = ?;", assetName)
+	sqls := "select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount," +
+		"enabled, unix_timestamp(create_time), unix_timestamp(update_time) from pay_address_view where true"
+
+	params := make([]interface{}, 0)
+	for _, value := range assetName {
+		sqls += " and asset_name = ?"
+		params = append(params, value)
+	}
+
+	row := db.QueryRow(sqls, params...)
 	var userAddress UserAddress
 	err := row.Scan(&userAddress.UserKey, &userAddress.UserClass, &userAddress.AssetName, &userAddress.Address,
 		&userAddress.PrivateKey, &userAddress.AvailableAmount, &userAddress.FrozenAmount, &userAddress.Enabled,

@@ -9,7 +9,6 @@ const (
 const (
 	TypeDeposit = iota
 	TypeWithdrawal
-	TypeChange
 )
 
 const (
