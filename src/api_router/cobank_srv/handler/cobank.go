@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"fmt"
 	"strconv"
+	"bastionpay_api/api"
 )
 
 type Cobank struct {
@@ -54,7 +55,7 @@ func (x *Cobank) callBack(userID string, callbackMsg string) {
 	pData.Argv.UserKey = userID
 	pData.Argv.Message = callbackMsg
 
-	res := data.UserResponseData{}
+	res := api.UserResponseData{}
 	x.node.InnerCallByEncrypt(&pData, &res)
 	l4g.Info("push return: ", res)
 }

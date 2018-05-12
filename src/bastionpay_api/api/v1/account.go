@@ -1,4 +1,4 @@
-package user
+package v1
 
 // 账号注册-输入--register
 type ReqUserRegister struct{

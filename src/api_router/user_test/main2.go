@@ -3,17 +3,11 @@ package main
 import (
 	//"golang.org/x/net/websocket"
 	"fmt"
-	"../base/utils"
 	"golang.org/x/net/websocket"
-	"../base/data"
 	"encoding/json"
-	"encoding/base64"
-	"crypto/sha512"
-	"crypto"
-	"errors"
 	"io/ioutil"
 	//l4g "github.com/alecthomas/log4go"
-	//"../base/config"
+	//"api_router/base/config"
 	"reflect"
 )
 
@@ -43,88 +37,6 @@ func LoadRsaKeys2() error {
 	G_admin_licensekey2 = "25143234-b958-44a8-a87f-5f0f4ef46eb5"
 
 	return nil
-}
-
-func encryptData(message string, userData *data.UserData) (error) {
-	// 用户数据
-	bencrypted, err := func() ([]byte, error) {
-		// 用我们的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(message), G_server_pubkey2, utils.RsaEncodeLimit2048)
-		if err != nil {
-			return nil, err
-		}
-		return bencrypted, nil
-	}()
-	if err != nil {
-		return err
-	}
-
-	userData.Message = base64.StdEncoding.EncodeToString(bencrypted)
-
-	bsignature, err := func() ([]byte, error) {
-		// 用自己的pri签名encrypteddata ->signature
-		var hashData []byte
-		hs := sha512.New()
-		hs.Write(bencrypted)
-		hashData = hs.Sum(nil)
-
-		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, G_admin_prikey2)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-
-		return bsignature, nil
-	}()
-	if err != nil {
-		return err
-	}
-
-	userData.Signature = base64.StdEncoding.EncodeToString(bsignature)
-
-	return nil
-}
-
-func decryptData(res string) (*data.UserResponseData, error) {
-	ackData := &data.UserResponseData{}
-	err := json.Unmarshal([]byte(res), &ackData)
-	if err != nil {
-		return nil, err
-	}
-
-	if ackData.Err != data.NoErr {
-		return ackData, errors.New("# got err: " + ackData.ErrMsg)
-	}
-
-	// base64 decode
-	bencrypted2, err := base64.StdEncoding.DecodeString(ackData.Value.Message)
-	if err != nil {
-		return ackData, err
-	}
-
-	bsignature2, err := base64.StdEncoding.DecodeString(ackData.Value.Signature)
-	if err != nil {
-		return ackData, err
-	}
-
-	// 验证签名
-	var hashData []byte
-	hs := sha512.New()
-	hs.Write([]byte(bencrypted2))
-	hashData = hs.Sum(nil)
-
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature2, G_server_pubkey2)
-	if err != nil {
-		return ackData, err
-	}
-
-	// 解密数据
-	_, err = utils.RsaDecrypt(bencrypted2, G_admin_prikey2, utils.RsaDecodeLimit2048)
-	if err != nil {
-		return ackData, err
-	}
-
-	return ackData, nil
 }
 
 func StartWsClient() *websocket.Conn {

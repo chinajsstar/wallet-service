@@ -9,6 +9,7 @@ import (
 	"bastionpay_api/api"
 	"bastionpay_api/utils"
 	"bastionpay_api/gateway"
+	"reflect"
 	"bastionpay_api/apigroup"
 )
 
@@ -25,8 +26,8 @@ func usage()  {
 	fmt.Println("		call api with json message")
 	fmt.Println(">apitest srv function jsonmessage")
 	fmt.Println("		call apitest with json message")
-	fmt.Println(">apidoc")
-	fmt.Println("		list all apis")
+	fmt.Println(">apidoc [name]")
+	fmt.Println("		list all apis path or by name")
 	fmt.Println(">help")
 	fmt.Println("		print this")
 }
@@ -94,13 +95,16 @@ func main()  {
 			}
 			fmt.Println("==switch cfg ok==")
 		} else if argv[0] == "api"{
-			if len(argv) != 4 {
+			if len(argv) < 3 {
 				fmt.Println("格式：api srv function message")
 				continue
 			}
 			srv := argv[1]
 			function := argv[2]
-			message := argv[3]
+			message := ""
+			if len(argv) > 3 {
+				message = argv[3]
+			}
 
 			fmt.Println(message)
 
@@ -112,13 +116,16 @@ func main()  {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "apitest"{
-			if len(argv) != 4{
+			if len(argv) != 3{
 				fmt.Println("格式：apitest srv function message")
 				continue
 			}
 			srv := argv[1]
 			function := argv[2]
-			message := argv[3]
+			message := ""
+			if len(argv) > 3 {
+				message = argv[3]
+			}
 
 			ack, err := gateway.OutputTest("/apitest/v1/"+srv+"/"+function, []byte(message))
 			if err != nil {
@@ -128,7 +135,61 @@ func main()  {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "apidoc"{
-			fmt.Println(apigroup.ListAll())
+			var name string
+			if len(argv) > 1{
+				name = argv[1]
+			}
+
+			if name == "" {
+				var index = 1
+				apiAll := apigroup.ListAllApiDocHandlers()
+				for name, apiProxy := range apiAll{
+					fmt.Println("---------------------")
+					fmt.Println(index, ")")
+					fmt.Println("标示名称：")
+					fmt.Println(name)
+					fmt.Println("说明：")
+					fmt.Println(apiProxy.Help().Name)
+					fmt.Println("---------------------")
+					index++
+				}
+			} else {
+				apiProxy, err := apigroup.FindApiDocHandler(name)
+				if err != nil {
+					fmt.Println("not find api")
+					continue
+				}
+				fmt.Println("---------------------")
+				fmt.Println("标示名称：")
+				fmt.Println(name)
+				fmt.Println("说明：")
+				fmt.Println(apiProxy.Help().Name)
+				fmt.Println("备注：")
+				fmt.Println(apiProxy.Help().Comment)
+				fmt.Println("路径：")
+				fmt.Println(apiProxy.Help().Path)
+				fmt.Println("示例：")
+				example, _ := json.Marshal(apiProxy.Help().Input)
+				fmt.Println(string(example))
+
+				fmt.Println("输入：")
+				if apiProxy.Help().Input == nil{
+					fmt.Println("null")
+				} else{
+					input := utils.FieldTag(reflect.ValueOf(apiProxy.Help().Input), 0)
+					fmt.Println(input)
+				}
+
+				fmt.Println("输出：")
+				if apiProxy.Help().Output == nil{
+					fmt.Println("")
+				} else{
+					output := utils.FieldTag(reflect.ValueOf(apiProxy.Help().Output), 0)
+					fmt.Println(output)
+				}
+
+				fmt.Println("---------------------")
+			}
 		} else {
 			usage()
 		}

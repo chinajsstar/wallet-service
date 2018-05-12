@@ -13,6 +13,8 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"reflect"
 	"github.com/cenkalti/rpc2"
+	"bastionpay_api/utils"
+	"bastionpay_api/api"
 )
 
 // node api interface
@@ -31,8 +33,8 @@ func RegisterApi(nap *map[string]NodeApi, name string, level int, handler NodeAp
 
 	apiInfo := data.ApiInfo{Name:name, Level:level}
 
-	incomment := data.FieldTag2(reflect.ValueOf(input))
-	outcomment := data.FieldTag2(reflect.ValueOf(output))
+	incomment := utils.FieldTag(reflect.ValueOf(input), 0)
+	outcomment := utils.FieldTag(reflect.ValueOf(output), 0)
 	apiDoc := data.ApiDoc{Name:name, Level:level, Doc:doc, Example:example, InComment:incomment, OutComment:outcomment}
 
 	(*nap)[name] = NodeApi{ApiHandler:handler, ApiInfo:apiInfo, ApiDoc:apiDoc}
@@ -123,7 +125,7 @@ func (ni *ServiceNode) call(client *rpc2.Client, req *data.SrvRequestData, res *
 }
 
 // inner call a request to router
-func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *data.UserResponseData) error {
+func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *api.UserResponseData) error {
 	ni.rwmu.RLock()
 	defer ni.rwmu.RUnlock()
 
@@ -137,7 +139,7 @@ func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *data.UserRespon
 }
 
 // inner call a request to router by encrypt
-func (ni *ServiceNode) InnerCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) error {
+func (ni *ServiceNode) InnerCallByEncrypt(req *data.UserRequestData, res *api.UserResponseData) error {
 	ni.rwmu.RLock()
 	defer ni.rwmu.RUnlock()
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"api_router/account_srv/user"
+	"bastionpay_api/api/v1"
 	_ "github.com/go-sql-driver/mysql"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
@@ -96,7 +96,7 @@ func Init(configPath string) {
 	}
 }
 
-func Register(userRegister *user.ReqUserRegister, userKey string) error {
+func Register(userRegister *v1.ReqUserRegister, userKey string) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
 	_, err := st["register"].Exec(
@@ -111,14 +111,14 @@ func Delete(userKey string) error {
 	return err
 }
 
-func UpdateProfile(userUpdateProfile *user.ReqUserUpdateProfile) error {
+func UpdateProfile(userUpdateProfile *v1.ReqUserUpdateProfile) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
 	_, err := st["updateProfile"].Exec(userUpdateProfile.PublicKey, userUpdateProfile.SourceIP, userUpdateProfile.CallbackUrl, datetime, userUpdateProfile.UserKey)
 	return err
 }
 
-func ReadProfile(userKey string) (*user.AckUserReadProfile, error) {
+func ReadProfile(userKey string) (*v1.AckUserReadProfile, error) {
 	var r *sql.Rows
 	var err error
 
@@ -132,7 +132,7 @@ func ReadProfile(userKey string) (*user.AckUserReadProfile, error) {
 		return nil, errors.New("row no next")
 	}
 
-	ackUserReadProfile := &user.AckUserReadProfile{}
+	ackUserReadProfile := &v1.AckUserReadProfile{}
 	if err := r.Scan(&ackUserReadProfile.PublicKey, &ackUserReadProfile.SourceIP, &ackUserReadProfile.CallbackUrl); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("no rows")
@@ -152,7 +152,7 @@ func SetFrozen(userKey string, frozen rune) error {
 	return err
 }
 
-func ListUsers(id int, num int) (*user.AckUserList, error) {
+func ListUsers(id int, num int) (*v1.AckUserList, error) {
 	var r *sql.Rows
 	var err error
 
@@ -167,9 +167,9 @@ func ListUsers(id int, num int) (*user.AckUserList, error) {
 	}
 	defer r.Close()
 
-	ul := &user.AckUserList{}
+	ul := &v1.AckUserList{}
 	for r.Next()  {
-		up := user.UserBasic{}
+		up := v1.UserBasic{}
 		if err := r.Scan(&up.Id, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen); err != nil {
 			if err == sql.ErrNoRows {
 				continue

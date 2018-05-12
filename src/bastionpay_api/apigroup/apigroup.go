@@ -2,35 +2,39 @@ package apigroup
 
 import (
 	"errors"
-	"bastionpay_api/apidoc/v1/account"
+	"bastionpay_api/apidoc/v1"
 	"bastionpay_api/apidoc"
 )
 
 var (
-	apiProxys map[string]apidoc.ApiProxy
+	apiDocHandlers map[string]*apidoc.ApiDocHandler
 )
 
 func init()  {
-	apiProxys = make(map[string]apidoc.ApiProxy)
+	apiDocHandlers = make(map[string]*apidoc.ApiDocHandler)
 
-	RegisterApiProxy("account.register", new(account.ApiRegister))
+	RegisterApiDocHandler("account.register", &apidoc.ApiDocHandler{&v1.ApiDocRegister})
+	RegisterApiDocHandler("account.updateprofile", &apidoc.ApiDocHandler{&v1.ApiDocUpdateProfile})
+
+	RegisterApiDocHandler("bastionpay.support_assets", &apidoc.ApiDocHandler{&v1.ApiDocSupportAssets})
+	RegisterApiDocHandler("bastionpay.asset_attribute", &apidoc.ApiDocHandler{&v1.ApiDocAssetAttribute})
 }
 
-func ListAll() (map[string]apidoc.ApiProxy) {
-	return apiProxys
+func ListAllApiDocHandlers() (map[string]*apidoc.ApiDocHandler) {
+	return apiDocHandlers
 }
 
-func RegisterApiProxy(name string, apiProxy apidoc.ApiProxy) error {
-	if _, ok := apiProxys[name]; ok {
+func RegisterApiDocHandler(name string, apiProxy *apidoc.ApiDocHandler) error {
+	if _, ok := apiDocHandlers[name]; ok {
 		return errors.New("repeat api name")
 	}
-	apiProxys[name] = apiProxy
+	apiDocHandlers[name] = apiProxy
 	return nil
 }
 
-func FindApiProxy(name string) (apidoc.ApiProxy, error) {
-	if apiHanlder, ok := apiProxys[name]; ok {
+func FindApiDocHandler(name string) (*apidoc.ApiDocHandler, error) {
+	if apiHanlder, ok := apiDocHandlers[name]; ok {
 		return apiHanlder, nil
 	}
-	return nil, errors.New("not find api handler")
+	return nil, errors.New("not find api doc handler")
 }

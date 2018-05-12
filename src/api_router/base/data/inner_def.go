@@ -2,7 +2,7 @@ package data
 
 import (
 	"fmt"
-	"reflect"
+	"bastionpay_api/api"
 )
 
 // /////////////////////////////////////////////////////
@@ -28,71 +28,6 @@ const(
 	// genesis administrator
 	APILevel_genesis = 200
 )
-
-func FieldTag(param interface{}) string {
-	t := reflect.TypeOf(param)
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-
-	if t.Kind() != reflect.Struct {
-		return ""
-	}
-
-	var out string
-	n := t.NumField()
-	for i := 0; i < n; i++ {
-		out += t.Field(i).Tag.Get("json") + "    // " + t.Field(i).Tag.Get("comment")
-		out += "\r\n"
-	}
-	return out
-}
-
-func FieldTag2(v reflect.Value) string {
-	t := v.Type()
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-
-	var out string
-	if t.Kind() == reflect.Struct {
-		out += "{"
-		n := t.NumField()
-		for i := 0; i < n; i++ {
-			tagJson := t.Field(i).Tag.Get("json")
-			if tagJson == "-" {
-				continue
-			}
-			out += "" + tagJson + " (" + t.Field(i).Tag.Get("comment") + ") "
-		}
-		out += "}"
-	}else if t.Kind() == reflect.Slice || t.Kind() == reflect.Array{
-		n := v.Len()
-
-		out += "["
-		for i := 0; i < n && i < 1; i++ {
-			rs := v.Index(i)
-			out += FieldTag(rs)
-		}
-		out += "]"
-	}else if t.Kind() == reflect.Map {
-		ks := v.MapKeys()
-		out += "{"
-		for i := 0; i < len(ks); i++ {
-			out += FieldTag(ks[i])
-			out += ":"
-			key := v.MapIndex(ks[i])
-			out += FieldTag(key)
-		}
-		out += "}"
-	}else{
-		out = "" + v.String()
-	}
-
-	return out
-}
 
 // API doc
 type ApiDoc struct{
@@ -124,6 +59,12 @@ type SrvContext struct{
 	// future...
 }
 
+// user request data
+type UserRequestData struct{
+	Method		api.UserMethod 	`json:"method"`	// request method
+	Argv 		api.UserData 	`json:"argv"` 	// request argument
+}
+
 // rpc srv request data
 type SrvRequestData struct{
 	Context SrvContext 		`json:"context"`	// api info
@@ -132,7 +73,7 @@ type SrvRequestData struct{
 
 // rpc srv response data
 type SrvResponseData struct{
-	Data 	UserResponseData `json:"data"`		// user response data
+	Data 	api.UserResponseData `json:"data"`		// user response data
 }
 
 //////////////////////////////////////////////////////////////////////

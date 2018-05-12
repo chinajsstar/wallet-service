@@ -9,6 +9,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/nethelper"
 	"encoding/json"
+	"bastionpay_api/api"
 )
 
 type Push struct{
@@ -76,7 +77,7 @@ func (push *Push)PushData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	}
 
 	func(){
-		pushData := data.UserResponseData{}
+		pushData := api.UserResponseData{}
 		pushData.Value = req.Data.Argv
 
 		// call url

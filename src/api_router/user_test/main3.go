@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"../base/nethelper"
+	"api_router/base/nethelper"
 	"log"
 	"net/rpc"
 	"net"
 	"strings"
-	"../base/utils"
-	"../base/service"
+	"bastionpay_api/utils"
+	"api_router/base/service"
 	l4g "github.com/alecthomas/log4go"
 )
 

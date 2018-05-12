@@ -12,6 +12,9 @@ import (
 	"strings"
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
+	"bastionpay_api/utils"
+	"reflect"
+	"bastionpay_api/api"
 )
 
 const (
@@ -63,7 +66,7 @@ func NewServiceGateway(confPath string) (*ServiceGateway, error){
 
 		var oargv []data.SrvRegisterData
 		oargv = append(oargv, data.SrvRegisterData{Version:"v1", Srv:"srv"})
-		ocomment := data.FieldTag(oargv)
+		ocomment := utils.FieldTag(reflect.ValueOf(oargv), 0)
 
 		apiDoc := data.ApiDoc{Name:apiInfo.Name, Level:apiInfo.Level, Doc:"列出所有服务", Example:example, InComment:icomment, OutComment:ocomment}
 		serviceGateway.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceGateway.listSrv, ApiInfo:apiInfo, ApiDoc:apiDoc}
@@ -133,7 +136,7 @@ func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *data.SrvRegisterD
 	return nil
 }
 
-func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
+func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.UserRequestData, res *api.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -147,7 +150,7 @@ func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.UserRequestDa
 	return nil
 }
 
-func (mi *ServiceGateway) innerCallByEncrypt(client *rpc2.Client, req *data.UserRequestData, res *data.UserResponseData) error {
+func (mi *ServiceGateway) innerCallByEncrypt(client *rpc2.Client, req *data.UserRequestData, res *api.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -244,7 +247,7 @@ func (mi *ServiceGateway) startTcpServer(ctx context.Context) {
 	}()
 }
 
-func (mi *ServiceGateway) srvCall(req *data.UserRequestData, res *data.UserResponseData) {
+func (mi *ServiceGateway) srvCall(req *data.UserRequestData, res *api.UserResponseData) {
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
@@ -265,7 +268,7 @@ func (mi *ServiceGateway) srvCall(req *data.UserRequestData, res *data.UserRespo
 	*res = rpcSrvRes.Data
 }
 
-func (mi *ServiceGateway) srvCallByEncrypt(req *data.UserRequestData, res *data.UserResponseData) {
+func (mi *ServiceGateway) srvCallByEncrypt(req *data.UserRequestData, res *api.UserResponseData) {
 	// encode and sign data
 	var reqEncrypted data.SrvRequestData
 	reqEncrypted.Data.Method = req.Method
@@ -289,7 +292,7 @@ func (mi *ServiceGateway) srvCallByEncrypt(req *data.UserRequestData, res *data.
 }
 
 // user call by user
-func (mi *ServiceGateway) userCall(req *data.UserRequestData, res *data.UserResponseData) {
+func (mi *ServiceGateway) userCall(req *data.UserRequestData, res *api.UserResponseData) {
 	// can not call auth service
 	if req.Method.Srv == "auth" {
 		res.Err = data.ErrIllegallyCall
@@ -415,7 +418,7 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	resData := data.UserResponseData{}
+	resData := api.UserResponseData{}
 	func (){
 		//fmt.Println("path=", req.URL.Path)
 
@@ -483,7 +486,7 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	resData := data.UserResponseData{}
+	resData := api.UserResponseData{}
 	func (){
 		//fmt.Println("path=", req.URL.Path)
 
