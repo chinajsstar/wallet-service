@@ -2,7 +2,7 @@ package db
 
 import (
 	"errors"
-	"api_router/base/utils"
+	"bastionpay_api/utils"
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	l4g "github.com/alecthomas/log4go"
