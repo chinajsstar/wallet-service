@@ -9,8 +9,8 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/nethelper"
 	"encoding/json"
-	"bastionpay_api/api"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/api"
 )
 
 type Push struct{
@@ -79,10 +79,10 @@ func (push *Push)GetApiGroup()(map[string]service.NodeApi){
 	return nam
 }
 
-func (push *Push)HandleNotify(req *data.SrvRequestData){
-	if req.Data.Method.Srv == "account" && req.Data.Method.Function == "updateprofile" {
+func (push *Push)HandleNotify(req *data.SrvRequest){
+	if req.Method.Srv == "account" && req.Method.Function == "updateprofile" {
 		reqUpdateProfile := v1.ReqUserUpdateProfile{}
-		err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateProfile)
+		err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
 		if err != nil {
 			l4g.Error("HandleNotify-Unmarshal: %s", err.Error())
 			return
@@ -100,35 +100,37 @@ func (push *Push)HandleNotify(req *data.SrvRequestData){
 }
 
 // 推送数据
-func (push *Push)PushData(req *data.SrvRequestData, res *data.SrvResponseData) {
-	url, err := push.getUserCallbackUrl(req.Data.Argv.UserKey)
+func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
+	url, err := push.getUserCallbackUrl(req.Argv.UserKey)
 	if err != nil {
-		l4g.Error("(%s) no user callback: %s",req.Data.Argv.UserKey, err.Error())
-		res.Data.Err = data.ErrPushSrvPushData
+		l4g.Error("(%s) no user callback: %s",req.Argv.UserKey, err.Error())
+		res.Err = data.ErrPushSrvPushData
 		return
 	}
 
 	func(){
 		pushData := api.UserResponseData{}
-		pushData.Value = req.Data.Argv
+
+		req.Method.ToApiMethod(&pushData.Method)
+		req.Argv.ToApiData(&pushData.Value)
 
 		// call url
 		b, err := json.Marshal(pushData)
 		if err != nil {
 			l4g.Error("error json message: %s", err.Error())
-			res.Data.Err = data.ErrDataCorrupted
+			res.Err = data.ErrDataCorrupted
 			return
 		}
 		var ret string
 		err = nethelper.CallToHttpServer(url, "", string(b), &ret)
 		if err != nil {
 			l4g.Error("push http: %s", err.Error())
-			res.Data.Err = data.ErrPushSrvPushData
+			res.Err = data.ErrPushSrvPushData
 			return
 		}
 
-		res.Data.Value.Message = ret
+		res.Value.Message = ret
 	}()
 
-	l4g.Info("push:", req.Data.Argv.Message)
+	l4g.Info("push:", req.Argv.Message)
 }

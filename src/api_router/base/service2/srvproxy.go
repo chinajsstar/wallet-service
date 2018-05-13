@@ -61,14 +61,14 @@ func (sng *SrvNodeGroup) GetSrvNodes() (int) {
 	return len(sng.nodes)
 }
 
-func (sng *SrvNodeGroup) Call(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (sng *SrvNodeGroup) Call(req *data.SrvRequest, res *data.SrvResponse) {
 	sng.rwmu.RLock()
 	defer sng.rwmu.RUnlock()
 
 	// get a free srv node
 	node := sng.getFreeNode()
 	if node == nil{
-		res.Data.Err = data.ErrNotFindSrv
+		res.Err = data.ErrNotFindSrv
 		return
 	}
 
@@ -77,12 +77,12 @@ func (sng *SrvNodeGroup) Call(req *data.SrvRequestData, res *data.SrvResponseDat
 	if err != nil {
 		l4g.Error("#Call srv:%s", err.Error())
 
-		res.Data.Err = data.ErrCallFailed
+		res.Err = data.ErrCallFailed
 		return
 	}
 }
 
-func (sng *SrvNodeGroup) Notify(client *rpc2.Client, req *data.SrvRequestData) {
+func (sng *SrvNodeGroup) Notify(client *rpc2.Client, req *data.SrvRequest) {
 	sng.rwmu.RLock()
 	defer sng.rwmu.RUnlock()
 

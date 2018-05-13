@@ -100,10 +100,10 @@ func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 	return nam
 }
 
-func (auth * Auth)HandleNotify(req *data.SrvRequestData){
-	if req.Data.Method.Srv == "account" && req.Data.Method.Function == "updateprofile" {
+func (auth * Auth)HandleNotify(req *data.SrvRequest){
+	if req.Method.Srv == "account" && req.Method.Function == "updateprofile" {
 		reqUpdateProfile := v1.ReqUserUpdateProfile{}
-		err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateProfile)
+		err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
 		if err != nil {
 			l4g.Error("HandleNotify-Unmarshal: %s", err.Error())
 			return
@@ -121,43 +121,43 @@ func (auth * Auth)HandleNotify(req *data.SrvRequestData){
 }
 
 // 验证数据
-func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
-	ul, err := auth.getUserLevel(req.Data.Argv.UserKey)
+func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
+	ul, err := auth.getUserLevel(req.Argv.UserKey)
 	if err != nil {
-		l4g.Error("(%s) get user level failed: %s",req.Data.Argv.UserKey, err.Error())
-		res.Data.Err = data.ErrAuthSrvNoUserKey
+		l4g.Error("(%s) get user level failed: %s",req.Argv.UserKey, err.Error())
+		res.Err = data.ErrAuthSrvNoUserKey
 		return
 	}
 
 	if ul.PublicKey == "" {
-		l4g.Error("(%s-%s) failed: no public key", req.Data.Argv.UserKey, req.Data.Method.Function)
-		res.Data.Err = data.ErrAuthSrvNoPublicKey
+		l4g.Error("(%s-%s) failed: no public key", req.Argv.UserKey, req.Method.Function)
+		res.Err = data.ErrAuthSrvNoPublicKey
 		return
 	}
 
 	if req.Context.ApiLever > ul.Level{
-		l4g.Error("(%s-%s) failed: no api level", req.Data.Argv.UserKey, req.Data.Method.Function)
-		res.Data.Err = data.ErrAuthSrvNoApiLevel
+		l4g.Error("(%s-%s) failed: no api level", req.Argv.UserKey, req.Method.Function)
+		res.Err = data.ErrAuthSrvNoApiLevel
 		return
 	}
 
 	if req.Context.ApiLever > ul.Level || ul.IsFrozen != 0{
-		l4g.Error("(%s-%s) failed: user frozen", req.Data.Argv.UserKey, req.Data.Method.Function)
-		res.Data.Err = data.ErrAuthSrvUserFrozen
+		l4g.Error("(%s-%s) failed: user frozen", req.Argv.UserKey, req.Method.Function)
+		res.Err = data.ErrAuthSrvUserFrozen
 		return
 	}
 
-	bencrypted, err := base64.StdEncoding.DecodeString(req.Data.Argv.Message)
+	bencrypted, err := base64.StdEncoding.DecodeString(req.Argv.Message)
 	if err != nil {
 		l4g.Error("error base64: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
-	bsignature, err := base64.StdEncoding.DecodeString(req.Data.Argv.Signature)
+	bsignature, err := base64.StdEncoding.DecodeString(req.Argv.Signature)
 	if err != nil {
 		l4g.Error("error base64: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
@@ -170,7 +170,7 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, []byte(ul.PublicKey))
 	if err != nil {
 		l4g.Error("verify: %s", err.Error())
-		res.Data.Err = data.ErrAuthSrvIllegalData
+		res.Err = data.ErrAuthSrvIllegalData
 		return
 	}
 
@@ -179,33 +179,33 @@ func (auth *Auth)AuthData(req *data.SrvRequestData, res *data.SrvResponseData) {
 	originData, err = utils.RsaDecrypt(bencrypted, auth.privateKey, utils.RsaDecodeLimit2048)
 	if err != nil {
 		l4g.Error("decrypt: %s", err.Error())
-		res.Data.Err = data.ErrAuthSrvIllegalData
+		res.Err = data.ErrAuthSrvIllegalData
 		return
 	}
 
 	// ok
-	res.Data.Value.Message = string(originData)
+	res.Value.Message = string(originData)
 }
 
 // 打包数据
-func (auth *Auth)EncryptData(req *data.SrvRequestData, res *data.SrvResponseData) {
-	ul, err := auth.getUserLevel(req.Data.Argv.UserKey)
+func (auth *Auth)EncryptData(req *data.SrvRequest, res *data.SrvResponse) {
+	ul, err := auth.getUserLevel(req.Argv.UserKey)
 	if err != nil {
-		l4g.Error("(%s) get user level failed: %s",req.Data.Argv.UserKey, err.Error())
-		res.Data.Err = data.ErrAuthSrvNoUserKey
+		l4g.Error("(%s) get user level failed: %s",req.Argv.UserKey, err.Error())
+		res.Err = data.ErrAuthSrvNoUserKey
 		return
 	}
 
 	if ul.PublicKey == "" {
-		l4g.Error("(%s-%s) failed: no public key", req.Data.Argv.UserKey, req.Data.Method.Function)
-		res.Data.Err = data.ErrAuthSrvNoPublicKey
+		l4g.Error("(%s-%s) failed: no public key", req.Argv.UserKey, req.Method.Function)
+		res.Err = data.ErrAuthSrvNoPublicKey
 		return
 	}
 
 	// 加密
 	bencrypted, err := func() ([]byte, error){
 		// 用用户的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(req.Data.Argv.Message), []byte(ul.PublicKey), utils.RsaEncodeLimit2048)
+		bencrypted, err := utils.RsaEncrypt([]byte(req.Argv.Message), []byte(ul.PublicKey), utils.RsaEncodeLimit2048)
 		if err != nil {
 			return nil, err
 		}
@@ -214,7 +214,7 @@ func (auth *Auth)EncryptData(req *data.SrvRequestData, res *data.SrvResponseData
 	}()
 	if err != nil {
 		l4g.Error("encrypt: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
@@ -236,11 +236,11 @@ func (auth *Auth)EncryptData(req *data.SrvRequestData, res *data.SrvResponseData
 	}()
 	if err != nil {
 		l4g.Error("sign: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
 	// ok
-	res.Data.Value.Message = base64.StdEncoding.EncodeToString(bencrypted)
-	res.Data.Value.Signature = base64.StdEncoding.EncodeToString(bsignature)
+	res.Value.Message = base64.StdEncoding.EncodeToString(bencrypted)
+	res.Value.Signature = base64.StdEncoding.EncodeToString(bsignature)
 }

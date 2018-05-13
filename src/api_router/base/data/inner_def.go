@@ -2,7 +2,6 @@ package data
 
 import (
 	"fmt"
-	"bastionpay_api/api"
 )
 
 // /////////////////////////////////////////////////////
@@ -37,24 +36,41 @@ type SrvContext struct{
 	// future...
 }
 
-// user request data
-type UserRequestData struct{
-	Method		api.UserMethod 	`json:"method"`	// request method
-	Argv 		api.UserData 	`json:"argv"` 	// request argument
+// srv data
+type SrvData struct {
+	// user unique key
+	UserKey string `json:"user_key"`
+	// sub user key
+	SubUserKey string `json:"sub_user_key"`
+	// user request message
+	Message string `json:"message"`
+	// signature = origin data -> sha512 -> rsa sign -> base64
+	Signature  string `json:"signature"`
 }
 
-// rpc srv request data
-type SrvRequestData struct{
-	Context SrvContext 		`json:"context"`	// api info
-	Data 	UserRequestData `json:"data"`		// user request data
+// input/output method
+type SrvMethod struct {
+	Version     string `json:"version"`   // srv version
+	Srv     	string `json:"srv"`	  	  // srv name
+	Function  	string `json:"function"`  // srv function
 }
 
-// rpc srv response data
-type SrvResponseData struct{
-	Data 	api.UserResponseData `json:"data"`		// user response data
+// srv request
+type SrvRequest struct{
+	Context 	SrvContext 	`json:"context"`	// api info
+	Method		SrvMethod 	`json:"method"`		// request method
+	Argv 		SrvData 	`json:"argv"` 		// request argument
 }
+
+// srv response/push
+type SrvResponse struct{
+	Err     	int    		`json:"err"`    // error code
+	ErrMsg  	string 		`json:"errmsg"` // error message
+	Value   	SrvData 	`json:"value"` 	// response data
+}
+
 
 //////////////////////////////////////////////////////////////////////
-func (urd UserRequestData)String() string {
+func (urd SrvRequest)String() string {
 	return fmt.Sprintf("%s %s-%s-%s", urd.Argv.UserKey, urd.Method.Srv, urd.Method.Version, urd.Method.Function)
 }

@@ -4,7 +4,6 @@ import (
 	"api_router/base/data"
 	//"api_router/base/service"
 	service "api_router/base/service2"
-	"bastionpay_api/api"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
 )
@@ -35,7 +34,7 @@ func (x *Cobank) Stop() {
 }
 
 func (x *Cobank) callBack(userID string, callbackMsg string) {
-	pData := data.UserRequestData{}
+	pData := data.SrvRequest{}
 	pData.Method.Version = "v1"
 	pData.Method.Srv = "push"
 	pData.Method.Function = "pushdata"
@@ -43,7 +42,7 @@ func (x *Cobank) callBack(userID string, callbackMsg string) {
 	pData.Argv.UserKey = userID
 	pData.Argv.Message = callbackMsg
 
-	res := api.UserResponseData{}
+	res := data.SrvResponse{}
 	x.node.InnerCallByEncrypt(&pData, &res)
 	l4g.Info("push return: ", res)
 }
@@ -126,19 +125,19 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 	return nam
 }
 
-func (x *Cobank)HandleNotify(req *data.SrvRequestData){
+func (x *Cobank)HandleNotify(req *data.SrvRequest){
 	l4g.Info("HandleNotify-reloadUserLevel: do nothing")
 }
 
-func (x *Cobank) handler(req *data.SrvRequestData, res *data.SrvResponseData) {
-	res.Data.Err = data.NoErr
+func (x *Cobank) handler(req *data.SrvRequest, res *data.SrvResponse) {
+	res.Err = data.NoErr
 
-	l4g.Debug("argv: %s", req.Data.Argv)
+	l4g.Debug("argv: %s", req.Argv)
 
 	err := x.business.HandleMsg(req, res)
 	if err != nil {
 		l4g.Error("err: ", err)
 	}
 
-	l4g.Debug("value: %s", res.Data.Value)
+	l4g.Debug("value: %s", res.Value)
 }

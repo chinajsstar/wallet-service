@@ -11,7 +11,6 @@ import (
 	"strconv"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
-	"bastionpay_api/api"
 )
 
 const ArithSrvConfig = "arith.json"
@@ -20,14 +19,14 @@ func testPush(node *service.ServiceNode)  {
 	for i := 0; i < 50; i++ {
 		time.Sleep(time.Second*5)
 
-		pData := data.UserRequestData{}
+		pData := data.SrvRequest{}
 		pData.Method.Version = "v1"
 		pData.Method.Srv = "push"
 		pData.Method.Function = "pushdata"
-		pData.Argv.UserKey = "3b7ecf3b-c605-4c4f-ac2b-2155d4186cd8"
+		pData.Argv.UserKey = "5520ba93-da27-4934-aada-a7318a78a389"
 		pData.Argv.Message = "abcd=" + strconv.Itoa(i)
 
-		res := api.UserResponseData{}
+		res := data.SrvResponse{}
 		node.InnerCallByEncrypt(&pData, &res)
 
 		fmt.Println(res)
