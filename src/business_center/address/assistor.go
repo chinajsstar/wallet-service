@@ -272,6 +272,29 @@ func (a *Address) preSettlement(blockin *TransactionBlockin, transfer *types.Tra
 			detail.DetailID = a.generateUUID()
 			blockin.Detail = append(blockin.Detail, detail)
 		}
+	case "ZToken":
+		{
+			//from
+			detail.Address = transfer.From
+			detail.TransType = "from"
+			detail.Amount = -int64(transfer.Value)
+			detail.DetailID = a.generateUUID()
+			blockin.Detail = append(blockin.Detail, detail)
+
+			//to
+			detail.Address = transfer.To
+			detail.TransType = "to"
+			detail.Amount = int64(transfer.Value)
+			detail.DetailID = a.generateUUID()
+			blockin.Detail = append(blockin.Detail, detail)
+
+			//miner_fee
+			detail.Address = transfer.From
+			detail.TransType = "miner_fee"
+			detail.Amount = -int64(transfer.Fee)
+			detail.DetailID = a.generateUUID()
+			blockin.Detail = append(blockin.Detail, detail)
+		}
 	default:
 		return nil
 	}
