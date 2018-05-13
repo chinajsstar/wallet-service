@@ -82,6 +82,21 @@ func (sng *SrvNodeGroup) Call(req *data.SrvRequestData, res *data.SrvResponseDat
 	}
 }
 
+func (sng *SrvNodeGroup) Notify(client *rpc2.Client, req *data.SrvRequestData) {
+	sng.rwmu.RLock()
+	defer sng.rwmu.RUnlock()
+
+	for _, node := range sng.nodes {
+		// notify node
+		if node != nil && node != client {
+			err := node.Notify(data.MethodNodeNotify, req)
+			if err != nil {
+				l4g.Error("#Notify srv:%s", err.Error())
+			}
+		}
+	}
+}
+
 // get a free node by index
 func (sng *SrvNodeGroup) getFreeNode() *rpc2.Client {
 	// TODO:根据算法获取空闲的

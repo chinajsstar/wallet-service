@@ -40,9 +40,6 @@ func main() {
 		return
 	}
 
-	// init
-	handler.AccountInstance().Init(accountDir)
-
 	// create service node
 	l4g.Info("config path: %s", cfgPath)
 	nodeInstance, err := service.NewServiceNode(cfgPath)
@@ -50,6 +47,9 @@ func main() {
 		l4g.Error("Create service node failed: %s", err.Error())
 		return
 	}
+
+	// init
+	handler.AccountInstance().Init(accountDir, nodeInstance)
 
 	// register APIs
 	service.RegisterNodeApi(nodeInstance, handler.AccountInstance())

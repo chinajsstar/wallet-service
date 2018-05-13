@@ -22,6 +22,10 @@ func (arith *Arith)GetApiGroup()(map[string]service.NodeApi){
 	return nam
 }
 
+func (arith *Arith)HandleNotify(req *data.SrvRequestData){
+	l4g.Info("HandleNotify-reloadUserLevel: do nothing")
+}
+
 func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
 	res.Data.Err = data.NoErr
 

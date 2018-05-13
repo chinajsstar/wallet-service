@@ -42,7 +42,11 @@ func (a *Address) Run(ctx context.Context, wallet *service.ClientManager, callba
 	if userAddress, ok := mysqlpool.QueryUserAddress(nil); ok {
 		for _, v := range userAddress {
 			if assetProperty, ok := mysqlpool.QueryAssetPropertyByName(v.AssetName); ok {
-				rcaCmd := service.NewRechargeAddressCmd("", assetProperty.AssetName, []string{v.Address})
+				assetName := assetProperty.AssetName
+				if assetProperty.IsToken > 0 {
+					assetName = assetProperty.ParentName
+				}
+				rcaCmd := service.NewRechargeAddressCmd("", assetName, []string{v.Address})
 				a.wallet.InsertRechargeAddress(rcaCmd)
 			}
 		}

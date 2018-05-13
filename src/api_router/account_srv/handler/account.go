@@ -11,11 +11,14 @@ import (
 	"github.com/satori/go.uuid"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
+	"bastionpay_api/api"
 )
 
 ///////////////////////////////////////////////////////////////////////
 // 账号管理
 type Account struct{
+	node *service.ServiceNode
+
 	privateKey []byte
 	serverPublicKey []byte
 }
@@ -27,7 +30,7 @@ func AccountInstance() *Account{
 }
 
 // 初始化
-func (s *Account)Init(dir string) {
+func (s *Account)Init(dir string, node *service.ServiceNode) {
 	var err error
 	s.privateKey, err = ioutil.ReadFile(dir + "/" + config.BastionPayPrivateKey)
 	if err != nil {
@@ -37,6 +40,8 @@ func (s *Account)Init(dir string) {
 	if err != nil {
 		l4g.Crashf("", err)
 	}
+
+	s.node = node
 }
 
 func (s * Account)GetApiGroup()(map[string]service.NodeApi){
@@ -64,6 +69,10 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	}()
 
 	return nam
+}
+
+func (s *Account)HandleNotify(req *data.SrvRequestData){
+	l4g.Info("HandleNotify-reloadUserLevel: do nothing")
 }
 
 // 创建账号
@@ -158,7 +167,7 @@ func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseDa
 	// load profile
 	ackReadProfile, err := db.ReadProfile(reqReadProfile.UserKey)
 	if err != nil {
-		l4g.Error("error ReadKey: %s", err.Error())
+		l4g.Error("error ReadProfile: %s", err.Error())
 		res.Data.Err = data.ErrAccountSrvNoUser
 		return
 	}
@@ -173,7 +182,7 @@ func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseDa
 
 	// ok
 	res.Data.Value.Message = string(dataAck)
-	l4g.Info("update a user key: %s", res.Data.Value.Message)
+	l4g.Info("update a user profile: %s", res.Data.Value.Message)
 }
 
 // 更新key
@@ -230,5 +239,25 @@ func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponse
 
 	// ok
 	res.Data.Value.Message = string(dataAck)
-	l4g.Info("update a user key: %s", res.Data.Value.Message)
+	l4g.Info("update a user profile: %s", res.Data.Value.Message)
+
+	// notify
+	func(){
+		notifyReq := data.UserRequestData{}
+		notifyReq.Method.Version = "v1"
+		notifyReq.Method.Srv = "account"
+		notifyReq.Method.Function = "updateprofile"
+		notifyReq.Argv.UserKey =""
+
+		notifyData := v1.ReqUserUpdateProfile{}
+		notifyData.UserKey = reqUpdateProfile.UserKey
+		message, _ := json.Marshal(notifyData)
+
+		notifyReq.Argv.Message = string(message)
+
+		notifyRes := api.UserResponseData{}
+		s.node.InnerNotify(&notifyReq, &notifyRes)
+
+		l4g.Info("notify a user profile: %s", notifyReq.Argv.Message)
+	}()
 }

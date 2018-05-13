@@ -126,6 +126,24 @@ func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *v1.SrvRegisterDat
 	return nil
 }
 
+func (mi *ServiceGateway) innerNotify(client *rpc2.Client, req *data.UserRequestData, res *api.UserResponseData) error {
+	mi.wg.Add(1)
+	defer mi.wg.Done()
+
+	l4g.Debug("notify %s", req.String())
+
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
+
+	rpcSrv := data.SrvRequestData{Data:*req}
+
+	for _, srvNodeGroup := range mi.srvNodeNameMapSrvNodeGroup{
+		srvNodeGroup.Notify(client, &rpcSrv)
+	}
+
+	return nil
+}
+
 func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.UserRequestData, res *api.UserResponseData) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
@@ -215,6 +233,7 @@ func (mi *ServiceGateway) startTcpServer(ctx context.Context) {
 
 	mi.Server.Handle(data.MethodCenterRegister, mi.register)
 	mi.Server.Handle(data.MethodCenterUnRegister, mi.unRegister)
+	mi.Server.Handle(data.MethodCenterInnerNotify, mi.innerNotify)
 	mi.Server.Handle(data.MethodCenterInnerCall, mi.innerCall)
 	mi.Server.Handle(data.MethodCenterInnerCallByEncrypt, mi.innerCallByEncrypt)
 

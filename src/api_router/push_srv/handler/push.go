@@ -10,6 +10,7 @@ import (
 	"api_router/base/nethelper"
 	"encoding/json"
 	"bastionpay_api/api"
+	"bastionpay_api/api/v1"
 )
 
 type Push struct{
@@ -55,7 +56,19 @@ func (push * Push)getUserCallbackUrl(userKey string) (string, error)  {
 	}()
 }
 
-func (push * Push)GetApiGroup()(map[string]service.NodeApi){
+func (push * Push)reloadUserCallbackUrl(userKey string) (string, error)  {
+	push.rwmu.Lock()
+	defer push.rwmu.Unlock()
+
+	url, err := db.ReadUserCallbackUrl(userKey)
+	if err != nil {
+		return "", err
+	}
+	push.usersCallbackUrl[userKey] = url
+	return url, nil
+}
+
+func (push *Push)GetApiGroup()(map[string]service.NodeApi){
 	nam := make(map[string]service.NodeApi)
 
 	func(){
@@ -64,6 +77,26 @@ func (push * Push)GetApiGroup()(map[string]service.NodeApi){
 	}()
 
 	return nam
+}
+
+func (push *Push)HandleNotify(req *data.SrvRequestData){
+	if req.Data.Method.Srv == "account" && req.Data.Method.Function == "updateprofile" {
+		reqUpdateProfile := v1.ReqUserUpdateProfile{}
+		err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateProfile)
+		if err != nil {
+			l4g.Error("HandleNotify-Unmarshal: %s", err.Error())
+			return
+		}
+
+		// reload profile
+		ndata, err := push.reloadUserCallbackUrl(reqUpdateProfile.UserKey)
+		if err != nil {
+			l4g.Error("HandleNotify-reloadUserCallbackUrl: %s", err.Error())
+			return
+		}
+
+		l4g.Info("HandleNotify-reloadUserCallbackUrl: ", ndata)
+	}
 }
 
 // 推送数据
