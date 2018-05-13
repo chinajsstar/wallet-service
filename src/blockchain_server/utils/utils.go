@@ -98,10 +98,10 @@ func MD5(text string) string{
 	return hex.EncodeToString(ctx.Sum(nil))
 }
 
-func ToSpecialDecimal_asBigint(v uint64, from, to int) *big.Int {
+func DecimalCvt_i_i(v uint64, from, to int) *big.Int {
 	i := to - from
 	ibig :=  big.NewInt(int64(v))
-	if i>0 { return ibig.Div(ibig, big.NewInt(int64(math.Pow10( i))))
+	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i))))
 	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))) }
 }
 

@@ -54,9 +54,10 @@ func main() {
 	if true {
 		go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{to_account.Address, bank_account.Address}, done_watchaddress)
 	}
+
 	if false {
 		go testSendTokenTx(ctx, clientManager, bank_account.PrivateKey,to_account.Address, types.Chain_eth,
-			nil, 100 * uint64(math.Pow10(8)), done_sendTx)
+			&token, 100 * uint64(math.Pow10(8)), done_sendTx)
 	}
 
 	testGetBalance(clientManager, bank_account.Address, token)

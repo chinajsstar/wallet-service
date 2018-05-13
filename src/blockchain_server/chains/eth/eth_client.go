@@ -197,7 +197,13 @@ func (self *Client)SendTx(chiperKey string, tx *types.Transfer) error {
 			return fmt.Errorf("Not supported token(%s) Transaction:%s", tx.Token.Name, tx.String() )
 		}
 		opts := bind.NewKeyedTransactor(key)
-		tmpTx, err := tk.Transfer(opts, common.HexToAddress(tx.To), big.NewInt(10))
+
+		// TODO:这里应该用ToTokenDecimal来转换精度单位!!!, 先写成不转换, 只是为了测试!!!!!(8->18)
+		// TODO:这里应该用ToTokenDecimal来转换精度单位!!!, 先写成不转换, 只是为了测试!!!!!(8->18)
+		//v := tx.Token.ToTokenDecimal(tx.Value)
+		v := utils.DecimalCvt_i_i(tx.Value, 8, 1)
+		tmpTx, err := tk.Transfer(opts, common.HexToAddress(tx.To), v)
+
 		if err!=nil {
 			l4g.Trace("SendTransactrion error:%s", err.Error())
 			return err
@@ -270,7 +276,6 @@ func (self *Client) toClientDecimal(v uint64) *big.Int {
 
 func (c *Client) toStandardDecimalWithBig(ibig *big.Int) uint64 {
 	i := types.StandardDecimal - 18
-	//ibig := big.NewInt(int64(v))
 	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i)))).Uint64()
 	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))).Uint64() }
 }
@@ -442,7 +447,7 @@ func (self *Client) beginScanBlock() error {
 			top = self.virtualBlockHeight()
 			scanblock = self.scanblock
 
-			// following express to make sure blockchain are not forked
+			// the following express to make sure blockchain are not forked
 			// height <= (self.scanblock-self.confirm_count)
 			if nil==self.addresslist || len(*self.addresslist)==0 ||
 				//height <= self.scanblock - uint64(self.confirm_count) ||
@@ -465,6 +470,7 @@ func (self *Client) beginScanBlock() error {
 			txs := block.Transactions()
 
 			for _, tx := range txs {
+				l4g.Trace("tx on block(%d), tx information:%s", block.NumberU64(), tx.String())
 				to := tx.To()
 				if to==nil { continue }
 
@@ -600,8 +606,9 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 		// 如果确定为合约地址, 需要把destTx.to设置为接收代币的地址, 并为其设置token成员
 		to_string := strings.ToLower(to.String())
 		if tk := self.tokens[to_string]; tk!=nil {
-			destTx.To = common.BytesToAddress(srcTx.Data()[16:36]).String()
+			destTx.To = common.BytesToAddress(srcTx.Data()[4:36]).String()
 			destTx.Token = tk
+
 		}else {// or just set destTx.To with to.String()
 			destTx.To = to.String()
 		}
@@ -611,12 +618,17 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 	destTx.From = srcTx.From()
 
 	if destTx.Token!=nil {
-		destTx.Value = destTx.Token.ToStandardDecimalWithBig(srcTx.Value())
+		value := big.NewInt(0)
+		value.SetBytes(srcTx.Data()[36:68])
+
+		// TODO: 这里先假设TOKEN的精度为1, 只是为了测试方便, 后面需要把token的精度(18)转换为通讯标准规定的精度(8)
+		// TODO: 这里先假设TOKEN的精度为1, 只是为了测试方便, 后面需要把token的精度(18)转换为通讯标准规定的精度(8)
+		// destTx.Value = destTx.Token.ToStandardDecimal(value.Uint64())
+		destTx.Value = utils.DecimalCvt_i_i(value.Uint64(), 1, 8).Uint64()
 	} else {
 		destTx.Value = self.toStandardDecimalWithBig(srcTx.Value())
 	}
 
-	//destTx.Value = self.toStandardDecimalWithInt(srcTx.Value().Uint64())
 	destTx.GasUsed = srcTx.Gas()
 	destTx.Gaseprice = self.toStandardDecimalWithBig(srcTx.GasPrice())
 	destTx.Total = self.toStandardDecimalWithBig(srcTx.Cost())
@@ -627,7 +639,6 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 	if destTx.InBlock!=0 && destTx.Time==0 {
 		destTx.Time = self.blockTime(destTx.InBlock)
 	}
-
 	if state==types.Tx_state_confirmed {
 		if err := self.updateTxWithReceipt(destTx); err==nil {
 			if destTx.State==types.Tx_state_confirmed {

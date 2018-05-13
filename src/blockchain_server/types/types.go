@@ -2,8 +2,9 @@ package types
 
 import (
 	"fmt"
-	"math"
 	"math/big"
+	"blockchain_server/utils"
+	"math"
 )
 
 
@@ -52,30 +53,21 @@ type Token struct {
 }
 
 // 把StandardDecimal 表示的数量, 转换为币种内部使用的数量
-func (self *Token) ToTokenDecimal(v uint64) uint64 {
-	//i := 18 - self.Decimals
-	//if i>0 { return v * uint64(math.Pow10( int( i)))
-	//} else { return v / uint64(math.Pow10( int(-i))) }
-	i := 18 - self.Decimals
+func (self *Token) ToTokenDecimal(v uint64) *big.Int{
+	i := int(self.Decimals) - 8
 	ibig :=  big.NewInt(int64(v))
-	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(int( i))))).Uint64()
-	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(int(-i))))).Uint64() }
+	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i))))
+	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))) }
 }
 
 // 把币种内部使用的精度表示为外部标准使用过的精度!
 func (self *Token) ToStandardDecimal (v uint64) uint64 {
-	i := self.Decimals - 18
-	if i>0 { return v * uint64(math.Pow10( int( i)))
-	} else { return v / uint64(math.Pow10( int(-i))) }
+	return utils.DecimalCvt_i_i(v, int(self.Decimals), 8).Uint64()
 }
 
 func (self *Token) ToStandardDecimalWithBig(ibig *big.Int) uint64 {
-	i := self.Decimals - 18
-	if self.Decimals>18 {
-		return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(int( i))))).Uint64()
-	} else {
-		return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(int(-i))))).Uint64()
-	}
+	v := ibig.Uint64()
+	return utils.DecimalCvt_i_i(v, int(self.Decimals), 8).Uint64()
 }
 
 func (self *Token) String() string {

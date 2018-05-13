@@ -101,10 +101,11 @@ func (self *ClientManager) loopTxCmd() {
 			case txCmd := <-self.txCmdChannel:
 				{
 					if txCmd == nil {
-						l4g.Trace("Transaction Cmd Channel was closed!")
+						l4g.Trace("!!!!!!!!!!!!!txcmd is nil, maybe Transaction Cmd Channel was closed, exit loop !!!!!!!!!!!!!")
 						goto endfor
 					} else {
-						l4g.Trace("recived TxCommand: %s \n", txCmd.MsgId)
+						l4g.Trace("%s, Send transaction command(message id:%s): transaction information:%s",
+							txCmd.Coinname, txCmd.MsgId, txCmd.Tx.String() )
 						go self.innerSendTx(txCmd)
 					}
 				}
@@ -508,6 +509,9 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 // 即1^8 单位为一个bitcoin或者eth
 func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
 
+	if self.loopTxCmdRuning == false {
+			
+	}
 	l4g.Trace("Recived one SendTx command:%s", cmdTx.MsgId)
 
 	if self.txCmdChannel == nil {
