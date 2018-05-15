@@ -605,9 +605,9 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 		ua.Address = v.Address
 		ua.AllocationTime = v.AllocationTime
 
-		userAddressList.UserAddress = append(userAddressList.UserAddress, ua)
+		userAddressList.Data = append(userAddressList.Data, ua)
 	}
-	resMap["data"] = userAddressList.UserAddress//userAddress
+	resMap["data"] = userAddressList.Data
 
 	res.Value.Message = responseJson(resMap)
 	res.Err = 0
