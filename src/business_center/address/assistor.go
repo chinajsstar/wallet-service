@@ -56,10 +56,18 @@ func (a *Address) generateAddress(userProperty *UserProperty, assetProperty *Ass
 	if err != nil {
 		return []UserAddress{}
 	}
-	err = mysqlpool.AddUserAccount(userProperty.UserKey, userProperty.UserClass, assetProperty.AssetName)
-	if err != nil {
-		return []UserAddress{}
+
+	if userProperty.UserClass == 0 {
+		err = mysqlpool.AddUserAccount(userProperty.UserKey, userProperty.UserClass, assetProperty.AssetName)
+		if err != nil {
+			return []UserAddress{}
+		}
 	}
+
+	if userProperty.UserClass == 1 && assetProperty.IsToken == 0 {
+		mysqlpool.CreateTokenAddress(userAddress)
+	}
+
 	return userAddress
 }
 

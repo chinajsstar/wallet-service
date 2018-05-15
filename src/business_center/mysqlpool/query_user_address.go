@@ -146,7 +146,8 @@ func AddUserAddress(userAddress []UserAddress) error {
 func UpdatePayTokenAddress() error {
 	db := Get()
 	rows, err := db.Query("select a.user_key, a.user_class, a.available_amount, a.frozen_amount," +
-		" a.asset_name, address, a.private_key, a.enabled, a.create_time, a.allocation_time, a.update_time" +
+		" a.asset_name, address, a.private_key, a.enabled, unix_timestamp(a.create_time)," +
+		" unix_timestamp(a.allocation_time), unix_timestamp(a.update_time)" +
 		" from user_address a left join asset_property b on a.asset_name = b.asset_name" +
 		" where a.user_class = 1 and b.is_token = 0")
 	if err != nil {
@@ -156,9 +157,9 @@ func UpdatePayTokenAddress() error {
 	userAddress := make([]UserAddress, 0)
 	var data UserAddress
 	for rows.Next() {
-		err := rows.Scan(&data.UserKey, data.UserClass, data.AvailableAmount, data.FrozenAmount,
-			data.AssetName, data.Address, data.PrivateKey, data.Enabled,
-			data.CreateTime, data.AllocationTime, data.UpdateTime)
+		err := rows.Scan(&data.UserKey, &data.UserClass, &data.AvailableAmount, &data.FrozenAmount,
+			&data.AssetName, &data.Address, &data.PrivateKey, &data.Enabled,
+			&data.CreateTime, &data.AllocationTime, &data.UpdateTime)
 		if err != nil {
 			continue
 		}
@@ -204,6 +205,9 @@ func CreateTokenAddress(userAddress []UserAddress) error {
 				}
 			}
 		}
+	}
+	if len(data) > 0 {
+		return AddUserAddress(data)
 	}
 	return nil
 }
