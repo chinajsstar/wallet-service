@@ -129,9 +129,6 @@ func AddUserAddress(userAddress []UserAddress) error {
 			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
 		if err != nil {
 			tx.Rollback()
-			_, errMsg := CheckError(ErrorFailed, err.Error())
-			l4g.Error(errMsg)
-			return err
 		}
 	}
 
@@ -143,5 +140,70 @@ func AddUserAddress(userAddress []UserAddress) error {
 		return err
 	}
 
+	return nil
+}
+
+func UpdatePayTokenAddress() error {
+	db := Get()
+	rows, err := db.Query("select a.user_key, a.user_class, a.available_amount, a.frozen_amount," +
+		" a.asset_name, address, a.private_key, a.enabled, a.create_time, a.allocation_time, a.update_time" +
+		" from user_address a left join asset_property b on a.asset_name = b.asset_name" +
+		" where a.user_class = 1 and b.is_token = 0")
+	if err != nil {
+		return err
+	}
+
+	userAddress := make([]UserAddress, 0)
+	var data UserAddress
+	for rows.Next() {
+		err := rows.Scan(&data.UserKey, data.UserClass, data.AvailableAmount, data.FrozenAmount,
+			data.AssetName, data.Address, data.PrivateKey, data.Enabled,
+			data.CreateTime, data.AllocationTime, data.UpdateTime)
+		if err != nil {
+			continue
+		}
+		userAddress = append(userAddress, data)
+	}
+
+	if len(userAddress) > 0 {
+		return CreateTokenAddress(userAddress)
+	}
+	return nil
+}
+
+func CreateTokenAddress(userAddress []UserAddress) error {
+	assetPropertyMap := make(map[string]AssetProperty)
+	if assetProperty, ok := QueryAssetProperty(nil); ok {
+		for _, value := range assetProperty {
+			assetPropertyMap[value.AssetName] = value
+		}
+	}
+
+	var assetName string
+	data := make([]UserAddress, 0)
+
+	db := Get()
+	for _, value := range userAddress {
+		if value.UserClass == 1 {
+			if v, ok := assetPropertyMap[value.AssetName]; ok {
+				if v.IsToken == 0 {
+					rows, err := db.Query("select asset_name"+
+						" from asset_property where is_token = 1 and parent_name = ?", v.AssetName)
+					if err != nil {
+						continue
+					}
+					for rows.Next() {
+						err := rows.Scan(&assetName)
+						if err != nil {
+							continue
+						}
+						addr := value
+						addr.AssetName = assetName
+						data = append(data, addr)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }

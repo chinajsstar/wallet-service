@@ -32,6 +32,8 @@ func init() {
 	db.SetMaxOpenConns(2000)
 	db.SetMaxIdleConns(1000)
 	db.Ping()
+
+	UpdatePayTokenAddress()
 }
 
 func andConditions(queryMap map[string]interface{}, params *[]interface{}) string {
@@ -51,6 +53,11 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 		case "asset_name":
 			if value, ok := value.(string); ok {
 				sqls += " and asset_name = ?"
+				*params = append(*params, value)
+			}
+		case "is_token":
+			if value, ok := value.(float64); ok {
+				sqls += " and is_token = ?"
 				*params = append(*params, value)
 			}
 		case "address":
