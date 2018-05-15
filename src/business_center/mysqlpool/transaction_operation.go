@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func WithDrawalSet(userKey string, assetName string, address string, amount int64, payFee int64, uuID string) error {
+func WithDrawalOrder(userKey string, assetName string, address string, amount int64, payFee int64, uuID string) error {
 	nowTM := time.Now().UTC().Format(TimeFormat)
 
 	tx, err := Get().Begin()

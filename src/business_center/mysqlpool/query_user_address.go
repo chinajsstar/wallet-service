@@ -188,6 +188,10 @@ func CreateTokenAddress(userAddress []UserAddress) error {
 		if value.UserClass == 1 {
 			if v, ok := assetPropertyMap[value.AssetName]; ok {
 				if v.IsToken == 0 {
+					//设置默认支付地址
+					db.Exec("insert pay_address (asset_name, address, private_key) values (?, ?, ?)",
+						value.AssetName, value.Address, value.PrivateKey)
+
 					rows, err := db.Query("select asset_name"+
 						" from asset_property where is_token = 1 and parent_name = ?", v.AssetName)
 					if err != nil {

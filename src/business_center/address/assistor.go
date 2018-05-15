@@ -6,6 +6,7 @@ import (
 	. "business_center/def"
 	"business_center/mysqlpool"
 	"business_center/redispool"
+	"business_center/transaction"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -82,15 +83,11 @@ func (a *Address) recvRechargeTxChannel() {
 			case rct := <-channel:
 				{
 					if rct.Err != nil {
+						l4g.Error("%s", rct.Err.Error())
 						continue
 					}
 
-					assetName := rct.Coin_name
-					if rct.Tx.IsTokenTx() {
-						assetName = rct.Tx.Token.Symbol
-					}
-
-					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
+					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(rct.Coin_name)
 					if !ok {
 						continue
 					}
@@ -115,12 +112,19 @@ func (a *Address) recvRechargeTxChannel() {
 					}
 
 					if blockin.Status == StatusBlockin {
-						blockin.Time = int64(rct.Tx.Time)
-						a.transactionBegin(&blockin, rct.Tx)
-					} else {
-						blockin.Time = time.Now().Unix()
-						a.transactionFinish(&blockin, rct.Tx)
+						transaction.Blockin(&blockin, rct.Tx, a.callback)
+					} else if blockin.Status == StatusConfirm {
+						transaction.Blockin(&blockin, rct.Tx, a.callback)
+						transaction.Confirm(&blockin, rct.Tx, a.callback)
 					}
+
+					//if blockin.Status == StatusBlockin {
+					//	blockin.Time = int64(rct.Tx.Time)
+					//	a.transactionBegin(&blockin, rct.Tx)
+					//} else {
+					//	blockin.Time = time.Now().Unix()
+					//	a.transactionFinish(&blockin, rct.Tx)
+					//}
 				}
 			case <-ctx.Done():
 				{
@@ -145,12 +149,7 @@ func (a *Address) recvCmdTxChannel() {
 						continue
 					}
 
-					assetName := cmdTx.Coinname
-					if cmdTx.Tx.IsTokenTx() {
-						assetName = cmdTx.Tx.Token.Symbol
-					}
-
-					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
+					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(cmdTx.Coinname)
 					if !ok {
 						continue
 					}
@@ -175,12 +174,19 @@ func (a *Address) recvCmdTxChannel() {
 					}
 
 					if blockin.Status == StatusBlockin {
-						blockin.Time = int64(cmdTx.Tx.Time)
-						a.transactionBegin(&blockin, cmdTx.Tx)
-					} else {
-						blockin.Time = time.Now().Unix()
-						a.transactionFinish(&blockin, cmdTx.Tx)
+						transaction.Blockin(&blockin, cmdTx.Tx, a.callback)
+					} else if blockin.Status == StatusConfirm {
+						transaction.Blockin(&blockin, cmdTx.Tx, a.callback)
+						transaction.Confirm(&blockin, cmdTx.Tx, a.callback)
 					}
+
+					//if blockin.Status == StatusBlockin {
+					//	blockin.Time = int64(cmdTx.Tx.Time)
+					//	a.transactionBegin(&blockin, cmdTx.Tx)
+					//} else {
+					//	blockin.Time = time.Now().Unix()
+					//	a.transactionFinish(&blockin, cmdTx.Tx)
+					//}
 				}
 			case <-ctx.Done():
 				fmt.Println("TxState context done, because : ", ctx.Err())

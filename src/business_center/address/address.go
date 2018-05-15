@@ -213,7 +213,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 	uuID := a.generateUUID()
 	resMap["order_id"] = uuID
 
-	err = mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID)
+	err = mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足!")
 		l4g.Error(res.ErrMsg)
