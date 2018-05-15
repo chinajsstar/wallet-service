@@ -14,7 +14,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 1
+	testType := 3
 	switch testType {
 	case 1:
 		req.Method.Function = "new_address"
@@ -28,7 +28,7 @@ func TestHandleMsg(t *testing.T) {
 	case 3:
 		req.Method.Function = "query_user_address"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"page_index\":1,\"max_disp_lines\":9,\"min_create_time\":1523656800}"
+		req.Argv.Message = "{\"page_index\":1,\"max_disp_lines\":2}"
 	case 4:
 		req.Method.Function = "support_assets"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"

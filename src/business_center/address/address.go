@@ -2,6 +2,7 @@ package address
 
 import (
 	"api_router/base/data"
+	"bastionpay_api/api/v1"
 	"blockchain_server/service"
 	"blockchain_server/types"
 	. "business_center/def"
@@ -13,7 +14,6 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"math"
 	"sync"
-	"bastionpay_api/api/v1"
 )
 
 type Address struct {
@@ -145,6 +145,12 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
+	if amount <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "提币金额要大于0")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
 	address, ok := params.Address()
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"address\"参数")
@@ -244,7 +250,7 @@ func (a *Address) SupportAssets(req *data.SrvRequest, res *data.SrvResponse) err
 		var pack []byte
 		if isSubUserKey {
 			pack, err = json.Marshal(supportAssetList)
-		}else{
+		} else {
 			pack, err = json.Marshal(supportAssetList.Data)
 		}
 
@@ -280,7 +286,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			return errors.New(res.ErrMsg)
 		}
 		assetNameArray = assets.Assets
-	} else{
+	} else {
 		params, err := jsonparse.Parse(req.Argv.Message)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
@@ -293,7 +299,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 	// 放入map
 	assetNameMap := make(map[string]interface{})
 	for _, value := range assetNameArray {
-		if value != ""{
+		if value != "" {
 			assetNameMap[value] = ""
 		}
 	}
@@ -328,7 +334,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 	var pack []byte
 	if isSubUserKey {
 		pack, err = json.Marshal(assetsAttributeList)
-	}else{
+	} else {
 		pack, err = json.Marshal(assetsAttributeList.Data)
 	}
 
@@ -364,7 +370,7 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 			return errors.New(res.ErrMsg)
 		}
 		assetNameArray = assets.Assets
-	} else{
+	} else {
 		params, err := jsonparse.Parse(req.Argv.Message)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
@@ -409,7 +415,7 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 	var pack []byte
 	if isSubUserKey {
 		pack, err = json.Marshal(assetsBalanceList)
-	}else{
+	} else {
 		pack, err = json.Marshal(assetsBalanceList.Data)
 	}
 
@@ -487,7 +493,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		}
 
 		pack, err = json.Marshal(hisTxOrderList)
-	}else{
+	} else {
 		pack, err = json.Marshal(data)
 	}
 
@@ -555,7 +561,7 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 		}
 
 		pack, err = json.Marshal(hisTxMsgList)
-	}else{
+	} else {
 		pack, err = json.Marshal(data)
 	}
 
@@ -590,7 +596,7 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 
 	queryMap := make(map[string]interface{})
 	queryMap["user_key"] = realUseKey
-	if reqUserAddrss.AssetName != ""{
+	if reqUserAddrss.AssetName != "" {
 		queryMap["asset_name"] = reqUserAddrss.AssetName
 	}
 
