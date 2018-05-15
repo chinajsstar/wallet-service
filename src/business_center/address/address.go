@@ -14,6 +14,7 @@ import (
 	"math"
 	"sync"
 	"bastionpay_api/api/v1"
+	"fmt"
 )
 
 type Address struct {
@@ -270,9 +271,14 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 		return errors.New(res.ErrMsg)
 	}
 
+	// 输入参数
+	assets := v1.ReqAssetsAttributeList{}
+
+	// 构建查询条件
+	queryMap := make(map[string]interface{})
+
 	var assetNameArray []string
 	if isSubUserKey {
-		assets := v1.ReqAssetsAttributeList{}
 		err := json.Unmarshal([]byte(req.Argv.Message), &assets)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
@@ -280,6 +286,17 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			return errors.New(res.ErrMsg)
 		}
 		assetNameArray = assets.Assets
+
+		if assets.IsToken != -1{
+			queryMap["is_token"] = assets.IsToken
+		}
+
+		queryMap["page_index"] = assets.PageIndex
+		if assets.MaxDispLines > 0 && assets.MaxDispLines < 100{
+			queryMap["max_disp_lines"] = assets.MaxDispLines
+		} else{
+			queryMap["max_disp_lines"] = 50
+		}
 	} else{
 		params, err := jsonparse.Parse(req.Argv.Message)
 		if err != nil {
@@ -299,7 +316,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 	}
 
 	assetsAttributeList := v1.AckAssetsAttributeList{}
-	if assetProperty, ok := mysqlpool.QueryAssetProperty(nil); ok {
+	if assetProperty, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
 		for _, v := range assetProperty {
 			// 是否选中的
 			if len(assetNameMap) > 0 {
@@ -309,6 +326,8 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			}
 
 			assetAttribute := v1.AckAssetsAttribute{}
+			assetAttribute.AssetId = 0
+			assetAttribute.AssetLogo = v.Logo
 			assetAttribute.AssetName = v.AssetName
 			assetAttribute.FullName = v.FullName
 			assetAttribute.IsToken = v.IsToken
@@ -320,6 +339,11 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			assetAttribute.Decimal = v.Decimal
 
 			assetsAttributeList.Data = append(assetsAttributeList.Data, assetAttribute)
+		}
+		if  assets.TotalLines != 0{
+			assetsAttributeList.TotalLines = assets.TotalLines
+		}else {
+			assetsAttributeList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
 		}
 	}
 
@@ -593,14 +617,36 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 	if reqUserAddrss.AssetName != ""{
 		queryMap["asset_name"] = reqUserAddrss.AssetName
 	}
+	if reqUserAddrss.Address != ""{
+		queryMap["address"] = reqUserAddrss.Address
+	}
+	if reqUserAddrss.EndTime != 0 {
+		queryMap["max_create_time"] = reqUserAddrss.BeginTime
+	}
+	if reqUserAddrss.BeginTime != 0 {
+		queryMap["min_create_time"] = reqUserAddrss.BeginTime
+	}
 
-	resMap := responsePagination(queryMap, mysqlpool.QueryUserAddressCount(queryMap))
+	queryMap["page_index"] = reqUserAddrss.PageIndex
+	if reqUserAddrss.MaxDispLines > 0 && reqUserAddrss.MaxDispLines < 100{
+		queryMap["max_disp_lines"] = reqUserAddrss.MaxDispLines
+	} else{
+		queryMap["max_disp_lines"] = 50
+	}
+	fmt.Println(queryMap)
+
+	totalLines := 0
+	if reqUserAddrss.TotalLines != 0{
+		totalLines = reqUserAddrss.TotalLines
+	}else {
+		totalLines = mysqlpool.QueryUserAddressCount(queryMap)
+	}
+	resMap := responsePagination(queryMap, totalLines)
 	userAddress, _ := mysqlpool.QueryUserAddress(queryMap)
 
 	userAddressList := v1.AckUserAddressList{}
 	for _, v := range userAddress {
 		ua := v1.AckUserAddress{}
-		ua.Id = 0
 		ua.AssetName = v.AssetName
 		ua.Address = v.Address
 		ua.AllocationTime = v.AllocationTime
