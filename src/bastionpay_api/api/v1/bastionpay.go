@@ -58,10 +58,10 @@ type AckUserAddress struct {
 }
 
 type AckUserAddressList struct {
-	UserAddress 	[]AckUserAddress `json:"user_addresses" comment:"用户地址列表"`
-	TotolLines 		int `json:"total_lines" comment:"总数"`
-	PageIndex 		int `json:"page_index" comment:"页索引"`
-	MaxDispLines 	int `json:"max_disp_lines" comment:"页最大数"`
+	Data 			[]AckUserAddress 	`json:"data" comment:"用户地址列表"`
+	TotolLines 		int 				`json:"total_lines" comment:"总数"`
+	PageIndex 		int 				`json:"page_index" comment:"页索引"`
+	MaxDispLines 	int 				`json:"max_disp_lines" comment:"页最大数"`
 }
 
 // 历史交易订单

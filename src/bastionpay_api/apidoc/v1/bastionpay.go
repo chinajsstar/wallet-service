@@ -15,7 +15,7 @@ var ApiDocSupportAssets = apidoc.ApiDoc{
 	Comment:"获取支持币种",
 	Path:"/api/v1/bastionpay/support_assets",
 	Input:v1.ReqSupportAssets{},
-	Output:v1.AckSupportAssetList{SupportAssets:[]string{"btc"}},
+	Output:v1.AckSupportAssetList{Data:[]string{"btc"}},
 }
 
 // 币种属性
@@ -27,7 +27,7 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 	Comment:"获取币种属性",
 	Path:"/api/v1/bastionpay/asset_attribute",
 	Input:v1.ReqAssetsAttributeList{Assets:[]string{"btc"}},
-	Output:v1.AckAssetsAttributeList{AssetsAttributes: []v1.AckAssetsAttribute{v1.AckAssetsAttribute{}}},
+	Output:v1.AckAssetsAttributeList{Data: []v1.AckAssetsAttribute{v1.AckAssetsAttribute{}}},
 }
 
 // 币种余额
@@ -39,7 +39,7 @@ var ApiDocGetBalance = apidoc.ApiDoc{
 	Comment:"查询币种余额",
 	Path:"/api/v1/bastionpay/get_balance",
 	Input:v1.ReqUserBalance{Assets:[]string{"btc"}},
-	Output:v1.AckUserBalanceList{AckUserBalances:[]v1.AckUserBalance{v1.AckUserBalance{}}},
+	Output:v1.AckUserBalanceList{Data:[]v1.AckUserBalance{v1.AckUserBalance{}}},
 }
 
 // 用户地址
@@ -51,7 +51,7 @@ var ApiDocQueryUserAddress = apidoc.ApiDoc{
 	Comment:"用户查询地址",
 	Path:"/api/v1/bastionpay/query_user_address",
 	Input:v1.ReqUserAddress{},
-	Output:v1.AckUserAddressList{UserAddress: []v1.AckUserAddress{v1.AckUserAddress{}}},
+	Output:v1.AckUserAddressList{Data: []v1.AckUserAddress{v1.AckUserAddress{}}},
 }
 
 // 历史交易订单
@@ -63,7 +63,7 @@ var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
 	Comment:"查询历史交易订单",
 	Path:"/api/v1/bastionpay/history_transaction_order",
 	Input:v1.ReqHistoryTransactionOrder{},
-	Output:v1.AckHistoryTransactionOrderList{AckHistoryTransactionOrders: []v1.AckHistoryTransactionOrder{v1.AckHistoryTransactionOrder{}}},
+	Output:v1.AckHistoryTransactionOrderList{Data: []v1.AckHistoryTransactionOrder{v1.AckHistoryTransactionOrder{}}},
 }
 
 // 历史交易消息
@@ -75,7 +75,7 @@ var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
 	Comment:"查询历史交易信息",
 	Path:"/api/v1/bastionpay/history_transaction_message",
 	Input:v1.ReqHistoryTransactionMessage{},
-	Output:v1.AckHistoryTransactionMessageList{AckHistoryTransactionMessages: []v1.AckHistoryTransactionMessage{v1.AckHistoryTransactionMessage{}}},
+	Output:v1.AckHistoryTransactionMessageList{Data: []v1.AckHistoryTransactionMessage{v1.AckHistoryTransactionMessage{}}},
 }
 
 // TODO:以下需继续
