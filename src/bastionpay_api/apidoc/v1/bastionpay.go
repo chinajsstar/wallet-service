@@ -6,6 +6,7 @@ import (
 	"api_router/base/data"
 )
 
+// 支持币种
 var ApiDocSupportAssets = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"bastionpay",
@@ -13,10 +14,11 @@ var ApiDocSupportAssets = apidoc.ApiDoc{
 	Level:data.APILevel_client,
 	Comment:"获取支持币种",
 	Path:"/api/v1/bastionpay/support_assets",
-	Input:nil,
-	Output:[]string{"btc"},
+	Input:v1.ReqSupportAssets{},
+	Output:v1.AckSupportAssetList{SupportAssets:[]string{"btc"}},
 }
 
+// 币种属性
 var ApiDocAssetAttribute = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"bastionpay",
@@ -24,10 +26,59 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 	Level:data.APILevel_client,
 	Comment:"获取币种属性",
 	Path:"/api/v1/bastionpay/asset_attribute",
-	Input:[]string{"btc"},
-	Output:v1.AckAssetsAttributes{v1.AckAssetsAttribute{}},
+	Input:v1.ReqAssetsAttributeList{Assets:[]string{"btc"}},
+	Output:v1.AckAssetsAttributeList{AssetsAttributes: []v1.AckAssetsAttribute{v1.AckAssetsAttribute{}}},
 }
 
+// 币种余额
+var ApiDocGetBalance = apidoc.ApiDoc{
+	VerName:"v1",
+	SrvName:"bastionpay",
+	FuncName:"get_balance",
+	Level:data.APILevel_client,
+	Comment:"查询币种余额",
+	Path:"/api/v1/bastionpay/get_balance",
+	Input:v1.ReqUserBalance{Assets:[]string{"btc"}},
+	Output:v1.AckUserBalanceList{AckUserBalances:[]v1.AckUserBalance{v1.AckUserBalance{}}},
+}
+
+// 用户地址
+var ApiDocQueryUserAddress = apidoc.ApiDoc{
+	VerName:"v1",
+	SrvName:"bastionpay",
+	FuncName:"query_user_address",
+	Level:data.APILevel_client,
+	Comment:"用户查询地址",
+	Path:"/api/v1/bastionpay/query_user_address",
+	Input:v1.ReqUserAddress{},
+	Output:v1.AckUserAddressList{UserAddress: []v1.AckUserAddress{v1.AckUserAddress{}}},
+}
+
+// 历史交易订单
+var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
+	VerName:"v1",
+	SrvName:"bastionpay",
+	FuncName:"history_transaction_order",
+	Level:data.APILevel_client,
+	Comment:"查询历史交易订单",
+	Path:"/api/v1/bastionpay/history_transaction_order",
+	Input:v1.ReqHistoryTransactionOrder{},
+	Output:v1.AckHistoryTransactionOrderList{AckHistoryTransactionOrders: []v1.AckHistoryTransactionOrder{v1.AckHistoryTransactionOrder{}}},
+}
+
+// 历史交易消息
+var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
+	VerName:"v1",
+	SrvName:"bastionpay",
+	FuncName:"history_transaction_message",
+	Level:data.APILevel_client,
+	Comment:"查询历史交易信息",
+	Path:"/api/v1/bastionpay/history_transaction_message",
+	Input:v1.ReqHistoryTransactionMessage{},
+	Output:v1.AckHistoryTransactionMessageList{AckHistoryTransactionMessages: []v1.AckHistoryTransactionMessage{v1.AckHistoryTransactionMessage{}}},
+}
+
+// TODO:以下需继续
 var ApiDocNewAddress = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"bastionpay",
@@ -39,17 +90,6 @@ var ApiDocNewAddress = apidoc.ApiDoc{
 	Output:nil,
 }
 
-var ApiDocQueryUserAddress = apidoc.ApiDoc{
-	VerName:"v1",
-	SrvName:"bastionpay",
-	FuncName:"query_user_address",
-	Level:data.APILevel_client,
-	Comment:"用户查询地址",
-	Path:"/api/v1/bastionpay/query_user_address",
-	Input:nil,
-	Output:nil,
-}
-
 var ApiDocWithdrawal = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"bastionpay",
@@ -57,39 +97,6 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 	Level:data.APILevel_client,
 	Comment:"提币",
 	Path:"/api/v1/bastionpay/withdrawal",
-	Input:nil,
-	Output:nil,
-}
-
-var ApiDocGetBalance = apidoc.ApiDoc{
-	VerName:"v1",
-	SrvName:"bastionpay",
-	FuncName:"get_balance",
-	Level:data.APILevel_client,
-	Comment:"查询币种余额",
-	Path:"/api/v1/bastionpay/get_balance",
-	Input:nil,
-	Output:nil,
-}
-
-var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
-	VerName:"v1",
-	SrvName:"bastionpay",
-	FuncName:"history_transaction_order",
-	Level:data.APILevel_client,
-	Comment:"查询历史交易订单",
-	Path:"/api/v1/bastionpay/history_transaction_order",
-	Input:nil,
-	Output:nil,
-}
-
-var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
-	VerName:"v1",
-	SrvName:"bastionpay",
-	FuncName:"history_transaction_message",
-	Level:data.APILevel_client,
-	Comment:"查询历史交易信息",
-	Path:"/api/v1/bastionpay/history_transaction_message",
 	Input:nil,
 	Output:nil,
 }

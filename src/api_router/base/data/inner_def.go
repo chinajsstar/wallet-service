@@ -69,8 +69,24 @@ type SrvResponse struct{
 	Value   	SrvData 	`json:"value"` 	// response data
 }
 
-
 //////////////////////////////////////////////////////////////////////
+func (sr *SrvRequest)GetUserKey() (string, string, string) {
+	realUserKey := ""
+	if sr.Argv.SubUserKey != "" {
+		realUserKey = sr.Argv.SubUserKey
+	}else{
+		realUserKey = sr.Argv.UserKey
+	}
+
+	return sr.Argv.UserKey, sr.Argv.SubUserKey, realUserKey
+}
+func (sr *SrvRequest)IsSubUserKey() (bool) {
+	if sr.Argv.SubUserKey != "" {
+		return true
+	}
+
+	return false
+}
 func (urd SrvRequest)String() string {
 	return fmt.Sprintf("%s %s-%s-%s", urd.Argv.UserKey, urd.Method.Srv, urd.Method.Version, urd.Method.Function)
 }
