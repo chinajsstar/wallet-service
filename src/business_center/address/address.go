@@ -123,6 +123,12 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
+	if userProperty.UserClass != 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "该用户不能执行该操作")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
 	resMap := make(map[string]interface{})
 	params, err := jsonparse.Parse(req.Argv.Message)
 	if err != nil {
@@ -174,6 +180,12 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 
 	if userAccount.AvailableAmount < amount {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if amount <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "提币金额必需大于0")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
