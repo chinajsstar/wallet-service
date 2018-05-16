@@ -19,7 +19,7 @@ func usage()  {
 	fmt.Println("		create a rsa key pair")
 	fmt.Println(">setport port")
 	fmt.Println("		set http listen port")
-	fmt.Println(">switch cfg")
+	fmt.Println(">switch cfgname")
 	fmt.Println("		switch a user cfg file")
 	fmt.Println(">api srv function jsonmessage")
 	fmt.Println("		call api with json message")
@@ -79,15 +79,13 @@ func main()  {
 
 			fmt.Println("==set http port ok==")
 		} else if argv[0] == "switch"{
-			var cfg string
 			if len(argv) != 2{
-				fmt.Println("格式：switch cfg")
+				fmt.Println("格式：switch cfgname")
 				continue
 			}
-			cfg = argv[1]
+			cfgName := argv[1]
 
-			cfgPath := runDir + "/" + cfg
-			err = gateway.Init(cfgPath)
+			err = gateway.Init(runDir, cfgName)
 			if err != nil {
 				fmt.Println(err)
 				continue

@@ -11,9 +11,9 @@ var ApiDocRecharge = apidoc.ApiDoc{
 	FuncName:"recharge",
 	Level:0,
 	Comment:"模拟充值",
-	Path:"/api/v1/bastionpay/recharge",
-	Input:v1.ReqRecharge{},
-	Output:nil,
+	Path:"/v1/bastionpay/recharge",
+	Input:&v1.ReqRecharge{},
+	Output:new(string),
 }
 
 var ApiDocGenerate = apidoc.ApiDoc{
@@ -22,7 +22,7 @@ var ApiDocGenerate = apidoc.ApiDoc{
 	FuncName:"generate",
 	Level:0,
 	Comment:"模拟挖矿",
-	Path:"/api/v1/bastionpay/generate",
-	Input:v1.ReqGenerate{},
-	Output:nil,
+	Path:"/v1/bastionpay/generate",
+	Input:&v1.ReqGenerate{},
+	Output:new(string),
 }

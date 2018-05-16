@@ -12,7 +12,7 @@ var ApiDocAdd = apidoc.ApiDoc{
 	FuncName:"add",
 	Level:data.APILevel_client,
 	Comment:"加法功能",
-	Path:"/api/v1/arith/add",
-	Input:v1.Args{},
-	Output:v1.AckArgs{},
+	Path:"/v1/arith/add",
+	Input:&v1.Args{},
+	Output:&v1.AckArgs{},
 }

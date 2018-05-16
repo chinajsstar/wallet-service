@@ -44,8 +44,8 @@ var (
 	setting 	Setting
 )
 
-func Init(cfgPath string) error {
-	data, err := ioutil.ReadFile(cfgPath)
+func Init(dir, cfgName string) error {
+	data, err := ioutil.ReadFile(dir + "/" + cfgName)
 	if err != nil {
 		return err
 	}
@@ -57,17 +57,17 @@ func Init(cfgPath string) error {
 	}
 
 	setting.BastionPay.Url = config.BastionPay.Url
-	setting.BastionPay.PubKey, err = ioutil.ReadFile(config.BastionPay.PubKeyPath)
+	setting.BastionPay.PubKey, err = ioutil.ReadFile(dir + "/" + config.BastionPay.PubKeyPath)
 	if err != nil {
 		return err
 	}
 
 	setting.User.UserKey = config.User.UserKey
-	setting.User.PubKey, err = ioutil.ReadFile(config.User.PubKeyPath)
+	setting.User.PubKey, err = ioutil.ReadFile(dir + "/" + config.User.PubKeyPath)
 	if err != nil {
 		return err
 	}
-	setting.User.PrivKey, err = ioutil.ReadFile(config.User.PrivKeyPath)
+	setting.User.PrivKey, err = ioutil.ReadFile(dir + "/" + config.User.PrivKeyPath)
 	if err != nil {
 		return err
 	}

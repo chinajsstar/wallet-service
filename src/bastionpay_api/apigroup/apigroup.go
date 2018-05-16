@@ -52,7 +52,9 @@ func RegisterApiDocHandler(apiProxy *apidoc.ApiDocHandler) error {
 		return fmt.Errorf("%s.%s.%s exist!", apiDocInfo.VerName, apiDocInfo.SrvName, apiDocInfo.FuncName)
 	}
 
-	if(reflect.TypeOf(apiProxy.ApiDocInfo.Input) == nil){
+	if apiProxy.ApiDocInfo.Input == nil{
+		apiProxy.ApiDocInfo.Example = ""
+	} else if reflect.TypeOf(apiProxy.ApiDocInfo.Input) == nil{
 		apiProxy.ApiDocInfo.Example = ""
 	} else if reflect.TypeOf(apiProxy.ApiDocInfo.Input).Kind() == reflect.String {
 		apiProxy.ApiDocInfo.Example = apiProxy.ApiDocInfo.Input.(string)
