@@ -22,6 +22,7 @@ func QueryUserAccount(queryMap map[string]interface{}) ([]UserAccount, bool) {
 
 	db := Get()
 	rows, err := db.Query(sqls, params...)
+	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return userAccount, len(userAccount) > 0

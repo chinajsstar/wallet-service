@@ -2,19 +2,19 @@ package address
 
 import (
 	"api_router/base/data"
+	"bastionpay_api/api/v1"
 	"blockchain_server/service"
 	"blockchain_server/types"
 	. "business_center/def"
 	"business_center/jsonparse"
 	"business_center/mysqlpool"
+	"business_center/transaction"
 	"context"
 	"encoding/json"
 	"errors"
 	l4g "github.com/alecthomas/log4go"
 	"math"
 	"sync"
-	"bastionpay_api/api/v1"
-	"fmt"
 )
 
 type Address struct {
@@ -124,6 +124,12 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
+	if userProperty.UserClass != 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "该用户不能执行该操作")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
 	resMap := make(map[string]interface{})
 	params, err := jsonparse.Parse(req.Argv.Message)
 	if err != nil {
@@ -142,6 +148,12 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 	amount, ok := params.Amount()
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"amount\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if amount <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "提币金额要大于0")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -173,6 +185,12 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
+	if amount <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "提币金额必需大于0")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
 	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(amount)*assetProperty.WithdrawalRate)
 	if userAccount.AvailableAmount < amount+payFee {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
@@ -193,10 +211,10 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	uuID := a.generateUUID()
+	uuID := transaction.GenerateUUID("WD")
 	resMap["order_id"] = uuID
 
-	err = mysqlpool.WithDrawalSet(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID)
+	err = mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足!")
 		l4g.Error(res.ErrMsg)
@@ -245,7 +263,7 @@ func (a *Address) SupportAssets(req *data.SrvRequest, res *data.SrvResponse) err
 		var pack []byte
 		if isSubUserKey {
 			pack, err = json.Marshal(supportAssetList)
-		}else{
+		} else {
 			pack, err = json.Marshal(supportAssetList.Data)
 		}
 
@@ -271,14 +289,9 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 		return errors.New(res.ErrMsg)
 	}
 
-	// 输入参数
-	assets := v1.ReqAssetsAttributeList{}
-
-	// 构建查询条件
-	queryMap := make(map[string]interface{})
-
 	var assetNameArray []string
 	if isSubUserKey {
+		assets := v1.ReqAssetsAttributeList{}
 		err := json.Unmarshal([]byte(req.Argv.Message), &assets)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
@@ -286,18 +299,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			return errors.New(res.ErrMsg)
 		}
 		assetNameArray = assets.Assets
-
-		if assets.IsToken != -1{
-			queryMap["is_token"] = assets.IsToken
-		}
-
-		queryMap["page_index"] = assets.PageIndex
-		if assets.MaxDispLines > 0 && assets.MaxDispLines < 100{
-			queryMap["max_disp_lines"] = assets.MaxDispLines
-		} else{
-			queryMap["max_disp_lines"] = 50
-		}
-	} else{
+	} else {
 		params, err := jsonparse.Parse(req.Argv.Message)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
@@ -310,13 +312,13 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 	// 放入map
 	assetNameMap := make(map[string]interface{})
 	for _, value := range assetNameArray {
-		if value != ""{
+		if value != "" {
 			assetNameMap[value] = ""
 		}
 	}
 
 	assetsAttributeList := v1.AckAssetsAttributeList{}
-	if assetProperty, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
+	if assetProperty, ok := mysqlpool.QueryAssetProperty(nil); ok {
 		for _, v := range assetProperty {
 			// 是否选中的
 			if len(assetNameMap) > 0 {
@@ -326,8 +328,6 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			}
 
 			assetAttribute := v1.AckAssetsAttribute{}
-			assetAttribute.AssetId = 0
-			assetAttribute.AssetLogo = v.Logo
 			assetAttribute.AssetName = v.AssetName
 			assetAttribute.FullName = v.FullName
 			assetAttribute.IsToken = v.IsToken
@@ -340,11 +340,6 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 
 			assetsAttributeList.Data = append(assetsAttributeList.Data, assetAttribute)
 		}
-		if  assets.TotalLines != 0{
-			assetsAttributeList.TotalLines = assets.TotalLines
-		}else {
-			assetsAttributeList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
-		}
 	}
 
 	// TODO：输出分叉，以后xuliang处理
@@ -352,7 +347,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 	var pack []byte
 	if isSubUserKey {
 		pack, err = json.Marshal(assetsAttributeList)
-	}else{
+	} else {
 		pack, err = json.Marshal(assetsAttributeList.Data)
 	}
 
@@ -388,7 +383,7 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 			return errors.New(res.ErrMsg)
 		}
 		assetNameArray = assets.Assets
-	} else{
+	} else {
 		params, err := jsonparse.Parse(req.Argv.Message)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
@@ -433,7 +428,7 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 	var pack []byte
 	if isSubUserKey {
 		pack, err = json.Marshal(assetsBalanceList)
-	}else{
+	} else {
 		pack, err = json.Marshal(assetsBalanceList.Data)
 	}
 
@@ -511,7 +506,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		}
 
 		pack, err = json.Marshal(hisTxOrderList)
-	}else{
+	} else {
 		pack, err = json.Marshal(data)
 	}
 
@@ -579,7 +574,7 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 		}
 
 		pack, err = json.Marshal(hisTxMsgList)
-	}else{
+	} else {
 		pack, err = json.Marshal(data)
 	}
 
@@ -614,39 +609,17 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 
 	queryMap := make(map[string]interface{})
 	queryMap["user_key"] = realUseKey
-	if reqUserAddrss.AssetName != ""{
+	if reqUserAddrss.AssetName != "" {
 		queryMap["asset_name"] = reqUserAddrss.AssetName
 	}
-	if reqUserAddrss.Address != ""{
-		queryMap["address"] = reqUserAddrss.Address
-	}
-	if reqUserAddrss.EndTime != 0 {
-		queryMap["max_create_time"] = reqUserAddrss.BeginTime
-	}
-	if reqUserAddrss.BeginTime != 0 {
-		queryMap["min_create_time"] = reqUserAddrss.BeginTime
-	}
 
-	queryMap["page_index"] = reqUserAddrss.PageIndex
-	if reqUserAddrss.MaxDispLines > 0 && reqUserAddrss.MaxDispLines < 100{
-		queryMap["max_disp_lines"] = reqUserAddrss.MaxDispLines
-	} else{
-		queryMap["max_disp_lines"] = 50
-	}
-	fmt.Println(queryMap)
-
-	totalLines := 0
-	if reqUserAddrss.TotalLines != 0{
-		totalLines = reqUserAddrss.TotalLines
-	}else {
-		totalLines = mysqlpool.QueryUserAddressCount(queryMap)
-	}
-	resMap := responsePagination(queryMap, totalLines)
+	resMap := responsePagination(queryMap, mysqlpool.QueryUserAddressCount(queryMap))
 	userAddress, _ := mysqlpool.QueryUserAddress(queryMap)
 
 	userAddressList := v1.AckUserAddressList{}
 	for _, v := range userAddress {
 		ua := v1.AckUserAddress{}
+		ua.Id = 0
 		ua.AssetName = v.AssetName
 		ua.Address = v.Address
 		ua.AllocationTime = v.AllocationTime

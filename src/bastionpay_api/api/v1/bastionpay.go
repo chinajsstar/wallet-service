@@ -8,7 +8,7 @@ type AckSupportAssetList struct {
 	Data []string	`json:"data" doc:"支持的币种列表"`
 }
 
-// 获取币种属性--分页
+// 获取币种属性
 type ReqAssetsAttributeList struct {
 	Assets 			[]string	`json:"assets" doc:"需要查询属性的币种列表，不空表示精确查找"`
 
@@ -39,7 +39,7 @@ type AckAssetsAttributeList struct {
 	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数"`
 }
 
-// 获取用户余额-不用分页
+// 获取用户余额
 type ReqUserBalance struct{
 	Assets []string	`json:"assets" doc:"需要查询余额的币种列表"`
 }
@@ -52,7 +52,7 @@ type AckUserBalanceList struct{
 	Data []AckUserBalance `json:"data" doc:"币种余额列表"`
 }
 
-// 获取用户地址-分页
+// 获取用户地址
 type ReqUserAddress struct {
 	BeginTime 		int64 	`json:"begin_time" doc:"开始时间, 0表示不限制"`
 	EndTime 		int64 	`json:"eng_time" doc:"结束时间, 0表示不限制"`
@@ -91,9 +91,9 @@ type ReqHistoryTransactionOrder struct {
 	MaxUpdateTime 	int64 	`json:"max_update_time" doc:"开始时间"`
 	MinUpdateTime 	int64 	`json:"min_update_time" doc:"结束时间"`
 
-	TotalLines 		int 		`json:"total_lines" doc:"总数,0：表示首次查询"`
-	PageIndex 		int 		`json:"page_index" doc:"页索引,1开始"`
-	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数"，100以下`
+	TotalLines 		int 	`json:"total_lines" doc:"总数,0：表示首次查询"`
+	PageIndex 		int 	`json:"page_index" doc:"页索引,1开始"`
+	MaxDispLines 	int 	`json:"max_disp_lines" doc:"页最大数"，100以下`
 }
 
 type AckHistoryTransactionOrder struct {

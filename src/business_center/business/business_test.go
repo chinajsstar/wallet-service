@@ -14,21 +14,21 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 1
+	testType := 2
 	switch testType {
 	case 1:
 		req.Method.Function = "new_address"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = "{\"asset_name\":\"eth\",\"count\":1}"
 	case 2:
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"asset_name\":\"btc\",\"amount\":1, \"address\":\"2N1qQLQrgsUqaARky3QnLsDkqnbP8qVZy5P\"}"
+		req.Argv.Message = "{\"asset_name\":\"eth\",\"amount\":0.01, \"address\":\"0x5563eaB8a68D36156E15621b7D85Ac215C477434\"}"
 	case 3:
 		req.Method.Function = "query_user_address"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"page_index\":1,\"max_disp_lines\":9,\"min_create_time\":1523656800}"
+		req.Argv.Message = "{\"page_index\":1,\"max_disp_lines\":2}"
 	case 4:
 		req.Method.Function = "support_assets"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
