@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"net/http"
 	"fmt"
+	"bastionpay_api/api/admin"
 )
 
 type (
@@ -86,45 +87,104 @@ func SetUserSetting(userKey string, pubKey []byte, privKey []byte) {
 	setting.User.PrivKey = privKey
 }
 
-func Run(path string, req interface{}, ack interface{}) (*api.Error) {
-	reqByte, err := json.Marshal(req)
-	if err != nil {
-		return api.NewError(1, err.Error())
+func RunApi(path string, req interface{}, ack interface{}) (*api.Error) {
+	var err error
+	var reqByte []byte
+	if b, ok := req.([]byte); ok {
+		reqByte = b
+	} else {
+		reqByte, err = json.Marshal(req)
+		if err != nil {
+			return api.NewError(1, err.Error())
+		}
 	}
 
-	messageByte, apiErr := Output(path, reqByte)
+	messageByte, apiErr := outputApi(path, reqByte)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	err = json.Unmarshal(messageByte, ack)
-	if err != nil {
-		return api.NewError(1, err.Error())
+	if b, ok := ack.(*[]byte); ok {
+		*b = messageByte
+	} else {
+		err = json.Unmarshal(messageByte, ack)
+		if err != nil {
+			return api.NewError(1, err.Error())
+		}
 	}
 
 	return nil
 }
 
-func RunTest(path string, req interface{}, ack interface{}) (*api.Error) {
-	reqByte, err := json.Marshal(req)
-	if err != nil {
-		return api.NewError(1, err.Error())
+func RunApiTest(path string, req interface{}, ack interface{}) (*api.Error) {
+	var err error
+	var reqByte []byte
+	if b, ok := req.([]byte); ok {
+		reqByte = b
+	} else {
+		reqByte, err = json.Marshal(req)
+		if err != nil {
+			return api.NewError(1, err.Error())
+		}
 	}
 
-	messageByte, apiErr := OutputTest(path, reqByte)
+	messageByte, apiErr := outputApiTest(path, reqByte)
 	if apiErr != nil {
 		return apiErr
 	}
 
-	err = json.Unmarshal(messageByte, ack)
-	if err != nil {
-		return api.NewError(1, err.Error())
+	if b, ok := ack.(*[]byte); ok {
+		*b = messageByte
+	} else {
+		err = json.Unmarshal(messageByte, ack)
+		if err != nil {
+			return api.NewError(1, err.Error())
+		}
 	}
 
 	return nil
 }
 
-func Output(path string, message []byte) ([]byte, *api.Error) {
+func RunUser(path string, subUserKey string, req interface{}, ack interface{}) (*api.Error) {
+	var err error
+	var reqByte []byte
+	if b, ok := req.([]byte); ok {
+		reqByte = b
+	} else {
+		reqByte, err = json.Marshal(req)
+		if err != nil {
+			return api.NewError(1, err.Error())
+		}
+	}
+
+	userMessage := admin.UserMessage{}
+	userMessage.SubUserKey = subUserKey
+	userMessage.Message = string(reqByte)
+
+	var reqUserByte []byte
+	reqUserByte, err = json.Marshal(userMessage)
+	if err != nil {
+		return api.NewError(1, err.Error())
+	}
+
+	messageByte, apiErr := outputApi(path, reqUserByte)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	if b, ok := ack.(*[]byte); ok {
+		*b = messageByte
+	} else {
+		err = json.Unmarshal(messageByte, ack)
+		if err != nil {
+			return api.NewError(1, err.Error())
+		}
+	}
+
+	return nil
+}
+
+func outputApi(path string, message []byte) ([]byte, *api.Error) {
 	userData, err := Encryption(message)
 	if err != nil {
 		return nil, api.NewError(1, err.Error())
@@ -162,7 +222,7 @@ func Output(path string, message []byte) ([]byte, *api.Error) {
 	return messageByte, nil
 }
 
-func OutputTest(path string, message []byte) ([]byte, *api.Error) {
+func outputApiTest(path string, message []byte) ([]byte, *api.Error) {
 	userData := api.UserData{}
 	userData.UserKey = setting.User.UserKey
 	userData.Message = string(message)

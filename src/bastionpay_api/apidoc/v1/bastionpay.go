@@ -13,7 +13,6 @@ var ApiDocSupportAssets = apidoc.ApiDoc{
 	FuncName:"support_assets",
 	Level:data.APILevel_client,
 	Comment:"获取支持币种",
-	Path:"/v1/bastionpay/support_assets",
 	Input:&v1.ReqSupportAssets{},
 	Output:&v1.AckSupportAssetList{Data:[]string{"btc"}},
 }
@@ -25,7 +24,6 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 	FuncName:"asset_attribute",
 	Level:data.APILevel_client,
 	Comment:"获取币种属性",
-	Path:"/v1/bastionpay/asset_attribute",
 	Input:&v1.ReqAssetsAttributeList{Assets:[]string{"btc"}},
 	Output:&v1.AckAssetsAttributeList{Data: []v1.AckAssetsAttribute{v1.AckAssetsAttribute{}}},
 }
@@ -37,7 +35,6 @@ var ApiDocGetBalance = apidoc.ApiDoc{
 	FuncName:"get_balance",
 	Level:data.APILevel_client,
 	Comment:"查询币种余额",
-	Path:"/v1/bastionpay/get_balance",
 	Input:&v1.ReqUserBalance{Assets:[]string{"btc"}},
 	Output:&v1.AckUserBalanceList{Data:[]v1.AckUserBalance{v1.AckUserBalance{}}},
 }
@@ -49,7 +46,6 @@ var ApiDocQueryUserAddress = apidoc.ApiDoc{
 	FuncName:"query_user_address",
 	Level:data.APILevel_client,
 	Comment:"用户查询地址",
-	Path:"/v1/bastionpay/query_user_address",
 	Input:&v1.ReqUserAddress{},
 	Output:&v1.AckUserAddressList{Data: []v1.AckUserAddress{v1.AckUserAddress{}}},
 }
@@ -61,7 +57,6 @@ var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
 	FuncName:"history_transaction_order",
 	Level:data.APILevel_client,
 	Comment:"查询历史交易订单",
-	Path:"/v1/bastionpay/history_transaction_order",
 	Input:&v1.ReqHistoryTransactionOrder{},
 	Output:&v1.AckHistoryTransactionOrderList{Data: []v1.AckHistoryTransactionOrder{v1.AckHistoryTransactionOrder{}}},
 }
@@ -73,7 +68,6 @@ var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
 	FuncName:"history_transaction_message",
 	Level:data.APILevel_client,
 	Comment:"查询历史交易信息",
-	Path:"/v1/bastionpay/history_transaction_message",
 	Input:&v1.ReqHistoryTransactionMessage{},
 	Output:&v1.AckHistoryTransactionMessageList{Data: []v1.AckHistoryTransactionMessage{v1.AckHistoryTransactionMessage{}}},
 }
@@ -85,7 +79,6 @@ var ApiDocNewAddress = apidoc.ApiDoc{
 	FuncName:"new_address",
 	Level:data.APILevel_client,
 	Comment:"生成地址",
-	Path:"/v1/bastionpay/new_address",
 	Input:new(string),
 	Output:new(string),
 }
@@ -96,7 +89,6 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 	FuncName:"withdrawal",
 	Level:data.APILevel_client,
 	Comment:"提币",
-	Path:"/v1/bastionpay/withdrawal",
 	Input:new(string),
 	Output:new(string),
 }
@@ -107,7 +99,6 @@ var ApiDocSetPayAddress = apidoc.ApiDoc{
 	FuncName:"set_pay_address",
 	Level:data.APILevel_client,
 	Comment:"设置热钱包地址",
-	Path:"/v1/bastionpay/set_pay_address",
 	Input:new(string),
 	Output:new(string),
 }

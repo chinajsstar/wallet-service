@@ -19,7 +19,7 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"readUserLevel": "SELECT public_key, source_ip, level, is_frozen from %s.%s where user_key = ? limit ? offset ?",
+		"readUserLevel": "SELECT public_key, source_ip, user_class, level, is_frozen from %s.%s where user_key = ? limit ? offset ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -29,6 +29,7 @@ var (
 type UserLevel struct{
 	PublicKey		string  `json:"public_key"`
 	SourceIP		string  `json:"source_ip"`
+	UserClass 		int 	`json:"user_class"`
 	Level 			int 	`json:"level"`
 	IsFrozen 		rune 	`json:"is_frozen"`
 }
@@ -98,7 +99,7 @@ func ReadUserLevel(userKey string) (*UserLevel, error) {
 	}
 
 	ul := &UserLevel{}
-	if err := r.Scan(&ul.PublicKey, &ul.SourceIP, &ul.Level, &ul.IsFrozen); err != nil {
+	if err := r.Scan(&ul.PublicKey, &ul.SourceIP, &ul.UserClass, &ul.Level, &ul.IsFrozen); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("no rows")
 		}

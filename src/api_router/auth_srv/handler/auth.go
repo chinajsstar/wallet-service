@@ -16,6 +16,7 @@ import (
 	"api_router/base/config"
 	"bastionpay_api/api/v1"
 	"encoding/json"
+	"bastionpay_api/api/admin"
 )
 
 type Auth struct{
@@ -147,7 +148,23 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
-	bencrypted, err := base64.StdEncoding.DecodeString(req.Argv.Message)
+	reqAuth := v1.ReqAuth{}
+	err = json.Unmarshal([]byte(req.Argv.Message), &reqAuth)
+	if err != nil {
+		l4g.Error("decrypt: %s", err.Error())
+		res.Err = data.ErrAuthSrvIllegalData
+		return
+	}
+
+	if(reqAuth.DataType == admin.AuthDataTypeUserMessage){
+		if ul.UserClass != data.UserClass_Admin {
+			l4g.Error("%s illegally call data type", req.Argv.UserKey)
+			res.Err = data.ErrAuthSrvIllegalDataType
+			return
+		}
+	}
+
+	bencrypted, err := base64.StdEncoding.DecodeString(reqAuth.ChipperData)
 	if err != nil {
 		l4g.Error("error base64: %s", err.Error())
 		res.Err = data.ErrInternal
@@ -183,7 +200,6 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
-	// ok
 	res.Value.Message = string(originData)
 }
 

@@ -20,6 +20,15 @@ const(
 )
 
 const(
+	// normal client
+	UserClass_Client = 0
+
+	// hot
+	UserClass_Hot = 1
+
+	// admin
+	UserClass_Admin = 2
+
 	// client
 	APILevel_client = 0
 

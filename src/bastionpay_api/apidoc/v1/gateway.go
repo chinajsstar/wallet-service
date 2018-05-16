@@ -12,7 +12,6 @@ var ApiDocListSrv = apidoc.ApiDoc{
 	FuncName:"listsrv",
 	Level:data.APILevel_admin,
 	Comment:"查看当前服务",
-	Path:"/v1/gateway/listsrv",
 	Input:nil,
 	Output:&v1.SrvRegisterData{Functions:[]v1.ApiInfo{v1.ApiInfo{}}},
 }

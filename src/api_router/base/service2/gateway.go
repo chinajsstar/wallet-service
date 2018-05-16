@@ -14,6 +14,7 @@ import (
 	"github.com/cenkalti/rpc2"
 	"bastionpay_api/api"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/api/admin"
 )
 
 const (
@@ -266,6 +267,7 @@ func (mi *ServiceGateway) srvCall(req *data.SrvRequest, res *data.SrvResponse) {
 
 	// call function
 	var rpcSrv data.SrvRequest
+	rpcSrv.Method = req.Method
 	rpcSrv.Argv = req.Argv
 	rpcSrv.Context.ApiLever = api.Level
 	var rpcSrvRes data.SrvResponse
@@ -322,7 +324,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+	if mi.authData(admin.AuthDataTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -374,16 +376,13 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+	if mi.authData(admin.AuthDataTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
 		*res = rpcAuthRes
 		return
 	}
 
 	// 解析来自用户的数据后台
-	userParams := struct {
-		SubUserKey string `json:"sub_user_key"`
-		Message string `json:"message"`
-	}{}
+	userParams := admin.UserMessage{}
 	err := json.Unmarshal([]byte(rpcAuthRes.Value.Message), &userParams)
 	if err != nil {
 		res.Err = data.ErrDataCorrupted
@@ -418,8 +417,20 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 }
 
 // auth data
-func (mi *ServiceGateway) authData(req *data.SrvRequest, res *data.SrvResponse) {
+func (mi *ServiceGateway) authData(dataType int, req *data.SrvRequest, res *data.SrvResponse) {
 	reqAuth := *req
+
+	reqAuthData := v1.ReqAuth{}
+	reqAuthData.DataType = dataType
+	reqAuthData.ChipperData = reqAuth.Argv.Message
+	b, err := json.Marshal(reqAuthData)
+	if err != nil {
+		res.Err = data.ErrInternal
+		l4g.Error("authData Marshal %s", err.Error())
+		return
+	}
+
+	reqAuth.Argv.Message = string(b)
 	reqAuth.Method.Srv = "auth"
 	reqAuth.Method.Function = "AuthData"
 	reqAuthRes := data.SrvResponse{}
@@ -532,6 +543,10 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
 	}
 
+	if userResponse.Err != data.NoErr {
+		l4g.Error("handleAPi request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
+	}
+
 	// write back http
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
@@ -589,6 +604,10 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
 	}
 
+	if userResponse.Err != data.NoErr {
+		l4g.Error("handleUser request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
+	}
+
 	// write back http
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
@@ -640,6 +659,10 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 
 	if userResponse.Err != data.NoErr && userResponse.ErrMsg == "" {
 		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
+	}
+
+	if userResponse.Err != data.NoErr {
+		l4g.Error("handleApiTest request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
 	// write back http

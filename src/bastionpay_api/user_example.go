@@ -23,6 +23,8 @@ func usage()  {
 	fmt.Println("		switch a user cfg file")
 	fmt.Println(">api srv function jsonmessage")
 	fmt.Println("		call api with json message")
+	fmt.Println(">user srv function subuserkey jsonmessage")
+	fmt.Println("		call user with json message")
 	fmt.Println(">apitest srv function jsonmessage")
 	fmt.Println("		call apitest with json message")
 	fmt.Println(">apidoc [ver srv function]")
@@ -105,7 +107,8 @@ func main()  {
 
 			fmt.Println(message)
 
-			ack, err := gateway.Output("/api/v1/"+srv+"/"+function, []byte(message))
+			var ack []byte
+			err := gateway.RunApi("/api/v1/"+srv+"/"+function, []byte(message), &ack)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -113,7 +116,7 @@ func main()  {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "apitest"{
-			if len(argv) != 3{
+			if len(argv) < 3{
 				fmt.Println("格式：apitest srv function message")
 				continue
 			}
@@ -124,7 +127,31 @@ func main()  {
 				message = argv[3]
 			}
 
-			ack, err := gateway.OutputTest("/apitest/v1/"+srv+"/"+function, []byte(message))
+			var ack []byte
+			err := gateway.RunApiTest("/apitest/v1/"+srv+"/"+function, []byte(message), &ack)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			fmt.Println("err==", err)
+			fmt.Println("ack==", string(ack))
+		} else if argv[0] == "user"{
+			if len(argv) < 4 {
+				fmt.Println("格式：user srv function subuserkey message")
+				continue
+			}
+			srv := argv[1]
+			function := argv[2]
+			subUserKey := argv[3]
+			message := ""
+			if len(argv) > 4 {
+				message = argv[4]
+			}
+
+			fmt.Println(message)
+
+			var ack []byte
+			err := gateway.RunUser("/user/v1/"+srv+"/"+function, subUserKey, []byte(message), &ack)
 			if err != nil {
 				fmt.Println(err)
 				continue
