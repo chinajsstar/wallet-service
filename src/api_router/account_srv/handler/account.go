@@ -11,7 +11,6 @@ import (
 	"github.com/satori/go.uuid"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
-	"bastionpay_api/api"
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -71,18 +70,18 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 	return nam
 }
 
-func (s *Account)HandleNotify(req *data.SrvRequestData){
+func (s *Account)HandleNotify(req *data.SrvRequest){
 	l4g.Info("HandleNotify-reloadUserLevel: do nothing")
 }
 
 // 创建账号
-func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
 	reqUserRegister := v1.ReqUserRegister{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUserRegister)
+	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserRegister)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
+		res.Err = data.ErrDataCorrupted
 		return
 	}
 
@@ -90,7 +89,7 @@ func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) 
 	uuid, err := uuid.NewV4()
 	if err != nil {
 		l4g.Error("error create user key: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 	userKey := uuid.String()
@@ -99,7 +98,7 @@ func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) 
 	err = db.Register(&reqUserRegister, userKey)
 	if err != nil {
 		l4g.Error("error create user: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
@@ -111,24 +110,24 @@ func (s *Account) Register(req *data.SrvRequestData, res *data.SrvResponseData) 
 	if err != nil {
 		db.Delete(userKey)
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
 	// ok
-	res.Data.Value.Message = string(dataAck)
-	l4g.Info("create a new user: %s", res.Data.Value.Message)
+	res.Value.Message = string(dataAck)
+	l4g.Info("create a new user: %s", res.Value.Message)
 }
 
 // 获取用户列表
 // 登入
-func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
 	reqUserList := v1.ReqUserList{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUserList)
+	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserList)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
+		res.Err = data.ErrDataCorrupted
 		return
 	}
 
@@ -136,7 +135,7 @@ func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData)
 	ackUserList, err := db.ListUsers(reqUserList.Id, listnum)
 	if err != nil {
 		l4g.Error("error ListUsers: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvListUsers
+		res.Err = data.ErrAccountSrvListUsers
 		return
 	}
 
@@ -144,23 +143,23 @@ func (s *Account) ListUsers(req *data.SrvRequestData, res *data.SrvResponseData)
 	dataAck, err := json.Marshal(ackUserList)
 	if err != nil {
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
 	// ok
-	res.Data.Value.Message = string(dataAck)
-	l4g.Info("list users: %s", res.Data.Value.Message)
+	res.Value.Message = string(dataAck)
+	l4g.Info("list users: %s", res.Value.Message)
 }
 
 // 获取key
-func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (s * Account) ReadProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
 	reqReadProfile := v1.ReqUserReadProfile{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqReadProfile)
+	err := json.Unmarshal([]byte(req.Argv.Message), &reqReadProfile)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
+		res.Err = data.ErrDataCorrupted
 		return
 	}
 
@@ -168,7 +167,7 @@ func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseDa
 	ackReadProfile, err := db.ReadProfile(reqReadProfile.UserKey)
 	if err != nil {
 		l4g.Error("error ReadProfile: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvNoUser
+		res.Err = data.ErrAccountSrvNoUser
 		return
 	}
 
@@ -176,23 +175,23 @@ func (s * Account) ReadProfile(req *data.SrvRequestData, res *data.SrvResponseDa
 	dataAck, err := json.Marshal(ackReadProfile)
 	if err != nil {
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
 	// ok
-	res.Data.Value.Message = string(dataAck)
-	l4g.Info("update a user profile: %s", res.Data.Value.Message)
+	res.Value.Message = string(dataAck)
+	l4g.Info("read a user profile: %s", res.Value.Message)
 }
 
 // 更新key
-func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
 	reqUpdateProfile := v1.ReqUserUpdateProfile{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &reqUpdateProfile)
+	err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
+		res.Err = data.ErrDataCorrupted
 		return
 	}
 
@@ -200,7 +199,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponse
 	oldUserReadProfile, err := db.ReadProfile(reqUpdateProfile.UserKey)
 	if err != nil {
 		l4g.Error("error ReadProfile: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvNoUser
+		res.Err = data.ErrAccountSrvNoUser
 		return
 	}
 
@@ -217,7 +216,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponse
 	// update key
 	if err := db.UpdateProfile(&reqUpdateProfile); err != nil {
 		l4g.Error("error update profile: %s", err.Error())
-		res.Data.Err = data.ErrAccountSrvUpdateProfile
+		res.Err = data.ErrAccountSrvUpdateProfile
 		return
 	}
 
@@ -233,17 +232,17 @@ func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponse
 		oldUserUpdateProfile.CallbackUrl = oldUserReadProfile.CallbackUrl
 		db.UpdateProfile(&oldUserUpdateProfile)
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Data.Err = data.ErrInternal
+		res.Err = data.ErrInternal
 		return
 	}
 
 	// ok
-	res.Data.Value.Message = string(dataAck)
-	l4g.Info("update a user profile: %s", res.Data.Value.Message)
+	res.Value.Message = string(dataAck)
+	l4g.Info("update a user profile: %s", res.Value.Message)
 
 	// notify
 	func(){
-		notifyReq := data.UserRequestData{}
+		notifyReq := data.SrvRequest{}
 		notifyReq.Method.Version = "v1"
 		notifyReq.Method.Srv = "account"
 		notifyReq.Method.Function = "updateprofile"
@@ -255,7 +254,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequestData, res *data.SrvResponse
 
 		notifyReq.Argv.Message = string(message)
 
-		notifyRes := api.UserResponseData{}
+		notifyRes := data.SrvResponse{}
 		s.node.InnerNotify(&notifyReq, &notifyRes)
 
 		l4g.Info("notify a user profile: %s", notifyReq.Argv.Message)

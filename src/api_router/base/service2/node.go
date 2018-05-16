@@ -12,12 +12,11 @@ import (
 	"net"
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
-	"bastionpay_api/api"
 	"bastionpay_api/api/v1"
 )
 
 // node api interface
-type NodeApiHandler func(req *data.SrvRequestData, res *data.SrvResponseData)
+type NodeApiHandler func(req *data.SrvRequest, res *data.SrvResponse)
 type NodeApi struct{
 	ApiInfo 	v1.ApiInfo
 	ApiHandler 	NodeApiHandler
@@ -35,7 +34,7 @@ func RegisterApi(nap *map[string]NodeApi, name string, level int, handler NodeAp
 }
 type NodeApiGroup interface {
 	GetApiGroup()(map[string]NodeApi)
- 	HandleNotify(req *data.SrvRequestData)
+ 	HandleNotify(req *data.SrvRequest)
 }
 
 // service node
@@ -108,22 +107,24 @@ func StopNode(ni *ServiceNode)  {
 }
 
 // RPC -- call
-func (ni *ServiceNode) call(client *rpc2.Client, req *data.SrvRequestData, res *data.SrvResponseData) error {
-	h := ni.apiHandler[strings.ToLower(req.Data.Method.Function)]
+func (ni *ServiceNode) call(client *rpc2.Client, req *data.SrvRequest, res *data.SrvResponse) error {
+	l4g.Debug("got call:", req.Argv)
+
+	h := ni.apiHandler[strings.ToLower(req.Method.Function)]
 	if h != nil {
 		h.ApiHandler(req, res)
 	}else{
-		res.Data.Err = data.ErrNotFindFunction
+		res.Err = data.ErrNotFindFunction
 	}
-	if res.Data.Err != data.NoErr {
-		l4g.Error("call failed: %d", res.Data.Err)
+	if res.Err != data.NoErr {
+		l4g.Error("call failed: %d", res.Err)
 	}
 	return nil
 }
 
 // RPC -- call
-func (ni *ServiceNode) notify(client *rpc2.Client, req *data.SrvRequestData, res *data.SrvResponseData) error {
-	l4g.Info("got notify:", req.Data.Method)
+func (ni *ServiceNode) notify(client *rpc2.Client, req *data.SrvRequest, res *data.SrvResponse) error {
+	l4g.Debug("got notify:", req.Method)
 
 	if ni.nodeApiGroup != nil {
 		ni.nodeApiGroup.HandleNotify(req)
@@ -133,7 +134,7 @@ func (ni *ServiceNode) notify(client *rpc2.Client, req *data.SrvRequestData, res
 }
 
 // inner call a request to router
-func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *api.UserResponseData) error {
+func (ni *ServiceNode) InnerCall(req *data.SrvRequest, res *data.SrvResponse) error {
 	ni.rwmu.RLock()
 	defer ni.rwmu.RUnlock()
 
@@ -147,7 +148,7 @@ func (ni *ServiceNode) InnerCall(req *data.UserRequestData, res *api.UserRespons
 }
 
 // inner notify a request to router
-func (ni *ServiceNode) InnerNotify(req *data.UserRequestData, res *api.UserResponseData) error {
+func (ni *ServiceNode) InnerNotify(req *data.SrvRequest, res *data.SrvResponse) error {
 	ni.rwmu.RLock()
 	defer ni.rwmu.RUnlock()
 
@@ -161,7 +162,7 @@ func (ni *ServiceNode) InnerNotify(req *data.UserRequestData, res *api.UserRespo
 }
 
 // inner call a request to router by encrypt
-func (ni *ServiceNode) InnerCallByEncrypt(req *data.UserRequestData, res *api.UserResponseData) error {
+func (ni *ServiceNode) InnerCallByEncrypt(req *data.SrvRequest, res *data.SrvResponse) error {
 	ni.rwmu.RLock()
 	defer ni.rwmu.RUnlock()
 

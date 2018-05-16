@@ -22,23 +22,23 @@ func (arith *Arith)GetApiGroup()(map[string]service.NodeApi){
 	return nam
 }
 
-func (arith *Arith)HandleNotify(req *data.SrvRequestData){
+func (arith *Arith)HandleNotify(req *data.SrvRequest){
 	l4g.Info("HandleNotify-reloadUserLevel: do nothing")
 }
 
-func (arith *Arith)Add(req *data.SrvRequestData, res *data.SrvResponseData){
-	res.Data.Err = data.NoErr
+func (arith *Arith)Add(req *data.SrvRequest, res *data.SrvResponse){
+	res.Err = data.NoErr
 
 	// from req
 	din := v1.Args{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &din)
+	err := json.Unmarshal([]byte(req.Argv.Message), &din)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Data.Err = data.ErrDataCorrupted
+		res.Err = data.ErrDataCorrupted
 		return
 	}
 
 	out := v1.AckArgs{C:din.A+din.B}
 	b, _ := json.Marshal(out)
-	res.Data.Value.Message = string(b)
+	res.Value.Message = string(b)
 }

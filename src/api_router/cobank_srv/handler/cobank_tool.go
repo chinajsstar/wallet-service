@@ -21,13 +21,13 @@ import (
 
 ////////////////////////////////////////////////////////////
 
-func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
-	res.Data.Err = data.NoErr
+func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
+	res.Err = data.NoErr
 
-	l4g.Debug("argv: %s", req.Data.Argv)
+	l4g.Debug("argv: %s", req.Argv)
 
 	rc := v1.ReqRecharge{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &rc)
+	err := json.Unmarshal([]byte(req.Argv.Message), &rc)
 	if err != nil {
 		l4g.Error("json err: ", err)
 	}
@@ -58,8 +58,8 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 		//cmd := "bitcoin-cli"
 		//arg := ""
 		if err != nil {
-			res.Data.Err = 1
-			res.Data.ErrMsg = err.Error()
+			res.Err = 1
+			res.ErrMsg = err.Error()
 		}else{
 			fmt.Println("cmd: ", cmd)
 			var a float64
@@ -69,33 +69,33 @@ func (x *Cobank) recharge(req *data.SrvRequestData, res *data.SrvResponseData) {
 			if c != nil{
 				if err := c.Run(); err != nil {
 					fmt.Println(err)
-					res.Data.Err = 1
-					res.Data.ErrMsg = err.Error()
+					res.Err = 1
+					res.ErrMsg = err.Error()
 				}
 			}else{
-				res.Data.Err = 1
-				res.Data.ErrMsg = "no bitcoin-cli command"
+				res.Err = 1
+				res.ErrMsg = "no bitcoin-cli command"
 			}
 		}
 	}
 
-	l4g.Debug("value: %s", res.Data.Value)
+	l4g.Debug("value: %s", res.Value)
 }
 
-func (x *Cobank) generate(req *data.SrvRequestData, res *data.SrvResponseData) {
-	res.Data.Err = data.NoErr
+func (x *Cobank) generate(req *data.SrvRequest, res *data.SrvResponse) {
+	res.Err = data.NoErr
 
-	l4g.Debug("argv: %s", req.Data.Argv)
+	l4g.Debug("argv: %s", req.Argv)
 
 	rc := v1.ReqGenerate{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &rc)
+	err := json.Unmarshal([]byte(req.Argv.Message), &rc)
 	if err != nil {
 		l4g.Error("json err: ", err)
 	}
 
 	if rc.Coin == "eth" {
-		res.Data.Err = 1
-		res.Data.ErrMsg = "not support eth"
+		res.Err = 1
+		res.ErrMsg = "not support eth"
 	} else if rc.Coin == "btc" {
 		//cmd, err := exec.LookPath("bitcoin-cli")
 		cmd := "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
@@ -103,25 +103,25 @@ func (x *Cobank) generate(req *data.SrvRequestData, res *data.SrvResponseData) {
 		//cmd := "bitcoin-cli"
 		//arg := ""
 		if err != nil {
-			res.Data.Err = 1
-			res.Data.ErrMsg = err.Error()
+			res.Err = 1
+			res.ErrMsg = err.Error()
 		}else{
 			fmt.Println("cmd: ", cmd)
 			c := exec.Command(cmd, arg, "generate", strconv.Itoa(rc.Count))
 			if c != nil{
 				if err := c.Run(); err != nil {
 					fmt.Println(err)
-					res.Data.Err = 1
-					res.Data.ErrMsg = err.Error()
+					res.Err = 1
+					res.ErrMsg = err.Error()
 				}
 			}else{
-				res.Data.Err = 1
-				res.Data.ErrMsg = "no bitcoin-cli command"
+				res.Err = 1
+				res.ErrMsg = "no bitcoin-cli command"
 			}
 		}
 	}
 
-	l4g.Debug("value: %s", res.Data.Value)
+	l4g.Debug("value: %s", res.Value)
 }
 
 // 导入地址
@@ -129,13 +129,13 @@ type ImportAddress struct {
 	UniName string `json:"uniname" comment:"DB文件名"`
 }
 
-func (x *Cobank) importAddress(req *data.SrvRequestData, res *data.SrvResponseData) {
-	res.Data.Err = data.NoErr
+func (x *Cobank) importAddress(req *data.SrvRequest, res *data.SrvResponse) {
+	res.Err = data.NoErr
 
-	l4g.Debug("argv: %s", req.Data.Argv)
+	l4g.Debug("argv: %s", req.Argv)
 
 	ia := ImportAddress{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &ia)
+	err := json.Unmarshal([]byte(req.Argv.Message), &ia)
 	if err != nil {
 		l4g.Error("json err: ", err)
 	}
@@ -144,14 +144,14 @@ func (x *Cobank) importAddress(req *data.SrvRequestData, res *data.SrvResponseDa
 	uniDbName := ia.UniName + "@" + common.GetOnlineExtension()
 	aCcs, err := handler.LoadAddress(x.dataDir, uniDbName)
 	if err != nil {
-		res.Data.Err = 1
+		res.Err = 1
 		l4g.Error("load online address failed: %s", err.Error())
 		return
 	}
 
 	uniNameTags := strings.Split(ia.UniName, "@")
 	if len(uniNameTags) != 3 {
-		res.Data.Err = 1
+		res.Err = 1
 		l4g.Error("error filename format")
 		return
 	}
@@ -167,14 +167,14 @@ func (x *Cobank) importAddress(req *data.SrvRequestData, res *data.SrvResponseDa
 	row := db.QueryRow("select id from asset_property where name = ?", coinType)
 	err = row.Scan(&asset_id)
 	if err != nil {
-		res.Data.Err = 1
+		res.Err = 1
 		l4g.Error("没有找到币种")
 		return
 	}
 
 	Tx, err := mysqlpool.Get().Begin()
 	if err != nil {
-		res.Data.Err = 1
+		res.Err = 1
 		l4g.Error("数据库begin：%s", err.Error())
 		return
 	}
@@ -191,7 +191,7 @@ func (x *Cobank) importAddress(req *data.SrvRequestData, res *data.SrvResponseDa
 
 	if err != nil {
 		Tx.Rollback()
-		res.Data.Err = 1
+		res.Err = 1
 		l4g.Error("写入失败：%s", err.Error())
 		return
 	}
@@ -199,7 +199,7 @@ func (x *Cobank) importAddress(req *data.SrvRequestData, res *data.SrvResponseDa
 	Tx.Commit()
 	l4g.Debug("写入完成")
 
-	l4g.Debug("value: %s", res.Data.Value)
+	l4g.Debug("value: %s", res.Value)
 }
 
 // 导入地址
@@ -207,15 +207,15 @@ type SendSignedTx struct {
 	TxSignedName string `json:"txsignedname" comment:"签名交易文件名"`
 }
 
-func (x *Cobank) sendSignedTx(req *data.SrvRequestData, res *data.SrvResponseData) {
-	res.Data.Err = data.NoErr
+func (x *Cobank) sendSignedTx(req *data.SrvRequest, res *data.SrvResponse) {
+	res.Err = data.NoErr
 
-	l4g.Debug("argv: %s", req.Data.Argv)
+	l4g.Debug("argv: %s", req.Argv)
 
 	ia := SendSignedTx{}
-	err := json.Unmarshal([]byte(req.Data.Argv.Message), &ia)
+	err := json.Unmarshal([]byte(req.Argv.Message), &ia)
 	if err != nil {
-		res.Data.Err = 1
+		res.Err = 1
 		l4g.Error("json err: ", err)
 		return
 	}
@@ -223,11 +223,11 @@ func (x *Cobank) sendSignedTx(req *data.SrvRequestData, res *data.SrvResponseDat
 	txSignedFilePath := x.dataDir + "/" + ia.TxSignedName
 	err = handler.SendSignedTx(x.business.GetWallet(), txSignedFilePath)
 	if err != nil {
-		res.Data.Err = 1
+		res.Err = 1
 		l4g.Error("send signed tx failed: ", err)
 		return
 	}
 
-	l4g.Debug("value: %s", res.Data.Value)
+	l4g.Debug("value: %s", res.Value)
 }
 

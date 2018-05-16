@@ -24,8 +24,7 @@ import (
 
 const (
 	httpaddrGateway = "http://127.0.0.1:8082"
-	httpApi = "api"
-	httpApiTest = "apitest"
+	httpUser = "user"
 )
 
 var web_admin_prikey []byte
@@ -59,18 +58,31 @@ func loadAdministratorRsaKeys(dataDir string) error {
 	return nil
 }
 
-func sendPostData(addr, message, version, srv, function string) (*api.UserResponseData, []byte, error) {
+func sendPostData(addr, subUserKey string, rawmessage, version, srv, function string) (*api.UserResponseData, []byte, error) {
 	// 用户数据
 	var ud api.UserData
 
 	// 构建path
-	path := "/"+httpApi
+	path := "/"+httpUser
 	path += "/"+version
 	path += "/"+srv
 	path += "/"+function
 
 	// user key
 	ud.UserKey = web_admin_userkey
+
+	userParams := struct {
+		SubUserKey string `json:"sub_user_key"`
+		Message string `json:"message"`
+	}{}
+	userParams.SubUserKey = subUserKey
+	userParams.Message = rawmessage
+	bUserParams, err := json.Marshal(userParams)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	message := string(bUserParams)
 
 	// 加密签名数据
 	bencrypted, err := func() ([]byte, error) {
@@ -247,16 +259,18 @@ func (self *Web) handleListSrv(w http.ResponseWriter, req *http.Request) {
 	cookie, err := req.Cookie("name")
 	if err != nil || cookie.Value == ""{
 		http.Redirect(w, req, "/login", http.StatusFound)
+		return
 	}
 
 	self.nodes = self.nodes[:0]
-	d1, _, err := sendPostData(httpaddrGateway, "", "v1", "gateway", "listsrv")
-	if d1.Err != data.NoErr {
-		w.Write([]byte(d1.ErrMsg))
-		return
-	}
+	d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "gateway", "listsrv")
 	if err != nil {
 		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if d1.Err != data.NoErr {
+		w.Write([]byte(d1.ErrMsg))
 		return
 	}
 
@@ -283,7 +297,7 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if len(self.nodes) == 0 {
-		d1, _, err := sendPostData(httpaddrGateway, "", "v1", "center", "listsrv")
+		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "center", "listsrv")
 		if d1.Err != data.NoErr {
 			w.Write([]byte(d1.ErrMsg))
 			return
@@ -349,7 +363,7 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 	//fmt.Println("argv", example)
 
 	if len(self.nodes) == 0 {
-		d1, _, err := sendPostData(httpaddrGateway, "", "v1", "center", "listsrv")
+		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "gateway", "listsrv")
 		if d1.Err != data.NoErr {
 			w.Write([]byte(d1.ErrMsg))
 			return
@@ -367,24 +381,20 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 	srv := vv.Get("srv")
 	ver := vv.Get("ver")
 	function := vv.Get("func")
+	fmt.Println(srv, ver, function)
 
 	var ures api.UserResponseData
-	if example != ""{
-		d1, _, err := sendPostData(httpaddrGateway, example, ver, srv, function)
-		if d1.Err != data.NoErr {
-			w.Write([]byte(d1.ErrMsg))
-			return
-		}
-		if err != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-
-		ures = *d1
-	}else{
-		ures.Err = 1
-		ures.ErrMsg = "没有提供测试实例"
+	d1, _, err := sendPostData(httpaddrGateway, cookie.Value, example, ver, srv, function)
+	if d1.Err != data.NoErr {
+		w.Write([]byte(d1.ErrMsg))
+		return
 	}
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	ures = *d1
 
 	t, err := template.ParseFiles("template/html/runapi.html")
 	if err != nil {
@@ -507,7 +517,7 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "readprofile")
+		d1, _, err := sendPostData(httpaddrGateway, "", message, "v1", "account", "readprofile")
 		fmt.Println(d1)
 
 		ures = *d1
@@ -571,7 +581,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 
 		m, err := json.Marshal(ul)
 
-		d1, _, err := sendPostData(httpaddrGateway, string(m), "v1", "account", "updateprofile")
+		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, string(m), "v1", "account", "updateprofile")
 		fmt.Println(d1)
 
 		ures = *d1
@@ -607,7 +617,7 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		uc := v1.ReqUserRegister{}
 		json.Unmarshal(bb, &uc)
 
-		d1, _, err := sendPostData(httpaddrGateway, message, "v1", "account", "register")
+		d1, _, err := sendPostData(httpaddrGateway, "", message, "v1", "account", "register")
 		fmt.Println(d1)
 
 		ures = *d1
@@ -666,28 +676,8 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 	func(){
 		fmt.Println("path=", req.URL.Path)
 
-		path := req.URL.Path
-		path = strings.Replace(path, httpApi, "", -1)
-		path = strings.TrimLeft(path, "/")
-		path = strings.TrimRight(path, "/")
-
-		ver := ""
-		srv := ""
-		function := ""
-		// get method
-		paths := strings.Split(path, "/")
-		for i := 0; i < len(paths); i++ {
-			if i == 0 {
-				ver = paths[i]
-			}else if i == 1{
-				srv = paths[i]
-			} else{
-				if function != "" {
-					function += "."
-				}
-				function += paths[i]
-			}
-		}
+		method := api.UserMethod{}
+		data.ApiMethodFromPath(&method, req.URL.Path)
 
 		message := ""
 		bb, err := ioutil.ReadAll(req.Body)
@@ -698,7 +688,7 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 		message = string(bb)
 		fmt.Println("argv=", message)
 
-		d1, _, err := sendPostData(httpaddrGateway, message, ver, srv, function)
+		d1, _, err := sendPostData(httpaddrGateway, "", message, method.Version, method.Srv, method.Function)
 		if d1.Err != data.NoErr {
 			w.Write([]byte(d1.ErrMsg))
 			return

@@ -101,15 +101,15 @@ func InstallBastionPay(dir string) error {
 				return err
 			}
 
-			var req data.SrvRequestData
-			var res data.SrvResponseData
-			req.Data.Argv.Message = string(b)
+			var req data.SrvRequest
+			var res data.SrvResponse
+			req.Argv.Message = string(b)
 			handler.AccountInstance().Register(&req, &res)
-			if res.Data.Err != data.NoErr {
-				return errors.New(res.Data.ErrMsg)
+			if res.Err != data.NoErr {
+				return errors.New(res.ErrMsg)
 			}
 
-			err = json.Unmarshal([]byte(res.Data.Value.Message), &ackUc)
+			err = json.Unmarshal([]byte(res.Value.Message), &ackUc)
 			if err != nil {
 				return err
 			}
@@ -128,15 +128,15 @@ func InstallBastionPay(dir string) error {
 				return err
 			}
 
-			var req data.SrvRequestData
-			var res data.SrvResponseData
-			req.Data.Argv.Message = string(b)
+			var req data.SrvRequest
+			var res data.SrvResponse
+			req.Argv.Message = string(b)
 			handler.AccountInstance().UpdateProfile(&req, &res)
-			if res.Data.Err != data.NoErr {
-				return errors.New(res.Data.ErrMsg)
+			if res.Err != data.NoErr {
+				return errors.New(res.ErrMsg)
 			}
 
-			err = json.Unmarshal([]byte(res.Data.Value.Message), &ackUp)
+			err = json.Unmarshal([]byte(res.Value.Message), &ackUp)
 			if err != nil {
 				return err
 			}

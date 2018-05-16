@@ -14,10 +14,12 @@ import (
 	"github.com/cenkalti/rpc2"
 	"bastionpay_api/api"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/api/admin"
 )
 
 const (
 	HttpApi = "api"
+	HttpUser = "user"
 	HttpApiTest = "apitest"
 )
 
@@ -126,7 +128,7 @@ func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *v1.SrvRegisterDat
 	return nil
 }
 
-func (mi *ServiceGateway) innerNotify(client *rpc2.Client, req *data.UserRequestData, res *api.UserResponseData) error {
+func (mi *ServiceGateway) innerNotify(client *rpc2.Client, req *data.SrvRequest, res *data.SrvResponse) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -135,16 +137,14 @@ func (mi *ServiceGateway) innerNotify(client *rpc2.Client, req *data.UserRequest
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
-	rpcSrv := data.SrvRequestData{Data:*req}
-
 	for _, srvNodeGroup := range mi.srvNodeNameMapSrvNodeGroup{
-		srvNodeGroup.Notify(client, &rpcSrv)
+		srvNodeGroup.Notify(client, req)
 	}
 
 	return nil
 }
 
-func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.UserRequestData, res *api.UserResponseData) error {
+func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.SrvRequest, res *data.SrvResponse) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -158,7 +158,7 @@ func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.UserRequestDa
 	return nil
 }
 
-func (mi *ServiceGateway) innerCallByEncrypt(client *rpc2.Client, req *data.UserRequestData, res *api.UserResponseData) error {
+func (mi *ServiceGateway) innerCallByEncrypt(client *rpc2.Client, req *data.SrvRequest, res *data.SrvResponse) error {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
@@ -178,6 +178,7 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 	l4g.Debug("Start http server on %s", mi.cfgGateway.Port)
 
 	http.Handle("/" + HttpApi + "/", http.HandlerFunc(mi.handleApi))
+	http.Handle("/" + HttpUser + "/", http.HandlerFunc(mi.handleUser))
 
 	// test mode
 	if mi.cfgGateway.TestMode != 0 {
@@ -256,7 +257,7 @@ func (mi *ServiceGateway) startTcpServer(ctx context.Context) {
 	}()
 }
 
-func (mi *ServiceGateway) srvCall(req *data.UserRequestData, res *api.UserResponseData) {
+func (mi *ServiceGateway) srvCall(req *data.SrvRequest, res *data.SrvResponse) {
 	api := mi.getApiInfo(req)
 	if api == nil {
 		res.Err = data.ErrNotFindSrv
@@ -265,43 +266,44 @@ func (mi *ServiceGateway) srvCall(req *data.UserRequestData, res *api.UserRespon
 	}
 
 	// call function
-	var rpcSrv data.SrvRequestData
-	rpcSrv.Data = *req
+	var rpcSrv data.SrvRequest
+	rpcSrv.Method = req.Method
+	rpcSrv.Argv = req.Argv
 	rpcSrv.Context.ApiLever = api.Level
-	var rpcSrvRes data.SrvResponseData
-	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
-		*res = rpcSrvRes.Data
+	var rpcSrvRes data.SrvResponse
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != data.NoErr{
+		*res = rpcSrvRes
 		return
 	}
 
-	*res = rpcSrvRes.Data
+	*res = rpcSrvRes
 }
 
-func (mi *ServiceGateway) srvCallByEncrypt(req *data.UserRequestData, res *api.UserResponseData) {
+func (mi *ServiceGateway) srvCallByEncrypt(req *data.SrvRequest, res *data.SrvResponse) {
 	// encode and sign data
-	var reqEncrypted data.SrvRequestData
-	reqEncrypted.Data.Method = req.Method
-	reqEncrypted.Data.Argv = req.Argv
-	var reqEncryptedRes data.SrvResponseData
-	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
-		*res = reqEncryptedRes.Data
+	var reqEncrypted data.SrvRequest
+	reqEncrypted.Method = req.Method
+	reqEncrypted.Argv = req.Argv
+	var reqEncryptedRes data.SrvResponse
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != data.NoErr{
+		*res = reqEncryptedRes
 		return
 	}
 
 	// push encode and sign data
-	var reqPush data.SrvRequestData
-	reqPush.Data.Method = req.Method
-	reqPush.Data.Argv = req.Argv
-	reqPush.Data.Argv.Message = reqEncryptedRes.Data.Value.Message
-	reqPush.Data.Argv.Signature = reqEncryptedRes.Data.Value.Signature
-	var reqPushRes data.SrvResponseData
+	var reqPush data.SrvRequest
+	reqPush.Method = req.Method
+	reqPush.Argv.UserKey = req.Argv.UserKey
+	reqPush.Argv.Message = reqEncryptedRes.Value.Message
+	reqPush.Argv.Signature = reqEncryptedRes.Value.Signature
+	var reqPushRes data.SrvResponse
 
 	mi.callFunction(&reqPush, &reqPushRes)
-	*res = reqPushRes.Data
+	*res = reqPushRes
 }
 
-// user call by user
-func (mi *ServiceGateway) userCall(req *data.UserRequestData, res *api.UserResponseData) {
+// user call by api
+func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	// can not call auth service
 	if req.Method.Srv == "auth" {
 		res.Err = data.ErrIllegallyCall
@@ -318,46 +320,120 @@ func (mi *ServiceGateway) userCall(req *data.UserRequestData, res *api.UserRespo
 	}
 
 	// decode and verify data
-	var rpcAuth data.SrvRequestData
-	rpcAuth.Data = *req
+	var rpcAuth data.SrvRequest
+	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
-	var rpcAuthRes data.SrvResponseData
-	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Data.Err != data.NoErr{
-		*res = rpcAuthRes.Data
+	var rpcAuthRes data.SrvResponse
+	if mi.authData(admin.AuthDataTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+		*res = rpcAuthRes
 		return
 	}
 
 	// call real srv
-	var rpcSrv data.SrvRequestData
-	rpcSrv.Data = *req
+	var rpcSrv data.SrvRequest
+	rpcSrv = *req
 	rpcSrv.Context.ApiLever = api.Level
-	rpcSrv.Data.Argv.Message = rpcAuthRes.Data.Value.Message
-	var rpcSrvRes data.SrvResponseData
-	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Data.Err != data.NoErr{
-		*res = rpcSrvRes.Data
+	rpcSrv.Argv.Message = rpcAuthRes.Value.Message
+	var rpcSrvRes data.SrvResponse
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != data.NoErr{
+		*res = rpcSrvRes
 		return
 	}
 
 	// encode and sign data
-	var reqEncrypted data.SrvRequestData
-	reqEncrypted.Data = *req
+	var reqEncrypted data.SrvRequest
+	reqEncrypted = *req
 	reqEncrypted.Context.ApiLever = api.Level
-	reqEncrypted.Data.Argv.Message = rpcSrvRes.Data.Value.Message
-	var reqEncryptedRes data.SrvResponseData
-	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Data.Err != data.NoErr{
-		*res = reqEncryptedRes.Data
+	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
+	var reqEncryptedRes data.SrvResponse
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != data.NoErr{
+		*res = reqEncryptedRes
 		return
 	}
 
-	*res = reqEncryptedRes.Data
+	*res = reqEncryptedRes
+}
+
+// user call by user
+func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) {
+	// can not call auth service
+	if req.Method.Srv == "auth" {
+		res.Err = data.ErrIllegallyCall
+		l4g.Error("%s %d", req.String(), res.Err)
+		return
+	}
+
+	// find api
+	api := mi.getApiInfo(req)
+	if api == nil {
+		res.Err = data.ErrNotFindSrv
+		l4g.Error("%s %d", req.String(), res.Err)
+		return
+	}
+
+	// decode and verify data
+	var rpcAuth data.SrvRequest
+	rpcAuth = *req
+	rpcAuth.Context.ApiLever = api.Level
+	var rpcAuthRes data.SrvResponse
+	if mi.authData(admin.AuthDataTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+		*res = rpcAuthRes
+		return
+	}
+
+	// 解析来自用户的数据后台
+	userParams := admin.UserMessage{}
+	err := json.Unmarshal([]byte(rpcAuthRes.Value.Message), &userParams)
+	if err != nil {
+		res.Err = data.ErrDataCorrupted
+		l4g.Error("parse user params %s %d %s", req.String(), res.Err, err.Error())
+		return
+	}
+
+	// call real srv
+	var rpcSrv data.SrvRequest
+	rpcSrv = *req
+	rpcSrv.Context.ApiLever = api.Level
+	rpcSrv.Argv.SubUserKey = userParams.SubUserKey
+	rpcSrv.Argv.Message = userParams.Message
+	var rpcSrvRes data.SrvResponse
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != data.NoErr{
+		*res = rpcSrvRes
+		return
+	}
+
+	// encode and sign data
+	var reqEncrypted data.SrvRequest
+	reqEncrypted = *req
+	reqEncrypted.Context.ApiLever = api.Level
+	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
+	var reqEncryptedRes data.SrvResponse
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != data.NoErr{
+		*res = reqEncryptedRes
+		return
+	}
+
+	*res = reqEncryptedRes
 }
 
 // auth data
-func (mi *ServiceGateway) authData(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) authData(dataType int, req *data.SrvRequest, res *data.SrvResponse) {
 	reqAuth := *req
-	reqAuth.Data.Method.Srv = "auth"
-	reqAuth.Data.Method.Function = "AuthData"
-	reqAuthRes := data.SrvResponseData{}
+
+	reqAuthData := v1.ReqAuth{}
+	reqAuthData.DataType = dataType
+	reqAuthData.ChipperData = reqAuth.Argv.Message
+	b, err := json.Marshal(reqAuthData)
+	if err != nil {
+		res.Err = data.ErrInternal
+		l4g.Error("authData Marshal %s", err.Error())
+		return
+	}
+
+	reqAuth.Argv.Message = string(b)
+	reqAuth.Method.Srv = "auth"
+	reqAuth.Method.Function = "AuthData"
+	reqAuthRes := data.SrvResponse{}
 
 	mi.callFunction(&reqAuth, &reqAuthRes)
 
@@ -365,12 +441,12 @@ func (mi *ServiceGateway) authData(req *data.SrvRequestData, res *data.SrvRespon
 }
 
 // package data
-func (mi *ServiceGateway) encryptData(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) encryptData(req *data.SrvRequest, res *data.SrvResponse) {
 	reqEnc := *req
-	reqEnc.Data.Method.Srv = "auth"
-	reqEnc.Data.Method.Function = "EncryptData"
+	reqEnc.Method.Srv = "auth"
+	reqEnc.Method.Function = "EncryptData"
 
-	reqEncRes := data.SrvResponseData{}
+	reqEncRes := data.SrvResponse{}
 
 	mi.callFunction(&reqEnc, &reqEncRes)
 
@@ -378,30 +454,30 @@ func (mi *ServiceGateway) encryptData(req *data.SrvRequestData, res *data.SrvRes
 }
 
 //  call a srv node
-func (mi *ServiceGateway) callFunction(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) callFunction(req *data.SrvRequest, res *data.SrvResponse) {
 	centerVersionSrvName := strings.ToLower(mi.registerData.Srv + "." + mi.registerData.Version)
-	versionSrvName := strings.ToLower(req.Data.Method.Srv + "." + req.Data.Method.Version)
-	l4g.Debug("call %s", req.Data.String())
+	versionSrvName := strings.ToLower(req.Method.Srv + "." + req.Method.Version)
+	l4g.Debug("call %s", req.String())
 
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
 	if centerVersionSrvName == versionSrvName {
-		h := mi.apiHandler[strings.ToLower(req.Data.Method.Function)]
+		h := mi.apiHandler[strings.ToLower(req.Method.Function)]
 		if h != nil {
 			h.ApiHandler(req, res)
 		}else{
-			res.Data.Err = data.ErrNotFindFunction
+			res.Err = data.ErrNotFindFunction
 		}
-		if res.Data.Err != data.NoErr {
-			l4g.Error("call failed: %d", res.Data.Err)
+		if res.Err != data.NoErr {
+			l4g.Error("call failed: %d", res.Err)
 		}
 		return
 	}else{
 		srvNodeGroup := mi.srvNodeNameMapSrvNodeGroup[versionSrvName]
 		if srvNodeGroup == nil{
-			res.Data.Err = data.ErrNotFindSrv
-			l4g.Error("%s %d", req.Data.String(), res.Data.Err)
+			res.Err = data.ErrNotFindSrv
+			l4g.Error("%s %d", req.String(), res.Err)
 			return
 		}
 
@@ -409,7 +485,7 @@ func (mi *ServiceGateway) callFunction(req *data.SrvRequestData, res *data.SrvRe
 	}
 }
 
-func (mi *ServiceGateway) getApiInfo(req *data.UserRequestData) (*v1.ApiInfo) {
+func (mi *ServiceGateway) getApiInfo(req *data.SrvRequest) (*v1.ApiInfo) {
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
@@ -418,7 +494,7 @@ func (mi *ServiceGateway) getApiInfo(req *data.UserRequestData) (*v1.ApiInfo) {
 }
 
 func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
-	l4g.Debug("Http server Accept a client: %s", req.RemoteAddr)
+	l4g.Debug("Http server Accept a api client: %s", req.RemoteAddr)
 	//defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
@@ -427,66 +503,120 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	resData := api.UserResponseData{}
+	userResponse := api.UserResponseData{}
 	func (){
 		//fmt.Println("path=", req.URL.Path)
+		reqData := data.SrvRequest{}
 
-		path := req.URL.Path
-		path = strings.Replace(path, HttpApi, "", -1)
-		path = strings.TrimLeft(path, "/")
-		path = strings.TrimRight(path, "/")
+		reqData.Method.FromPath(req.URL.Path)
 
+		// get argv
 		b, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			resData.Err = data.ErrDataCorrupted
+			userResponse.Err = data.ErrDataCorrupted
 			return
 		}
 
 		//body := string(b)
-		//fmt.Println("body=", body)
+		//fmt.Println("body=", string(b))
 
 		// make data
-		reqData := data.UserRequestData{}
-		err = json.Unmarshal(b, &reqData.Argv);
+		userData := api.UserData{}
+		err = json.Unmarshal(b, &userData);
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			resData.Err = data.ErrDataCorrupted
+			userResponse.Err = data.ErrDataCorrupted
 			return
 		}
 
-		// get method
-		paths := strings.Split(path, "/")
-		for i := 0; i < len(paths); i++ {
-			if i == 0 {
-				reqData.Method.Version = paths[i]
-			}else if i == 1{
-				reqData.Method.Srv = paths[i]
-			} else{
-				if reqData.Method.Function != "" {
-					reqData.Method.Function += "."
-				}
-				reqData.Method.Function += paths[i]
-			}
-		}
+		reqData.Argv.FromApiData(&userData)
 
-		mi.userCall(&reqData, &resData)
-		resData.Method = reqData.Method
+		resData := data.SrvResponse{}
+		mi.apiCall(&reqData, &resData)
+
+		reqData.Method.ToApiMethod(&userResponse.Method)
+		resData.ToApiResponse(&userResponse)
 	}()
 
-	if resData.Err != data.NoErr && resData.ErrMsg == "" {
-		resData.ErrMsg = data.GetErrMsg(resData.Err)
+	if userResponse.Err != data.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
+	}
+
+	if userResponse.Err != data.NoErr {
+		l4g.Error("handleAPi request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
 	// write back http
 	w.Header().Set("Content-Type", "application/json")
-	b, _ := json.Marshal(resData)
+	b, _ := json.Marshal(userResponse)
+	w.Write(b)
+	return
+}
+
+func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
+	l4g.Debug("Http server Accept a user client: %s", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
+	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
+
+	mi.wg.Add(1)
+	defer mi.wg.Done()
+
+	userResponse := api.UserResponseData{}
+	func (){
+		//fmt.Println("path=", req.URL.Path)
+		reqData := data.SrvRequest{}
+
+		reqData.Method.FromPath(req.URL.Path)
+
+		// get argv
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			userResponse.Err = data.ErrDataCorrupted
+			return
+		}
+
+		//body := string(b)
+		//fmt.Println("body=", string(b))
+
+		// make data
+		userData := api.UserData{}
+		err = json.Unmarshal(b, &userData);
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			userResponse.Err = data.ErrDataCorrupted
+			return
+		}
+
+		reqData.Argv.FromApiData(&userData)
+
+		resData := data.SrvResponse{}
+		mi.userCall(&reqData, &resData)
+
+		reqData.Method.ToApiMethod(&userResponse.Method)
+		resData.ToApiResponse(&userResponse)
+	}()
+
+	if userResponse.Err != data.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
+	}
+
+	if userResponse.Err != data.NoErr {
+		l4g.Error("handleUser request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
+	}
+
+	// write back http
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := json.Marshal(userResponse)
 	w.Write(b)
 	return
 }
 
 func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request) {
-	l4g.Debug("Http server test Accept a client: %s", req.RemoteAddr)
+	l4g.Debug("Http server test Accept a api test client: %s", req.RemoteAddr)
 	//defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
@@ -495,66 +625,55 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 	mi.wg.Add(1)
 	defer mi.wg.Done()
 
-	resData := api.UserResponseData{}
+	userResponse := api.UserResponseData{}
 	func (){
 		//fmt.Println("path=", req.URL.Path)
+		reqData := data.SrvRequest{}
 
-		path := req.URL.Path
-		path = strings.Replace(path, HttpApiTest, "", -1)
-		path = strings.TrimLeft(path, "/")
-		path = strings.TrimRight(path, "/")
+		reqData.Method.FromPath(req.URL.Path)
 
+		// get argv
 		b, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			resData.Err = data.ErrDataCorrupted
+			userResponse.Err = data.ErrDataCorrupted
 			return
 		}
 
-		//body := string(b)
-		//fmt.Println("body=", body)
-
-		// make data
-		reqData := data.UserRequestData{}
-		err = json.Unmarshal(b, &reqData.Argv);
+		userData := api.UserData{}
+		err = json.Unmarshal(b, &userData);
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			resData.Err = data.ErrDataCorrupted
+			userResponse.Err = data.ErrDataCorrupted
 			return
 		}
 
-		// get method
-		paths := strings.Split(path, "/")
-		for i := 0; i < len(paths); i++ {
-			if i == 0 {
-				reqData.Method.Version = paths[i]
-			}else if i == 1{
-				reqData.Method.Srv = paths[i]
-			} else{
-				if reqData.Method.Function != "" {
-					reqData.Method.Function += "."
-				}
-				reqData.Method.Function += paths[i]
-			}
-		}
+		reqData.Argv.FromApiData(&userData)
 
+		resData := data.SrvResponse{}
 		mi.srvCall(&reqData, &resData)
-		resData.Method = reqData.Method
+
+		reqData.Method.ToApiMethod(&userResponse.Method)
+		resData.ToApiResponse(&userResponse)
 	}()
 
-	if resData.Err != data.NoErr && resData.ErrMsg == "" {
-		resData.ErrMsg = data.GetErrMsg(resData.Err)
+	if userResponse.Err != data.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
+	}
+
+	if userResponse.Err != data.NoErr {
+		l4g.Error("handleApiTest request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
 	// write back http
 	w.Header().Set("Content-Type", "application/json")
-	b, _ := json.Marshal(resData)
+	b, _ := json.Marshal(userResponse)
 	w.Write(b)
 	return
 }
 
 // RPC -- listsrv
-func (mi *ServiceGateway) listSrv(req *data.SrvRequestData, res *data.SrvResponseData) {
+func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
@@ -566,16 +685,16 @@ func (mi *ServiceGateway) listSrv(req *data.SrvRequestData, res *data.SrvRespons
 
 	b, err := json.Marshal(nodes)
 	if err != nil {
-		res.Data.Err = data.ErrDataCorrupted
-		res.Data.Value.Message = ""
-		res.Data.Value.Signature = ""
+		res.Err = data.ErrDataCorrupted
+		res.Value.Message = ""
+		res.Value.Signature = ""
 		return
 	}
-	res.Data.Value.Message = string(b)
+	res.Value.Message = string(b)
 
 	// make sure no data if err
-	if res.Data.Err != data.NoErr {
-		res.Data.Value.Message = ""
-		res.Data.Value.Signature = ""
+	if res.Err != data.NoErr {
+		res.Value.Message = ""
+		res.Value.Signature = ""
 	}
 }

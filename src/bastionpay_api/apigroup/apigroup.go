@@ -30,12 +30,12 @@ func init()  {
 	// bastionpay
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSupportAssets})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocAssetAttribute})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocNewAddress})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocQueryUserAddress})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocWithdrawal})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocGetBalance})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocQueryUserAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocHistoryTransactionOrder})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocHistoryTransactionMessage})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocNewAddress})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocWithdrawal})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetPayAddress})
 
 	// bastionpay_tool
@@ -52,7 +52,9 @@ func RegisterApiDocHandler(apiProxy *apidoc.ApiDocHandler) error {
 		return fmt.Errorf("%s.%s.%s exist!", apiDocInfo.VerName, apiDocInfo.SrvName, apiDocInfo.FuncName)
 	}
 
-	if(reflect.TypeOf(apiProxy.ApiDocInfo.Input) == nil){
+	if apiProxy.ApiDocInfo.Input == nil{
+		apiProxy.ApiDocInfo.Example = ""
+	} else if reflect.TypeOf(apiProxy.ApiDocInfo.Input) == nil{
 		apiProxy.ApiDocInfo.Example = ""
 	} else if reflect.TypeOf(apiProxy.ApiDocInfo.Input).Kind() == reflect.String {
 		apiProxy.ApiDocInfo.Example = apiProxy.ApiDocInfo.Input.(string)

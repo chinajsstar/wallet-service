@@ -70,10 +70,12 @@ func FieldTag(v interface{}, level int) string {
 	return fieldFormat(reflect.ValueOf(v), level)
 }
 
-func fieldFormat(v reflect.Value, level int) string {
-	t := v.Type()
+func fieldFormat(vv reflect.Value, level int) string {
+	t := vv.Type()
+	v := vv
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
+		v = vv.Elem()
 	}
 
 	var out string
@@ -85,7 +87,7 @@ func fieldFormat(v reflect.Value, level int) string {
 			if tagJson == "-" {
 				continue
 			}
-			out += space(level+1) + tagJson + "--(" + t.Field(i).Tag.Get("comment") + ") "
+			out += space(level+1) + tagJson + "--(" + t.Field(i).Tag.Get("doc") + ") "
 			out += fieldFormat(v.Field(i), level + 1)
 			out += "\n"
 		}
@@ -95,7 +97,7 @@ func fieldFormat(v reflect.Value, level int) string {
 		out += space(level) + "[\n"
 		for i := 0; i < n; i++ {
 			rs := v.Index(i)
-			out += fieldFormat(rs, level + 1)
+			out += space(level) + fieldFormat(rs, level + 1)
 			out += "\n"
 		}
 		out += space(level) + "]"

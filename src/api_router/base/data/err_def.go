@@ -26,6 +26,7 @@ func init()  {
 	err_msg[ErrAuthSrvNoApiLevel] 					= "no api level"
 	err_msg[ErrAuthSrvUserFrozen] 					= "user key is frozen"
 	err_msg[ErrAuthSrvIllegalData] 					= "illegal data"
+	err_msg[ErrAuthSrvIllegalDataType] 				= "illegal data type"
 
 	err_msg[ErrPushSrvPushData] 					= "push failed"
 }
@@ -100,6 +101,9 @@ const(
 
 	// illegal data
 	ErrAuthSrvIllegalData			= 11205
+
+	// illegal data type
+	ErrAuthSrvIllegalDataType		= 11206
 
 	// /////////////////////////////////////////////////////
 	// 11301-11400 push_srv errors

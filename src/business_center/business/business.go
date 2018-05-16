@@ -75,8 +75,8 @@ func (b *Business) Stop() {
 	b.address.Stop()
 }
 
-func (b *Business) HandleMsg(req *data.SrvRequestData, res *data.SrvResponseData) error {
-	switch req.Data.Method.Function {
+func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error {
+	switch req.Method.Function {
 	case "new_address":
 		return b.address.NewAddress(req, res)
 

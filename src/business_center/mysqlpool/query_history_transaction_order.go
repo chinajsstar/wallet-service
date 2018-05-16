@@ -19,6 +19,7 @@ func QueryTransactionOrder(queryMap map[string]interface{}) ([]TransactionOrder,
 
 	db := Get()
 	rows, err := db.Query(sqls, params...)
+	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return orders, len(orders) > 0

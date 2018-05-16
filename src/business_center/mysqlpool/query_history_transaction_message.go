@@ -20,6 +20,7 @@ func QueryTransactionMessage(queryMap map[string]interface{}) ([]TransactionMess
 
 	db := Get()
 	rows, err := db.Query(sqls, params...)
+	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return messages, len(messages) > 0

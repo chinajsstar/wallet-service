@@ -19,10 +19,12 @@ func usage()  {
 	fmt.Println("		create a rsa key pair")
 	fmt.Println(">setport port")
 	fmt.Println("		set http listen port")
-	fmt.Println(">switch cfg")
+	fmt.Println(">switch cfgname")
 	fmt.Println("		switch a user cfg file")
 	fmt.Println(">api srv function jsonmessage")
 	fmt.Println("		call api with json message")
+	fmt.Println(">user srv function subuserkey jsonmessage")
+	fmt.Println("		call user with json message")
 	fmt.Println(">apitest srv function jsonmessage")
 	fmt.Println("		call apitest with json message")
 	fmt.Println(">apidoc [ver srv function]")
@@ -79,15 +81,13 @@ func main()  {
 
 			fmt.Println("==set http port ok==")
 		} else if argv[0] == "switch"{
-			var cfg string
 			if len(argv) != 2{
-				fmt.Println("格式：switch cfg")
+				fmt.Println("格式：switch cfgname")
 				continue
 			}
-			cfg = argv[1]
+			cfgName := argv[1]
 
-			cfgPath := runDir + "/" + cfg
-			err = gateway.Init(cfgPath)
+			err = gateway.Init(runDir, cfgName)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -107,7 +107,8 @@ func main()  {
 
 			fmt.Println(message)
 
-			ack, err := gateway.Output("/api/v1/"+srv+"/"+function, []byte(message))
+			var ack []byte
+			err := gateway.RunApi("/api/v1/"+srv+"/"+function, []byte(message), &ack)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -115,7 +116,7 @@ func main()  {
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "apitest"{
-			if len(argv) != 3{
+			if len(argv) < 3{
 				fmt.Println("格式：apitest srv function message")
 				continue
 			}
@@ -126,7 +127,31 @@ func main()  {
 				message = argv[3]
 			}
 
-			ack, err := gateway.OutputTest("/apitest/v1/"+srv+"/"+function, []byte(message))
+			var ack []byte
+			err := gateway.RunApiTest("/apitest/v1/"+srv+"/"+function, []byte(message), &ack)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			fmt.Println("err==", err)
+			fmt.Println("ack==", string(ack))
+		} else if argv[0] == "user"{
+			if len(argv) < 4 {
+				fmt.Println("格式：user srv function subuserkey message")
+				continue
+			}
+			srv := argv[1]
+			function := argv[2]
+			subUserKey := argv[3]
+			message := ""
+			if len(argv) > 4 {
+				message = argv[4]
+			}
+
+			fmt.Println(message)
+
+			var ack []byte
+			err := gateway.RunUser("/user/v1/"+srv+"/"+function, subUserKey, []byte(message), &ack)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -155,16 +180,12 @@ func main()  {
 					fmt.Println("服务：")
 					fmt.Println(srv)
 					var subIndex = 1
+					fmt.Println("---------------------")
 					for _, apiProxy := range apiGroup{
-						fmt.Println("---------------------")
-						fmt.Println(index, ".", subIndex, ")")
-						fmt.Println("方法：")
-						fmt.Println(apiProxy.Help().FuncName)
-						fmt.Println("说明：")
-						fmt.Println(apiProxy.Help().Comment)
-						fmt.Println("---------------------")
+						fmt.Println(index, ".", subIndex, ")", apiProxy.Help().Path(), " -- ", apiProxy.Help().Name)
 						subIndex++
 					}
+					fmt.Println("---------------------")
 
 					index++
 				}
@@ -185,7 +206,7 @@ func main()  {
 					fmt.Println("方法：")
 					fmt.Println(apiProxy.Help().FuncName)
 					fmt.Println("说明：")
-					fmt.Println(apiProxy.Help().Comment)
+					fmt.Println(apiProxy.Help().Name)
 					fmt.Println("---------------------")
 					index++
 				}
@@ -202,8 +223,10 @@ func main()  {
 				fmt.Println(apiProxy.Help().SrvName)
 				fmt.Println("方法：")
 				fmt.Println(apiProxy.Help().FuncName)
-				fmt.Println("备注：")
-				fmt.Println(apiProxy.Help().Comment)
+				fmt.Println("说明：")
+				fmt.Println(apiProxy.Help().Name)
+				fmt.Println("描述：")
+				fmt.Println(apiProxy.Help().Description)
 				fmt.Println("路径：")
 				fmt.Println(apiProxy.Help().Path)
 
