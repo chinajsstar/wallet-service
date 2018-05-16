@@ -51,7 +51,6 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 			} else {
 				fmt.Printf("InitAndStart btcClientInstance %s Error : %s\n", types.Chain_bitcoin, err.Error())
 			}
-
 		case "eth":
 			//实例化以太坊客户端
 			ethClient, err := eth.ClientInstance()
@@ -60,7 +59,6 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 			} else {
 				fmt.Printf("InitAndStart ethClientInstance %s Error : %s\n", types.Chain_eth, err.Error())
 			}
-
 		}
 	}
 

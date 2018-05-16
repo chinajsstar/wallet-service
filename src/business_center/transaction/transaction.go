@@ -18,7 +18,7 @@ func Blockin(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 	//为提币订单填充Hash
 	if len(blockin.OrderID) > 0 {
 		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash"+
-			" from withdrawal_order where order_id = ?;", blockin.OrderID)
+			" from withdrawal_order where order_id = ?", blockin.OrderID)
 
 		transNotice := TransactionNotice{
 			MsgID:         0,
@@ -35,14 +35,14 @@ func Blockin(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 		if err == nil {
 			if len(transNotice.Hash) <= 0 {
 				transNotice.Hash = blockin.Hash
-				db.Exec("update withdrawal_order set hash = ? where order_id = ?;", blockin.Hash, blockin.OrderID)
+				db.Exec("update withdrawal_order set hash = ? where order_id = ?", blockin.Hash, blockin.OrderID)
 				SendTransactionNotic(&transNotice, callback)
 			}
 		}
 	}
 
 	_, err := db.Exec("insert transaction_blockin (asset_name, hash, status, miner_fee, blockin_height,"+
-		" blockin_time, confirm_height, confirm_time, order_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?);",
+		" blockin_time, confirm_height, confirm_time, order_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		blockin.AssetName, blockin.Hash, blockin.Status, blockin.MinerFee, blockin.BlockinHeight,
 		time.Unix(blockin.Time, 0).UTC().Format(TimeFormat), blockin.BlockinHeight,
 		time.Unix(blockin.Time, 0).UTC().Format(TimeFormat), blockin.OrderID)
@@ -139,9 +139,9 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.Token.Symbol, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
-		fn(transfer.Token.Symbol, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.Token.Address, "miner_fee", -int64(transfer.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Value), transfer.Tx_hash)
 	} else {
 		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
 		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
@@ -178,9 +178,9 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.Token.Symbol, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
-		fn(transfer.Token.Symbol, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.Token.Address, "miner_fee", -int64(transfer.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Value), transfer.Tx_hash)
 	} else {
 		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
 		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
