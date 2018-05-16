@@ -7,11 +7,12 @@ import (
 )
 
 var ApiDocAdd = apidoc.ApiDoc{
+	Name:"加法",
+	Description:"加法功能",
+	Level:data.APILevel_client,
 	VerName:"v1",
 	SrvName:"arith",
 	FuncName:"add",
-	Level:data.APILevel_client,
-	Comment:"加法功能",
 	Input:&v1.Args{},
 	Output:&v1.AckArgs{},
 }

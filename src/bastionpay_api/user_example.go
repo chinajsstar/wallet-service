@@ -180,16 +180,12 @@ func main()  {
 					fmt.Println("服务：")
 					fmt.Println(srv)
 					var subIndex = 1
+					fmt.Println("---------------------")
 					for _, apiProxy := range apiGroup{
-						fmt.Println("---------------------")
-						fmt.Println(index, ".", subIndex, ")")
-						fmt.Println("方法：")
-						fmt.Println(apiProxy.Help().FuncName)
-						fmt.Println("说明：")
-						fmt.Println(apiProxy.Help().Comment)
-						fmt.Println("---------------------")
+						fmt.Println(index, ".", subIndex, ")", apiProxy.Help().Path(), " -- ", apiProxy.Help().Name)
 						subIndex++
 					}
+					fmt.Println("---------------------")
 
 					index++
 				}
@@ -210,7 +206,7 @@ func main()  {
 					fmt.Println("方法：")
 					fmt.Println(apiProxy.Help().FuncName)
 					fmt.Println("说明：")
-					fmt.Println(apiProxy.Help().Comment)
+					fmt.Println(apiProxy.Help().Name)
 					fmt.Println("---------------------")
 					index++
 				}
@@ -227,8 +223,10 @@ func main()  {
 				fmt.Println(apiProxy.Help().SrvName)
 				fmt.Println("方法：")
 				fmt.Println(apiProxy.Help().FuncName)
-				fmt.Println("备注：")
-				fmt.Println(apiProxy.Help().Comment)
+				fmt.Println("说明：")
+				fmt.Println(apiProxy.Help().Name)
+				fmt.Println("描述：")
+				fmt.Println(apiProxy.Help().Description)
 				fmt.Println("路径：")
 				fmt.Println(apiProxy.Help().Path)
 

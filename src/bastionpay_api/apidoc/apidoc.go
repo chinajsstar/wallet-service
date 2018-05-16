@@ -7,11 +7,12 @@ import (
 
 type (
 	ApiDoc struct{
+		Name  			string
+		Description 	string
+		Level 			int
 		VerName 		string
 		SrvName 		string
 		FuncName 		string
-		Level 			int
-		Comment 		string
 		Input 			interface{}
 		Output 			interface{}
 		InputComment 	string
