@@ -150,6 +150,7 @@ func UpdatePayTokenAddress() error {
 		" unix_timestamp(a.allocation_time), unix_timestamp(a.update_time)" +
 		" from user_address a left join asset_property b on a.asset_name = b.asset_name" +
 		" where a.user_class = 1 and b.is_token = 0")
+	defer rows.Close()
 	if err != nil {
 		return err
 	}
@@ -196,16 +197,18 @@ func CreateTokenAddress(userAddress []UserAddress) error {
 						" from asset_property where is_token = 1 and parent_name = ?", v.AssetName)
 					if err != nil {
 						continue
-					}
-					for rows.Next() {
-						err := rows.Scan(&assetName)
-						if err != nil {
-							continue
+					} else {
+						for rows.Next() {
+							err := rows.Scan(&assetName)
+							if err != nil {
+								continue
+							}
+							addr := value
+							addr.AssetName = assetName
+							data = append(data, addr)
 						}
-						addr := value
-						addr.AssetName = assetName
-						data = append(data, addr)
 					}
+					rows.Close()
 				}
 			}
 		}

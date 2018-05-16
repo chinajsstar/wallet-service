@@ -19,6 +19,7 @@ func QueryUserProperty(queryMap map[string]interface{}) ([]UserProperty, bool) {
 
 	db := Get()
 	rows, err := db.Query(sqls, params...)
+	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return userProperty, len(userProperty) > 0

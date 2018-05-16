@@ -8,6 +8,7 @@ import (
 	. "business_center/def"
 	"business_center/jsonparse"
 	"business_center/mysqlpool"
+	"business_center/transaction"
 	"context"
 	"encoding/json"
 	"errors"
@@ -210,7 +211,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	uuID := a.generateUUID()
+	uuID := transaction.GenerateUUID("WD")
 	resMap["order_id"] = uuID
 
 	err = mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID)

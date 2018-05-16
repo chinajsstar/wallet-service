@@ -20,6 +20,7 @@ func QueryAssetProperty(queryMap map[string]interface{}) ([]AssetProperty, bool)
 
 	db := Get()
 	rows, err := db.Query(sqls, params...)
+	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return assetProperty, len(assetProperty) > 0
