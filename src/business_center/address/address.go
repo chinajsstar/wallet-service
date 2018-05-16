@@ -619,7 +619,6 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 	userAddressList := v1.AckUserAddressList{}
 	for _, v := range userAddress {
 		ua := v1.AckUserAddress{}
-		ua.Id = 0
 		ua.AssetName = v.AssetName
 		ua.Address = v.Address
 		ua.AllocationTime = v.AllocationTime
