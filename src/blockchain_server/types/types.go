@@ -1,12 +1,10 @@
 package types
 
 import (
+	"blockchain_server/utils"
 	"fmt"
 	"math/big"
-	"blockchain_server/utils"
-	"math"
 )
-
 
 //-32700	Parse error	Invalid JSON was received by the server.
 //An error occurred on the server while parsing the JSON text.
@@ -22,20 +20,21 @@ type Account struct {
 }
 
 const (
-	Tx_state_unkown = iota
-	Tx_state_notfound
-	Tx_state_commited             	// transaction was sended(call SendTransaction)
-	Tx_state_pending				// pending Transaction on node
-	Tx_state_mined					// transaction mined on a block!!
-	Tx_state_confirmed              // transaction was mined and stored on a block. confirmed number is 1 or biger
-	Tx_state_unconfirmed            // some error happened...need to re send
+	Tx_state_ToBuild = iota // 尚未准备好, 调用buildTx后, 状态成为BuildOk
+	Tx_state_BuildOk   // ready to send
+	Tx_state_Signed    // build, and signed, ready for send!
 
-	Chain_eth = "eth"
+	Tx_state_pending   // pending Transaction on node
+	Tx_state_mined     // transaction mined on a block!!
+	Tx_state_confirmed // transaction was mined and stored on a block. confirmed number is 1 or biger
+
+	Tx_state_unconfirmed // some error happened...need to re send
+
+	Chain_eth     = "eth"
 	Chain_bitcoin = "btc"
 
 	NetCmdCode_success = iota
 	NetCmdCode_failed
-
 
 	// online  模式不允许保存私钥
 	// offline 模式可以都保存
@@ -52,22 +51,76 @@ type Token struct {
 	Decimals uint   `json:"decimals,string,omitempty"`
 }
 
+// Transaction中的TokenTx
+type TokenTx struct {
+	From     string
+	To       string
+	Value    uint64
+	Contract *Token
+}
+
+func (self *TokenTx) String() string {
+	return fmt.Sprintf(
+`TokenTransaction inormation: 
+	Symbol:			: %s
+	Contract		: %s
+	From:			: %s
+	To				: %s
+	Value			: %d`,
+	self.Contract.Symbol, self.Contract.Address, self.From, self.To, self.Value)
+}
+
+func (self *TokenTx) TokenDecimalValue() uint64 {
+	return utils.DecimalCvt_i_i(self.Value, 8, 0).Uint64()
+	//return self.Contract.ToTokenDecimal(self.Value).Uint64()
+}
+
+func (self *TokenTx) IsValid() bool {
+	return self.Contract != nil
+}
+
+func (self *TokenTx) Name() string {
+	if self.Contract != nil {
+		return self.Contract.Name
+	}
+	return ""
+}
+
+func (self *TokenTx) Symbol() string {
+	if self.Contract != nil {
+		return self.Contract.Symbol
+	}
+	return ""
+}
+
+func (self *TokenTx) ContractAddress() string {
+	if self.Contract != nil {
+		return self.Contract.Address
+	}
+	return ""
+}
+
 // 把StandardDecimal 表示的数量, 转换为币种内部使用的数量
-func (self *Token) ToTokenDecimal(v uint64) *big.Int{
-	i := int(self.Decimals) - 8
-	ibig :=  big.NewInt(int64(v))
-	if i>0 { return ibig.Mul(ibig, big.NewInt(int64(math.Pow10( i))))
-	} else { return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))) }
+func (self *Token) ToTokenDecimal(v uint64) *big.Int {
+	return utils.DecimalCvt_i_i(v, 8, 0)
+	//i := int(self.Decimals) - 8
+	//ibig := big.NewInt(int64(v))
+	//if i > 0 {
+	//	return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(i))))
+	//} else {
+	//	return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i))))
+	//}
 }
 
 // 把币种内部使用的精度表示为外部标准使用过的精度!
-func (self *Token) ToStandardDecimal (v uint64) uint64 {
+func (self *Token) ToStandardDecimal(v uint64) uint64 {
 	return utils.DecimalCvt_i_i(v, int(self.Decimals), 8).Uint64()
 }
 
 func (self *Token) ToStandardDecimalWithBig(ibig *big.Int) uint64 {
-	v := ibig.Uint64()
-	return utils.DecimalCvt_i_i(v, int(self.Decimals), 8).Uint64()
+	return ibig.Uint64()
+	//v := ibig.Uint64()
+	//return utils.DecimalCvt_i_i(v, int(self.Decimals), 8).Uint64()
 }
 
 func (self *Token) String() string {
@@ -78,12 +131,10 @@ func (self *Token) String() string {
 
 type CmdSendTx struct {
 	NetCmd
-	Chiperkey 	string
-	Tx       	*Transfer
-
+	FromKey string
+	Tx      *Transfer
 	// liuheng add
-	// TODO: zl review
-	SignedTxString	string  // 已签名交易(数据[]byte经base64编码过)，空表示没有签名
+	SignedTxString string // 已签名交易(数据[]byte经base64编码过)，空表示没有签名
 }
 
 type CmdNewAccounts struct {
@@ -104,8 +155,8 @@ type CmdqueryTx struct {
 
 type CmdqueryBalance struct {
 	NetCmd
-	Address	string
-	Token	*string
+	Address string
+	Token   *string
 }
 
 type NetCmdChannel chan interface{}
@@ -119,27 +170,28 @@ type TxState int
 type RechargeTx struct {
 	Coin_name string
 	Tx        *Transfer
-	Err		  error
+	Err       error
 }
 
 type Transfer struct {
-	Tx_hash string
-	From    string
-	To      string
-	Value   uint64	// 交易金额
-	Fee     uint64
+	Tx_hash             string
+	From                string
+	To                  string
+	Value               uint64 // 交易金额
+	Fee                 uint64
 	Gaseprice           uint64
-	GasUsed             uint64
-	Total               uint64	// 总花费金额
+	Gas                 uint64
+	Total               uint64 // 总花费金额
 	State               TxState
-	InBlock             uint64	// 所在块高
-	ConfirmatedHeight   uint64	// 确认块高
-	Confirmationsnumber uint64	// 需要的确认数
+	InBlock             uint64 // 所在块高
+	ConfirmatedHeight   uint64 // 确认块高
+	Confirmationsnumber uint64 // 需要的确认数
 	Time                uint64
-	Token               *Token
+	TokenFromKey        string
+	TokenTx             *TokenTx
 
 	// 根据不同种类的币种, 有不同!只有其自己才能理解
-	Additional_data 	[]byte
+	Additional_data []byte
 	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
 }
 
@@ -149,38 +201,44 @@ func (tx *Transfer) Tatolcost() uint64 {
 
 func TxStateString(state TxState) string {
 	switch state {
-	case Tx_state_unkown: {
-		return "unkown"
-	}
-	case Tx_state_commited: {
-		return "commit"
-	}
-	case Tx_state_pending: {
-		return "pending"
-	}
-	case Tx_state_mined: {
-		return "mined"
-	}
-	case Tx_state_confirmed: {
-		return "confirmed"
-	}
-	case Tx_state_unconfirmed: {
-		return "unconfirmed"
-	}
+	case Tx_state_ToBuild:
+		{
+			return "To build"
+		}
+	case Tx_state_BuildOk:
+		{
+			return "Build Ok"
+		}
+	case Tx_state_pending:
+		{
+			return "Pending"
+		}
+	case Tx_state_mined:
+		{
+			return "mined"
+		}
+	case Tx_state_confirmed:
+		{
+			return "confirmed"
+		}
+	case Tx_state_unconfirmed:
+		{
+			return "unconfirmed"
+		}
 	default:
 		return "unkown"
 	}
 }
 
-func (tx* Transfer) IsTokenTx() bool {
-	return !(tx.Token==nil)
+func (tx *Transfer) IsTokenTx() bool {
+	return !(tx.TokenTx == nil)
 }
 
-func (tx *Transfer)String() string {
+func (tx *Transfer) String() string {
 	var token_str string
 	if tx.IsTokenTx() {
-		token_str = tx.Token.String()
-	}else {
+		token_str = tx.TokenTx.String()
+	} else {
 		token_str = "not a token"
 	}
 
@@ -189,11 +247,11 @@ func (tx *Transfer)String() string {
 	From:   %s
 	To:     %s
 	State:  %s
-	Value:  %d
-	Fee: 	%d 
+	Value:  %f
+	Fee: 	%f 
 	InBlock:%d
 	ConfirmtedBlockHeight: %d
-	Token information: %s`,
+	%s`,
 		tx.Tx_hash,
 		tx.From,
 		tx.To,
@@ -207,26 +265,26 @@ type NotFound struct {
 	message string
 }
 
-func (self *NotFound)Error() string {
+func (self *NotFound) Error() string {
 	return self.message
 }
 
 func NewNotFound(message string) *NotFound {
-	return &NotFound{message:message}
+	return &NotFound{message: message}
 }
 
 func NewTxNotFoundErr(tx_hash string) *NotFound {
 	//return &NotFound{tx_info: fmt.Sprintf("Transaction not found, detail:%s", tx.String())}
-	return &NotFound{message:fmt.Sprintf("Transaction(%s) not found!", tx_hash)}
+	return &NotFound{message: fmt.Sprintf("Transaction(%s) not found!", tx_hash)}
 }
 
 type NetCmdErr struct {
-	Code 		int32
-	Message		string
-	Data 		interface{}
+	Code    int32
+	Message string
+	Data    interface{}
 }
 
-type NetCmd struct  {
+type NetCmd struct {
 	MsgId    string
 	Coinname string
 	Method   string
@@ -235,6 +293,5 @@ type NetCmd struct  {
 }
 
 func NewNetCmdErr(code int32, message string, data interface{}) *NetCmdErr {
-	return &NetCmdErr{Code:code, Message:message, Data:data}
+	return &NetCmdErr{Code: code, Message: message, Data: data}
 }
-

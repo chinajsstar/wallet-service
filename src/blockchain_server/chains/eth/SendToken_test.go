@@ -41,7 +41,7 @@ func TestSendTokenTx(t *testing.T) {
 			return
 		}
 
-		key, _ := ParseChiperkey(tmp_account.PrivateKey)
+		key, _ := ParseKey(tmp_account.PrivateKey)
 		opts := bind.NewKeyedTransactor(key)
 		tx, err := tmp_tk.Transfer(opts, common.HexToAddress(tmp_toaddress), big.NewInt(10))
 		if err!=nil {
@@ -76,7 +76,7 @@ func transferToken(client * ethclient.Client, tokenAddress common.Address, from 
 
 	value = new(big.Int)
 
-	key, err := ParseChiperkey(from.PrivateKey)
+	key, err := ParseKey(from.PrivateKey)
 	if err!= nil {
 		return err
 	}

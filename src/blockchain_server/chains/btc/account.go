@@ -76,7 +76,7 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 
 			// converts the extended key to a standard bitcoin pay-to-pubkey-hash
 			// address for the passed network.
-			// AddressPubKeyHash is an Address for a pay-to-pubkey-hash (P2PKH)
+			// AddressPubKeyHash is an ContractAddress for a pay-to-pubkey-hash (P2PKH)
 			// transaction.
 			if hash, err := childpub.Address(c.chain_params); err!=nil {
 				l4g.Error("Convert child-extended-pub-key to address faild, message:%s", err.Error())

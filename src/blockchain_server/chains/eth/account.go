@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"encoding/hex"
 	bcrypto "blockchain_server/crypto"
-
 )
 
 func getPassphrase(length uint32) string {
@@ -59,44 +58,41 @@ func NewAccount() (*wtypes.Account, error) {
 
 	//fmt.Printf("account.privatekey:	0x%x\n", priKey.D.Bytes())
 	//fmt.Printf("account.publickey:	%s\n", priKey.PublicKey.X.String())
-	//fmt.Printf("account.address:	%s\n", account.Address)
+	//fmt.Printf("account.address:	%s\n", account.ContractAddress)
 	return &account, nil
 }
 
-func ParseChiperkey (keyChiper string) (*ecdsa.PrivateKey, error) {
+func ParseKey(keyChiper string) (*ecdsa.PrivateKey, string, error) {
 	//fmt.Printf("crypt key : %s\n", keyChiper)
 	cryptKeyHexString := utils.String_cat_prefix(keyChiper, "0x")
 	cryptKeyData, err := hex.DecodeString(cryptKeyHexString )
 
+
 	if err!=nil {
-		return nil, fmt.Errorf("Invalid private key")
+		return nil, "", fmt.Errorf("Invalid private key")
 	}
 	decryptBytes, err := bcrypto.Decrypto(cryptKeyData)
 	if err!=nil {
-		return nil, err
+		return nil, "",  err
 	}
 
-	privateKey, err := crypto.ToECDSA(decryptBytes)
+	privKey, err := crypto.ToECDSA(decryptBytes)
 	if err!=nil {
-		return nil, err
+		return nil, "",  err
 	}
-	//address := crypto.PubkeyToAddress(privateKey.PublicKey)
-	//addressHexStr := "0x" + address.String()
 
-	return privateKey, nil
+	return privKey, crypto.PubkeyToAddress(privKey.PublicKey).String(), nil
 }
 
-//func CreateaAccountfromChiperkey(keyChiperStr string) (*wtypes.Account, error) {
-//	keyChiperStr = utils.String_cat_prefix(keyChiperStr, "0x")
-//	chiper, err := hex.DecodeString(keyChiperStr)
-//	if err!=nil {
-//		return nil, fmt.Errorf("Invalid private key")
-//	}
-//
-//	decryptBytes, err := wallet.Decrypto(chiper)
+//func Chiperkey2Account(key string) (*wtypes.Account, error) {
+//	privkey, err := ParseKey(key)
 //	if err!=nil {
 //		return nil, err
 //	}
+//
+//	return &wtypes.Account{
+//		PrivateKey: privkey,
+//		Address: 	crypto.PubkeyToAddress(privkey.PublicKey)
+//	}, nil
 //}
-
 

@@ -31,7 +31,7 @@ func BuildTx(clientManager *service.ClientManager, txArr []*types.CmdSendTx, txD
 		txData.Tx = s
 		txData.Signed = 0
 		txData.Address = tx.Tx.From
-		txData.PriKey = tx.Chiperkey
+		txData.PriKey = tx.FromKey
 
 		txDataArr = append(txDataArr, txData)
 	}

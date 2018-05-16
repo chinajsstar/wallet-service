@@ -23,8 +23,8 @@ type ChainClient interface {
 	// split SendTx to 3 steps: BuildTx, SignTx, SendSignedTx
 	// liuheng add
 	// TODO: zl review
-	BuildTx(tx *types.Transfer) (error)
-	SignTx(chiperKey string, tx *types.Transfer) ([]byte, error)
+	BuildTx(fromkey string, tx *types.Transfer) (error)
+	SignTx(fromkey string, tx *types.Transfer) ([]byte, error)
 	SendSignedTx(txByte []byte, tx *types.Transfer) (error)
 
 	GetBalance(address string, tokenname *string) (uint64, error)

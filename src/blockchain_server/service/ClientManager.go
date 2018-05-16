@@ -390,7 +390,7 @@ func (self *ClientManager) trackTxState(clientName string,
 			tx_channel <- tx
 		}
 
-		if tx.State == types.Tx_state_unconfirmed && tx.State == types.Tx_state_confirmed {
+		if tx.State == types.Tx_state_unconfirmed || tx.State == types.Tx_state_confirmed {
 			tx_channel <- tx
 			goto endfor
 		}
@@ -411,7 +411,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	l4g.Trace(`
 ------------send transaction begin------------
 Asset:%s , Crypted Key:%s
-TxInfo : %s`, txCmd.Coinname, txCmd.Chiperkey, txCmd.Tx.String() )
+TxInfo : %s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
 
 	instance := self.clients[txCmd.Coinname]
 
@@ -435,7 +435,7 @@ TxInfo : %s`, txCmd.Coinname, txCmd.Chiperkey, txCmd.Tx.String() )
 			return nil
 		}()
 	} else {
-		err = instance.SendTx(txCmd.Chiperkey, txCmd.Tx)
+		err = instance.SendTx(txCmd.FromKey, txCmd.Tx)
 	}
 
 	if nil != err {
@@ -446,7 +446,7 @@ TxInfo : %s`, txCmd.Coinname, txCmd.Chiperkey, txCmd.Tx.String() )
 		return
 	}
 
-	txCmd.Tx.State = types.Tx_state_commited
+	txCmd.Tx.State = types.Tx_state_pending
 	self.txCmdFeed.Send(txCmd)
 	self.trackTxCmd(txCmd)
 
@@ -538,7 +538,7 @@ func (self *ClientManager) BuildTx(txCmd *types.CmdSendTx) (string, error) {
 	l4g.Trace("------------Build transaction begin------------")
 	instance := self.clients[txCmd.Coinname]
 
-	err := instance.BuildTx(txCmd.Tx)
+	err := instance.BuildTx(txCmd.FromKey, txCmd.Tx)
 	if nil != err {
 		l4g.Error("Build Transaction error:%s", err.Error())
 		return "", err

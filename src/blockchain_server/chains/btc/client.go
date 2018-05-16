@@ -31,7 +31,7 @@ var (
 
 type Client struct {
 	*rpcclient.Client
-	//addresslist []btcutil.Address
+	//addresslist []btcutil.ContractAddress
 	cmMtx       sync.Mutex
 
 	// looks like bitcoin not need this field,
@@ -421,14 +421,14 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 	} else if btx.Confirmations>0 {
 		stx.State = types.Tx_state_mined
 	} else {
-		stx.State = types.Tx_state_commited
+		stx.State = types.Tx_state_pending
 	}
 
 	// golang bitcoin rpcclient 'block' have not defined height
 	//stx.InBlock = uint64(btx.BlockIndex)
 
 	stx.Time = uint64(btx.Time)
-	stx.Token = nil
+	stx.TokenTx = nil
 	stx.Additional_data = nil
 	return nil
 

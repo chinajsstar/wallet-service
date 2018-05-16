@@ -79,7 +79,7 @@ func (a *Address) recvRechargeTxChannel() {
 
 					assetName := rct.Coin_name
 					if rct.Tx.IsTokenTx() {
-						assetName = rct.Tx.Token.Symbol
+						assetName = rct.Tx.TokenTx.Symbol
 					}
 
 					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
@@ -139,7 +139,7 @@ func (a *Address) recvCmdTxChannel() {
 
 					assetName := cmdTx.Coinname
 					if cmdTx.Tx.IsTokenTx() {
-						assetName = cmdTx.Tx.Token.Symbol
+						assetName = cmdTx.Tx.TokenTx.Symbol
 					}
 
 					assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)

@@ -170,7 +170,7 @@ func BuildTxTest(ol *OnLine, argv []string) (string, error) {
 		return "", errors.New("create tx failed")
 	}
 	txCmd.Tx.From = from
-	txCmd.Chiperkey = chiperprikey
+	txCmd.FromKey = chiperprikey
 
 	var txArr []*types.CmdSendTx
 	txArr = append(txArr, txCmd)

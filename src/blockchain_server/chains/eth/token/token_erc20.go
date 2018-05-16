@@ -18,7 +18,7 @@ import (
 // TokenABI is the input ABI used to generate the binding from.
 const TokenABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"approve\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transferFrom\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"decimals\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"version\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"balanceOf\",\"outputs\":[{\"name\":\"balance\",\"type\":\"uint256\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"symbol\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"transfer\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"},{\"name\":\"_extraData\",\"type\":\"bytes\"}],\"name\":\"approveAndCall\",\"outputs\":[{\"name\":\"success\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_spender\",\"type\":\"address\"}],\"name\":\"allowance\",\"outputs\":[{\"name\":\"remaining\",\"type\":\"uint256\"}],\"payable\":false,\"type\":\"function\"},{\"inputs\":[{\"name\":\"_initialAmount\",\"type\":\"uint256\"},{\"name\":\"_tokenName\",\"type\":\"string\"},{\"name\":\"_decimalUnits\",\"type\":\"uint8\"},{\"name\":\"_tokenSymbol\",\"type\":\"string\"}],\"payable\":false,\"type\":\"constructor\"},{\"payable\":false,\"type\":\"fallback\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"_to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_owner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"_spender\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_value\",\"type\":\"uint256\"}],\"name\":\"Approval\",\"type\":\"event\"}]"
 
-// Token is an auto generated Go binding around an Ethereum contract.
+// TokenTx is an auto generated Go binding around an Ethereum contract.
 type Token struct {
 	TokenCaller     // Read-only binding to the contract
 	TokenTransactor // Write-only binding to the contract
@@ -77,7 +77,7 @@ type TokenTransactorRaw struct {
 	Contract *TokenTransactor // Generic write-only contract binding to access the raw methods on
 }
 
-// NewToken creates a new instance of Token, bound to a specific deployed contract.
+// NewToken creates a new instance of TokenTx, bound to a specific deployed contract.
 func NewToken(address common.Address, backend bind.ContractBackend) (*Token, error) {
 	contract, err := bindToken(address, backend, backend, backend)
 	if err != nil {
@@ -86,7 +86,7 @@ func NewToken(address common.Address, backend bind.ContractBackend) (*Token, err
 	return &Token{TokenCaller: TokenCaller{contract: contract}, TokenTransactor: TokenTransactor{contract: contract}, TokenFilterer: TokenFilterer{contract: contract}}, nil
 }
 
-// NewTokenCaller creates a new read-only instance of Token, bound to a specific deployed contract.
+// NewTokenCaller creates a new read-only instance of TokenTx, bound to a specific deployed contract.
 func NewTokenCaller(address common.Address, caller bind.ContractCaller) (*TokenCaller, error) {
 	contract, err := bindToken(address, caller, nil, nil)
 	if err != nil {
@@ -95,7 +95,7 @@ func NewTokenCaller(address common.Address, caller bind.ContractCaller) (*TokenC
 	return &TokenCaller{contract: contract}, nil
 }
 
-// NewTokenTransactor creates a new write-only instance of Token, bound to a specific deployed contract.
+// NewTokenTransactor creates a new write-only instance of TokenTx, bound to a specific deployed contract.
 func NewTokenTransactor(address common.Address, transactor bind.ContractTransactor) (*TokenTransactor, error) {
 	contract, err := bindToken(address, nil, transactor, nil)
 	if err != nil {
@@ -104,7 +104,7 @@ func NewTokenTransactor(address common.Address, transactor bind.ContractTransact
 	return &TokenTransactor{contract: contract}, nil
 }
 
-// NewTokenFilterer creates a new log filterer instance of Token, bound to a specific deployed contract.
+// NewTokenFilterer creates a new log filterer instance of TokenTx, bound to a specific deployed contract.
 func NewTokenFilterer(address common.Address, filterer bind.ContractFilterer) (*TokenFilterer, error) {
 	contract, err := bindToken(address, nil, nil, filterer)
 	if err != nil {
@@ -426,7 +426,7 @@ func (_Token *TokenTransactorSession) TransferFrom(_from common.Address, _to com
 	return _Token.Contract.TransferFrom(&_Token.TransactOpts, _from, _to, _value)
 }
 
-// TokenApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the Token contract.
+// TokenApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the TokenTx contract.
 type TokenApprovalIterator struct {
 	Event *TokenApproval // Event containing the contract specifics and raw log
 
@@ -493,7 +493,7 @@ func (it *TokenApprovalIterator) Close() error {
 	return nil
 }
 
-// TokenApproval represents a Approval event raised by the Token contract.
+// TokenApproval represents a Approval event raised by the TokenTx contract.
 type TokenApproval struct {
 	Owner   common.Address
 	Spender common.Address
@@ -568,7 +568,7 @@ func (_Token *TokenFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *To
 	}), nil
 }
 
-// TokenTransferIterator is returned from FilterTransfer and is used to iterate over the raw logs and unpacked data for Transfer events raised by the Token contract.
+// TokenTransferIterator is returned from FilterTransfer and is used to iterate over the raw logs and unpacked data for Transfer events raised by the TokenTx contract.
 type TokenTransferIterator struct {
 	Event *TokenTransfer // Event containing the contract specifics and raw log
 
@@ -635,7 +635,7 @@ func (it *TokenTransferIterator) Close() error {
 	return nil
 }
 
-// TokenTransfer represents a Transfer event raised by the Token contract.
+// TokenTransfer represents a Transfer event raised by the TokenTx contract.
 type TokenTransfer struct {
 	From  common.Address
 	To    common.Address
