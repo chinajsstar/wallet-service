@@ -88,7 +88,7 @@ func (a *Address) recvRechargeTxChannel() {
 					blockin := TransactionBlockin{
 						AssetName:     assetProperty.AssetName,
 						Hash:          rct.Tx.Tx_hash,
-						MinerFee:      int64(rct.Tx.Fee),
+						MinerFee:      float64(rct.Tx.Fee),
 						BlockinHeight: int64(rct.Tx.InBlock),
 						OrderID:       "",
 					}
@@ -142,7 +142,7 @@ func (a *Address) recvCmdTxChannel() {
 					blockin := TransactionBlockin{
 						AssetName:     assetProperty.AssetName,
 						Hash:          cmdTx.Tx.Tx_hash,
-						MinerFee:      int64(cmdTx.Tx.Fee),
+						MinerFee:      float64(cmdTx.Tx.Fee),
 						BlockinHeight: int64(cmdTx.Tx.InBlock),
 						OrderID:       cmdTx.NetCmd.MsgId,
 					}
