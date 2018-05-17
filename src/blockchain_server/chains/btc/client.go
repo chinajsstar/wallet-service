@@ -116,7 +116,7 @@ func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
 }
 
 
-func (c *Client)BuildTx(stx *types.Transfer) error {
+func (c *Client)BuildTx(fromkey string, stx *types.Transfer) error {
 	var to, change btcutil.Address
 	var ads []btcutil.Address
 	var err error

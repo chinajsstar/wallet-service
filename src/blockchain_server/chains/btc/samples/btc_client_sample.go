@@ -99,7 +99,7 @@ func main() {
 
 	if true {
 		go testSendTokenTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
-			nil, uint64(0.2 * math.Pow10(8)), done_sendTx)
+			"", uint64(0.2 * math.Pow10(8)), done_sendTx)
 	} else{i--}
 
 	//testGetBalance(clientManager, from_acc.Address, token)
@@ -175,9 +175,15 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 	done <- true
 }
 
-func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager, privatekey, to, coin string,
-	token *string, value uint64, done chan bool) {
-	txCmd := service.NewSendTxCmd("message id", coin, privatekey, to, token, value)
+func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
+	privatekey, to, coin string, token string, value uint64, done chan bool) {
+	txCmd, err := service.NewSendTxCmd("message id", coin, privatekey, to, token, "", value)
+
+	if err!=nil {
+		l4g.Trace("err:%s", err.Error())
+		return
+	}
+
 	clientManager.SendTx(txCmd)
 
 	/*********监控提币交易的channel*********/
