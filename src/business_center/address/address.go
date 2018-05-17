@@ -229,11 +229,23 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 	}
 
 	if assetProperty.IsToken > 0 {
-		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
-			address, &assetProperty.AssetName, uint64(amount)))
+		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
+			address, assetProperty.AssetName, userAddress.PrivateKey, uint64(amount))
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+		a.wallet.SendTx(cmdTx)
 	} else {
-		a.wallet.SendTx(service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
-			address, nil, uint64(amount)))
+		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
+			address, "", "", uint64(amount))
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+		a.wallet.SendTx(cmdTx)
 	}
 	res.Value.Message = string(pack)
 	return nil
