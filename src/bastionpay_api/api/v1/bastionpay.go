@@ -17,8 +17,6 @@ type ReqAssetsAttributeList struct {
 }
 
 type AckAssetsAttribute struct {
-	AssetId         int     `json:"id" doc:"唯一ID"`
-	AssetLogo       string  `json:"asset_logo" doc:"LOGO，未实现"`
 	AssetName       string  `json:"asset_name" doc:"币种简称"`
 	FullName        string  `json:"full_name" doc:"币种全称"`
 	IsToken         int     `json:"is_token" doc:"是否代币，0：不是代币，非0：代币"`
