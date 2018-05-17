@@ -261,23 +261,6 @@ func (tx *Transfer) String() string {
 		tx.InBlock, tx.ConfirmatedHeight, token_str)
 }
 
-type NotFound struct {
-	message string
-}
-
-func (self *NotFound) Error() string {
-	return self.message
-}
-
-func NewNotFound(message string) *NotFound {
-	return &NotFound{message: message}
-}
-
-func NewTxNotFoundErr(tx_hash string) *NotFound {
-	//return &NotFound{tx_info: fmt.Sprintf("Transaction not found, detail:%s", tx.String())}
-	return &NotFound{message: fmt.Sprintf("Transaction(%s) not found!", tx_hash)}
-}
-
 type NetCmdErr struct {
 	Code    int32
 	Message string
