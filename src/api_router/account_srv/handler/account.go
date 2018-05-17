@@ -152,7 +152,7 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 		pageNum = 50
 	}
 
-	beginIndex = pageNum * pageIndex
+	beginIndex = pageNum * (pageIndex-1)
 
 	ackUserList, err := db.ListUsers(beginIndex, pageNum)
 	if err != nil {

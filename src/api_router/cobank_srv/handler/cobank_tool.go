@@ -46,7 +46,7 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 			txCmd, err := bservice.NewSendTxCmd("", req.Coin, privatekey, req.To, req.Token, privatekey, req.Value)
 			if err != nil {
 				res.Err = 1
-				res.ErrMsg = "no bitcoin-cli command"
+				res.ErrMsg = "NewSendTxCmd-" + err.Error()
 			} else {
 				clientManager.SendTx(txCmd)
 			}
@@ -65,7 +65,7 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 			var a float64
 			a = (float64)(rc.Value) / math.Pow10(8)
 			aa := fmt.Sprintf("%.8f", a)
-			c := exec.Command(cmd, arg, "sendtoaddress", aa)
+			c := exec.Command(cmd, arg, "sendtoaddress", rc.To, aa)
 			if c != nil{
 				if err := c.Run(); err != nil {
 					fmt.Println(err)
