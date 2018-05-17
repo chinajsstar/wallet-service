@@ -19,8 +19,8 @@ func TestHandleMsg(t *testing.T) {
 	switch testType {
 	case 1:
 		req.Method.Function = "new_address"
-		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
-		req.Argv.Message = "{\"asset_name\":\"eth\",\"count\":1}"
+		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
+		req.Argv.Message = "{\"asset_name\":\"ZToken\",\"count\":1}"
 	case 2:
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
