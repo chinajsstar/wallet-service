@@ -113,7 +113,7 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	db := mysqlpool.Get()
 	fn := func(assetName string, address string, transType string, amount int64, hash string) {
 		uuID := GenerateUUID("")
-		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(blockin.AssetName, address); ok {
+		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetName, address); ok {
 			db.Exec("update user_address set available_amount = available_amount + ?, update_time = ?"+
 				" where asset_name = ? and address = ?;",
 				amount, time.Unix(blockin.Time, 0).UTC().Format(TimeFormat), assetName, address)
@@ -143,7 +143,7 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	if transfer.IsTokenTx() {
 		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.TokenTx.Value), transfer.Tx_hash)
 		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
 	} else {
 		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
 		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
@@ -154,7 +154,7 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callback PushMsgCallback) {
 	db := mysqlpool.Get()
 	fn := func(assetName string, address string, transType string, amount int64, hash string) {
-		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(blockin.AssetName, address); ok {
+		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetName, address); ok {
 			if userAddress.UserClass == 0 && transType == "to" {
 				//充值帐户余额修改
 				db.Exec("update user_account set available_amount = available_amount + ?,"+
@@ -180,9 +180,9 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.Value), transfer.Tx_hash)
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
 	} else {
 		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
 		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
