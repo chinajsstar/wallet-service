@@ -267,4 +267,17 @@ CREATE TABLE `transaction_notice` (
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- ----------------------------
+-- Table structure for `user_order`
+-- ----------------------------
+DROP TABLE IF EXISTS `user_order`;
+CREATE TABLE `user_order` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_key` varchar(255) NOT NULL COMMENT '商户Key',
+  `user_order_id` varchar(255) NOT NULL DEFAULT '',
+  `order_id` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`user_key`,`user_order_id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 

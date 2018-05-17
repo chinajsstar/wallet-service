@@ -138,6 +138,19 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
+	uuID := transaction.GenerateUUID("WD")
+	userOrderID, ok := params.UserOrderID()
+	if ok {
+		if len(userOrderID) > 0 {
+			err := mysqlpool.AddUserOrder(userProperty.UserKey, userOrderID, uuID)
+			if err != nil {
+				res.Err, res.ErrMsg = CheckError(ErrorFailed, "不能发起重复订单交易")
+				l4g.Error(res.ErrMsg)
+				return errors.New(res.ErrMsg)
+			}
+		}
+	}
+
 	assetName, ok := params.AssetName()
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
@@ -211,19 +224,10 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	uuID := transaction.GenerateUUID("WD")
-	resMap["order_id"] = uuID
-
-	err = mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID)
+	err = mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID, userOrderID)
 	if err != nil {
+		mysqlpool.RemoveUserOrder(userProperty.UserKey, userOrderID)
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足!")
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
-	}
-
-	pack, err := json.Marshal(resMap)
-	if err != nil {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -246,6 +250,14 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 			return errors.New(res.ErrMsg)
 		}
 		a.wallet.SendTx(cmdTx)
+	}
+
+	resMap["order_id"] = uuID
+	pack, err := json.Marshal(resMap)
+	if err != nil {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
 	}
 	res.Value.Message = string(pack)
 	return nil

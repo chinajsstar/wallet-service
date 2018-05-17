@@ -64,7 +64,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 		if ret, err := db.Exec("update withdrawal_order set status = 1"+
 			" where order_id = ? and status = 0", blockin.OrderID); err == nil {
 			if affectedRows, _ := ret.RowsAffected(); affectedRows > 0 {
-				row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash"+
+				row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash, user_order_id"+
 					" from withdrawal_order where order_id = ?", blockin.OrderID)
 				transNotice := TransactionNotice{
 					MsgID:         0,
@@ -74,14 +74,16 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 					OrderID:       blockin.OrderID,
 					Time:          blockin.Time,
 				}
+				var userOrderID string
 				err := row.Scan(&transNotice.UserKey, &transNotice.AssetName, &transNotice.Address, &transNotice.Amount,
-					&transNotice.PayFee, &transNotice.Hash)
+					&transNotice.PayFee, &transNotice.Hash, &userOrderID)
 				if err == nil {
 					_, err := db.Exec("update user_account set frozen_amount = frozen_amount - ?, update_time = ? where user_key = ? and asset_name = ?;",
 						transNotice.Amount+transNotice.PayFee, time.Unix(blockin.Time, 0).UTC().Format(TimeFormat), transNotice.UserKey, transNotice.AssetName)
 					if err != nil {
 						l4g.Error(err.Error())
 					}
+					mysqlpool.RemoveUserOrder(transNotice.UserKey, userOrderID)
 					SendTransactionNotic(&transNotice, callback)
 				}
 			}

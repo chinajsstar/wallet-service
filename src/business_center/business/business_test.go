@@ -2,6 +2,7 @@ package business
 
 import (
 	"api_router/base/data"
+	"business_center/transaction"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"testing"
@@ -24,7 +25,9 @@ func TestHandleMsg(t *testing.T) {
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"asset_name\":\"eth\",\"amount\":0.01, \"address\":\"0x5563eaB8a68D36156E15621b7D85Ac215C477434\"}"
+		params := fmt.Sprintf("{\"asset_name\":\"eth\",\"amount\":0.01, \"address\":\"0x5563eaB8a68D36156E15621b7D85Ac215C477434\","+
+			"\"user_order_id\":\"%s\" }", transaction.GenerateUUID("UR"))
+		req.Argv.Message = params
 	case 3:
 		req.Method.Function = "query_user_address"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
