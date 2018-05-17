@@ -9,12 +9,13 @@ type AckSupportAssetList struct {
 
 // 获取币种属性
 type ReqAssetsAttributeList struct {
-	Assets       []string `json:"assets" doc:"需要查询属性的币种列表，不空表示精确查找"`
+	AssetNames   []string `json:"asset_names" doc:"需要查询属性的币种列表，不空表示精确查找"`
 	IsToken      int      `json:"is_token" doc:"是否代币，-1:所有，0：不是代币，非0：代币"`
 	TotalLines   int      `json:"total_lines" doc:"总数,0：表示首次查询"`
 	PageIndex    int      `json:"page_index" doc:"页索引,1开始"`
-	MaxDispLines int      `json:"max_disp_lines" doc:"页最大数"，100以下`
+	MaxDispLines int      `json:"max_disp_lines" doc:"页最大数,100以下"`
 }
+
 type AckAssetsAttribute struct {
 	AssetId         int     `json:"id" doc:"唯一ID"`
 	AssetLogo       string  `json:"asset_logo" doc:"LOGO，未实现"`
@@ -58,7 +59,7 @@ type ReqUserAddress struct {
 
 	TotalLines   int `json:"total_lines" doc:"总数,0：表示首次查询"`
 	PageIndex    int `json:"page_index" doc:"页索引,1开始"`
-	MaxDispLines int `json:"max_disp_lines" doc:"页最大数"，100以下`
+	MaxDispLines int `json:"max_disp_lines" doc:"页最大数，100以下"`
 }
 
 type AckUserAddress struct {

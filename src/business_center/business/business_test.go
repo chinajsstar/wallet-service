@@ -37,7 +37,7 @@ func TestHandleMsg(t *testing.T) {
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
 		req.Argv.Message = ""
 	case 5:
-		req.Method.Function = "asset_attributie"
+		req.Method.Function = "asset_attribute"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
 		req.Argv.Message = ""
 	case 6:

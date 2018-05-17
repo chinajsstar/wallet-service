@@ -267,8 +267,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 
 func (a *Address) SupportAssets(req *data.SrvRequest, res *data.SrvResponse) error {
 	_, _, userKey := req.GetUserKey()
-	_, ok := mysqlpool.QueryUserPropertyByKey(userKey)
-	if !ok {
+	if _, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
@@ -292,40 +291,31 @@ func (a *Address) SupportAssets(req *data.SrvRequest, res *data.SrvResponse) err
 }
 
 func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
-	// 获取userKey和是否sub
-	_, _, realUseKey := req.GetUserKey()
-	isSubUserKey := req.IsSubUserKey()
-
-	_, ok := mysqlpool.QueryUserPropertyByKey(realUseKey)
-	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+realUseKey)
+	_, _, userKey := req.GetUserKey()
+	if _, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	var assetNameArray []string
-	if isSubUserKey {
-		assets := v1.ReqAssetsAttributeList{}
-		err := json.Unmarshal([]byte(req.Argv.Message), &assets)
-		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-			l4g.Error(res.ErrMsg)
-			return errors.New(res.ErrMsg)
-		}
-		assetNameArray = assets.Assets
-	} else {
-		params, err := jsonparse.Parse(req.Argv.Message)
-		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-			l4g.Error(res.ErrMsg)
-			return errors.New(res.ErrMsg)
-		}
-		assetNameArray, _ = params.AssetNameArray()
+	params := v1.ReqAssetsAttributeList{
+		IsToken:      -1,
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
 	}
 
-	// 放入map
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
 	assetNameMap := make(map[string]interface{})
-	for _, value := range assetNameArray {
+	for _, value := range params.AssetNames {
 		if value != "" {
 			assetNameMap[value] = ""
 		}
@@ -334,13 +324,16 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 	assetsAttributeList := v1.AckAssetsAttributeList{}
 	if assetProperty, ok := mysqlpool.QueryAssetProperty(nil); ok {
 		for _, v := range assetProperty {
-			// 是否选中的
 			if len(assetNameMap) > 0 {
 				if _, ok := assetNameMap[v.AssetName]; !ok {
 					continue
 				}
 			}
-
+			if params.IsToken > 0 {
+				if params.IsToken != v.IsToken {
+					continue
+				}
+			}
 			assetAttribute := v1.AckAssetsAttribute{}
 			assetAttribute.AssetName = v.AssetName
 			assetAttribute.FullName = v.FullName
@@ -351,27 +344,17 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			assetAttribute.WithdrawalValue = v.WithdrawalValue
 			assetAttribute.ConfirmationNum = v.ConfirmationNum
 			assetAttribute.Decimals = v.Decimals
-
 			assetsAttributeList.Data = append(assetsAttributeList.Data, assetAttribute)
 		}
 	}
 
-	// TODO：输出分叉，以后xuliang处理
-	var err error
-	var pack []byte
-	if isSubUserKey {
-		pack, err = json.Marshal(assetsAttributeList)
-	} else {
-		pack, err = json.Marshal(assetsAttributeList.Data)
-	}
-
+	pack, err := json.Marshal(assetsAttributeList)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 	res.Value.Message = string(pack)
-
 	return nil
 }
 
