@@ -36,8 +36,8 @@ var (
 
 		"setFrozen":         	  "UPDATE %s.%s set is_frozen = ? where user_key = ?",
 
-		"listUsers":              "SELECT id, user_key, user_class, level, is_frozen from %s.%s where id < ? order by id desc limit ?",
-		"listUsers2":             "SELECT id, user_key, user_class, level, is_frozen from %s.%s order by id desc limit ?",
+		"listUsers":              "SELECT id, user_key, user_class, level, is_frozen from %s.%s order by id desc limit ?, ?",
+		"listUsersCount":         "SELECT count(*) from %s.%s",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -111,10 +111,10 @@ func Delete(userKey string) error {
 	return err
 }
 
-func UpdateProfile(userUpdateProfile *v1.ReqUserUpdateProfile) error {
+func UpdateProfile(subUserKey string, userUpdateProfile *v1.ReqUserUpdateProfile) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
-	_, err := st["updateProfile"].Exec(userUpdateProfile.PublicKey, userUpdateProfile.SourceIP, userUpdateProfile.CallbackUrl, datetime, userUpdateProfile.UserKey)
+	_, err := st["updateProfile"].Exec(userUpdateProfile.PublicKey, userUpdateProfile.SourceIP, userUpdateProfile.CallbackUrl, datetime, subUserKey)
 	return err
 }
 
@@ -152,15 +152,11 @@ func SetFrozen(userKey string, frozen rune) error {
 	return err
 }
 
-func ListUsers(id int, num int) (*v1.AckUserList, error) {
+func ListUsers(beginIndex int, pageNum int) (*v1.AckUserList, error) {
 	var r *sql.Rows
 	var err error
 
-	if id < 0 {
-		r, err = st["listUsers2"].Query(num)
-	}else{
-		r, err = st["listUsers"].Query(id, num)
-	}
+	r, err = st["listUsers"].Query(beginIndex, pageNum)
 
 	if err != nil {
 		return nil, err
@@ -177,7 +173,7 @@ func ListUsers(id int, num int) (*v1.AckUserList, error) {
 			continue
 		}
 
-		*ul = append(*ul, up)
+		ul.Data = append(ul.Data, up)
 	}
 
 	if r.Err() != nil {
@@ -185,4 +181,32 @@ func ListUsers(id int, num int) (*v1.AckUserList, error) {
 	}
 
 	return ul, nil
+}
+
+func ListUserCount() (int, error) {
+	var r *sql.Rows
+	var err error
+
+	r, err = st["listUsersCount"].Query()
+	if err != nil {
+		return 0, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		return 0, errors.New("row no next")
+	}
+
+	var count int
+	if err := r.Scan(&count); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, errors.New("no rows")
+		}
+		return 0, err
+	}
+	if r.Err() != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

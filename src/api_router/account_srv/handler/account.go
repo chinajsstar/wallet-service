@@ -131,13 +131,39 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
-	const listnum = 10
-	ackUserList, err := db.ListUsers(reqUserList.Id, listnum)
+	var (
+		pageNum = reqUserList.MaxDispLines
+		totalLine = reqUserList.TotalLines
+		pageIndex = reqUserList.PageIndex
+
+		beginIndex = 0
+	)
+
+	if totalLine == 0 {
+		totalLine, err = db.ListUserCount()
+		if err != nil {
+			l4g.Error("error json message: %s", err.Error())
+			res.Err = data.ErrAccountSrvListUsersCount
+			return
+		}
+	}
+
+	if pageNum < 1 || pageNum > 100 {
+		pageNum = 50
+	}
+
+	beginIndex = pageNum * pageIndex
+
+	ackUserList, err := db.ListUsers(beginIndex, pageNum)
 	if err != nil {
 		l4g.Error("error ListUsers: %s", err.Error())
 		res.Err = data.ErrAccountSrvListUsers
 		return
 	}
+
+	ackUserList.PageIndex = pageIndex
+	ackUserList.MaxDispLines = pageNum
+	ackUserList.TotalLines = totalLine
 
 	// to ack
 	dataAck, err := json.Marshal(ackUserList)
@@ -164,7 +190,7 @@ func (s * Account) ReadProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 
 	// load profile
-	ackReadProfile, err := db.ReadProfile(reqReadProfile.UserKey)
+	ackReadProfile, err := db.ReadProfile(req.Argv.SubUserKey)
 	if err != nil {
 		l4g.Error("error ReadProfile: %s", err.Error())
 		res.Err = data.ErrAccountSrvNoUser
@@ -196,7 +222,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 
 	// load old key
-	oldUserReadProfile, err := db.ReadProfile(reqUpdateProfile.UserKey)
+	oldUserReadProfile, err := db.ReadProfile(req.Argv.SubUserKey)
 	if err != nil {
 		l4g.Error("error ReadProfile: %s", err.Error())
 		res.Err = data.ErrAccountSrvNoUser
@@ -214,7 +240,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 
 	// update key
-	if err := db.UpdateProfile(&reqUpdateProfile); err != nil {
+	if err := db.UpdateProfile(req.Argv.SubUserKey, &reqUpdateProfile); err != nil {
 		l4g.Error("error update profile: %s", err.Error())
 		res.Err = data.ErrAccountSrvUpdateProfile
 		return
@@ -226,11 +252,10 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	if err != nil {
 		// 写回去
 		oldUserUpdateProfile := v1.ReqUserUpdateProfile{}
-		oldUserUpdateProfile.UserKey = oldUserReadProfile.UserKey
 		oldUserUpdateProfile.PublicKey = oldUserReadProfile.PublicKey
 		oldUserUpdateProfile.SourceIP = oldUserReadProfile.SourceIP
 		oldUserUpdateProfile.CallbackUrl = oldUserReadProfile.CallbackUrl
-		db.UpdateProfile(&oldUserUpdateProfile)
+		db.UpdateProfile(req.Argv.SubUserKey, &oldUserUpdateProfile)
 		l4g.Error("error Marshal: %s", err.Error())
 		res.Err = data.ErrInternal
 		return
@@ -246,17 +271,12 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 		notifyReq.Method.Version = "v1"
 		notifyReq.Method.Srv = "account"
 		notifyReq.Method.Function = "updateprofile"
-		notifyReq.Argv.UserKey =""
-
-		notifyData := v1.ReqUserUpdateProfile{}
-		notifyData.UserKey = reqUpdateProfile.UserKey
-		message, _ := json.Marshal(notifyData)
-
-		notifyReq.Argv.Message = string(message)
+		notifyReq.Argv.UserKey = ""
+		notifyReq.Argv.SubUserKey = req.Argv.SubUserKey
 
 		notifyRes := data.SrvResponse{}
 		s.node.InnerNotify(&notifyReq, &notifyRes)
 
-		l4g.Info("notify a user profile: %s", notifyReq.Argv.Message)
+		l4g.Info("notify a user profile: %s", req.Argv.SubUserKey)
 	}()
 }

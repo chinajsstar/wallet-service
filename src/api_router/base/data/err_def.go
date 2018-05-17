@@ -20,6 +20,7 @@ func init()  {
 	err_msg[ErrAccountSrvNoUser] 					= "no user"
 	err_msg[ErrAccountSrvUpdateProfile] 			= "update profile failed"
 	err_msg[ErrAccountSrvListUsers] 				= "list users failed"
+	err_msg[ErrAccountSrvListUsersCount] 			= "list users count failed"
 
 	err_msg[ErrAuthSrvNoUserKey] 					= "no user key"
 	err_msg[ErrAuthSrvNoPublicKey] 					= "no public key"
@@ -83,6 +84,9 @@ const(
 
 	// listusers - failed
 	ErrAccountSrvListUsers			= 11103
+
+	// listusers count - failed
+	ErrAccountSrvListUsersCount		= 11104
 
 	// /////////////////////////////////////////////////////
 	// 11201-11300 auth_srv errors

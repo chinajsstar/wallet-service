@@ -9,7 +9,6 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/nethelper"
 	"encoding/json"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/api"
 )
 
@@ -81,15 +80,15 @@ func (push *Push)GetApiGroup()(map[string]service.NodeApi){
 
 func (push *Push)HandleNotify(req *data.SrvRequest){
 	if req.Method.Srv == "account" && req.Method.Function == "updateprofile" {
-		reqUpdateProfile := v1.ReqUserUpdateProfile{}
-		err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
-		if err != nil {
-			l4g.Error("HandleNotify-Unmarshal: %s", err.Error())
-			return
-		}
+		//reqUpdateProfile := v1.ReqUserUpdateProfile{}
+		//err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
+		//if err != nil {
+		//	l4g.Error("HandleNotify-Unmarshal: %s", err.Error())
+		//	return
+		//}
 
 		// reload profile
-		ndata, err := push.reloadUserCallbackUrl(reqUpdateProfile.UserKey)
+		ndata, err := push.reloadUserCallbackUrl(req.Argv.SubUserKey)
 		if err != nil {
 			l4g.Error("HandleNotify-reloadUserCallbackUrl: %s", err.Error())
 			return

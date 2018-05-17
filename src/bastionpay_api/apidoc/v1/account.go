@@ -46,6 +46,6 @@ var ApiDocListUsers = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"account",
 	FuncName:"listusers",
-	Input:&v1.ReqUserList{Id:-1},
-	Output:&v1.AckUserList{v1.UserBasic{}},
+	Input:&v1.ReqUserList{},
+	Output:&v1.AckUserList{Data:[]v1.UserBasic{v1.UserBasic{}}},
 }

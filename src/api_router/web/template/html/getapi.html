@@ -6,9 +6,10 @@
                 <ul>
                     {{range .}}
                         <li>
+                            <p> 功能: {{.ApiDocInfo.Name}} </p>
                             <p> 服务名称: {{.ApiDocInfo.SrvName}} 服务版本: {{.ApiDocInfo.VerName}} </p>
                             <p> 方法名称: {{.ApiDocInfo.FuncName}} 方法权限: {{.ApiDocInfo.Level}} </p>
-                            <p>说明：{{.ApiDocInfo.Comment}}</p>
+                            <p>说明：{{.ApiDocInfo.Description}}</p>
                             <p>路径：{{.ApiDocInfo.Path}}</p>
                             <div>输入：{{.ApiDocInfo.InputComment}}</div>
                             <div>输出：{{.ApiDocInfo.OutputComment}}</div>
