@@ -25,7 +25,7 @@ func ParseTokenTxInput (input []byte) (from, to string, value *big.Int, err erro
 			err = fmt.Errorf("Invalid tokenTx input data")
 			return
 		}
-		to = common.ToHex(input[16:36])
+		to = common.BytesToAddress(input[16:36]).String()
 		value = big.NewInt(0).SetBytes(input[36:68])
 	}
 	case "23b872dd": {//'transferFrom'
@@ -33,8 +33,8 @@ func ParseTokenTxInput (input []byte) (from, to string, value *big.Int, err erro
 			err = fmt.Errorf("Invalid tokenTx input data")
 			return
 		}
-		from = common.ToHex(input[16:36])
-		to = common.ToHex(input[48:68])
+		from = common.BytesToAddress(input[16:36]).String()
+		to = common.BytesToAddress(input[48:68]).String()
 		value = big.NewInt(0).SetBytes(input[68:100])
 	}
 	}
