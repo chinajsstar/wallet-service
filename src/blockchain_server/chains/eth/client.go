@@ -663,7 +663,8 @@ func (self *Client) beginScanBlock() error {
 					if tk==nil { continue }
 					tkowner, tkreciver, _, err :=  token.ParseTokenTxInput(tx.Data())
 					if err==nil {
-						addresses = append(addresses, tkowner, tkreciver)
+						if tkowner!="" 	 {addresses = append(addresses, tkowner) }
+						if tkreciver!="" {addresses = append(addresses, tkreciver)}
 					}
 				} else {
 					addresses = append(addresses, to.String())

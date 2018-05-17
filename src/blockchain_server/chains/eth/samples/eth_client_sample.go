@@ -69,11 +69,11 @@ func main() {
 
 	token := "ZToken"
 	i := 0
-	if false {
+	if true {
 		go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{to_account.Address, bank_account.Address}, done_watchaddress)
 	} else {i++}
 
-	if true {
+	if false {
 		go testSendTokenTx(
 			ctx,
 			clientManager,
