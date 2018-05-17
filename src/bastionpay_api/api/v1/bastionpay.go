@@ -26,7 +26,7 @@ type AckAssetsAttribute struct {
 	WithdrawalRate  float64 `json:"withdrawal_rate" doc:"单笔费率"`
 	WithdrawalValue float64 `json:"withdrawal_value" doc:"单笔费用"`
 	ConfirmationNum int     `json:"confirmation_num" doc:"确认数"`
-	Decimal         int     `json:"decimal" doc:"精度"`
+	Decimals        int     `json:"decimals" doc:"精度"`
 }
 type AckAssetsAttributeList struct {
 	Data []AckAssetsAttribute `json:"data" doc:"币种属性列表"`

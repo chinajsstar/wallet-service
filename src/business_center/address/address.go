@@ -350,7 +350,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 			assetAttribute.WithdrawalRate = v.WithdrawalRate
 			assetAttribute.WithdrawalValue = v.WithdrawalValue
 			assetAttribute.ConfirmationNum = v.ConfirmationNum
-			assetAttribute.Decimal = v.Decimal
+			assetAttribute.Decimals = v.Decimals
 
 			assetsAttributeList.Data = append(assetsAttributeList.Data, assetAttribute)
 		}
