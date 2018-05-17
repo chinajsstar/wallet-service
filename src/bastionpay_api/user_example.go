@@ -23,7 +23,7 @@ func usage()  {
 	fmt.Println("		switch a user cfg file")
 	fmt.Println(">api srv function jsonmessage")
 	fmt.Println("		call api with json message")
-	fmt.Println(">user srv function subuserkey jsonmessage")
+	fmt.Println(">user subuserkey srv function jsonmessage")
 	fmt.Println("		call user with json message")
 	fmt.Println(">apitest srv function jsonmessage")
 	fmt.Println("		call apitest with json message")
@@ -137,12 +137,13 @@ func main()  {
 			fmt.Println("ack==", string(ack))
 		} else if argv[0] == "user"{
 			if len(argv) < 4 {
-				fmt.Println("格式：user srv function subuserkey message")
+				fmt.Println("格式：user subuserkey srv function message")
 				continue
 			}
-			srv := argv[1]
-			function := argv[2]
-			subUserKey := argv[3]
+			subUserKey := argv[1]
+			srv := argv[2]
+			function := argv[3]
+
 			message := ""
 			if len(argv) > 4 {
 				message = argv[4]
@@ -228,7 +229,7 @@ func main()  {
 				fmt.Println("描述：")
 				fmt.Println(apiProxy.Help().Description)
 				fmt.Println("路径：")
-				fmt.Println(apiProxy.Help().Path)
+				fmt.Println(apiProxy.Help().Path())
 
 				fmt.Println("输入：")
 				fmt.Println(apiProxy.Help().InputComment)

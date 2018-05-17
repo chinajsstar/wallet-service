@@ -12,9 +12,8 @@ type AckUserRegister struct{
 
 // 修改公钥和回调地址-输入--update profile
 type ReqUserUpdateProfile struct{
-	UserKey			string `json:"user_key" doc:"用户唯一标示"`
 	PublicKey		string `json:"public_key" doc:"用户公钥"`
-	SourceIP		string `json:"source_ip" doc:"用户源IP"`
+	SourceIP		string `json:"source_ip" doc:"用户源IP，用逗号(,)隔开"`
 	CallbackUrl		string `json:"callback_url" doc:"用户回调"`
 }
 // 修改公钥和回调地址-输出
@@ -24,7 +23,7 @@ type AckUserUpdateProfile struct{
 
 // 获取公钥和回调地址-输入--read profile
 type ReqUserReadProfile struct{
-	UserKey			string `json:"user_key" doc:"用户唯一标示"`
+
 }
 // 获取公钥和回调地址-输出
 type AckUserReadProfile struct{
@@ -45,7 +44,15 @@ type UserBasic struct{
 
 // 用户列表-输入--list
 type ReqUserList struct{
-	Id 				int    `json:"id" doc:"用户当前最小ID"`
+	TotalLines 		int 		`json:"total_lines" doc:"总数,0：表示首次查询"`
+	PageIndex 		int 		`json:"page_index" doc:"页索引,1开始"`
+	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数"，100以下`
 }
 // 用户列表-输出
-type AckUserList []UserBasic
+type AckUserList struct{
+	Data 			[]UserBasic `json:"data" doc:"用户列表"`
+
+	TotalLines 		int 		`json:"total_lines" doc:"总数"`
+	PageIndex 		int 		`json:"page_index" doc:"页索引"`
+	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数"`
+}

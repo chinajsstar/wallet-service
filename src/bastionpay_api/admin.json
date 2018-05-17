@@ -1,0 +1,11 @@
+{
+  "bastionpay":{
+    "url":"http://127.0.0.1:8082",
+    "pubkey_path":"conf/admin/bastionpay_public.pem"
+  },
+  "user":{
+    "user_key":"1c75c668-f1ab-474b-9dae-9ed7950604b4",
+    "pubkey_path":"conf/admin/public_administrator.pem",
+    "privkey_path":"conf/admin/private_administrator.pem"
+  }
+}

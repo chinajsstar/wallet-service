@@ -205,6 +205,8 @@ func CreateTokenAddress(userAddress []UserAddress) error {
 							}
 							addr := value
 							addr.AssetName = assetName
+							addr.AvailableAmount = 0
+							addr.FrozenAmount = 0
 							data = append(data, addr)
 						}
 					}

@@ -20,6 +20,7 @@ import (
 	"api_router/base/config"
 	"bastionpay_api/api"
 	"bastionpay_api/apigroup"
+	"bastionpay_api/api/admin"
 )
 
 const (
@@ -71,12 +72,10 @@ func sendPostData(addr, subUserKey string, rawmessage, version, srv, function st
 	// user key
 	ud.UserKey = web_admin_userkey
 
-	userParams := struct {
-		SubUserKey string `json:"sub_user_key"`
-		Message string `json:"message"`
-	}{}
-	userParams.SubUserKey = subUserKey
-	userParams.Message = rawmessage
+	userParams := admin.UserMessage{
+		SubUserKey:subUserKey,
+		Message:rawmessage,
+	}
 	bUserParams, err := json.Marshal(userParams)
 	if err != nil {
 		return nil, nil, err
@@ -499,16 +498,16 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 	ures := api.UserResponseData{}
 
 	func(){
-		message := ""
 		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			ures.Err = data.ErrDataCorrupted
 			return
 		}
-		message = string(bb)
-		fmt.Println("argv=", message)
+		fmt.Println("argv=", string(bb))
 
-		ul := v1.ReqUserReadProfile{}
+		ul := struct {
+			UserKey string `json:"user_key""`
+		}{}
 		json.Unmarshal(bb, &ul)
 
 		if ul.UserKey == "" {
@@ -517,7 +516,7 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		d1, _, err := sendPostData(httpaddrGateway, "", message, "v1", "account", "readprofile")
+		d1, _, err := sendPostData(httpaddrGateway, ul.UserKey, "", "v1", "account", "readprofile")
 		fmt.Println(d1)
 
 		ures = *d1
@@ -577,8 +576,6 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ul.PublicKey = string(b1)
-		ul.UserKey = cookie.Value
-
 		m, err := json.Marshal(ul)
 
 		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, string(m), "v1", "account", "updateprofile")

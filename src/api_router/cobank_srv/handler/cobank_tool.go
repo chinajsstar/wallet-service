@@ -41,15 +41,15 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 				"0x04e2b6c9bfeacd4880d99790a03a3db4ad8d87c82bb7d72711b277a9a03e49743077f3ae6d0d40e6bc04eceba67c2b3ec670b22b30d57f9d6c42779a05fba097536c412af73be02d1642aecea9fa7082db301e41d1c3c2686a6a21ca431e7e8605f761d8e12d61ca77605b31d707abc3f17bc4a28f4939f352f283a48ed77fc274b039590cc2c43ef739bd3ea13e491316",
 				"0x54b2e44d40d3df64e38487dd4e145b3e6ae25927"}
 
-			var token *string
-			token = nil
-			if req.Token != "" {
-				token = &req.Token
-			}
 			privatekey := tmp_account.PrivateKey
 
-			txCmd := bservice.NewSendTxCmd("", req.Coin, privatekey, req.To, token, req.Value)
-			clientManager.SendTx(txCmd)
+			txCmd, err := bservice.NewSendTxCmd("", req.Coin, privatekey, req.To, req.Token, privatekey, req.Value)
+			if err != nil {
+				res.Err = 1
+				res.ErrMsg = "no bitcoin-cli command"
+			} else {
+				clientManager.SendTx(txCmd)
+			}
 		}(&rc)
 	} else if rc.Coin == "btc" {
 		//cmd, err := exec.LookPath("bitcoin-cli")

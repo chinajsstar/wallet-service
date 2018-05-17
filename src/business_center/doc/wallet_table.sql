@@ -105,7 +105,7 @@ CREATE TABLE `asset_property` (
   `withdrawal_alert_rate` double NOT NULL DEFAULT '0' COMMENT '提币警报比率',
   `withdrawal_stategy` double NOT NULL DEFAULT '0' COMMENT '提币策略预警值',
   `confirmation_num` int(11) NOT NULL DEFAULT '0' COMMENT '确认数',
-  `decaimal` int(11) NOT NULL DEFAULT '0' COMMENT '小数精度',
+  `decimal` int(11) NOT NULL DEFAULT '0' COMMENT '小数精度',
   `gas_factor` double NOT NULL DEFAULT '0' COMMENT '矿工费乘数因子',
   `debt` double NOT NULL DEFAULT '0' COMMENT '资产缺口',
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',
@@ -231,6 +231,7 @@ DROP TABLE IF EXISTS `withdrawal_order`;
 CREATE TABLE `withdrawal_order` (
   `id` int(11) NOT NULL AUTO_INCREMENT,  
   `order_id` varchar(255) NOT NULL DEFAULT '',
+  `user_order_id` varchar(255) NOT NULL DEFAULT '',
   `user_key` varchar(255) NOT NULL DEFAULT '',
   `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
@@ -263,6 +264,19 @@ CREATE TABLE `transaction_notice` (
   `order_id` varchar(255) NOT NULL DEFAULT '',
   `time` datetime NOT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- ----------------------------
+-- Table structure for `user_order`
+-- ----------------------------
+DROP TABLE IF EXISTS `user_order`;
+CREATE TABLE `user_order` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_key` varchar(255) NOT NULL COMMENT '商户Key',
+  `user_order_id` varchar(255) NOT NULL DEFAULT '',
+  `order_id` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`user_key`,`user_order_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

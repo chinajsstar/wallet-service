@@ -89,7 +89,7 @@ func InstallBastionPay(dir string) error {
 	ackUc := v1.AckUserRegister{}
 	ackUp := v1.AckUserUpdateProfile{}
 	err = func() error {
-		uc, up, err := BuildWebAdmin()
+		uc, _, err := BuildWebAdmin()
 		if err != nil {
 			return err
 		}
@@ -122,15 +122,10 @@ func InstallBastionPay(dir string) error {
 
 		// update profile
 		err = func()error{
-			up.UserKey = ackUc.UserKey
-			b, err := json.Marshal(*up)
-			if err != nil {
-				return err
-			}
-
 			var req data.SrvRequest
 			var res data.SrvResponse
-			req.Argv.Message = string(b)
+			req.Argv.SubUserKey = ackUc.UserKey
+			req.Argv.Message = ""
 			handler.AccountInstance().UpdateProfile(&req, &res)
 			if res.Err != data.NoErr {
 				return errors.New(res.ErrMsg)
