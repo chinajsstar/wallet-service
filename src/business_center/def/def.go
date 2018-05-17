@@ -48,7 +48,7 @@ type AssetProperty struct {
 	WithdrawalAlertRate   float64 `json:"withdrawal_alert_rate"`
 	WithdrawalStategy     float64 `json:"withdrawal_stategy"`
 	ConfirmationNum       int     `json:"confirmation_num"`
-	Decimal               int     `json:"decaimal"`
+	Decimal               int     `json:"decimal"`
 	GasFactor             float64 `json:"gas_factor"`
 	Debt                  float64 `json:"debt"`
 	ParkAmount            float64 `json:"park_amount"`

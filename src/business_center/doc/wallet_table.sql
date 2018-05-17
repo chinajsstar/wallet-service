@@ -105,7 +105,7 @@ CREATE TABLE `asset_property` (
   `withdrawal_alert_rate` double NOT NULL DEFAULT '0' COMMENT '提币警报比率',
   `withdrawal_stategy` double NOT NULL DEFAULT '0' COMMENT '提币策略预警值',
   `confirmation_num` int(11) NOT NULL DEFAULT '0' COMMENT '确认数',
-  `decaimal` int(11) NOT NULL DEFAULT '0' COMMENT '小数精度',
+  `decimal` int(11) NOT NULL DEFAULT '0' COMMENT '小数精度',
   `gas_factor` double NOT NULL DEFAULT '0' COMMENT '矿工费乘数因子',
   `debt` double NOT NULL DEFAULT '0' COMMENT '资产缺口',
   `park_amount` double NOT NULL DEFAULT '0' COMMENT '归集数',

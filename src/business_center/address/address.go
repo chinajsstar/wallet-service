@@ -253,6 +253,8 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 	}
 
 	resMap["order_id"] = uuID
+	resMap["user_order_id"] = userOrderID
+
 	pack, err := json.Marshal(resMap)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
@@ -264,33 +266,21 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 }
 
 func (a *Address) SupportAssets(req *data.SrvRequest, res *data.SrvResponse) error {
-	// TODO：如果是sub，则必须要判断UserKey是否管理员
-	// 获取userKey和是否sub
-	_, _, realUseKey := req.GetUserKey()
-	isSubUserKey := req.IsSubUserKey()
-
-	_, ok := mysqlpool.QueryUserPropertyByKey(realUseKey)
+	_, _, userKey := req.GetUserKey()
+	_, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+realUseKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
 	if assetProperty, ok := mysqlpool.QueryAssetProperty(nil); ok {
 		supportAssetList := v1.AckSupportAssetList{}
-		for _, v := range assetProperty {
-			supportAssetList.Data = append(supportAssetList.Data, v.AssetName)
+		for _, value := range assetProperty {
+			supportAssetList.Data = append(supportAssetList.Data, value.AssetName)
 		}
 
-		// TODO：输出分叉，以后xuliang处理
-		var err error
-		var pack []byte
-		if isSubUserKey {
-			pack, err = json.Marshal(supportAssetList)
-		} else {
-			pack, err = json.Marshal(supportAssetList.Data)
-		}
-
+		pack, err := json.Marshal(supportAssetList)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 			l4g.Error(res.ErrMsg)
