@@ -94,14 +94,7 @@ func (c *Client)Name() string {
 
 
 func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
-	var err error
-	if tx.From, err = c.virtualKeyToAddress(privkey); err!=nil {
-		l4g.Error("Bitcoin cannot deccrypt virtual key stirng to address, error:%s",
-			err.Error())
-		return err
-	}
-
-	if err=c.BuildTx(tx); err!=nil {
+	if err:=c.BuildTx(privkey, tx); err!=nil {
 		return err
 	}
 	signedTxBytes, err := c.SignTx(privkey, tx)
@@ -117,9 +110,17 @@ func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
 
 
 func (c *Client)BuildTx(fromkey string, stx *types.Transfer) error {
-	var to, change btcutil.Address
-	var ads []btcutil.Address
-	var err error
+	var (
+		to, change btcutil.Address
+		ads []btcutil.Address
+		err error
+	)
+
+	if stx.From, err = c.virtualKeyToAddress(fromkey); err!=nil {
+		l4g.Error("Bitcoin cannot deccrypt virtual key stirng to address, error:%s",
+			err.Error())
+		return err
+	}
 
 	if change, err = btcutil.DecodeAddress(stx.From, c.chain_params); err!=nil {
 		return err
