@@ -191,7 +191,7 @@ func (self *Client) txToken(tx *types.Transfer) *token.Token {
 	return self.contracts[tx.TokenTx.Contract.Symbol]
 }
 
-func (self *Client) buildRawTransaction(from, to common.Address, value uint64, input []byte) (*etypes.Transaction, error) {
+func (self *Client) buildRawTx(from, to common.Address, value uint64, input []byte) (*etypes.Transaction, error) {
 	var (
 		err             error
 		nonce, gaslimit uint64
@@ -306,7 +306,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 	input = append(input, common.LeftPadBytes(big.NewInt(int64(value)).Bytes(), 32)[:]...)
 
 	// 这只是一个合约授权给地址转账的Transaction, 所以, value(ether.Wei)值为0
-	etx, err := self.buildRawTransaction(owner, contract, 0, input)
+	etx, err := self.buildRawTx(owner, contract, 0, input)
 
 	if err != nil {
 		return err
@@ -319,7 +319,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 	{
 		// 由Spender 发送 txfee 给owner, 作为执行授权的交易费
-		stx, err := self.buildRawTransaction(spender, owner, txfee.Uint64(), nil)
+		stx, err := self.buildRawTx(spender, owner, txfee.Uint64(), nil)
 		if err != nil {
 			return err
 		}
@@ -813,9 +813,13 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 				if destTx.TokenTx==nil {
 					destTx.TokenTx = &types.TokenTx{}
 				}
+
 				if tkfrom!="" {
 					destTx.TokenTx.From = tkfrom
+				} else {
+					destTx.TokenTx.From = srcTx.From()
 				}
+
 				destTx.TokenTx.To = tkto
 				destTx.TokenTx.Value = value.Uint64()
 
@@ -970,7 +974,7 @@ func (self *Client) innerBuildTx(tx *types.Transfer) (etx *etypes.Transaction, e
 		}
 	}
 
-	return self.buildRawTransaction(from, to, tx.Value, input)
+	return self.buildRawTx(from, to, tx.Value, input)
 }
 
 // build transaction
