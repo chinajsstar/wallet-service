@@ -204,7 +204,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	payFee := assetProperty.WithdrawalValue + amount*assetProperty.WithdrawalRate
+	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(amount)*assetProperty.WithdrawalRate)
 	if userAccount.AvailableAmount < amount+payFee {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
 		l4g.Error(res.ErrMsg)

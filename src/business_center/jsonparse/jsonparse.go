@@ -2,6 +2,7 @@ package jsonparse
 
 import (
 	"encoding/json"
+	"math"
 	"strings"
 )
 
@@ -82,11 +83,11 @@ func (p *JsonParse) Count() (int, bool) {
 	return 0, false
 }
 
-func (p *JsonParse) Amount() (float64, bool) {
+func (p *JsonParse) Amount() (int64, bool) {
 	if value, ok := p.jsonValue.(map[string]interface{}); ok {
 		if value, ok := value["amount"]; ok {
 			if value, ok := value.(float64); ok {
-				return value, true
+				return int64(value * math.Pow10(8)), true
 			}
 		}
 	}

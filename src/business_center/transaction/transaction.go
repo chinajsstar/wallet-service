@@ -111,7 +111,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 
 func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callback PushMsgCallback) {
 	db := mysqlpool.Get()
-	fn := func(assetName string, address string, transType string, amount float64, hash string) {
+	fn := func(assetName string, address string, transType string, amount int64, hash string) {
 		uuID := GenerateUUID("")
 		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetName, address); ok {
 			db.Exec("update user_address set available_amount = available_amount + ?, update_time = ?"+
@@ -141,19 +141,19 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -float64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", float64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -float64(transfer.Fee), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
 	} else {
-		fn(blockin.AssetName, transfer.From, "from", -float64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.To, "to", float64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -float64(transfer.Fee), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
 	}
 }
 
 func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callback PushMsgCallback) {
 	db := mysqlpool.Get()
-	fn := func(assetName string, address string, transType string, amount float64, hash string) {
+	fn := func(assetName string, address string, transType string, amount int64, hash string) {
 		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetName, address); ok {
 			if userAddress.UserClass == 0 && transType == "to" {
 				//充值帐户余额修改
@@ -180,13 +180,13 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -float64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", float64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -float64(transfer.Fee), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
 	} else {
-		fn(blockin.AssetName, transfer.From, "from", -float64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.To, "to", float64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -float64(transfer.Fee), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
 	}
 }
 

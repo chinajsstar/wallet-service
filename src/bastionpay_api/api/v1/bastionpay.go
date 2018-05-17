@@ -67,11 +67,10 @@ type AckUserAddress struct {
 }
 
 type AckUserAddressList struct {
-	Data []AckUserAddress `json:"data" doc:"用户地址列表"`
-
-	TotalLines   int `json:"total_lines" doc:"总数"`
-	PageIndex    int `json:"page_index" doc:"页索引"`
-	MaxDispLines int `json:"max_disp_lines" doc:"页最大数"`
+	Data         []AckUserAddress `json:"data" doc:"用户地址列表"`
+	TotalLines   int              `json:"total_lines" doc:"总数"`
+	PageIndex    int              `json:"page_index" doc:"页索引"`
+	MaxDispLines int              `json:"max_disp_lines" doc:"页最大数"`
 }
 
 // 历史交易订单
@@ -81,11 +80,11 @@ type ReqHistoryTransactionOrder struct {
 	AssetName string `json:"asset_name" doc:"币种"`
 	TransType int    `json:"trans_type" doc:"交易类型"`
 	//Status 			int 	`json:"status" doc:"交易状态"`
-	Hash          string  `json:"hash" doc:"交易哈希"`
-	MaxAmount     float64 `json:"max_amount" doc:"最大金额"`
-	MinAmount     float64 `json:"min_amount" doc:"最小金额"`
-	MaxUpdateTime int64   `json:"max_update_time" doc:"开始时间"`
-	MinUpdateTime int64   `json:"min_update_time" doc:"结束时间"`
+	Hash          string `json:"hash" doc:"交易哈希"`
+	MaxAmount     int64  `json:"max_amount" doc:"最大金额"`
+	MinAmount     int64  `json:"min_amount" doc:"最小金额"`
+	MaxUpdateTime int64  `json:"max_update_time" doc:"开始时间"`
+	MinUpdateTime int64  `json:"min_update_time" doc:"结束时间"`
 
 	TotalLines   int `json:"total_lines" doc:"总数,0：表示首次查询"`
 	PageIndex    int `json:"page_index" doc:"页索引,1开始"`
@@ -93,22 +92,21 @@ type ReqHistoryTransactionOrder struct {
 }
 
 type AckHistoryTransactionOrder struct {
-	AssetName string  `json:"asset_name" doc:"币种"`
-	TransType int     `json:"trans_type" doc:"交易类型"`
-	Status    int     `json:"status" doc:"交易状态"`
-	Amount    float64 `json:"amount" doc:"数量"`
-	PayFee    float64 `json:"pay_fee" doc:"交易费用"`
-	Hash      string  `json:"hash" doc:"交易哈希"`
-	OrderId   string  `json:"order_id" doc:"交易订单"`
-	Time      int64   `json:"time" doc:"交易时间"`
+	AssetName string `json:"asset_name" doc:"币种"`
+	TransType int    `json:"trans_type" doc:"交易类型"`
+	Status    int    `json:"status" doc:"交易状态"`
+	Amount    int64  `json:"amount" doc:"数量"`
+	PayFee    int64  `json:"pay_fee" doc:"交易费用"`
+	Hash      string `json:"hash" doc:"交易哈希"`
+	OrderId   string `json:"order_id" doc:"交易订单"`
+	Time      int64  `json:"time" doc:"交易时间"`
 }
 
 type AckHistoryTransactionOrderList struct {
-	Data []AckHistoryTransactionOrder `json:"data" doc:"历史交易订单列表"`
-
-	TotalLines   int `json:"total_lines" doc:"总数"`
-	PageIndex    int `json:"page_index" doc:"页索引"`
-	MaxDispLines int `json:"max_disp_lines" doc:"页最大数"`
+	Data         []AckHistoryTransactionOrder `json:"data" doc:"历史交易订单列表"`
+	TotalLines   int                          `json:"total_lines" doc:"总数"`
+	PageIndex    int                          `json:"page_index" doc:"页索引"`
+	MaxDispLines int                          `json:"max_disp_lines" doc:"页最大数"`
 }
 
 // 历史交易消息
@@ -118,17 +116,17 @@ type ReqHistoryTransactionMessage struct {
 }
 
 type AckHistoryTransactionMessage struct {
-	MsgId         int64   `json:"msg_id" doc:"消息id"`
-	TransType     int     `json:"trans_type" doc:"交易类型"`
-	Status        int     `json:"status" doc:"交易状态"`
-	BlockinHeight int64   `json:"blockin_height" doc:"入块高度"`
-	AssetName     string  `json:"asset_name" doc:"币种"`
-	Address       string  `json:"address" doc:"地址"`
-	Amount        float64 `json:"amount" doc:"数量"`
-	PayFee        float64 `json:"pay_fee" doc:"交易费用"`
-	Hash          string  `json:"hash" doc:"交易哈希"`
-	OrderId       string  `json:"order_id" doc:"交易订单"`
-	Time          int64   `json:"time" doc:"交易时间"`
+	MsgId         int64  `json:"msg_id" doc:"消息id"`
+	TransType     int    `json:"trans_type" doc:"交易类型"`
+	Status        int    `json:"status" doc:"交易状态"`
+	BlockinHeight int64  `json:"blockin_height" doc:"入块高度"`
+	AssetName     string `json:"asset_name" doc:"币种"`
+	Address       string `json:"address" doc:"地址"`
+	Amount        int64  `json:"amount" doc:"数量"`
+	PayFee        int64  `json:"pay_fee" doc:"交易费用"`
+	Hash          string `json:"hash" doc:"交易哈希"`
+	OrderId       string `json:"order_id" doc:"交易订单"`
+	Time          int64  `json:"time" doc:"交易时间"`
 }
 
 type AckHistoryTransactionMessageList struct {
