@@ -26,7 +26,7 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "asset_attribute",
-	Input:       &v1.ReqAssetsAttributeList{AssetName: []string{"btc"}},
+	Input:       &v1.ReqAssetsAttributeList{AssetNames: []string{"btc"}},
 	Output:      &v1.AckAssetsAttributeList{Data: []v1.AckAssetsAttribute{v1.AckAssetsAttribute{}}},
 }
 

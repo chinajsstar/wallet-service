@@ -91,7 +91,7 @@ type ReqHistoryTransactionOrder struct {
 
 	TotalLines   int `json:"total_lines" doc:"总数,0：表示首次查询"`
 	PageIndex    int `json:"page_index" doc:"页索引,1开始"`
-	MaxDispLines int `json:"max_disp_lines" doc:"页最大数"，100以下`
+	MaxDispLines int `json:"max_disp_lines" doc:"页最大数，100以下"`
 }
 
 type AckHistoryTransactionOrder struct {
