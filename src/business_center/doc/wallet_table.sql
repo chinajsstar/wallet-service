@@ -231,6 +231,7 @@ DROP TABLE IF EXISTS `withdrawal_order`;
 CREATE TABLE `withdrawal_order` (
   `id` int(11) NOT NULL AUTO_INCREMENT,  
   `order_id` varchar(255) NOT NULL DEFAULT '',
+  `user_order_id` varchar(255) NOT NULL DEFAULT '',
   `user_key` varchar(255) NOT NULL DEFAULT '',
   `asset_name` varchar(255) NOT NULL DEFAULT '',
   `address` varchar(255) NOT NULL DEFAULT '',
@@ -263,6 +264,19 @@ CREATE TABLE `transaction_notice` (
   `order_id` varchar(255) NOT NULL DEFAULT '',
   `time` datetime NOT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- ----------------------------
+-- Table structure for `user_order`
+-- ----------------------------
+DROP TABLE IF EXISTS `user_order`;
+CREATE TABLE `user_order` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_key` varchar(255) NOT NULL COMMENT '商户Key',
+  `user_order_id` varchar(255) NOT NULL DEFAULT '',
+  `order_id` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`user_key`,`user_order_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

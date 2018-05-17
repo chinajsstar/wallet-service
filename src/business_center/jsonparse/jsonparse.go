@@ -27,6 +27,17 @@ func (p *JsonParse) UserKey() (string, bool) {
 	return "", false
 }
 
+func (p *JsonParse) UserOrderID() (string, bool) {
+	if value, ok := p.jsonValue.(map[string]interface{}); ok {
+		if value, ok := value["user_order_id"]; ok {
+			if value, ok := value.(string); ok {
+				return value, true
+			}
+		}
+	}
+	return "", false
+}
+
 func (p *JsonParse) AssetName() (string, bool) {
 	if value, ok := p.jsonValue.(map[string]interface{}); ok {
 		if value, ok := value["asset_name"]; ok {

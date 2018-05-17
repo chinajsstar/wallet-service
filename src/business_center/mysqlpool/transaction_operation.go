@@ -6,7 +6,22 @@ import (
 	"time"
 )
 
-func WithDrawalOrder(userKey string, assetName string, address string, amount int64, payFee int64, uuID string) error {
+func AddUserOrder(userKey string, userOrderID string, orderID string) error {
+	db := Get()
+	_, err := db.Exec("insert user_order (user_key, user_order_id, order_id) values (?, ?, ?)",
+		userKey, userOrderID, orderID)
+	return err
+}
+
+func RemoveUserOrder(userKey string, userOrderID string) error {
+	db := Get()
+	_, err := db.Exec("delete from user_order where user_key = ? and user_order_id = ?",
+		userKey, userOrderID)
+	return err
+}
+
+func WithDrawalOrder(userKey string, assetName string, address string, amount int64, payFee int64,
+	uuID string, userOrderID string) error {
 	nowTM := time.Now().UTC().Format(TimeFormat)
 
 	tx, err := Get().Begin()
@@ -34,9 +49,9 @@ func WithDrawalOrder(userKey string, assetName string, address string, amount in
 		return errors.New("update user_account rows < 1")
 	}
 
-	ret, err = tx.Exec("insert withdrawal_order (order_id, user_key, asset_name, address, amount, pay_fee, create_time) "+
-		"values (?, ?, ?, ?, ?, ?, ?);",
-		uuID, userKey, assetName, address, amount, payFee, nowTM)
+	ret, err = tx.Exec("insert withdrawal_order (user_key, order_id, user_order_id, asset_name, address, amount, pay_fee, create_time) "+
+		"values (?, ?, ?, ?, ?, ?, ?, ?)",
+		userKey, uuID, userOrderID, assetName, address, amount, payFee, nowTM)
 
 	if err != nil {
 		tx.Rollback()
