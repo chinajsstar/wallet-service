@@ -506,7 +506,7 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("argv=", string(bb))
 
 		ul := struct {
-			UserKey string `json:user_key`
+			UserKey string `json:"user_key""`
 		}{}
 		json.Unmarshal(bb, &ul)
 

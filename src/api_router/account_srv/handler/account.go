@@ -181,13 +181,13 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 // 获取key
 func (s * Account) ReadProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
-	reqReadProfile := v1.ReqUserReadProfile{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &reqReadProfile)
-	if err != nil {
-		l4g.Error("error json message: %s", err.Error())
-		res.Err = data.ErrDataCorrupted
-		return
-	}
+	//reqReadProfile := v1.ReqUserReadProfile{}
+	//err := json.Unmarshal([]byte(req.Argv.Message), &reqReadProfile)
+	//if err != nil {
+	//	l4g.Error("error json message: %s", err.Error())
+	//	res.Err = data.ErrDataCorrupted
+	//	return
+	//}
 
 	// load profile
 	ackReadProfile, err := db.ReadProfile(req.Argv.SubUserKey)
