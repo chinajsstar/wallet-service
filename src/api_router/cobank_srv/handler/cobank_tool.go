@@ -71,6 +71,7 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 		}else{
 			fmt.Println("cmd: ", cmd)
 			amount := fmt.Sprintf("%.8f", rc.Value)
+			fmt.Println(cmd, arg, "sendtoaddress", rc.To, amount)
 			c := exec.Command(cmd, arg, "sendtoaddress", rc.To, amount)
 			if c != nil{
 				if err := c.Run(); err != nil {
