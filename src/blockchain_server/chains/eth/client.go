@@ -42,7 +42,6 @@ type Client struct {
 	contracts map[string]*token.Token // symbol ->token.EthToken
 
 	//abi       abi.ABI
-	quit chan bool
 }
 
 func (self *Client) lock() {
@@ -609,10 +608,6 @@ func (self *Client) beginScanBlock() error {
 						case <-self.ctx.Done():
 							l4g.Trace("ethereum client close")
 							return
-						case <-self.quit: {
-							l4g.Trace("ethereum client close")
-							return
-						}
 						case self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}:
 						}
 						break
