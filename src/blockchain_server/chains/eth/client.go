@@ -40,7 +40,9 @@ type Client struct {
 	// TODO:这个token应该要重新写会到config文件中去
 	tokens    map[string]*types.Token // address->types.EthToken
 	contracts map[string]*token.Token // symbol ->token.EthToken
+
 	//abi       abi.ABI
+	quit chan bool
 }
 
 func (self *Client) lock() {
@@ -123,9 +125,16 @@ func (self *Client) init() error {
 		if err != nil {
 			continue
 		}
-		if d, err := tmp_tk.Decimals(nil); err == nil {
-			tk.Decimals = uint(d)
+
+		if config.Debugmode {
+			l4g.Trace("only use decimal 1 for token for Debug mode!!!!!")
+			tk.Decimals = 1
+		} else {
+			if d, err := tmp_tk.Decimals(nil); err == nil {
+				tk.Decimals = int(d)
+			}
 		}
+
 		tk.Symbol, _ = tmp_tk.Symbol(nil)
 
 		self.contracts[tk.Symbol] = tmp_tk
@@ -140,6 +149,7 @@ func (self *Client) init() error {
 	//	return err
 	//	//l4g.Error("Create erc20 token abi error:%s", err.Error())
 	//}
+	self.quit = make(chan bool)
 	return nil
 }
 
@@ -188,10 +198,11 @@ func (self *Client) txToken(tx *types.Transfer) *token.Token {
 	if tx == nil || tx.TokenTx == nil {
 		return nil
 	}
-	return self.contracts[tx.TokenTx.Contract.Symbol]
+	return self.contracts[tx.TokenTx.Token.Symbol]
 }
 
-func (self *Client) buildRawTx(from, to common.Address, value uint64, input []byte) (*etypes.Transaction, error) {
+// 这个value是以wei为单位的
+func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []byte) (*etypes.Transaction, error) {
 	var (
 		err             error
 		nonce, gaslimit uint64
@@ -214,14 +225,13 @@ func (self *Client) buildRawTx(from, to common.Address, value uint64, input []by
 		}
 	}
 
-	amount := big.NewInt(int64(value))
-	msg := ethereum.CallMsg{From: from, To: &to, Value: amount, Data: input}
+	msg := ethereum.CallMsg{From: from, To: &to, Value: value, Data: input}
 
 	gaslimit, err = self.c.EstimateGas(context.TODO(), msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
 	}
-	return etypes.NewTransaction(nonce, to, amount, gaslimit, gasprice, input), nil
+	return etypes.NewTransaction(nonce, to, value, gaslimit, gasprice, input), nil
 }
 
 func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
@@ -268,7 +278,9 @@ func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
 				codeat, _ := self.c.PendingCodeAt(context.TODO(), *tx.To())
 				//self.c.CodeAt()
 
-				if (receipt.Status == etypes.ReceiptStatusFailed || (len(codeat) != 0 && len(receipt.Logs) == 0)) && false {
+				// TODO: to use following condition
+				if (receipt.Status == etypes.ReceiptStatusFailed ||
+					(len(codeat) != 0 && len(receipt.Logs) == 0)) && false {
 					state = types.Tx_state_unconfirmed
 				} else {
 					if receipt.GasUsed > tmptx.Gas() {
@@ -287,7 +299,7 @@ func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
 	return false, fmt.Errorf("trace tx(%s), time out", tx.Hash().String())
 }
 
-func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string, value uint64) error {
+func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string, value *big.Int) error {
 	privOwnerKey, owner_string, err := ParseKey(ownerKey)
 	if err != nil {
 		return err
@@ -303,10 +315,10 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 	input := common.FromHex("0x095ea7b3")
 	input = append(input, common.LeftPadBytes(spender.Bytes(), 32)[:]...)
-	input = append(input, common.LeftPadBytes(big.NewInt(int64(value)).Bytes(), 32)[:]...)
 
-	// 这只是一个合约授权给地址转账的Transaction, 所以, value(ether.Wei)值为0
-	etx, err := self.buildRawTx(owner, contract, 0, input)
+	input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)
+
+	etx, err := self.buildRawTx(owner, contract, big.NewInt(0), input)
 
 	if err != nil {
 		return err
@@ -319,7 +331,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 	{
 		// 由Spender 发送 txfee 给owner, 作为执行授权的交易费
-		stx, err := self.buildRawTx(spender, owner, txfee.Uint64(), nil)
+		stx, err := self.buildRawTx(spender, owner, txfee, nil)
 		if err != nil {
 			return err
 		}
@@ -359,7 +371,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 		return err
 	}
 	if !isok {
-		return fmt.Errorf("approve Token Tx(%s) faild", signedTx.Hash().String())
+		return fmt.Errorf("approve TokenSymbol Tx(%s) faild", signedTx.Hash().String())
 	}
 	return nil
 }
@@ -379,9 +391,9 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	if true {
 		if tx.IsTokenTx() && tx.From != tx.TokenTx.From {
 			if err := self.approveTokenTx(tx.TokenFromKey, fromkey,
-				// tx.To == tx.TokenTx.Contract.Address, tx.TokenTx.Contract.Address,
+				// tx.To == tx.TokenTx.TokenSymbol.Address, tx.TokenTx.TokenSymbol.Address,
 				tx.TokenTx.ContractAddress(),
-				tx.TokenTx.TokenDecimalValue()); err != nil {
+				tx.TokenTx.Value_decimaled()); err != nil {
 				return err
 			}
 		}
@@ -414,102 +426,39 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	return nil
 }
 
-func (self *Client) GetBalance(addstr string, tokenname *string) (uint64, error) {
+func (self *Client) GetBalance(addstr string, tokenSymbol string) (float64, error) {
 	address := common.HexToAddress(addstr)
-	var bl uint64 = 0
-	if tokenname == nil || strings.Trim(*tokenname, " ") == "" {
+
+	if strings.Trim(tokenSymbol, " ") == "" {
 		if balance, err := self.c.BalanceAt(self.ctx, address, nil); err != nil {
 			return 0, err
 		} else {
-			bl = balance.Uint64()
+			return WeiToEther(balance), nil
 		}
 	} else {
-		tmpToken := self.contracts[*tokenname]
+		tmpToken := self.contracts[tokenSymbol]
 		if nil == tmpToken {
 			return 0, fmt.Errorf("GetBalance, Not Supported assert type!")
 		}
-		//tmpToken := self.contracts[tmpToken.ContractAddress]
+		//	tmpToken := self.contracts[tmpToken.ContractAddress]
 		if nil == tmpToken {
 			return 0, fmt.Errorf("GetBalance, Not Supported assert type!")
 		}
+
 		if balance, err := tmpToken.BalanceOf(nil, address); err != nil {
 			return 0, fmt.Errorf("Get EthToken[%s] Balance of %s error, message:%s",
-				*tokenname, addstr, err.Error())
+				tokenSymbol, addstr, err.Error())
 		} else {
-			bl = balance.Uint64()
+			decimal, err := tmpToken.Decimals(nil)
+			if err != nil {
+				return 0, err
+			}
+			fb, _ := new(big.Float).SetString(balance.String())
+			f, _ := fb.Mul(fb, big.NewFloat(math.Pow10(-int(decimal)))).Float64()
+			return f, nil
 		}
 	}
-	return bl, nil
 }
-
-// 自动以标准的精度转换为client相关的精度数量
-// 1,000,000,000
-func (self *Client) toClientDecimal(v uint64) *big.Int {
-	i := 18 - types.StandardDecimal
-	ibig := big.NewInt(int64(v))
-	if i > 0 {
-		return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(i))))
-	} else {
-		return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i))))
-	}
-}
-
-func (c *Client) toStandardDecimalWithBig(ibig *big.Int) uint64 {
-	i := types.StandardDecimal - 18
-	if i > 0 {
-		return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(i)))).Uint64()
-	} else {
-		return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))).Uint64()
-	}
-}
-
-// 从client相关的精度数量转为自定义标准的精度数量
-func (self *Client) toStandardDecimalWithInt(v uint64) uint64 {
-	i := types.StandardDecimal - 18
-	ibig := big.NewInt(int64(v))
-	if i > 0 {
-		return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(i)))).Uint64()
-	} else {
-		return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i)))).Uint64()
-	}
-}
-
-// TODO: 创建出来的tx,如果是token的话, 交易总是失败, 目前发送Token不用这个方法, 后面再检查
-//func (self *Client) buildStandardTx(tx *types.Transfer) (*etypes.Transaction, error) {
-//	if tx.IsTokenTx() {
-//		return nil, fmt.Errorf("Use 'buildTokenTrasferTx form token's transaction!")
-//	}
-//
-//	from := common.HexToAddress(tx.From)
-//	to := common.HexToAddress(tx.To)
-//
-//	value := self.toClientDecimal(tx.Value)
-//
-//	l4g.Trace("value is: %v", value)
-//
-//	var input []byte = nil
-//
-//	// gas limit
-//	msg := ethereum.CallMsg{From: from, To: &to, Value: value, Data: input}
-//	gaslimit, err := self.c.EstimateGas(context.TODO(), msg)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	// gas price
-//	gasprice, err := self.c.SuggestGasPrice(context.TODO())
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	// nonce
-//	nonce, err := self.c.PendingNonceAt(context.TODO(), common.HexToAddress(tx.From))
-//	if nil != err {
-//		return nil, err
-//	}
-//
-//	return etypes.NewTransaction(nonce, to, value, gaslimit, gasprice, input), nil
-//}
 
 func (self *Client) refreshBlockHeight() (uint64, error) {
 	block, err := self.c.BlockByNumber(self.ctx, nil)
@@ -537,34 +486,6 @@ func (self *Client) virtualBlockHeight() uint64 {
 	}
 	return 0
 }
-
-//func (self *Client)updateTxWithTx(transfer *types.Transfer, transaction *etypes.Transaction) bool {
-//	var state types.TxState
-//
-//	if inblock ==0 {
-//		state = types.Tx_state_pending
-//	} else if lastblock-inblock >= config.MainConfiger().Clientconfig[types.Chain_eth].TxConfirmNumber {
-//		state = types.Tx_state_confirmed
-//	} else {
-//		state = types.Tx_state_mined
-//	}
-//
-//	// TODO: 这里检查tx.To()是否为nil, 如果为空,则tx为一个合约的交易,
-//	// TODO: 就需要调用TransactionReceipt(), 来获取合约的详细信息
-//
-//	tmp_tx := &types.Transfer{
-//		Tx_hash:           tx.Hash().String(),
-//		From:              tx.From(),
-//		To :               tx.To().String(),
-//		Value:             tx.Value().Uint64(),
-//		Fee :             tx.Fee(),
-//		Gaseprice:         tx.GasPrice().Uint64(),
-//		Total :            tx.Cost().Uint64(),
-//		blockNumber:       inblock,
-//		ConfirmatedHeight: lastblock,
-//		State:             state,
-//	}
-//}
 
 // 如果是合约的交易, 需要使用TransactionReceipt来获取合约地址名称等!
 func (self *Client) Tx(tx_hash string) (*types.Transfer, error) {
@@ -648,23 +569,29 @@ func (self *Client) beginScanBlock() error {
 
 			txs := block.Transactions()
 
-
 			for _, tx := range txs {
 				l4g.Trace("tx on block(%d), tx information:%s", block.NumberU64(), tx.String())
 				to := tx.To()
-				if to == nil { continue }
+				if to == nil {
+					continue
+				}
 
 				addresses := []string{tx.From()}
 
 				// check if 'to' is a cantract address
-				if code, err := self.c.PendingCodeAt(context.TODO(), *to);
-					err == nil && len(code) != 0 {
+				if code, err := self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
 					tk := self.tokens[to.String()]
-					if tk==nil { continue }
-					tkowner, tkreciver, _, err :=  token.ParseTokenTxInput(tx.Data())
-					if err==nil {
-						if tkowner!="" 	 {addresses = append(addresses, tkowner) }
-						if tkreciver!="" {addresses = append(addresses, tkreciver)}
+					if tk == nil {
+						continue
+					}
+					tkowner, tkreciver, _, err := token.ParseTokenTxInput(tx.Data())
+					if err == nil {
+						if tkowner != "" {
+							addresses = append(addresses, tkowner)
+						}
+						if tkreciver != "" {
+							addresses = append(addresses, tkreciver)
+						}
 					}
 				} else {
 					addresses = append(addresses, to.String())
@@ -676,8 +603,18 @@ func (self *Client) beginScanBlock() error {
 						// TODO: 以后需要看看ethereum库中相关部分
 						tx.Inblock = scanblock
 						tmp_tx := self.toTx(tx)
+
 						// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
-						self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}
+						select {
+						case <-self.ctx.Done():
+							l4g.Trace("ethereum client close")
+							return
+						case <-self.quit: {
+							l4g.Trace("ethereum client close")
+							return
+						}
+						case self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}:
+						}
 						break
 					}
 				}
@@ -736,6 +673,7 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 	// in practice testing, receipt transaction of cantract,
 	// if success it's 'Logs' field will not be empty, or will faild ,
 	// this conclusion need more proving, no offical document said that!!!!
+	// TODO: to use the following condition!!!
 	if (receipt.Status == etypes.ReceiptStatusFailed ||
 		(tx.IsTokenTx() && len(receipt.Logs) == 0)) && false {
 		tx.State = types.Tx_state_unconfirmed
@@ -756,7 +694,6 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 
 	return nil
 }
-
 
 // 使用srcTx更新destTx, 如果为空, 则使用TransactionByHash获取最新的tx
 // 如果使用了已经存在的Transaction来更新Transfer, 程序不会从网络去获取Transaction, 不会检查txhash是否存在!
@@ -804,34 +741,37 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 	if destTx.Time == 0 {
 		// check if 'to' is a cantract address
 		to := srcTx.To()
-		if to!=nil {
-			if code, err := self.c.PendingCodeAt(context.TODO(), *to);
-				err == nil && len(code) != 0 {
+		if to != nil {
+			if code, err := self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
 				tkfrom, tkto, value, err := token.ParseTokenTxInput(srcTx.Data())
-				if err!=nil { return err }
-
-				if destTx.TokenTx==nil {
-					destTx.TokenTx = &types.TokenTx{}
+				if err != nil {
+					return err
 				}
 
-				if tkfrom!="" {
+				if destTx.TokenTx == nil {
+					destTx.TokenTx = &types.TokenTx{
+						Token: self.tokens[to.String()],
+					}
+				}
+
+				if tkfrom != "" {
 					destTx.TokenTx.From = tkfrom
 				} else {
 					destTx.TokenTx.From = srcTx.From()
 				}
 
+				destTx.TokenTx.Token = self.tokens[to.String()]
 				destTx.TokenTx.To = tkto
-				destTx.TokenTx.Value = value.Uint64()
-
-				destTx.TokenTx.Contract = self.tokens[to.String()]
+				destTx.TokenTx.SetValue_by_decimaled(value)
 			}
 			destTx.To = to.String()
 		} else {
 			return fmt.Errorf("Transaction(%s) To address is nil?????", srcTx.Hash().String())
 		}
+
 		destTx.From = srcTx.From()
-		destTx.Value = self.toStandardDecimalWithBig(srcTx.Value())
-		destTx.Total = self.toStandardDecimalWithBig(srcTx.Cost())
+		destTx.Value = WeiToEther(srcTx.Value())
+		destTx.Total = WeiToEther(srcTx.Cost())
 		destTx.Fee = destTx.Total - destTx.Value
 		destTx.InBlock = srcTx.Inblock
 		destTx.Gas = srcTx.Gas()
@@ -950,7 +890,7 @@ func (self *Client) innerBuildTx(tx *types.Transfer) (etx *etypes.Transaction, e
 		_, tkTx.From, err = ParseKey(tx.TokenFromKey)
 		tokenFrom := common.HexToAddress(tx.TokenTx.From)
 		tokenTo := common.HexToAddress(tx.TokenTx.To)
-		value := tx.TokenTx.Contract.ToTokenDecimal(tkTx.Value)
+		value := tkTx.Value_decimaled()
 
 		// we can construct input data, with no using of token.TOKENABI.Pack function
 		if false {
@@ -974,7 +914,7 @@ func (self *Client) innerBuildTx(tx *types.Transfer) (etx *etypes.Transaction, e
 		}
 	}
 
-	return self.buildRawTx(from, to, tx.Value, input)
+	return self.buildRawTx(from, to, EtherToWei(tx.Value), input)
 }
 
 // build transaction

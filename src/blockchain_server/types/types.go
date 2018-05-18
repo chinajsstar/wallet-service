@@ -1,9 +1,9 @@
 package types
 
 import (
-	"blockchain_server/utils"
 	"fmt"
 	"math/big"
+	"math"
 )
 
 //-32700	Parse error	Invalid JSON was received by the server.
@@ -48,79 +48,79 @@ type Token struct {
 	Name     string `json:"name"`
 	Address  string `json:"address"`
 	Symbol   string `json:"symbol"`
-	Decimals uint   `json:"decimals,string,omitempty"`
+	Decimals int   `json:"decimals,string,omitempty"`
 }
 
 // Transaction中的TokenTx
 type TokenTx struct {
-	From     string
-	To       string
-	Value    uint64
-	Contract *Token
+	From  string
+	To    string
+	Value float64
+	Token *Token
 }
 
 func (self *TokenTx) String() string {
 	return fmt.Sprintf(
-`TokenTransaction inormation: 
-	Symbol:			: %s
-	Contract		: %s
-	From:			: %s
-	To				: %s
-	Value			: %d`,
-	self.Contract.Symbol, self.Contract.Address, self.From, self.To, self.Value)
+	`TokenTransaction inormation: 
+		TokenAddress	: %s
+		Symbol:			: %s
+		From:			: %s
+		To				: %s
+		Value			: %f`,
+		self.Token.Address, self.Token.Symbol, self.From, self.To, self.Value)
 }
 
-func (self *TokenTx) TokenDecimalValue() uint64 {
-	return utils.DecimalCvt_i_i(self.Value, 8, 0).Uint64()
-	//return self.Contract.ToTokenDecimal(self.Value).Uint64()
+func (self *TokenTx) Value_decimaled () (*big.Int) {
+	if !self.IsValid() {
+		return nil
+	}
+	return self.Token.Dodecimal(self.Value)
+}
+
+func (self *TokenTx) SetValue_by_decimaled(value *big.Int) float64 {
+	if isValid:=self.IsValid(); isValid==false {
+		return 0
+	}
+	self.Value = self.Token.Undecimal(value)
+	return self.Value
 }
 
 func (self *TokenTx) IsValid() bool {
-	return self.Contract != nil
+	return self.Token != nil
 }
 
 func (self *TokenTx) Name() string {
-	if self.Contract != nil {
-		return self.Contract.Name
+	if self.Token != nil {
+		return self.Token.Name
 	}
 	return ""
 }
 
 func (self *TokenTx) Symbol() string {
-	if self.Contract != nil {
-		return self.Contract.Symbol
+	if self.Token != nil {
+		return self.Token.Symbol
 	}
 	return ""
 }
 
 func (self *TokenTx) ContractAddress() string {
-	if self.Contract != nil {
-		return self.Contract.Address
+	if self.Token != nil {
+		return self.Token.Address
 	}
 	return ""
 }
 
-// 把StandardDecimal 表示的数量, 转换为币种内部使用的数量
-func (self *Token) ToTokenDecimal(v uint64) *big.Int {
-	return utils.DecimalCvt_i_i(v, 8, 0)
-	//i := int(self.Decimals) - 8
-	//ibig := big.NewInt(int64(v))
-	//if i > 0 {
-	//	return ibig.Mul(ibig, big.NewInt(int64(math.Pow10(i))))
-	//} else {
-	//	return ibig.Div(ibig, big.NewInt(int64(math.Pow10(-i))))
-	//}
+func (self *Token) Dodecimal(v float64) *big.Int {
+	val := v * math.Pow10(self.Decimals)
+	ival, _:= new(big.Int).SetString(fmt.Sprintf("%.0f", val), 10)
+	return ival
 }
 
-// 把币种内部使用的精度表示为外部标准使用过的精度!
-func (self *Token) ToStandardDecimal(v uint64) uint64 {
-	return utils.DecimalCvt_i_i(v, int(self.Decimals), 8).Uint64()
-}
-
-func (self *Token) ToStandardDecimalWithBig(ibig *big.Int) uint64 {
-	return ibig.Uint64()
-	//v := ibig.Uint64()
-	//return utils.DecimalCvt_i_i(v, int(self.Decimals), 8).Uint64()
+func (self *Token) Undecimal(v *big.Int) float64 {
+	val := new(big.Float).SetInt(v)
+	val = val.Mul(val, big.NewFloat(math.Pow10(-self.Decimals)))
+	f, _ := val.Float64()
+	return f
 }
 
 func (self *Token) String() string {
@@ -155,8 +155,8 @@ type CmdqueryTx struct {
 
 type CmdqueryBalance struct {
 	NetCmd
-	Address string
-	Token   *string
+	Address     string
+	TokenSymbol string
 }
 
 type NetCmdChannel chan interface{}
@@ -177,11 +177,11 @@ type Transfer struct {
 	Tx_hash             string
 	From                string
 	To                  string
-	Value               uint64 // 交易金额
-	Fee                 uint64
-	Gaseprice           uint64
+	Value               float64// 交易金额
+	Fee                 float64
+	Gasprice            uint64
 	Gas                 uint64
-	Total               uint64 // 总花费金额
+	Total				float64// 总花费金额
 	State               TxState
 	InBlock             uint64 // 所在块高
 	ConfirmatedHeight   uint64 // 确认块高
@@ -195,7 +195,7 @@ type Transfer struct {
 	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
 }
 
-func (tx *Transfer) Tatolcost() uint64 {
+func (tx *Transfer) Tatolcost() float64{
 	return tx.Fee + tx.Value
 }
 

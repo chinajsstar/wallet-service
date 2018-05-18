@@ -133,7 +133,7 @@ func (c *Client)BuildTx(fromkey string, stx *types.Transfer) error {
 	unspends, err := c.ListUnspentMinMaxAddresses(0, MaxConfiramtionNumber, ads)
 	if err!=nil { return err }
 
-	amount, _ := utils.DecimalCvt_i_f(stx.Value, 8, 0).Float64()
+	amount := stx.Value
 
 	var (
 		totalunspent_amount = 0.0
@@ -173,7 +173,6 @@ func (c *Client)BuildTx(fromkey string, stx *types.Transfer) error {
 			break
 		}
 	}
-
 
 	if true {
 		l4g.Trace("list all unspend utxo!")
@@ -220,7 +219,7 @@ func (c *Client)BuildTx(fromkey string, stx *types.Transfer) error {
 		return err
 	}
 
-	stx.Fee = uint64(utils.DecimalCvt_f_i(fee_estimat, 0, 8))
+	stx.Fee = fee_estimat
 	stx.Additional_data = txBuf.Bytes()
 	return nil
 }
@@ -405,15 +404,9 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 		}
 	}
 
-	if stx.Value==0 {
-		stx.Value =  utils.Abs(utils.DecimalCvt_f_i(value, 0, 8))
-	}
-	if stx.Fee==0 {
-		stx.Fee = utils.Abs(utils.DecimalCvt_f_i(btx.Fee, 0, 8))
-	}
-	if stx.Total==0 {
-		stx.Total = stx.Value + stx.Fee
-	}
+	stx.Value = value
+	stx.Fee = btx.Fee
+	stx.Total = stx.Value + stx.Fee
 
 	if uint64(btx.Confirmations) > btc_settings.Client_config().TxConfirmNumber &&
 		btx.Confirmations > 0 {
@@ -514,7 +507,7 @@ func (c *Client)InsertRechargeAddress(addresses []string) (invalid []string) {
 	return
 }
 
-func (c *Client) GetBalance(address string, _beNil *string) (uint64, error) {
+func (c *Client) GetBalance(address string, _beNil *string) (float64, error) {
 	if _beNil !=nil {
 		l4g.Trace("bitcoin GetBalance,  not support tokens!")
 	}
@@ -534,7 +527,7 @@ func (c *Client) GetBalance(address string, _beNil *string) (uint64, error) {
 	for _, unspent := range unspents {
 		balance += unspent.Amount
 	}
-	return uint64(utils.DecimalCvt_f_i(balance, 1, 8)), nil
+	return balance, nil
 }
 
 func (c *Client)Tx(hash string)(*types.Transfer, error) {

@@ -291,7 +291,7 @@ break_for:
 如果doneChannel有值, 则此函数会立即返回0, nil, 并通过doneChanne通知外部,
 如果doneChannel触发值为true, 表示查询成功, 通过CmdqueryBalance.Result可以获取资产余额
 如果doneChannel触发值为false, 表示查询失败, 通过CmdQueryBalance.Error获取失败信息! */
-func (self *ClientManager) GetBalance(ctx context.Context, cmdBalance *types.CmdqueryBalance, doneChannel chan bool) (uint64, error) {
+func (self *ClientManager) GetBalance(ctx context.Context, cmdBalance *types.CmdqueryBalance, doneChannel chan bool) (float64, error) {
 	if nil == cmdBalance {
 		return 0, fmt.Errorf("GetBalance error, Invalid paramater!")
 	}
@@ -302,11 +302,11 @@ func (self *ClientManager) GetBalance(ctx context.Context, cmdBalance *types.Cmd
 	}
 
 	if nil == doneChannel {
-		return instance.GetBalance(cmdBalance.Address, cmdBalance.Token)
+		return instance.GetBalance(cmdBalance.Address, cmdBalance.TokenSymbol)
 	} else {
 		go func() {
 			var err error
-			cmdBalance.Result, err = instance.GetBalance(cmdBalance.Address, cmdBalance.Token)
+			cmdBalance.Result, err = instance.GetBalance(cmdBalance.Address, cmdBalance.TokenSymbol)
 			if err != nil {
 				cmdBalance.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
 				doneChannel <- false
@@ -508,10 +508,11 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 // 交易和充值中的单位都是10^8为一个单位
 // 即1^8 单位为一个bitcoin或者eth
 func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
-
 	if self.loopTxCmdRuning == false {
-			
+		l4g.Error("TxCommandLoop is not runing!!!")
+		return
 	}
+
 	l4g.Trace("Recived one SendTx command:%s", cmdTx.MsgId)
 
 	if self.txCmdChannel == nil {
@@ -524,13 +525,13 @@ func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
 
 func (self *ClientManager) Close() {
 	self.ctx_cannel()
+	for _, client := range self.clients {
+		client.Stop()
+	}
 
 	close(self.txCmdChannel)
 	close(self.txRchChannel)
 
-	for _, client := range self.clients {
-		client.Stop()
-	}
 }
 
 // build transaction, return types.CmdSendTx 's json string

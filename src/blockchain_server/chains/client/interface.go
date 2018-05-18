@@ -27,7 +27,7 @@ type ChainClient interface {
 	SignTx(fromkey string, tx *types.Transfer) ([]byte, error)
 	SendSignedTx(txByte []byte, tx *types.Transfer) (error)
 
-	GetBalance(address string, tokenname *string) (uint64, error)
+	GetBalance(address string, tokenSymbol string) (float64, error)
 	Tx(tx_hash string)(*types.Transfer, error)
 
 	SetNotifyChannel(ch chan interface{})

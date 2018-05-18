@@ -18,15 +18,16 @@ func NewAccountCmd(msgId, coinname string, amount uint32) *types.CmdNewAccounts 
 		Amount: amount}
 }
 
-func NewQueryBalanceCmd(msgId, coinname, address string, tokenName *string) *types.CmdqueryBalance {
+func NewQueryBalanceCmd(msgId, coinname, address string, tokenSymbol string) *types.CmdqueryBalance {
 	return &types.CmdqueryBalance{
 		NetCmd:  types.NetCmd{MsgId: msgId, Coinname: coinname, Method: "get_balance", Result: nil, Error: nil},
-		Address: address, Token: tokenName}
+		Address: address, TokenSymbol: tokenSymbol}
 }
 
 // 交易和充值中的单位都是10^8为一个单位, 即1^8数量为一个bitcoin或者eth
 // 发送时, 内部会执行转换!
-func NewSendTxCmd(msgId, coinName, fromKey, to, tkname, tokenFromkey string, value uint64) (*types.CmdSendTx, error) {
+func NewSendTxCmd(msgId, coinName, fromKey, to, tkname, tokenFromkey string,
+	value float64) (*types.CmdSendTx, error) {
 	config := config.MainConfiger().Clientconfig[coinName]
 	if config == nil {
 		return nil, fmt.Errorf("Coin[%s] not supported", coinName)
@@ -38,10 +39,10 @@ func NewSendTxCmd(msgId, coinName, fromKey, to, tkname, tokenFromkey string, val
 			return nil, fmt.Errorf("Not Supported %s:%s", coinName, tkname)
 		} else {
 			tokenTx = &types.TokenTx{
-				From:"", 	// 这里设置为"", 后面在Client中, 通过tokenFromKey来计算
-				To: to,		// 接收代币的地址
+				From:  "", 	// 这里设置为"", 后面在Client中, 通过tokenFromKey来计算
+				To:    to,		// 接收代币的地址
 				Value: value,
-				Contract: tk}
+				Token: tk}
 
 			// 如果是token代币
 			// fromkey 是 执行erc20合约的地址 from, Transfer.To设置为代币合约地址
