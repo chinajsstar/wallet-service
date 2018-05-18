@@ -5,7 +5,7 @@ type ReqRecharge struct {
 	Coin  string `json:"coin" doc:"币种"`
 	Token  string `json:"token" doc:"token"`
 	To    string `json:"to" doc:"充值地址"`
-	Value uint64 `json:"value" doc:"数量，为币种的单位的10^-8"`
+	Value float64 `json:"value" doc:"数量，为币种单位，！！！不是10^-8了"`
 }
 
 // 模拟挖矿
