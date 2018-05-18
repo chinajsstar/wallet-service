@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
+	"math"
 	"time"
 )
 
@@ -195,4 +196,8 @@ func responseJson(v interface{}) string {
 		return ""
 	}
 	return string(s)
+}
+
+func toChainValue(value int64) float64 {
+	return float64(value) * math.Pow10(-8)
 }

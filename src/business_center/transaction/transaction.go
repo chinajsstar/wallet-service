@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
+	"math"
 	"time"
 )
 
@@ -148,13 +149,13 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -fromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", fromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -fromChainValue(transfer.Fee), transfer.Tx_hash)
 	} else {
-		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "from", -fromChainValue(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.To, "to", fromChainValue(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -fromChainValue(transfer.Fee), transfer.Tx_hash)
 	}
 }
 
@@ -191,13 +192,13 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -int64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", int64(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -fromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", fromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -fromChainValue(transfer.Fee), transfer.Tx_hash)
 	} else {
-		fn(blockin.AssetName, transfer.From, "from", -int64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.To, "to", int64(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -int64(transfer.Fee), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "from", -fromChainValue(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.To, "to", fromChainValue(transfer.Value), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -fromChainValue(transfer.Fee), transfer.Tx_hash)
 	}
 }
 
@@ -243,4 +244,8 @@ func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallba
 func GenerateUUID(prefix string) string {
 	uID, _ := uuid.NewV4()
 	return fmt.Sprintf("%s%s%X", prefix, time.Now().UTC().Format("20060102150405"), uID.Bytes())
+}
+
+func fromChainValue(value float64) int64 {
+	return int64(value * math.Pow10(8))
 }

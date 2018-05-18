@@ -234,7 +234,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 
 	if assetProperty.IsToken > 0 {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
-			address, assetProperty.AssetName, userAddress.PrivateKey, uint64(amount))
+			address, assetProperty.AssetName, userAddress.PrivateKey, float64(amount)*math.Pow10(-8))
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
 			l4g.Error(res.ErrMsg)
@@ -243,7 +243,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		a.wallet.SendTx(cmdTx)
 	} else {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
-			address, "", "", uint64(amount))
+			address, "", "", toChainValue(amount))
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
 			l4g.Error(res.ErrMsg)
