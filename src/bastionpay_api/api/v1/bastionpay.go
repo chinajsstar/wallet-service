@@ -92,14 +92,15 @@ type ReqHistoryTransactionOrder struct {
 }
 
 type AckHistoryTransactionOrder struct {
+	OrderID   string `json:"order_id" doc:"交易订单"`
 	AssetName string `json:"asset_name" doc:"币种"`
 	TransType int    `json:"trans_type" doc:"交易类型"`
-	Status    int    `json:"status" doc:"交易状态"`
 	Amount    int64  `json:"amount" doc:"数量"`
 	PayFee    int64  `json:"pay_fee" doc:"交易费用"`
+	Balance   int64  `json:"balance" doc:"当前余额"`
 	Hash      string `json:"hash" doc:"交易哈希"`
-	OrderId   string `json:"order_id" doc:"交易订单"`
-	Time      int64  `json:"time" doc:"交易时间"`
+	Status    int    `json:"status" doc:"交易状态"`
+	Time      int64  `json:"time" doc:"更新时间"`
 }
 
 type AckHistoryTransactionOrderList struct {
