@@ -129,12 +129,12 @@ func AddUserAddress(userAddress []UserAddress) error {
 			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
 		if err != nil {
 			tx.Rollback()
+			return err
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		tx.Rollback()
 		_, errMsg := CheckError(ErrorFailed, err.Error())
 		l4g.Error(errMsg)
 		return err
@@ -168,12 +168,13 @@ func UpdatePayTokenAddress() error {
 	}
 
 	if len(userAddress) > 0 {
-		return CreateTokenAddress(userAddress)
+		CreateTokenAddress(userAddress)
+		return nil
 	}
 	return nil
 }
 
-func CreateTokenAddress(userAddress []UserAddress) error {
+func CreateTokenAddress(userAddress []UserAddress) {
 	assetPropertyMap := make(map[string]AssetProperty)
 	if assetProperty, ok := QueryAssetProperty(nil); ok {
 		for _, value := range assetProperty {
@@ -216,7 +217,15 @@ func CreateTokenAddress(userAddress []UserAddress) error {
 		}
 	}
 	if len(data) > 0 {
-		return AddUserAddress(data)
+		db := Get()
+		for _, v := range data {
+			db.Exec("insert user_address (user_key, user_class, asset_name, address, private_key,"+
+				" available_amount, frozen_amount, enabled, create_time, allocation_time, update_time)"+
+				" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+				v.UserKey, v.UserClass, v.AssetName, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
+				time.Unix(v.CreateTime, 0).UTC().Format(TimeFormat),
+				time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat),
+				time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat))
+		}
 	}
-	return nil
 }
