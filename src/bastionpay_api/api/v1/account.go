@@ -18,7 +18,7 @@ type ReqUserUpdateProfile struct{
 }
 // 修改公钥和回调地址-输出
 type AckUserUpdateProfile struct{
-	Status 			string `json:"status" doc:"状态"`
+	ServerPublicKey	string `json:"server_public_key" doc:"BastionPay公钥"`
 }
 
 // 获取公钥和回调地址-输入--read profile
@@ -31,6 +31,7 @@ type AckUserReadProfile struct{
 	PublicKey		string `json:"public_key" doc:"用户公钥"`
 	SourceIP		string `json:"source_ip" doc:"用户源IP"`
 	CallbackUrl		string `json:"callback_url" doc:"用户回调"`
+	ServerPublicKey	string `json:"server_public_key" doc:"BastionPay公钥"`
 }
 
 // 用户基本资料

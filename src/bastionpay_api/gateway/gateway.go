@@ -12,7 +12,7 @@ import (
 	"bytes"
 	"net/http"
 	"fmt"
-	"bastionpay_api/api/admin"
+	"bastionpay_api/apibackend"
 )
 
 type (
@@ -157,7 +157,7 @@ func RunUser(path string, subUserKey string, req interface{}, ack interface{}) (
 		}
 	}
 
-	userMessage := admin.UserMessage{}
+	userMessage := apibackend.UserMessage{}
 	userMessage.SubUserKey = subUserKey
 	userMessage.Message = string(reqByte)
 

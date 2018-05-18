@@ -17,8 +17,6 @@ type ReqAssetsAttributeList struct {
 }
 
 type AckAssetsAttribute struct {
-	AssetId         int     `json:"id" doc:"唯一ID"`
-	AssetLogo       string  `json:"asset_logo" doc:"LOGO，未实现"`
 	AssetName       string  `json:"asset_name" doc:"币种简称"`
 	FullName        string  `json:"full_name" doc:"币种全称"`
 	IsToken         int     `json:"is_token" doc:"是否代币，0：不是代币，非0：代币"`
@@ -69,11 +67,10 @@ type AckUserAddress struct {
 }
 
 type AckUserAddressList struct {
-	Data []AckUserAddress `json:"data" doc:"用户地址列表"`
-
-	TotalLines   int `json:"total_lines" doc:"总数"`
-	PageIndex    int `json:"page_index" doc:"页索引"`
-	MaxDispLines int `json:"max_disp_lines" doc:"页最大数"`
+	Data         []AckUserAddress `json:"data" doc:"用户地址列表"`
+	TotalLines   int              `json:"total_lines" doc:"总数"`
+	PageIndex    int              `json:"page_index" doc:"页索引"`
+	MaxDispLines int              `json:"max_disp_lines" doc:"页最大数"`
 }
 
 // 历史交易订单
@@ -106,11 +103,10 @@ type AckHistoryTransactionOrder struct {
 }
 
 type AckHistoryTransactionOrderList struct {
-	Data []AckHistoryTransactionOrder `json:"data" doc:"历史交易订单列表"`
-
-	TotalLines   int `json:"total_lines" doc:"总数"`
-	PageIndex    int `json:"page_index" doc:"页索引"`
-	MaxDispLines int `json:"max_disp_lines" doc:"页最大数"`
+	Data         []AckHistoryTransactionOrder `json:"data" doc:"历史交易订单列表"`
+	TotalLines   int                          `json:"total_lines" doc:"总数"`
+	PageIndex    int                          `json:"page_index" doc:"页索引"`
+	MaxDispLines int                          `json:"max_disp_lines" doc:"页最大数"`
 }
 
 // 历史交易消息

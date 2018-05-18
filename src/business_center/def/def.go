@@ -23,8 +23,8 @@ type UserAccount struct {
 	AssetName       string `json:"asset_name"`
 	AvailableAmount int64  `json:"available_amount"`
 	FrozenAmount    int64  `json:"frozen_amount"`
-	CreateTime      uint64 `json:"create_time"`
-	UpdateTime      uint64 `json:"update_time"`
+	CreateTime      int64  `json:"create_time"`
+	UpdateTime      int64  `json:"update_time"`
 }
 
 type UserProperty struct {

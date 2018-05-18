@@ -11,6 +11,7 @@ import (
 	"github.com/satori/go.uuid"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
+	"bastionpay_api/utils"
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -197,6 +198,10 @@ func (s * Account) ReadProfile(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
+	if ackReadProfile.PublicKey != "" && ackReadProfile.CallbackUrl != "" && ackReadProfile.SourceIP != "" {
+		ackReadProfile.ServerPublicKey = string(s.serverPublicKey)
+	}
+
 	// to ack
 	dataAck, err := json.Marshal(ackReadProfile)
 	if err != nil {
@@ -218,6 +223,13 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
 		res.Err = data.ErrDataCorrupted
+		return
+	}
+
+	err = utils.RsaVerifyPubKey([]byte(reqUpdateProfile.PublicKey))
+	if err != nil {
+		l4g.Error("pub key parse: %s", err.Error())
+		res.Err = data.ErrAccountPubKeyParse
 		return
 	}
 
@@ -247,7 +259,9 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 
 	// to ack
-	ackUpdateProfile := v1.AckUserUpdateProfile{Status:"ok"}
+	ackUpdateProfile := v1.AckUserUpdateProfile{
+		ServerPublicKey:string(s.serverPublicKey),
+	}
 	dataAck, err := json.Marshal(ackUpdateProfile)
 	if err != nil {
 		// 写回去
