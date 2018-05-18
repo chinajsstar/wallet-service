@@ -244,6 +244,27 @@ CREATE TABLE `withdrawal_order` (
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- ----------------------------
+-- Table structure for `transaction_bill`
+-- ----------------------------
+DROP TABLE IF EXISTS `transaction_bill`;
+CREATE TABLE `transaction_bill` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_key` varchar(255) NOT NULL COMMENT '商户Key',
+  `trans_type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
+  `status` int(11) NOT NULL COMMENT '0:入块, 1:成功, >1:失败',
+  `blockin_height` bigint(20) NOT NULL,
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
+  `address` varchar(255) NOT NULL DEFAULT '' COMMENT '地址',
+  `amount` bigint(20) NOT NULL DEFAULT 0 COMMENT '金额',
+  `pay_fee` bigint(20) NOT NULL DEFAULT 0 COMMENT '手续费',
+  `balance` bigint(20) NOT NULL DEFAULT 0 COMMENT '余额',
+  `hash` varchar(255) NOT NULL DEFAULT '',
+  `order_id` varchar(255) NOT NULL DEFAULT '',
+  `time` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
 -- Table structure for `transaction_notice`
@@ -260,6 +281,7 @@ CREATE TABLE `transaction_notice` (
   `address` varchar(255) NOT NULL DEFAULT '' COMMENT '地址',
   `amount` bigint(20) NOT NULL DEFAULT 0 COMMENT '金额',
   `pay_fee` bigint(20) NOT NULL DEFAULT 0 COMMENT '手续费',
+  `balance` bigint(20) NOT NULL DEFAULT 0 COMMENT '余额',
   `hash` varchar(255) NOT NULL DEFAULT '',
   `order_id` varchar(255) NOT NULL DEFAULT '',
   `time` datetime NOT NULL,

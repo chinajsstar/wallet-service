@@ -100,13 +100,14 @@ type TransactionStatus struct {
 type TransactionNotice struct {
 	UserKey       string `json:"user_key"`
 	MsgID         int64  `json:"msg_id"`
-	Type          int    `json:"type"`
+	TransType     int    `json:"trans_type"`
 	Status        int    `json:"status"`
 	BlockinHeight int64  `json:"blockin_height"`
 	AssetName     string `json:"asset_name"`
 	Address       string `json:"address"`
 	Amount        int64  `json:"amount"`
 	PayFee        int64  `json:"pay_fee"`
+	Balance       int64  `json:"balance"`
 	Hash          string `json:"hash"`
 	OrderID       string `json:"order_id"`
 	Time          int64  `json:"time"`
@@ -122,19 +123,4 @@ type TransactionOrder struct {
 	OrderID   string `json:"order_id"`
 	Status    int    `json:"status"`
 	Time      int64  `json:"time"`
-}
-
-type TransactionMessage struct {
-	UserKey       string `json:"user_key"`
-	MsgID         int64  `json:"msg_id"`
-	TransType     int    `json:"trans_type"`
-	Status        int    `json:"status"`
-	BlockinHeigth int64  `json:"blockin_height"`
-	AssetName     string `json:"asset_name"`
-	Address       string `json:"address"`
-	Amount        int64  `json:"amount"`
-	PayFee        int64  `json:"pay_fee"`
-	Hash          string `json:"hash"`
-	OrderID       string `json:"order_id"`
-	Time          int64  `json:"time"`
 }
