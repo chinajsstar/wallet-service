@@ -101,7 +101,7 @@ func Abs(i int64) uint64 {
 	return uint64(-i)
 }
 
-func StrSilenceContain(src []string, dest string)bool{
+func SilenceHaveString(src []string, dest string)bool{
 	for _, value := range src {
 		if value==dest {return true}
 	}

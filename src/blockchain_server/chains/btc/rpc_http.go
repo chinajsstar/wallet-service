@@ -122,6 +122,8 @@ func (c *Client) handler() {
 							l4g.Error("err:%v", err)
 							return
 						} else {
+							l4g.Trace("Bitcoin wallet notify new transaction:%s",
+								tx.String())
 							c.rechargeTxNotification <- &types.RechargeTx{Tx: tx, Coin_name: types.Chain_bitcoin, Err: nil}
 						}
 					}

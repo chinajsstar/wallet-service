@@ -22,6 +22,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
 	"fmt"
+	"math"
 )
 
 var (
@@ -376,10 +377,12 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 
 	toOk:
 	for _, detail := range btx.Details {
-		if !utils.StrSilenceContain(froms, detail.Address) {
-			stx.To = detail.Address
-			value = detail.Amount
-			break toOk
+		if !utils.SilenceHaveString(froms, detail.Address) {
+			if detail.Category=="receive" {
+				stx.To = detail.Address
+				value = math.Abs(detail.Amount)
+				break toOk
+			}
 		}
 	}
 
@@ -387,7 +390,7 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 		for _, txout := range msgTx.TxOut {
 			if decodScritp, err := c.DecodeScript(txout.PkScript); len(decodScritp.Addresses)>0 && err!=nil {
 				for _, tmp := range decodScritp.Addresses {
-					if !utils.StrSilenceContain(froms, tmp) {
+					if !utils.SilenceHaveString(froms, tmp) {
 						value = btcutil.Amount(txout.Value).ToBTC()
 						stx.To = decodScritp.Addresses[0]
 					}
