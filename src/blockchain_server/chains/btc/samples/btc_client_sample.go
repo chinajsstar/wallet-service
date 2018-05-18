@@ -9,7 +9,6 @@ import (
 	"blockchain_server/conf"
 	"blockchain_server/chains/btc"
 	"context"
-	"math"
 )
 
 var (
@@ -99,7 +98,7 @@ func main() {
 
 	if true {
 		go testSendTokenTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
-			"", uint64(0.2 * math.Pow10(8)), done_sendTx)
+			"", 0.5, done_sendTx)
 	} else{i--}
 
 	//testGetBalance(clientManager, from_acc.Address, token)
@@ -176,8 +175,9 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 }
 
 func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
-	privatekey, to, coin string, token string, value uint64, done chan bool) {
-	txCmd, err := service.NewSendTxCmd("message id", coin, privatekey, to, token, "", value)
+	privatekey, to, coin string, token string, value float64, done chan bool) {
+	txCmd, err := service.NewSendTxCmd("bitcoin transaction message id:000001",
+		coin, privatekey, to, token, "", value)
 
 	if err!=nil {
 		l4g.Trace("err:%s", err.Error())
@@ -246,7 +246,7 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
 }
 
 func testGetBalance(manager *service.ClientManager, address string, tokenname string) {
-	cmd_balance := service.NewQueryBalanceCmd("getbalance message id", Coinname, address, nil)
+	cmd_balance := service.NewQueryBalanceCmd("getbalance message id", Coinname, address, "")
 	l4g.Trace("----------bitcoin get address balance---------")
 	if balance, err := manager.GetBalance(context.TODO(), cmd_balance, nil); err == nil {
 		l4g.Trace("address: %s balance: %d", address, balance)

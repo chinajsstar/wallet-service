@@ -507,8 +507,8 @@ func (c *Client)InsertRechargeAddress(addresses []string) (invalid []string) {
 	return
 }
 
-func (c *Client) GetBalance(address string, _beNil *string) (float64, error) {
-	if _beNil !=nil {
+func (c *Client) GetBalance(address string, _beNil string) (float64, error) {
+	if _beNil!="" {
 		l4g.Trace("bitcoin GetBalance,  not support tokens!")
 	}
 	//c.Client.get
