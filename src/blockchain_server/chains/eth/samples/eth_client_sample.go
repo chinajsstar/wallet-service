@@ -80,7 +80,7 @@ func main() {
 			tokenOwnerAcc.PrivateKey,
 			tokenReciptAcc.Address,
 			types.Chain_eth,
-			token, 1.2,
+			token, 5,
 			done_sendTx)
 	} else {i++}
 

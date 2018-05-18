@@ -127,7 +127,7 @@ func (self *Client) init() error {
 
 		if config.Debugmode {
 			l4g.Trace("only use decimal 1 for token for Debug mode!!!!!")
-			tk.Decimals = 1
+			tk.Decimals = 0
 		} else {
 			if d, err := tmp_tk.Decimals(nil); err == nil {
 				tk.Decimals = int(d)
@@ -148,7 +148,6 @@ func (self *Client) init() error {
 	//	return err
 	//	//l4g.Error("Create erc20 token abi error:%s", err.Error())
 	//}
-	self.quit = make(chan bool)
 	return nil
 }
 
@@ -387,7 +386,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	// 用户地址上应该是没有ether的. 则需要授权token
 	// 如果tx.From==tx.TokenTx.From, 说明是用户从热钱包地址提币,
 	// 热钱包地址应该保留了一定数量的ether
-	if true {
+	if false {
 		if tx.IsTokenTx() && tx.From != tx.TokenTx.From {
 			if err := self.approveTokenTx(tx.TokenFromKey, fromkey,
 				// tx.To == tx.TokenTx.TokenSymbol.Address, tx.TokenTx.TokenSymbol.Address,
