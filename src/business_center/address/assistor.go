@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
-	"math"
 	"time"
 )
 
@@ -89,7 +88,7 @@ func (a *Address) recvRechargeTxChannel() {
 					blockin := TransactionBlockin{
 						AssetName:     assetProperty.AssetName,
 						Hash:          rct.Tx.Tx_hash,
-						MinerFee:      int64(rct.Tx.Fee),
+						MinerFee:      transaction.FromChainValue(rct.Tx.Fee),
 						BlockinHeight: int64(rct.Tx.InBlock),
 						OrderID:       "",
 					}
@@ -143,7 +142,7 @@ func (a *Address) recvCmdTxChannel() {
 					blockin := TransactionBlockin{
 						AssetName:     assetProperty.AssetName,
 						Hash:          cmdTx.Tx.Tx_hash,
-						MinerFee:      int64(cmdTx.Tx.Fee),
+						MinerFee:      transaction.FromChainValue(cmdTx.Tx.Fee),
 						BlockinHeight: int64(cmdTx.Tx.InBlock),
 						OrderID:       cmdTx.NetCmd.MsgId,
 					}
@@ -196,8 +195,4 @@ func responseJson(v interface{}) string {
 		return ""
 	}
 	return string(s)
-}
-
-func toChainValue(value int64) float64 {
-	return float64(value) * math.Pow10(-8)
 }

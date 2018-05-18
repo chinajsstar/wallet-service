@@ -243,7 +243,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		a.wallet.SendTx(cmdTx)
 	} else {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
-			address, "", "", toChainValue(amount))
+			address, "", "", transaction.ToChainValue(amount))
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
 			l4g.Error(res.ErrMsg)
