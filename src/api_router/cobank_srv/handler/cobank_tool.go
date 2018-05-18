@@ -16,7 +16,6 @@ import (
 	"business_center/def"
 	l4g "github.com/alecthomas/log4go"
 	"bastionpay_api/api/v1"
-	"math"
 )
 
 ////////////////////////////////////////////////////////////
@@ -37,7 +36,7 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 	if rc.Coin == "eth" {
 		go func(req *v1.ReqRecharge) {
 			clientManager := x.business.GetWallet()
-			//tmp_account := &types.Account{
+			//tmp_account_ztoken := &types.Account{
 			//	"0x04e2b6c9bfeacd4880d99790a03a3db4ad8d87c82bb7d72711b277a9a03e49743077f3ae6d0d40e6bc04eceba67c2b3ec670b22b30d57f9d6c42779a05fba097536c412af73be02d1642aecea9fa7082db301e41d1c3c2686a6a21ca431e7e8605f761d8e12d61ca77605b31d707abc3f17bc4a28f4939f352f283a48ed77fc274b039590cc2c43ef739bd3ea13e491316",
 			//	"0x54b2e44d40d3df64e38487dd4e145b3e6ae25927"}
 
@@ -71,10 +70,8 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 			res.ErrMsg = err.Error()
 		}else{
 			fmt.Println("cmd: ", cmd)
-			var a float64
-			a = (float64)(rc.Value) / math.Pow10(8)
-			aa := fmt.Sprintf("%.8f", a)
-			c := exec.Command(cmd, arg, "sendtoaddress", rc.To, aa)
+			amount := fmt.Sprintf("%.8f", rc.Value)
+			c := exec.Command(cmd, arg, "sendtoaddress", rc.To, amount)
 			if c != nil{
 				if err := c.Run(); err != nil {
 					fmt.Println(err)
