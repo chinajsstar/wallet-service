@@ -496,7 +496,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 			hisTxOrder.Amount = v.Amount
 			hisTxOrder.PayFee = v.PayFee
 			hisTxOrder.Hash = v.Hash
-			hisTxOrder.OrderId = v.OrderID
+			hisTxOrder.OrderID = v.OrderID
 			hisTxOrder.Time = v.Time
 
 			hisTxOrderList.Data = append(hisTxOrderList.Data, hisTxOrder)
@@ -558,7 +558,7 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 			hisTxMsg.MsgId = v.MsgID
 			hisTxMsg.TransType = v.TransType
 			hisTxMsg.Status = v.Status
-			hisTxMsg.BlockinHeight = v.BlockinHeigth
+			hisTxMsg.BlockinHeight = v.BlockinHeight
 			hisTxMsg.AssetName = v.AssetName
 			hisTxMsg.Address = v.Address
 			hisTxMsg.Amount = v.Amount
