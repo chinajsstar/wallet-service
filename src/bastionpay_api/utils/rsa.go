@@ -189,3 +189,18 @@ func RsaVerify(hash crypto.Hash, hashData []byte, signData []byte, pubKey []byte
 
 	return rsa.VerifyPKCS1v15(pub, hash, hashData, signData)
 }
+
+// Rsa verify public key string
+func RsaVerifyPubKey(pubKey []byte)(error){
+	block, _ := pem.Decode(pubKey)
+	if block == nil {
+		return errors.New("decode public key error")
+	}
+
+	_, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

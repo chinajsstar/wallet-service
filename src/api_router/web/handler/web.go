@@ -20,12 +20,11 @@ import (
 	"api_router/base/config"
 	"bastionpay_api/api"
 	"bastionpay_api/apigroup"
-	"bastionpay_api/api/admin"
+	"bastionpay_api/apibackend"
 )
 
 const (
 	httpaddrGateway = "http://127.0.0.1:8082"
-	httpUser = "user"
 )
 
 var web_admin_prikey []byte
@@ -64,7 +63,7 @@ func sendPostData(addr, subUserKey string, rawmessage, version, srv, function st
 	var ud api.UserData
 
 	// 构建path
-	path := "/"+httpUser
+	path := "/"+apibackend.HttpRouterUser
 	path += "/"+version
 	path += "/"+srv
 	path += "/"+function
@@ -72,7 +71,7 @@ func sendPostData(addr, subUserKey string, rawmessage, version, srv, function st
 	// user key
 	ud.UserKey = web_admin_userkey
 
-	userParams := admin.UserMessage{
+	userParams := apibackend.UserMessage{
 		SubUserKey:subUserKey,
 		Message:rawmessage,
 	}

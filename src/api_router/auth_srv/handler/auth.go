@@ -16,7 +16,7 @@ import (
 	"api_router/base/config"
 	"bastionpay_api/api/v1"
 	"encoding/json"
-	"bastionpay_api/api/admin"
+	"bastionpay_api/apibackend"
 )
 
 type Auth struct{
@@ -156,7 +156,7 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
-	if(reqAuth.DataType == admin.AuthDataTypeUserMessage){
+	if(reqAuth.DataType == apibackend.ApiTypeUserMessage){
 		if ul.UserClass != data.UserClass_Admin {
 			l4g.Error("%s illegally call data type", req.Argv.UserKey)
 			res.Err = data.ErrAuthSrvIllegalDataType

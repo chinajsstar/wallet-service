@@ -14,13 +14,7 @@ import (
 	"github.com/cenkalti/rpc2"
 	"bastionpay_api/api"
 	"bastionpay_api/api/v1"
-	"bastionpay_api/api/admin"
-)
-
-const (
-	HttpApi = "api"
-	HttpUser = "user"
-	HttpApiTest = "apitest"
+	"bastionpay_api/apibackend"
 )
 
 type ServiceGateway struct{
@@ -177,12 +171,12 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 	// http
 	l4g.Debug("Start http server on %s", mi.cfgGateway.Port)
 
-	http.Handle("/" + HttpApi + "/", http.HandlerFunc(mi.handleApi))
-	http.Handle("/" + HttpUser + "/", http.HandlerFunc(mi.handleUser))
+	http.Handle("/" + apibackend.HttpRouterApi + "/", http.HandlerFunc(mi.handleApi))
+	http.Handle("/" + apibackend.HttpRouterUser + "/", http.HandlerFunc(mi.handleUser))
 
 	// test mode
 	if mi.cfgGateway.TestMode != 0 {
-		http.Handle("/" + HttpApiTest + "/", http.HandlerFunc(mi.handleApiTest))
+		http.Handle("/" + apibackend.HttpRouterApiTest + "/", http.HandlerFunc(mi.handleApiTest))
 	}
 
 	go func() {
@@ -324,7 +318,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(admin.AuthDataTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+	if mi.authData(apibackend.ApiTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -376,13 +370,13 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(admin.AuthDataTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+	if mi.authData(apibackend.ApiTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
 		*res = rpcAuthRes
 		return
 	}
 
 	// 解析来自用户的数据后台
-	userParams := admin.UserMessage{}
+	userParams := apibackend.UserMessage{}
 	err := json.Unmarshal([]byte(rpcAuthRes.Value.Message), &userParams)
 	if err != nil {
 		res.Err = data.ErrDataCorrupted
