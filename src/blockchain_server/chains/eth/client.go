@@ -386,7 +386,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	// 用户地址上应该是没有ether的. 则需要授权token
 	// 如果tx.From==tx.TokenTx.From, 说明是用户从热钱包地址提币,
 	// 热钱包地址应该保留了一定数量的ether
-	if false {
+	if true {
 		if tx.IsTokenTx() && tx.From != tx.TokenTx.From {
 			if err := self.approveTokenTx(tx.TokenFromKey, fromkey,
 				// tx.To == tx.TokenTx.TokenSymbol.Address, tx.TokenTx.TokenSymbol.Address,

@@ -12,7 +12,6 @@ import (
 	"errors"
 	"sync/atomic"
 	"github.com/btcsuite/btcd/btcjson"
-	"blockchain_server/utils"
 	"bytes"
 	"github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/wire"
@@ -22,7 +21,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
 	"fmt"
-	"math"
 )
 
 var (
@@ -315,11 +313,12 @@ func (c *Client) scriptAddes(script []byte)(adds []string, err error) {
 	return
 }
 
-func (c *Client) msgTxOutAddes(txout []*wire.TxOut) (adds[]string, err error) {
+func (c *Client) msgTxOutDetail(txout []*wire.TxOut) (adds[]string, values[] float64, err error) {
 	var tmps []string
 	for _, txo := range txout {
 		if tmps, err = c.scriptAddes(txo.PkScript); err==nil {
 			adds = append(adds, tmps[:]...)
+			values = append(values, btcutil.Amount(txo.Value).ToBTC())
 		} else {
 			l4g.Error("Bitcoin InnerErr:get address(MsgTx.Out), message:%s",
 				err.Error())
@@ -328,24 +327,30 @@ func (c *Client) msgTxOutAddes(txout []*wire.TxOut) (adds[]string, err error) {
 	return
 }
 
-func (c *Client) msgTxFrom(msgTx *wire.MsgTx)(from []string, err error) {
+
+func (c *Client) msgTxInDetail(txIns []*wire.TxIn)(from []string, txIntotalValue float64, err error) {
 	var tx *btcutil.Tx
-	for _, txIn :=  range msgTx.TxIn {
+
+	var total int64 = 0
+	for _, txIn :=  range txIns{
 		if tx, err = c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
 			var tmps []string
-			if tmps, err = c.msgTxOutAddes(tx.MsgTx().TxOut); err!=nil {
+			if tmps, _, err = c.msgTxOutDetail(tx.MsgTx().TxOut); err!=nil {
 				l4g.Error("Bitcoin InnerErr:msgTxAddresses, message:%s",
 					err.Error())
 			} else {
 				index := txIn.PreviousOutPoint.Index
 				if uint32(len(tmps))>index {
 					from = append(from, tmps[index])
+					total += tx.MsgTx().TxOut[index].Value
 				}
 			}
 		} else {
 			l4g.Error("Bitcoin InnerErr:msgTxAddresses,message %s", err.Error())
 		}
 	}
+
+	txIntotalValue += btcutil.Amount(total).ToBTC()
 
 	return
 }
@@ -365,9 +370,11 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 	//l4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
 	var (
-		serializedTx []byte
-		err          error
-		value        float64
+		serializedTx   []byte
+		err            error
+		froms, tos     []string
+		txInTotalValue float64
+		txOutValues    []float64
 	)
 
 	serializedTx, err = hex.DecodeString(btx.Hex)
@@ -377,58 +384,33 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 	err = msgTx.Deserialize(bytes.NewReader(serializedTx))
 	if err!=nil { return err }
 
-	froms, err := c.msgTxFrom(msgTx)
+	if stx.From=="" || stx.To=="" || stx.Fee==0.0 || stx.Value==0.0 {
+		froms, txInTotalValue, err = c.msgTxInDetail(msgTx.TxIn)
+		tos, txOutValues, err = c.msgTxOutDetail(msgTx.TxOut)
 
-	if true {
-	toOkNotUsed:
-		for _, detail := range btx.Details {
-			if !utils.SilenceHaveString(froms, detail.Address) {
-				if address, err := btcutil.DecodeAddress(detail.Address, c.chain_params);
-					err!=nil {
-					return err
-				} else {
-					if account, _ := c.GetAccount(address); c.importAddressLabelName==account {
-						stx.To = detail.Address
-						value = math.Abs(detail.Amount)
-						break toOkNotUsed
-					}
+		var outTotalValue float64
+		for _, v := range txOutValues {
+			outTotalValue += v
+		}
+
+		for i, to:=range tos {
+			if toaddress, err := btcutil.DecodeAddress(to, c.chain_params); err==nil {
+				if acc, _ :=c.GetAccount(toaddress); c.importAddressLabelName==acc {
+					stx.To = to
+					stx.Value = txOutValues[i]
+					break
 				}
 			}
 		}
-	}
 
-	if stx.To=="" {
-	toOk:
-		for _, txout := range msgTx.TxOut {
-			if decodScritp, err := c.DecodeScript(txout.PkScript);
-			len(decodScritp.Addresses)>0 && err!=nil {
-
-				for _, tmp := range decodScritp.Addresses {
-					if tmpAddress, err := btcutil.DecodeAddress(tmp, c.chain_params); err==nil {
-						if account, _ := c.GetAccount(tmpAddress);
-						c.importAddressLabelName==account {
-							stx.To = tmp
-							value = btcutil.Amount(txout.Value).ToBTC()
-							break toOk
-						}
-					}
-				}
-
-			}
-		}
-	}
-
-	if stx.From=="" {
 		for _, tmp := range froms {
 			if tmp!= stx.To {
 				stx.From = tmp
 			}
 		}
-	}
 
-	stx.Value = value
-	stx.Fee = math.Abs(btx.Fee)
-	stx.Total = stx.Value + stx.Fee
+		stx.Fee = txInTotalValue - outTotalValue
+	}
 
 	if uint64(btx.Confirmations) > btc_settings.Client_config().TxConfirmNumber &&
 		btx.Confirmations > 0 {
