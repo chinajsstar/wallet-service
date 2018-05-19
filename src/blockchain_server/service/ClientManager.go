@@ -90,7 +90,7 @@ func (self *ClientManager) loopTxCmd() {
 
 	if self.txCmdChannel == nil {
 		l4g.Trace("self.txCmdChannel is nil , create new")
-		self.txCmdChannel = make(types.CmdTxChannel, 256)
+		self.txCmdChannel = make(types.CmdTxChannel, 512)
 	}
 
 	go func() {
@@ -104,8 +104,6 @@ func (self *ClientManager) loopTxCmd() {
 						l4g.Trace("!!!!!!!!!!!!!txcmd is nil, maybe Transaction Cmd Channel was closed, exit loop !!!!!!!!!!!!!")
 						goto endfor
 					} else {
-						l4g.Trace("%s, Send transaction command(message id:%s): transaction information:%s",
-							txCmd.Coinname, txCmd.MsgId, txCmd.Tx.String() )
 						go self.innerSendTx(txCmd)
 					}
 				}
@@ -212,7 +210,7 @@ func (self *ClientManager) innerInsertRechargeAddress(coin string, addresses []s
 	if nil == client {
 		return fmt.Errorf("coin not supported:%s", coin)
 	}
-	client.InsertRechargeAddress(addresses)
+	client.InsertWatchingAddress(addresses)
 	return nil
 }
 
@@ -408,10 +406,10 @@ endfor:
 }
 
 func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
-	l4g.Trace(`
-------------send transaction begin------------
-Asset:%s , Crypted Key:%s
-TxInfo : %s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
+//	l4g.Trace(`
+//------------send transaction begin------------
+//Asset:%s , Crypted Key:%s
+//TxInfo : %s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
 
 	instance := self.clients[txCmd.Coinname]
 
@@ -517,7 +515,7 @@ func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
 
 	if self.txCmdChannel == nil {
 		l4g.Trace("txCmdChannel is nil, create new")
-		self.txCmdChannel = make(chan *types.CmdSendTx, 256)
+		self.txCmdChannel = make(chan *types.CmdSendTx, 512)
 	}
 
 	self.txCmdChannel <- cmdTx

@@ -818,7 +818,7 @@ func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
 	return tmpTx
 }
 
-func (self *Client) InsertRechargeAddress(address []string) (invalid []string) {
+func (self *Client) InsertWatchingAddress(address []string) (invalid []string) {
 	self.lock()
 	defer self.unlock()
 

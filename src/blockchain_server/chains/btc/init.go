@@ -144,6 +144,7 @@ func (c *Client) init () error {
 
 	configer := btc_settings.Client_config()
 	atomic.StoreUint64(&c.startScanHeight, configer.Start_scan_Blocknumber)
+	c.importAddressLabelName = "watchonly_addresses"
 
 	return nil
 }

@@ -68,6 +68,8 @@ type Client struct {
 	// the following channel should get from outside call
 	// rcTxChannel types.RechargeTxChannel
 	rechargeTxNotification types.RechargeTxChannel
+
+	importAddressLabelName string
 }
 
 //func (c *Client)toTx(tx *chain.RelevantTx) error {
@@ -93,8 +95,10 @@ func (c *Client)Name() string {
 }
 
 
-
 func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
+	c.cmMtx.Lock()
+	defer c.cmMtx.Unlock()
+
 	if err:=c.BuildTx(privkey, tx); err!=nil {
 		return err
 	}
@@ -375,26 +379,41 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 
 	froms, err := c.msgTxFrom(msgTx)
 
-	toOk:
-	for _, detail := range btx.Details {
-		if !utils.SilenceHaveString(froms, detail.Address) {
-			if detail.Category=="receive" {
-				stx.To = detail.Address
-				value = math.Abs(detail.Amount)
-				break toOk
+	if true {
+	toOkNotUsed:
+		for _, detail := range btx.Details {
+			if !utils.SilenceHaveString(froms, detail.Address) {
+				if address, err := btcutil.DecodeAddress(detail.Address, c.chain_params);
+					err!=nil {
+					return err
+				} else {
+					if account, _ := c.GetAccount(address); c.importAddressLabelName==account {
+						stx.To = detail.Address
+						value = math.Abs(detail.Amount)
+						break toOkNotUsed
+					}
+				}
 			}
 		}
 	}
 
 	if stx.To=="" {
+	toOk:
 		for _, txout := range msgTx.TxOut {
-			if decodScritp, err := c.DecodeScript(txout.PkScript); len(decodScritp.Addresses)>0 && err!=nil {
+			if decodScritp, err := c.DecodeScript(txout.PkScript);
+			len(decodScritp.Addresses)>0 && err!=nil {
+
 				for _, tmp := range decodScritp.Addresses {
-					if !utils.SilenceHaveString(froms, tmp) {
-						value = btcutil.Amount(txout.Value).ToBTC()
-						stx.To = decodScritp.Addresses[0]
+					if tmpAddress, err := btcutil.DecodeAddress(tmp, c.chain_params); err==nil {
+						if account, _ := c.GetAccount(tmpAddress);
+						c.importAddressLabelName==account {
+							stx.To = tmp
+							value = btcutil.Amount(txout.Value).ToBTC()
+							break toOk
+						}
 					}
 				}
+
 			}
 		}
 	}
@@ -408,7 +427,7 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 	}
 
 	stx.Value = value
-	stx.Fee = btx.Fee
+	stx.Fee = math.Abs(btx.Fee)
 	stx.Total = stx.Value + stx.Fee
 
 	if uint64(btx.Confirmations) > btc_settings.Client_config().TxConfirmNumber &&
@@ -487,8 +506,7 @@ func (c *Client)SubscribeRechargeTx(txChannel types.RechargeTxChannel) {
 	c.rechargeTxNotification = txChannel
 }
 
-func (c *Client)InsertRechargeAddress(addresses []string) (invalid []string) {
-	labelname := "watchonly"
+func (c *Client) InsertWatchingAddress(addresses []string) (invalid []string) {
 	for _, v := range addresses {
 		if address, err := btcutil.DecodeAddress(v, c.chain_params);err!=nil {
 			l4g.Error("bitcoin decode address faild, message:%s", err.Error())
@@ -501,7 +519,7 @@ func (c *Client)InsertRechargeAddress(addresses []string) (invalid []string) {
 			//	l4g.Trace("-------::::::::::Bitcoin import address:'%s', to wallet account:'%s'",
 			//		address, "receive")
 			//}
-			if err := c.ImportAddress(address.EncodeAddress(), labelname, false); err!=nil {
+	if err := c.ImportAddress(address.EncodeAddress(), c.importAddressLabelName, false); err!=nil {
 				invalid = append(invalid, v)
 				l4g.Error("bitcoin import address faild, message:%s", err.Error())
 			}

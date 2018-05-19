@@ -18,7 +18,7 @@ type ChainClient interface {
 	BlockHeight() (uint64)
 	SubscribeRechargeTx(txRechChannel types.RechargeTxChannel)
 
-	InsertRechargeAddress(address []string) (invalid []string)
+	InsertWatchingAddress(address []string) (invalid []string)
 
 	// split SendTx to 3 steps: BuildTx, SignTx, SendSignedTx
 	// liuheng add

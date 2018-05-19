@@ -98,7 +98,7 @@ func main() {
 
 	if true {
 		go testSendTokenTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
-			"", 0.5, done_sendTx)
+			"", 0.1, done_sendTx)
 	} else{i--}
 
 	//testGetBalance(clientManager, from_acc.Address, token)
@@ -176,7 +176,7 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 
 func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
 	privatekey, to, coin string, token string, value float64, done chan bool) {
-	txCmd, err := service.NewSendTxCmd("bitcoin transaction message id:000001",
+	txCmd, err := service.NewSendTxCmd(fmt.Sprintf("message id:%f", value),
 		coin, privatekey, to, token, "", value)
 
 	if err!=nil {
