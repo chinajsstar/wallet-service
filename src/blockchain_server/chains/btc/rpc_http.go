@@ -5,10 +5,10 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
-	"blockchain_server/types"
 	"bytes"
 	"time"
 	"io/ioutil"
+	"blockchain_server/types"
 )
 
 // Notifications returns a channel of parsed notifications sent by the remote
@@ -75,20 +75,15 @@ func (c *Client) handler() {
 				l4g.Trace("new block, hash = %v ", blockHash)
 				c.refresh_blockheight()
 
-				// Get block by hash
-				//hs, err := chainhash.NewHashFromStr(blockHash)
-				//if err != nil {
-				//	l4g.Trace("err:%v", err)
-				//	return
-				//}
-				//mb, err := c.GetBlock(hs)
-				//b, err := json.Marshal(mb)
-				//l4g.Trace("block info:%v", string(b))
-				return
 			}(n)
 
 		case n, ok := <- c.walletNotification:
 			if !ok { continue }
+
+			if false {
+				l4g.Trace("wallet notify is ignored! this is for testing!!!! %#v", n)
+				continue
+			}
 
 			go func(n interface{}) {
 				txHash, ok := n.(string)
@@ -109,23 +104,16 @@ func (c *Client) handler() {
 					l4g.Error("bitcoin get transaction error, message:%s", hs.String())
 					return
 				} else {
-					if len(btx.Details)==0 {
+					if len(btx.Details)==0 || btx.Details[0].Category=="immature" {
+						return
+					}
 
+					if tx, err := c.toTx(btx); err == nil {
+						c.rechargeTxNotification <- &types.RechargeTx{
+							Tx: tx, Coin_name: types.Chain_bitcoin, Err: nil}
 					} else {
-						//if len(btx.Details)>=0 {
-						//	if btx.Details[0].Category == "immature" { return }
-						//}
-						// clientmanager会自动跟踪情况, 不需要再次发送
-						if btx.Confirmations>0 {return}
-
-						if tx, err := c.toTx(btx); err != nil {
-							l4g.Error("err:%v", err)
-							return
-						} else {
-							//l4g.Trace("Bitcoin wallet notify new transaction:%s",
-							//	tx.String())
-							c.rechargeTxNotification <- &types.RechargeTx{Tx: tx, Coin_name: types.Chain_bitcoin, Err: nil}
-						}
+						l4g.Error("bitcoin transaction to types.Transfer error:%v", err)
+						return
 					}
 				}
 				return
