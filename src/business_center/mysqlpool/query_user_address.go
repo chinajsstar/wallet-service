@@ -89,8 +89,10 @@ func QueryPayAddress(assetName []string) (UserAddress, bool) {
 
 func SetPayAddress(assetName string, address string) error {
 	db := Get()
-	row := db.QueryRow("select private_key from user_address"+
-		" where user_class = 1 and asset_name = ? and address = ?;", assetName, address)
+	row := db.QueryRow("select a.private_key from user_address a"+
+		" left join asset_property b on a.asset_name = b.asset_name"+
+		" where a.user_class = 1 and b.is_token = 0 and a.asset_name = ? and a.address = ?",
+		assetName, address)
 
 	var privateKey string
 	err := row.Scan(&privateKey)
@@ -122,7 +124,7 @@ func AddUserAddress(userAddress []UserAddress) error {
 	for _, v := range userAddress {
 		_, err := tx.Exec("insert user_address (user_key, user_class, asset_name, address, private_key,"+
 			" available_amount, frozen_amount, enabled, create_time, allocation_time, update_time)"+
-			" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+			" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			v.UserKey, v.UserClass, v.AssetName, v.Address, v.PrivateKey, v.AvailableAmount, v.FrozenAmount, v.Enabled,
 			time.Unix(v.CreateTime, 0).UTC().Format(TimeFormat),
 			time.Unix(v.UpdateTime, 0).UTC().Format(TimeFormat),
