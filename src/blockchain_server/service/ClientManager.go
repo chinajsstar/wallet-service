@@ -262,6 +262,9 @@ func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
 		case tx := <-tx_channel:
 			{
 				txCmd.Tx = tx
+
+				l4g.Trace("TrackTxCmd information:%s", tx.String())
+
 				self.txCmdFeed.Send(txCmd)
 				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
 					goto break_for
