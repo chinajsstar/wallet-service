@@ -90,6 +90,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 					tx.Commit()
 					mysqlpool.RemoveUserOrder(transNotice.UserKey, userOrderID)
 					SendTransactionNotic(&transNotice, callback)
+					AddTransactionBill(&transNotice)
 				}
 			}
 		}
@@ -187,6 +188,7 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 				row.Scan(&transNotice.Balance)
 				tx.Commit()
 				SendTransactionNotic(&transNotice, callback)
+				AddTransactionBill(&transNotice)
 			}
 		}
 	}
@@ -200,6 +202,19 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 		fn(blockin.AssetName, transfer.To, "to", FromChainValue(transfer.Value), transfer.Tx_hash)
 		fn(blockin.AssetName, transfer.From, "miner_fee", -FromChainValue(transfer.Fee), transfer.Tx_hash)
 	}
+}
+
+func AddTransactionBill(transNotice *TransactionNotice) error {
+	db := mysqlpool.Get()
+	_, err := db.Exec("insert transaction_bill (user_key, trans_type, status, blockin_height, asset_name, address, amount, "+
+		"pay_fee, balance, hash, order_id, time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		transNotice.UserKey, transNotice.TransType, transNotice.Status, transNotice.BlockinHeight, transNotice.AssetName,
+		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.Balance, transNotice.Hash,
+		transNotice.OrderID, time.Unix(transNotice.Time, 0).Format(TimeFormat))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallback) error {

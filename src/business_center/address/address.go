@@ -314,41 +314,53 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 		}
 	}
 
-	assetNameMap := make(map[string]interface{})
-	for _, value := range params.AssetNames {
-		if value != "" {
-			assetNameMap[value] = ""
+	queryMap := make(map[string]interface{})
+
+	if len(params.AssetNames) > 0 {
+		queryMap["asset_names"] = params.AssetNames
+	}
+
+	if params.IsToken > 0 {
+		queryMap["is_token"] = params.IsToken
+	}
+
+	dataList := v1.AckAssetsAttributeList{
+		PageIndex:    -1,
+		MaxDispLines: -1,
+		TotalLines:   -1,
+	}
+
+	if params.PageIndex > 0 {
+		queryMap["page_index"] = params.PageIndex
+		dataList.PageIndex = params.PageIndex
+	}
+
+	if params.MaxDispLines > 0 {
+		queryMap["max_disp_lines"] = params.MaxDispLines
+		dataList.MaxDispLines = params.MaxDispLines
+	}
+
+	if params.TotalLines == 0 {
+		dataList.TotalLines = mysqlpool.QueryTransactionOrderCount(queryMap)
+	}
+
+	if arr, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
+		for _, v := range arr {
+			data := v1.AckAssetsAttribute{}
+			data.AssetName = v.AssetName
+			data.FullName = v.FullName
+			data.IsToken = v.IsToken
+			data.ParentName = v.ParentName
+			data.DepositMin = v.DepositMin
+			data.WithdrawalRate = v.WithdrawalRate
+			data.WithdrawalValue = v.WithdrawalValue
+			data.ConfirmationNum = v.ConfirmationNum
+			data.Decimals = v.Decimals
+			dataList.Data = append(dataList.Data, data)
 		}
 	}
 
-	assetsAttributeList := v1.AckAssetsAttributeList{}
-	if assetProperty, ok := mysqlpool.QueryAssetProperty(nil); ok {
-		for _, v := range assetProperty {
-			if len(assetNameMap) > 0 {
-				if _, ok := assetNameMap[v.AssetName]; !ok {
-					continue
-				}
-			}
-			if params.IsToken > 0 {
-				if params.IsToken != v.IsToken {
-					continue
-				}
-			}
-			assetAttribute := v1.AckAssetsAttribute{}
-			assetAttribute.AssetName = v.AssetName
-			assetAttribute.FullName = v.FullName
-			assetAttribute.IsToken = v.IsToken
-			assetAttribute.ParentName = v.ParentName
-			assetAttribute.DepositMin = v.DepositMin
-			assetAttribute.WithdrawalRate = v.WithdrawalRate
-			assetAttribute.WithdrawalValue = v.WithdrawalValue
-			assetAttribute.ConfirmationNum = v.ConfirmationNum
-			assetAttribute.Decimals = v.Decimals
-			assetsAttributeList.Data = append(assetsAttributeList.Data, assetAttribute)
-		}
-	}
-
-	pack, err := json.Marshal(assetsAttributeList)
+	pack, err := json.Marshal(dataList)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
@@ -360,7 +372,6 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 
 func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error {
 	_, _, userKey := req.GetUserKey()
-
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
@@ -384,24 +395,15 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 		}
 	}
 
-	assetNameMap := make(map[string]interface{})
-	for _, value := range params.AssetNames {
-		if value != "" {
-			assetNameMap[value] = ""
-		}
+	queryMap := make(map[string]interface{})
+
+	if len(params.AssetNames) > 0 {
+		queryMap["asset_names"] = params.AssetNames
 	}
 
-	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = userProperty.UserKey
-
 	dataList := v1.AckUserBalanceList{}
-	if userAccount, ok := mysqlpool.QueryUserAccount(queryMap); ok {
-		for _, v := range userAccount {
-			if len(assetNameMap) > 0 {
-				if _, ok := assetNameMap[v.AssetName]; !ok {
-					continue
-				}
-			}
+	if arr, ok := mysqlpool.QueryUserAccount(queryMap); ok {
+		for _, v := range arr {
 			data := v1.AckUserBalance{}
 			data.AssetName = v.AssetName
 			data.AvailableAmount = transaction.ToChainValue(v.AvailableAmount)
@@ -421,73 +423,111 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 }
 
 func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvResponse) error {
-	// 获取userKey和是否sub
-	_, _, realUseKey := req.GetUserKey()
-	isSubUserKey := req.IsSubUserKey()
-
-	_, ok := mysqlpool.QueryUserPropertyByKey(realUseKey)
+	_, _, userKey := req.GetUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+realUseKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
+	}
+
+	params := v1.ReqHistoryTransactionOrder{
+		ID:            -1,
+		OrderID:       "",
+		AssetName:     "",
+		TransType:     -1,
+		Hash:          "",
+		MaxAmount:     -1,
+		MinAmount:     -1,
+		MaxUpdateTime: -1,
+		MinUpdateTime: -1,
+		TotalLines:    -1,
+		PageIndex:     -1,
+		MaxDispLines:  -1,
+	}
+
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
 	}
 
 	queryMap := make(map[string]interface{})
-	params, err := jsonparse.Parse(req.Argv.Message)
-	if err != nil {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
+	queryMap["user_key"] = userProperty.UserKey
+
+	if params.ID > 0 {
+		queryMap["id"] = params.ID
 	}
 
-	queryMap["user_key"] = realUseKey
-
-	if value, ok := params.AssetName(); ok {
-		queryMap["asset_name"] = value
+	if len(params.OrderID) > 0 {
+		queryMap["order_id"] = params.OrderID
 	}
 
-	if value, ok := params.TransType(); ok {
-		queryMap["trans_type"] = value
+	if len(params.AssetName) > 0 {
+		queryMap["asset_name"] = params.AssetName
 	}
 
-	if value, ok := params.Status(); ok {
-		queryMap["status"] = value
+	if params.TransType > 0 {
+		queryMap["trans_type"] = params.TransType
 	}
 
-	if value, ok := params.MaxUpdateTime(); ok {
-		queryMap["max_update_time"] = value
+	if len(params.Hash) > 0 {
+		queryMap["hash"] = params.Hash
 	}
 
-	if value, ok := params.MinUpdateTime(); ok {
-		queryMap["min_update_time"] = value
+	if params.MaxAmount > 0 {
+		queryMap["max_amount"] = params.MaxAmount
 	}
 
-	data, _ := mysqlpool.QueryTransactionOrder(queryMap)
+	if params.MinAmount > 0 {
+		queryMap["min_amount"] = params.MinAmount
+	}
 
-	var pack []byte
-	if isSubUserKey {
-		hisTxOrderList := v1.AckHistoryTransactionOrderList{}
+	if params.MaxUpdateTime > 0 {
+		queryMap["max_update_time"] = params.MaxUpdateTime
+	}
 
-		for _, v := range data {
-			hisTxOrder := v1.AckHistoryTransactionOrder{}
+	if params.MinUpdateTime > 0 {
+		queryMap["min_update_time"] = params.MinUpdateTime
+	}
 
-			hisTxOrder.AssetName = v.AssetName
-			hisTxOrder.TransType = v.TransType
-			hisTxOrder.Status = v.Status
-			hisTxOrder.Amount = v.Amount
-			hisTxOrder.PayFee = v.PayFee
-			hisTxOrder.Hash = v.Hash
-			hisTxOrder.OrderID = v.OrderID
-			hisTxOrder.Time = v.Time
+	dataList := v1.AckHistoryTransactionOrderList{}
 
-			hisTxOrderList.Data = append(hisTxOrderList.Data, hisTxOrder)
+	if params.PageIndex > 0 {
+		queryMap["page_index"] = params.PageIndex
+		dataList.PageIndex = params.PageIndex
+	}
+
+	if params.MaxDispLines > 0 {
+		queryMap["max_disp_lines"] = params.MaxDispLines
+		dataList.MaxDispLines = params.MaxDispLines
+	}
+
+	if params.TotalLines == 0 {
+		dataList.TotalLines = mysqlpool.QueryTransactionOrderCount(queryMap)
+	}
+
+	if arr, ok := mysqlpool.QueryTransactionOrder(queryMap); ok {
+		for _, v := range arr {
+			data := v1.AckHistoryTransactionOrder{}
+			data.AssetName = v.AssetName
+			data.Address = v.Address
+			data.TransType = v.TransType
+			data.Status = v.Status
+			data.Amount = v.Amount
+			data.PayFee = v.PayFee
+			data.Balance = v.Balance
+			data.Hash = v.Hash
+			data.OrderID = v.OrderID
+			data.Time = v.Time
+			dataList.Data = append(dataList.Data, data)
 		}
-
-		pack, err = json.Marshal(hisTxOrderList)
-	} else {
-		pack, err = json.Marshal(data)
 	}
 
+	pack, err := json.Marshal(dataList)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
@@ -509,6 +549,9 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 	params := v1.ReqHistoryTransactionMessage{
 		MaxMessageID: -1,
 		MinMessageID: -1,
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
 	}
 
 	if len(req.Argv.Message) > 0 {
@@ -531,6 +574,21 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 	}
 
 	dataList := v1.AckHistoryTransactionMessageList{}
+
+	if params.PageIndex > 0 {
+		queryMap["page_index"] = params.PageIndex
+		dataList.PageIndex = params.PageIndex
+	}
+
+	if params.MaxDispLines > 0 {
+		queryMap["max_disp_lines"] = params.MaxDispLines
+		dataList.MaxDispLines = params.MaxDispLines
+	}
+
+	if params.TotalLines == 0 {
+		dataList.TotalLines = mysqlpool.QueryTransactionOrderCount(queryMap)
+	}
+
 	if arr, ok := mysqlpool.QueryTransactionMessage(queryMap); ok {
 		for _, v := range arr {
 			data := v1.AckHistoryTransactionMessage{}
@@ -561,19 +619,16 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 }
 
 func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	// 获取userKey和是否sub
-	_, _, realUseKey := req.GetUserKey()
-	//isSubUserKey := req.IsSubUserKey()
-
-	_, ok := mysqlpool.QueryUserPropertyByKey(realUseKey)
+	_, _, userKey := req.GetUserKey()
+	_, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+realUseKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	reqUserAddrss := v1.ReqUserAddress{}
-	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserAddrss)
+	params := v1.ReqUserAddress{}
+	err := json.Unmarshal([]byte(req.Argv.Message), &params)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
 		l4g.Error(res.ErrMsg)
@@ -581,28 +636,46 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 	}
 
 	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = realUseKey
-	if reqUserAddrss.AssetName != "" {
-		queryMap["asset_name"] = reqUserAddrss.AssetName
+	queryMap["user_key"] = userKey
+
+	if len(params.AssetNames) > 0 {
+		queryMap["asset_names"] = params.AssetNames
 	}
 
-	resMap := responsePagination(queryMap, mysqlpool.QueryUserAddressCount(queryMap))
-	userAddress, _ := mysqlpool.QueryUserAddress(queryMap)
+	dataList := v1.AckUserAddressList{}
 
-	userAddressList := v1.AckUserAddressList{}
-	for _, v := range userAddress {
-		ua := v1.AckUserAddress{}
-		ua.AssetName = v.AssetName
-		ua.Address = v.Address
-		ua.AllocationTime = v.AllocationTime
-
-		userAddressList.Data = append(userAddressList.Data, ua)
+	if params.PageIndex > 0 {
+		queryMap["page_index"] = params.PageIndex
+		dataList.PageIndex = params.PageIndex
 	}
-	resMap["data"] = userAddressList.Data
 
-	res.Value.Message = responseJson(resMap)
-	res.Err = 0
-	res.ErrMsg = ""
+	if params.MaxDispLines > 0 {
+		queryMap["max_disp_lines"] = params.MaxDispLines
+		dataList.MaxDispLines = params.MaxDispLines
+	}
+
+	if params.TotalLines == 0 {
+		dataList.TotalLines = mysqlpool.QueryUserAddressCount(queryMap)
+	}
+
+	if arr, ok := mysqlpool.QueryUserAddress(queryMap); ok {
+		for _, v := range arr {
+			data := v1.AckUserAddress{}
+			data.AssetName = v.AssetName
+			data.Address = v.Address
+			data.AllocationTime = v.AllocationTime
+
+			dataList.Data = append(dataList.Data, data)
+		}
+	}
+
+	pack, err := json.Marshal(dataList)
+	if err != nil {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+	res.Value.Message = string(pack)
 	return nil
 }
 

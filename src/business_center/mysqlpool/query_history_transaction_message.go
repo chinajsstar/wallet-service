@@ -14,9 +14,9 @@ func QueryTransactionMessage(queryMap map[string]interface{}) ([]TransactionNoti
 
 	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
+		sqls += " order by msg_id "
 		sqls += andPagination(queryMap, &params)
 	}
-	sqls += " order by msg_id;"
 
 	db := Get()
 	rows, err := db.Query(sqls, params...)
@@ -35,4 +35,19 @@ func QueryTransactionMessage(queryMap map[string]interface{}) ([]TransactionNoti
 		}
 	}
 	return messages, len(messages) > 0
+}
+
+func QueryTransactionMessageCount(queryMap map[string]interface{}) int {
+	sqls := "select count(*) from transaction_notice where true "
+
+	count := 0
+	params := make([]interface{}, 0)
+
+	if len(queryMap) > 0 {
+		sqls += andConditions(queryMap, &params)
+	}
+
+	db := Get()
+	db.QueryRow(sqls, params...).Scan(&count)
+	return count
 }

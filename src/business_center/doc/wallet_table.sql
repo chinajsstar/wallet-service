@@ -249,7 +249,7 @@ CREATE TABLE `withdrawal_order` (
 -- ----------------------------
 DROP TABLE IF EXISTS `transaction_bill`;
 CREATE TABLE `transaction_bill` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `user_key` varchar(255) NOT NULL COMMENT '商户Key',
   `trans_type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
   `status` int(11) NOT NULL COMMENT '0:入块, 1:成功, >1:失败',
