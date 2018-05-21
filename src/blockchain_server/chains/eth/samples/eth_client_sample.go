@@ -78,9 +78,10 @@ func main() {
 			clientManager,
 			callerAcc.PrivateKey,
 			tokenOwnerAcc.PrivateKey,
-			tokenReciptAcc.Address,
+			//tokenReciptAcc.Address,
+			callerAcc.Address,
 			types.Chain_eth,
-			token, 5,
+			token, 1,
 			done_sendTx)
 	} else {i++}
 
@@ -123,8 +124,8 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 
 	subCtx, cancel := context.WithCancel(ctx)
 	go func(ctx context.Context, channel types.RechargeTxChannel) {
-		defer subscribe.Unsubscribe()
 		defer close(channel)
+		defer subscribe.Unsubscribe()
 
 		exit := false
 		for !exit {
@@ -135,7 +136,7 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 						l4g.Trace("Watch AddressOfContract channel is close!")
 					} else {
 						l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
-						if rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed {
+						if (rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed) && false  {
 							watch_address_channel <- true
 						}
 					}

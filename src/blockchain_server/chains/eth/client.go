@@ -19,6 +19,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"crypto/ecdsa"
 )
 
 type Client struct {
@@ -376,36 +377,42 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 // from is a crypted private key
 func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
-
-	key, from, err := ParseKey(fromkey)
-	if err != nil {
+	fromPrivkey, input, err := self.innerBuildTx(fromkey, tx)
+	if err!=nil {
 		return err
 	}
-	tx.From = from
+
+	l4g.Trace("ethereum buildTx Ok, TxInfo:%s", tx.String())
+
 	// 如果tx.From不等于tx.TokenTx.From, 应该是从用户地址转出token
 	// 用户地址上应该是没有ether的. 则需要授权token
 	// 如果tx.From==tx.TokenTx.From, 说明是用户从热钱包地址提币,
 	// 热钱包地址应该保留了一定数量的ether
-	if true {
-		if tx.IsTokenTx() && tx.From != tx.TokenTx.From {
-			if err := self.approveTokenTx(tx.TokenFromKey, fromkey,
-				// tx.To == tx.TokenTx.TokenSymbol.Address, tx.TokenTx.TokenSymbol.Address,
-				tx.TokenTx.ContractAddress(),
-				tx.TokenTx.Value_decimaled()); err != nil {
-				return err
-			}
+	if tx.IsTokenTx() && tx.From!=tx.TokenFromKey {
+		if err := self.approveTokenTx(tx.TokenFromKey, fromkey,
+			tx.TokenTx.ContractAddress(),
+			tx.TokenTx.Value_decimaled()); err != nil {
+			return err
 		}
 	}
 
-	etx, err := self.innerBuildTx(tx)
-	if err != nil {
+	etx, err := self.buildRawTx(
+		common.HexToAddress(tx.From),
+		common.HexToAddress(tx.To),
+		EtherToWei(tx.Value), input)
+
+	if err!=nil {
 		return err
 	}
 
 	tx.State = types.Tx_state_BuildOk
 
+	if err != nil {
+		return err
+	}
+
 	signer := etypes.HomesteadSigner{}
-	signedTx, err := etypes.SignTx(etx, signer, key)
+	signedTx, err := etypes.SignTx(etx, signer, fromPrivkey)
 
 	tx.Tx_hash = signedTx.Hash().String()
 
@@ -874,11 +881,14 @@ func (self *Client) SendTxBySteps(chiperKey string, tx *types.Transfer) error {
 	return self.SendSignedTx(txByte, tx)
 }
 
-func (self *Client) innerBuildTx(tx *types.Transfer) (etx *etypes.Transaction, err error) {
-	var input []byte = nil
 
-	from := common.HexToAddress(tx.From)
-	to := common.HexToAddress(tx.To)
+func (self *Client) innerBuildTx(fromKey string, tx *types.Transfer) (fromPrivkey *ecdsa.PrivateKey, input []byte, err error) {
+	var from string
+	fromPrivkey, from, err = ParseKey(fromKey)
+	if err!=nil {
+		return
+	}
+	tx.From = from
 
 	if tkTx := tx.TokenTx; tkTx != nil {
 		_, tkTx.From, err = ParseKey(tx.TokenFromKey)
@@ -893,6 +903,9 @@ func (self *Client) innerBuildTx(tx *types.Transfer) (etx *etypes.Transaction, e
 			} else {
 				input, err = token.TOKENABI.Pack("transfer", tokenTo, value)
 			}
+			if err != nil {
+				return nil, nil, err
+			}
 		} else {
 			if tx.From == tx.TokenTx.From {
 				input = common.FromHex("0xa9059cbb")
@@ -903,24 +916,24 @@ func (self *Client) innerBuildTx(tx *types.Transfer) (etx *etypes.Transaction, e
 			input = append(input, common.LeftPadBytes(tokenTo.Bytes(), 32)[:]...)
 			input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)
 		}
-		if err != nil {
-			return nil, err
-		}
 	}
+	return
 
-	return self.buildRawTx(from, to, EtherToWei(tx.Value), input)
+	//return self.buildRawTx(from, to, EtherToWei(tx.Value), input)
 }
 
 // build transaction
-func (self *Client) BuildTx(fromkey string, tx *types.Transfer) (err error) {
-	_, tx.From, err = ParseKey(fromkey)
-	if err != nil {
-		return
-	}
+func (self *Client) BuildTx(fromKey string, tx *types.Transfer) (err error) {
 	var etx *etypes.Transaction
-	if etx, err = self.innerBuildTx(tx); err != nil {
+	var input []byte
+
+	if _, input, err = self.innerBuildTx(fromKey, tx); err != nil {
 		return err
 	}
+
+	etx, err = self.buildRawTx(common.HexToAddress(tx.From),
+		common.HexToAddress(tx.To),
+		EtherToWei(tx.Value), input)
 
 	if tx.Additional_data, err = etx.MarshalJSON(); err != nil {
 		l4g.Error("ethereum BuildTx faild, message:%s", err.Error())
