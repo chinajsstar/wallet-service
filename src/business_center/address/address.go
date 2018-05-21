@@ -359,83 +359,64 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 }
 
 func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error {
-	// 获取userKey和是否sub
-	_, _, realUseKey := req.GetUserKey()
-	isSubUserKey := req.IsSubUserKey()
+	_, _, userKey := req.GetUserKey()
 
-	_, ok := mysqlpool.QueryUserPropertyByKey(realUseKey)
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+realUseKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	var assetNameArray []string
-	if isSubUserKey {
-		assets := v1.ReqUserBalance{}
-		err := json.Unmarshal([]byte(req.Argv.Message), &assets)
-		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-			l4g.Error(res.ErrMsg)
-			return errors.New(res.ErrMsg)
-		}
-		assetNameArray = assets.Assets
-	} else {
-		params, err := jsonparse.Parse(req.Argv.Message)
-		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-			l4g.Error(res.ErrMsg)
-			return errors.New(res.ErrMsg)
-		}
-		assetNameArray, _ = params.AssetNameArray()
+	if userProperty.UserClass != 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "此不能操作此命令")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
 	}
 
-	// 放入map
+	params := v1.ReqUserBalance{}
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
 	assetNameMap := make(map[string]interface{})
-	for _, value := range assetNameArray {
+	for _, value := range params.AssetNames {
 		if value != "" {
 			assetNameMap[value] = ""
 		}
 	}
 
 	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = realUseKey
+	queryMap["user_key"] = userProperty.UserKey
 
-	assetsBalanceList := v1.AckUserBalanceList{}
+	dataList := v1.AckUserBalanceList{}
 	if userAccount, ok := mysqlpool.QueryUserAccount(queryMap); ok {
 		for _, v := range userAccount {
-			// 是否选中的
 			if len(assetNameMap) > 0 {
 				if _, ok := assetNameMap[v.AssetName]; !ok {
 					continue
 				}
 			}
-
-			assetBalance := v1.AckUserBalance{}
-			assetBalance.AssetName = v.AssetName
-			assetBalance.AvailableAmount = float64(v.AvailableAmount) * math.Pow10(-8)
-			assetBalance.FrozenAmount = float64(v.FrozenAmount) * math.Pow10(-8)
-
-			assetsBalanceList.Data = append(assetsBalanceList.Data, assetBalance)
+			data := v1.AckUserBalance{}
+			data.AssetName = v.AssetName
+			data.AvailableAmount = transaction.ToChainValue(v.AvailableAmount)
+			data.FrozenAmount = transaction.ToChainValue(v.FrozenAmount)
+			dataList.Data = append(dataList.Data, data)
 		}
 	}
 
-	// TODO：输出分叉，以后xuliang处理
-	var err error
-	var pack []byte
-	if isSubUserKey {
-		pack, err = json.Marshal(assetsBalanceList)
-	} else {
-		pack, err = json.Marshal(assetsBalanceList.Data)
-	}
-
+	pack, err := json.Marshal(dataList)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 	res.Value.Message = string(pack)
-
 	return nil
 }
 
@@ -517,64 +498,59 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 }
 
 func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) error {
-	// 获取userKey和是否sub
-	_, _, realUseKey := req.GetUserKey()
-	isSubUserKey := req.IsSubUserKey()
-
-	_, ok := mysqlpool.QueryUserPropertyByKey(realUseKey)
+	_, _, userKey := req.GetUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+realUseKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	queryMap := make(map[string]interface{})
-	params, err := jsonparse.Parse(req.Argv.Message)
-	if err != nil {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
+	params := v1.ReqHistoryTransactionMessage{
+		MaxMessageID: -1,
+		MinMessageID: -1,
 	}
 
-	queryMap["user_key"] = realUseKey
-
-	if value, ok := params.MaxMessageID(); ok {
-		queryMap["max_msg_id"] = value
-	}
-
-	if value, ok := params.MinMessageID(); ok {
-		queryMap["min_msg_id"] = value
-	}
-
-	data, _ := mysqlpool.QueryTransactionMessage(queryMap)
-
-	var pack []byte
-	if isSubUserKey {
-		hisTxMsgList := v1.AckHistoryTransactionMessageList{}
-
-		for _, v := range data {
-			hisTxMsg := v1.AckHistoryTransactionMessage{}
-
-			hisTxMsg.MsgId = v.MsgID
-			hisTxMsg.TransType = v.TransType
-			hisTxMsg.Status = v.Status
-			hisTxMsg.BlockinHeight = v.BlockinHeight
-			hisTxMsg.AssetName = v.AssetName
-			hisTxMsg.Address = v.Address
-			hisTxMsg.Amount = v.Amount
-			hisTxMsg.PayFee = v.PayFee
-			hisTxMsg.Hash = v.Hash
-			hisTxMsg.OrderId = v.OrderID
-			hisTxMsg.Time = v.Time
-
-			hisTxMsgList.Data = append(hisTxMsgList.Data, hisTxMsg)
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
 		}
+	}
+	queryMap := make(map[string]interface{})
+	queryMap["user_key"] = userProperty.UserKey
 
-		pack, err = json.Marshal(hisTxMsgList)
-	} else {
-		pack, err = json.Marshal(data)
+	if params.MaxMessageID > 0 {
+		queryMap["max_msg_id"] = params.MaxMessageID
 	}
 
+	if params.MinMessageID > 0 {
+		queryMap["min_msg_id"] = params.MinMessageID
+	}
+
+	dataList := v1.AckHistoryTransactionMessageList{}
+	if arr, ok := mysqlpool.QueryTransactionMessage(queryMap); ok {
+		for _, v := range arr {
+			data := v1.AckHistoryTransactionMessage{}
+			data.MsgID = v.MsgID
+			data.TransType = v.TransType
+			data.Status = v.Status
+			data.BlockinHeight = v.BlockinHeight
+			data.AssetName = v.AssetName
+			data.Address = v.Address
+			data.Amount = transaction.ToChainValue(v.Amount)
+			data.PayFee = transaction.ToChainValue(v.PayFee)
+			data.Balance = transaction.ToChainValue(v.Balance)
+			data.Hash = v.Hash
+			data.OrderId = v.OrderID
+			data.Time = v.Time
+			dataList.Data = append(dataList.Data, data)
+		}
+	}
+
+	pack, err := json.Marshal(dataList)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
