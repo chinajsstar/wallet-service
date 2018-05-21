@@ -40,6 +40,11 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 	sqls := ""
 	for key, value := range queryMap {
 		switch key {
+		case "id":
+			if value, ok := value.(int64); ok {
+				sqls += " and id = ?"
+				*params = append(*params, value)
+			}
 		case "user_key":
 			if value, ok := value.(string); ok {
 				sqls += " and user_key = ?"
@@ -54,6 +59,15 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 			if value, ok := value.(string); ok {
 				sqls += " and asset_name = ?"
 				*params = append(*params, value)
+			}
+		case "asset_names":
+			if value, ok := value.([]string); ok {
+				sqls += " and asset_name in (true"
+				for _, value := range value {
+					sqls += ", ?"
+					*params = append(*params, value)
+				}
+				sqls += ")"
 			}
 		case "is_token":
 			if value, ok := value.(float64); ok {
