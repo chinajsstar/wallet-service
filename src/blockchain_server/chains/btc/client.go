@@ -458,32 +458,6 @@ func (c *Client)SetNotifyChannel(ch chan interface{}) {
 	//c.notification_channel = ch
 }
 
-//func (c *Client) loopNotify() {
-//	for {
-//		c.cmlock()
-//		i := len(c. message_queue)
-//		msg := c.message_queue[0]
-//		c.message_queue = c.message_queue[1:]
-//		c.cmunlock()
-//
-//		select {
-//		case c.notification_channel <- msg:
-//		case <-c.quit: {
-//			l4g.Warn("still have %d message was not deal, and loopNotify will exit!", i)
-//			goto out
-//		}
-//		}
-//	}
-//	out:
-//		c.wg.Done()
-//}
-//
-//func (c *Client)sendNotify(msg interface{}) {
-//	c.cmlock()
-//	c.message_queue = append(c.message_queue, msg)
-//	c.cmunlock()
-//}
-
 func (c *Client)SubscribeRechargeTx(txChannel types.RechargeTxChannel) {
 	c.rechargeTxNotification = txChannel
 }

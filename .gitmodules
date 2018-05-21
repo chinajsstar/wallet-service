@@ -55,3 +55,9 @@
 [submodule "src/github.com/cenkalti/hub"]
 	path = src/github.com/cenkalti/hub
 	url = https://github.com/cenkalti/hub.git
+[submodule "src/golang.org/genproto"]
+	path = src/golang.org/genproto
+	url = https://github.com/google/go-genproto.git
+[submodule "src/golang.org/grpc"]
+	path = src/golang.org/grpc
+	url = https://github.com/grpc/grpc-go.git
