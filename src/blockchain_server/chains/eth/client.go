@@ -43,6 +43,7 @@ type Client struct {
 	contracts map[string]*token.Token // symbol ->token.EthToken
 
 	//abi       abi.ABI
+	txMtx		sync.Mutex
 }
 
 func (self *Client) lock() {
@@ -202,12 +203,16 @@ func (self *Client) txToken(tx *types.Transfer) *token.Token {
 
 // 这个value是以wei为单位的
 func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []byte) (*etypes.Transaction, error) {
+
 	var (
 		err             error
 		nonce, gaslimit uint64
 		gasprice        *big.Int
 		pendingcode     []byte
 	)
+
+	self.txMtx.Lock()
+	defer self.txMtx.Unlock()
 
 	if nonce, err = self.c.PendingNonceAt(context.TODO(), from); err != nil {
 		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
@@ -377,6 +382,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 // from is a crypted private key
 func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
+
 	fromPrivkey, input, err := self.innerBuildTx(fromkey, tx)
 	if err!=nil {
 		return err
