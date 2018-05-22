@@ -204,8 +204,29 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 }
 
 func AddTransactionBill(transNotice *TransactionNotice) error {
-	db := mysqlpool.Get()
-	_, err := db.Exec("insert transaction_bill (user_key, trans_type, status, blockin_height, asset_name, address, amount, "+
+	tx, err := mysqlpool.Get().Begin()
+	if err != nil {
+		return err
+	}
+
+	ret, err := tx.Exec("update transaction_bill set status = ?, balance = ?, time = ? where status = 0 and user_key = ?"+
+		" and asset_name = ? and order_id = ?",
+		transNotice.Status, transNotice.Balance, time.Unix(transNotice.Time, 0).Format(TimeFormat),
+		transNotice.UserKey, transNotice.AssetName, transNotice.OrderID)
+	if err != nil {
+		return err
+	}
+
+	rowAffected, err := ret.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowAffected > 0 {
+		return nil
+	}
+
+	_, err = tx.Exec("insert transaction_bill (user_key, trans_type, status, blockin_height, asset_name, address, amount, "+
 		"pay_fee, balance, hash, order_id, time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		transNotice.UserKey, transNotice.TransType, transNotice.Status, transNotice.BlockinHeight, transNotice.AssetName,
 		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.Balance, transNotice.Hash,
@@ -213,7 +234,8 @@ func AddTransactionBill(transNotice *TransactionNotice) error {
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallback) error {

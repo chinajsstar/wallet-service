@@ -25,7 +25,7 @@ func TestHandleMsg(t *testing.T) {
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":20, \"address\":\"mxLju5VqXZR6f8aeFvk82Ltv6WmdnYg8KY\","+
+		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":10, \"address\":\"mxLju5VqXZR6f8aeFvk82Ltv6WmdnYg8KY\","+
 			"\"user_order_id\":\"%s\" }", transaction.GenerateUUID("UR"))
 		req.Argv.Message = params
 	case 3:
@@ -39,7 +39,7 @@ func TestHandleMsg(t *testing.T) {
 	case 5:
 		req.Method.Function = "asset_attribute"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"asset_names\":[\"btc\", \"eth\"]}"
+		req.Argv.Message = "{\"asset_names\":[\"btc\", \"eth\"], \"max_disp_lines\":1, \"total_lines\":0}"
 	case 6:
 		req.Method.Function = "get_balance"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
@@ -47,7 +47,7 @@ func TestHandleMsg(t *testing.T) {
 	case 7:
 		req.Method.Function = "history_transaction_order"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = ""
+		req.Argv.Message = "{\"trans_type\":1}"
 	case 8:
 		req.Method.Function = "history_transaction_message"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
