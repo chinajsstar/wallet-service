@@ -323,7 +323,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 	owner := common.HexToAddress(owner_string)
 	spender := common.HexToAddress(spender_string)
 	contract := common.HexToAddress(contract_string)
-	input := token.BuildTokenTxInput(&owner, spender, value)
+	input := token.BuildTokenApproveInput(spender, value)
 
 	var (
 		tx, signedTx *etypes.Transaction

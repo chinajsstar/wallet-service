@@ -53,9 +53,9 @@ func BuildTokenTxInput(from *common.Address, to common.Address, value *big.Int) 
 	return
 }
 
-func BuildTokenApproveInput(address string, value *big.Int) (input[]byte) {
+func BuildTokenApproveInput(address common.Address, value *big.Int) (input[]byte) {
 	input = common.FromHex("0x095ea7b3")
-	input = append(input, common.LeftPadBytes(common.FromHex(address), 32)[:]...)
+	input = append(input, common.LeftPadBytes(address.Bytes(), 32)[:]...)
 	input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)
 	return
 }
