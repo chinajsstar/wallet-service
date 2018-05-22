@@ -25,7 +25,7 @@ func TestHandleMsg(t *testing.T) {
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		params := fmt.Sprintf("{\"asset_name\":\"ZToken\",\"amount\":15, \"address\":\"0x461f87aBb8a595e39e1E2AAAC2f332684856a30c\","+
+		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":20, \"address\":\"mxLju5VqXZR6f8aeFvk82Ltv6WmdnYg8KY\","+
 			"\"user_order_id\":\"%s\" }", transaction.GenerateUUID("UR"))
 		req.Argv.Message = params
 	case 3:

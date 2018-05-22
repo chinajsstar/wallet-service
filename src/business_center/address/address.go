@@ -517,6 +517,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 	if arr, ok := mysqlpool.QueryTransactionOrder(queryMap); ok {
 		for _, v := range arr {
 			data := v1.AckHistoryTransactionOrder{}
+			data.ID = v.ID
 			data.AssetName = v.AssetName
 			data.Address = v.Address
 			data.TransType = v.TransType

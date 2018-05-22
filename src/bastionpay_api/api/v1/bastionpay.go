@@ -93,6 +93,7 @@ type (
 	}
 
 	AckHistoryTransactionOrder struct {
+		ID        int64   `json:"serial_id" doc:"流水号"`
 		OrderID   string  `json:"order_id" doc:"交易订单"`
 		AssetName string  `json:"asset_name" doc:"币种"`
 		Address   string  `json:"address" doc:"提币地址或充值地址"`
