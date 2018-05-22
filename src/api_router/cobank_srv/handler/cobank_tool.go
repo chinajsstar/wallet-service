@@ -19,6 +19,12 @@ import (
 )
 
 ////////////////////////////////////////////////////////////
+const (
+	btc_cmd = "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
+	btc_arg = "-conf=/data/btc_data/bitcoin.conf"
+	//btc_cmd = "bitcoin-cli"
+	//btc_arg = ""
+)
 
 func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 	res.Err = data.NoErr
@@ -60,28 +66,25 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 			}
 		}(&rc)
 	} else if rc.Coin == "btc" {
-		//cmd, err := exec.LookPath("bitcoin-cli")
-		cmd := "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
-		arg := "-conf=/data/btc_data/bitcoin.conf"
-		//cmd := "bitcoin-cli"
-		//arg := ""
-		if err != nil {
-			res.Err = 1
-			res.ErrMsg = err.Error()
-		}else{
-			amount := fmt.Sprintf("%.8f", rc.Value)
-			l4g.Debug(cmd, arg, "sendtoaddress", rc.To, amount)
-			c := exec.Command(cmd, arg, "sendtoaddress", rc.To, amount)
-			if c != nil{
-				if err := c.Run(); err != nil {
-					fmt.Println(err)
-					res.Err = 1
-					res.ErrMsg = err.Error()
-				}
-			}else{
+		amount := fmt.Sprintf("%.8f", rc.Value)
+		l4g.Debug(btc_cmd, btc_arg, "sendtoaddress", rc.To, amount)
+
+		var c *exec.Cmd
+		if btc_arg != "" {
+			c = exec.Command(btc_cmd, btc_arg, "sendtoaddress", rc.To, amount)
+		} else{
+			c = exec.Command(btc_cmd, "sendtoaddress", rc.To, amount)
+		}
+
+		if c != nil{
+			if err := c.Run(); err != nil {
+				fmt.Println(err)
 				res.Err = 1
-				res.ErrMsg = "no bitcoin-cli command"
+				res.ErrMsg = err.Error()
 			}
+		}else{
+			res.Err = 1
+			res.ErrMsg = "no bitcoin-cli command"
 		}
 	}
 
@@ -103,27 +106,22 @@ func (x *Cobank) generate(req *data.SrvRequest, res *data.SrvResponse) {
 		res.Err = 1
 		res.ErrMsg = "not support eth"
 	} else if rc.Coin == "btc" {
-		//cmd, err := exec.LookPath("bitcoin-cli")
-		cmd := "/opt/btc_app/bitcoin-0.16.0/bin/bitcoin-cli"
-		arg := "-conf=/data/btc_data/bitcoin.conf"
-		//cmd := "bitcoin-cli"
-		//arg := ""
-		if err != nil {
-			res.Err = 1
-			res.ErrMsg = err.Error()
-		}else{
-			fmt.Println("cmd: ", cmd)
-			c := exec.Command(cmd, arg, "generate", strconv.Itoa(rc.Count))
-			if c != nil{
-				if err := c.Run(); err != nil {
-					fmt.Println(err)
-					res.Err = 1
-					res.ErrMsg = err.Error()
-				}
-			}else{
+		var c *exec.Cmd
+		if btc_arg != ""{
+			c = exec.Command(btc_cmd, btc_arg, "generate", strconv.Itoa(rc.Count))
+		} else {
+			c = exec.Command(btc_cmd, "generate", strconv.Itoa(rc.Count))
+		}
+
+		if c != nil{
+			if err := c.Run(); err != nil {
+				fmt.Println(err)
 				res.Err = 1
-				res.ErrMsg = "no bitcoin-cli command"
+				res.ErrMsg = err.Error()
 			}
+		}else{
+			res.Err = 1
+			res.ErrMsg = "no bitcoin-cli command"
 		}
 	}
 
