@@ -41,23 +41,19 @@ func ParseTokenTxInput (input []byte) (from, to string, value *big.Int, err erro
 	return from, to, value, nil
 }
 
-func BuildTransferInput1 (to string, value *big.Int) (input []byte) {
-	input = common.FromHex("0xa9059cbb")
-	input = append(input, common.LeftPadBytes(
-		common.FromHex(to), 32)[:]...)
+func BuildTokenTxInput(from *common.Address, to common.Address, value *big.Int) (input[]byte)  {
+	if from!=nil {
+		input = common.FromHex("0x23b872dd")
+		input = append(input, common.LeftPadBytes(from.Bytes(), 32)[:]...)
+	} else {
+		input = common.FromHex("0xa9059cbb")
+	}
+	input = append(input, common.LeftPadBytes(to.Bytes(), 32)[:]...)
 	input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)
 	return
 }
 
-func BuildTransferInput2 (from, to string, value *big.Int) (input[]byte)  {
-	input = common.FromHex("0x23b872dd")
-	input = append(input, common.LeftPadBytes(common.FromHex(from), 32)[:]...)
-	input = append(input, common.LeftPadBytes(common.FromHex(to), 32)[:]...)
-	input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)
-	return
-}
-
-func BuildApproveInput(address string, value *big.Int) (input[]byte) {
+func BuildTokenApproveInput(address string, value *big.Int) (input[]byte) {
 	input = common.FromHex("0x095ea7b3")
 	input = append(input, common.LeftPadBytes(common.FromHex(address), 32)[:]...)
 	input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)

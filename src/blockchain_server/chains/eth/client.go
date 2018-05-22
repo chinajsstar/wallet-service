@@ -201,6 +201,16 @@ func (self *Client) txToken(tx *types.Transfer) *token.Token {
 	return self.contracts[tx.TokenTx.Token.Symbol]
 }
 
+func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
+	input []byte) (gasprice *big.Int, gaslimit uint64, err error) {
+	if gasprice, err = self.c.SuggestGasPrice(context.TODO()); err != nil {
+		return
+	}
+	msg := ethereum.CallMsg{From: from, To: &to, Value: value, Data: input}
+	gaslimit, err = self.c.EstimateGas(context.TODO(), msg);
+	return
+}
+
 // 这个value是以wei为单位的
 func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []byte) (*etypes.Transaction, error) {
 
@@ -210,9 +220,6 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 		gasprice        *big.Int
 		pendingcode     []byte
 	)
-
-	self.txMtx.Lock()
-	defer self.txMtx.Unlock()
 
 	if nonce, err = self.c.PendingNonceAt(context.TODO(), from); err != nil {
 		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
@@ -316,79 +323,94 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 	owner := common.HexToAddress(owner_string)
 	spender := common.HexToAddress(spender_string)
 	contract := common.HexToAddress(contract_string)
+	input := token.BuildTokenTxInput(&owner, spender, value)
 
-	input := common.FromHex("0x095ea7b3")
-	input = append(input, common.LeftPadBytes(spender.Bytes(), 32)[:]...)
+	var (
+		tx, signedTx *etypes.Transaction
+		nonce uint64
+		gasprice *big.Int
+		gaslimit uint64
+		isok bool
+	)
 
-	input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)
-
-	etx, err := self.buildRawTx(owner, contract, big.NewInt(0), input)
-
+	gasprice, gaslimit, err = self.estimatTxFee(owner, contract, big.NewInt(0), input)
 	if err != nil {
 		return err
 	}
 
-	txfee := etx.GasPrice()
-	txfee = txfee.Mul(txfee, big.NewInt(int64(etx.Gas())))
-
+	txfee := gasprice.Mul(gasprice, big.NewInt(int64(gaslimit)))
 	signer := etypes.HomesteadSigner{}
 
+	// Spender需要充owner转走token, 首先需要Token的Owner调用合约给自己授权
+	// 所以由Spender先发送txfee给owner, 作为执行授权的交易费
+	// 因为Spender中没有'ether'作为txfee
 	{
-		// 由Spender 发送 txfee 给owner, 作为执行授权的交易费
-		stx, err := self.buildRawTx(spender, owner, txfee, nil)
+		self.txMtx.Lock()
+		tx, err = self.buildRawTx(spender, owner, txfee, nil)
+		l4g.Trace("Build Fee ethereumTx:%s, value:%d", tx.String(), value.Uint64())
 		if err != nil {
-			return err
+			goto TxMtxUnlock
 		}
 
-		signedTx, err := etypes.SignTx(stx, signer, privSpenderKey)
+		signedTx, err = etypes.SignTx(tx, signer, privSpenderKey)
 		if err != nil {
-			return err
+			goto TxMtxUnlock
 		}
 		if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
-			return err
+			goto TxMtxUnlock
 		}
 
-		isok, err := self.blockTraceTx(signedTx)
+		self.txMtx.Unlock()
+
+		isok, err = self.blockTraceTx(signedTx)
 		if err != nil {
-			return err
+			goto TxMtxUnlock
 		}
 
 		if !isok {
-			return fmt.Errorf("trace txfee send error!")
+			err = fmt.Errorf("trace txfee send error!")
+			goto TxMtxUnlock
 		}
 	}
 
-	signedTx, err := etypes.SignTx(etx, signer, privOwnerKey)
+	self.txMtx.Lock()
+	nonce, err = self.c.PendingNonceAt(context.TODO(), owner)
+	if err!=nil { goto TxMtxUnlock}
+
+	tx = etypes.NewTransaction(nonce, contract, big.NewInt(0), gaslimit, gasprice, input)
+	signedTx, err = etypes.SignTx(tx, signer, privOwnerKey)
 	if err != nil {
 		return err
 	}
 
-	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
+	if err := self.c.SendTransaction(context.TODO(), signedTx); err != nil {
 		l4g.Error("SendTransaction error:message:%s", err.Error())
 		return err
 	}
 
-	var isok bool
 	isok, err = self.blockTraceTx(signedTx)
-
 	if err != nil {
-		return err
+		goto TxMtxUnlock
 	}
+
 	if !isok {
-		return fmt.Errorf("approve TokenSymbol Tx(%s) faild", signedTx.Hash().String())
+		err = fmt.Errorf("approve TokenSymbol Tx(%s) faild", signedTx.Hash().String())
+		goto TxMtxUnlock
 	}
-	return nil
+
+	TxMtxUnlock:
+		self.txMtx.Unlock()
+
+	return err
 }
 
 // from is a crypted private key
 func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 
-	fromPrivkey, input, err := self.innerBuildTx(fromkey, tx)
+	fromPrivkey, input, err := self.initTxInfo(fromkey, tx)
 	if err!=nil {
 		return err
 	}
-
-	l4g.Trace("ethereum buildTx Ok, TxInfo:%s", tx.String())
 
 	// 如果tx.From不等于tx.TokenTx.From, 应该是从用户地址转出token
 	// 用户地址上应该是没有ether的. 则需要授权token
@@ -402,39 +424,41 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 		}
 	}
 
-	etx, err := self.buildRawTx(
+	var (
+		etx, signedTx *etypes.Transaction
+	)
+
+	// 必须在self.c.PendingNonceAt之前加锁
+	// 在使用对应nonce来创建的tx被调用self.c.SendTransaction之后解锁
+	// 不然如果from, value的值如果一样, PendingNonceAt得到的值不会变化
+	// 导致并发交易时, SendTransaction发送失败的问题
+	self.txMtx.Lock()
+	etx, err = self.buildRawTx(
 		common.HexToAddress(tx.From),
 		common.HexToAddress(tx.To),
 		EtherToWei(tx.Value), input)
 
 	if err!=nil {
-		return err
+		goto TxMtxUnlock
 	}
-
 	tx.State = types.Tx_state_BuildOk
-
-	if err != nil {
-		return err
-	}
-
-	signer := etypes.HomesteadSigner{}
-	signedTx, err := etypes.SignTx(etx, signer, fromPrivkey)
-
+	signedTx, err = etypes.SignTx(etx, etypes.HomesteadSigner{}, fromPrivkey)
 	tx.Tx_hash = signedTx.Hash().String()
-
 	if err != nil {
 		l4g.Error("sign Transaction error:%s", err.Error())
-		return err
+		goto TxMtxUnlock
 	}
-
 	tx.State = types.Tx_state_Signed
-	if err := self.c.SendTransaction(context.TODO(), signedTx); err != nil {
-		l4g.Trace("Transaction gas * price + value = %d", signedTx.Cost().Uint64())
+
+	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
 		l4g.Error("SendTransaction error: %s", err.Error())
-		return err
+		goto TxMtxUnlock
 	}
 	tx.State = types.Tx_state_pending
-	return nil
+
+TxMtxUnlock:
+	self.txMtx.Unlock()
+	return err
 }
 
 func (self *Client) GetBalance(addstr string, tokenSymbol string) (float64, error) {
@@ -702,33 +726,23 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 	return nil
 }
 
-// 使用srcTx更新destTx, 如果为空, 则使用TransactionByHash获取最新的tx
-// 如果使用了已经存在的Transaction来更新Transfer, 程序不会从网络去获取Transaction, 不会检查txhash是否存在!
-// 则无法判断Transaction是否被分叉的问题
 func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transaction) error {
+	if srcTx==nil {
+		return fmt.Errorf("update tx error, message:sourceTx is nil")
+	}
+	hash := srcTx.Hash().String()
+
+	if destTx.Tx_hash=="" {
+		destTx.Tx_hash = hash
+	} else if hash!=destTx.Tx_hash {
+		return fmt.Errorf("updateTx error, destTx.Hash(%s) != srcTx.Hash(%s)",
+			destTx.Tx_hash, hash)
+	}
+
 	if destTx.Confirmationsnumber == 0 {
 		destTx.Confirmationsnumber = uint64(self.confirm_count)
 	}
-
 	height := self.virtualBlockHeight()
-
-	// if input srcTx is nil, try to get transaction from network node
-	if srcTx == nil {
-		var err error
-		srcTx, err = self.c.TransactionByHash(self.ctx, common.HexToHash(destTx.Tx_hash))
-		if err != nil {
-			if err == ethereum.NotFound {
-				// 如果之前的状态为已经上块, 现在又找不到了, 说明可能被分叉了
-				// 把状态设置为unconfirmed
-				if destTx.State == types.Tx_state_mined || destTx.State == types.Tx_state_confirmed {
-					destTx.State = types.Tx_state_unconfirmed
-				} else {
-					// 可能为交易才被提交, 这里不做任何处理
-					return types.NewTxNotFoundErr(destTx.Tx_hash)
-				}
-			}
-		}
-	}
 	// 用一个临时变量保存state, 等到更新完成后, 才设置destTx的状态
 	// 如果设置之后再更新, 如果中间的步骤出错, 状态已经设置, 程序会认为交易已经成功
 	var state types.TxState
@@ -802,32 +816,23 @@ func (self *Client) UpdateTx(tx *types.Transfer) error {
 		return fmt.Errorf("Invalid paramater!")
 	}
 
-	if false {
-		// this way of checking tx status was deprecated
-		if tx.State == types.Tx_state_confirmed {
-			if err := self.updateTxWithReceipt(tx); err != nil {
-				return err
-			}
-			return nil
-		} else { // tx.State==types.Tx_state_pending, Tx_state_pending, tx_state_unkown, tx_state_notfound
-			if err := self.updateTxWithTx(tx, nil); err != nil {
-				return err
-			}
-			return nil
-		}
-	}
-
-	if true {
-		if err := self.updateTxWithTx(tx, nil); err != nil {
-			return err
-		}
+	if etx, err := self.c.TransactionByHash(self.ctx, common.HexToHash(tx.Tx_hash));
+		err!=nil {
+		return err
+	} else if err:= self.updateTxWithTx(tx, etx); err!=nil {
+		return err
 	}
 	return nil
 }
 
 func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
-	tmpTx := &types.Transfer{Tx_hash: tx.Hash().String()}
-	self.updateTxWithTx(tmpTx, tx)
+	if tx==nil { return nil }
+
+	tmpTx := &types.Transfer{}
+	if err:=self.updateTxWithTx(tmpTx, tx); err!=nil {
+		return nil
+	}
+
 	return tmpTx
 }
 
@@ -888,7 +893,7 @@ func (self *Client) SendTxBySteps(chiperKey string, tx *types.Transfer) error {
 }
 
 
-func (self *Client) innerBuildTx(fromKey string, tx *types.Transfer) (fromPrivkey *ecdsa.PrivateKey, input []byte, err error) {
+func (self *Client) initTxInfo(fromKey string, tx *types.Transfer) (fromPrivkey *ecdsa.PrivateKey, input []byte, err error) {
 	var from string
 	fromPrivkey, from, err = ParseKey(fromKey)
 	if err!=nil {
@@ -924,8 +929,6 @@ func (self *Client) innerBuildTx(fromKey string, tx *types.Transfer) (fromPrivke
 		}
 	}
 	return
-
-	//return self.buildRawTx(from, to, EtherToWei(tx.Value), input)
 }
 
 // build transaction
@@ -933,7 +936,7 @@ func (self *Client) BuildTx(fromKey string, tx *types.Transfer) (err error) {
 	var etx *etypes.Transaction
 	var input []byte
 
-	if _, input, err = self.innerBuildTx(fromKey, tx); err != nil {
+	if _, input, err = self.initTxInfo(fromKey, tx); err != nil {
 		return err
 	}
 

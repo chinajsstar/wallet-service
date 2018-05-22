@@ -179,7 +179,6 @@ type Transfer struct {
 	To                  string
 	Value               float64// 交易金额
 	Fee                 float64
-	Gasprice            uint64
 	Gas                 uint64
 	Total				float64// 总花费金额
 	State               TxState

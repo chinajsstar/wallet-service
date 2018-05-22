@@ -73,16 +73,16 @@ func main() {
 	} else {i++}
 
 	if true {
-		go testSendTokenTx(
-			ctx,
-			clientManager,
-			callerAcc.PrivateKey,
-			tokenOwnerAcc.PrivateKey,
-			//tokenReciptAcc.Address,
-			callerAcc.Address,
-			types.Chain_eth,
-			token, 1,
-			done_sendTx)
+			go testSendTokenTx(
+				ctx,
+				clientManager,
+				callerAcc.PrivateKey,
+				tokenOwnerAcc.PrivateKey,
+				//tokenReciptAcc.Address,
+				callerAcc.Address,
+				types.Chain_eth,
+				token, float64(i+1),
+				done_sendTx)
 	} else {i++}
 
 	testGetBalance(clientManager, bank_account.Address, token)
@@ -162,28 +162,28 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
 	callFromKey, tokenOwnerKey, tokenTo string,
 	coin string, token string, value float64, done chan bool) {
 
-	txCmd, err := service.NewSendTxCmd("MessageID:0000000011",
-		coin, callFromKey, tokenTo, token,
-		tokenOwnerKey, value)
-
-	if err != nil {
-		l4g.Trace("CreateSendTxCmd faild, message:%s", err.Error())
-		done <- false
-		return
-	}
-	clientManager.SendTx(txCmd)
-
-	/*********监控提币交易的channel*********/
 	txStateChannel := make(types.CmdTxChannel)
-
-	// 创建并发送Transaction, 订阅只需要调用一次, 所有的Send的交易都会通过这个订阅channel传回来
 	subscribe := clientManager.SubscribeTxCmdState(txStateChannel)
-
 	txok_channel := make(chan bool)
-
 	subCtx, cancel := context.WithCancel(ctx)
 
-	go func(ctx context.Context, txstateChannel types.CmdTxChannel) {
+	csend := 0
+	cdone := 0
+
+	var makeAndSend = func(coin, callfromkey, tokenTo, token, tokenOwnerkey string, value float64) {
+		txCmd, err := service.NewSendTxCmd(fmt.Sprintf("MsgId:%f", value),
+			coin, callFromKey, tokenTo, token,
+			tokenOwnerKey, value)
+		if err != nil {
+			l4g.Trace("CreateSendTxCmd faild, message:%s", err.Error())
+			return
+		}
+		clientManager.SendTx(txCmd)
+	}
+
+	time.Sleep(time.Second * 5)
+
+	var waitingfun = func(ctx context.Context, txstateChannel types.CmdTxChannel) {
 		defer subscribe.Unsubscribe()
 		defer close(txstateChannel)
 		close := false
@@ -193,19 +193,18 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
 				{
 					if cmdTx == nil {
 						l4g.Trace("Transaction Command Channel is closed!")
-						txok_channel <- false
+						cdone++
 					} else {
 						l4g.Trace("Transaction state changed, transaction information:%s\n",
 							cmdTx.Tx.String())
 
-						if cmdTx.Tx.State == types.Tx_state_confirmed {
-							l4g.Trace("Transaction is confirmed! success!!!")
-							txok_channel <- true
+						if cmdTx.Tx.State == types.Tx_state_confirmed ||
+							cmdTx.Tx.State == types.Tx_state_unconfirmed {
+							cdone++
 						}
-
-						if cmdTx.Tx.State == types.Tx_state_unconfirmed {
-							l4g.Trace("Transaction is unconfirmed! failed!!!!")
-							txok_channel <- false
+						
+						if cdone == csend {
+							txok_channel <- true
 						}
 					}
 				}
@@ -215,14 +214,19 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
 				}
 			}
 		}
-	}(subCtx, txStateChannel)
+	}
+
+	for i:=0; i<5; i++ {
+		go makeAndSend(coin, callFromKey, tokenTo, token, tokenOwnerKey, float64(i+1))
+	}
+
+	go waitingfun(subCtx, txStateChannel)
 
 	select {
 	case <-txok_channel:
-		{
-			cancel()
-		}
+		{ cancel() }
 	}
+
 	done <- true
 }
 
