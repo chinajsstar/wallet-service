@@ -6,6 +6,7 @@ import (
 	service "api_router/base/service2"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
+	"api_router/base/config"
 )
 
 type Cobank struct {
@@ -102,25 +103,30 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	////////////////////////////////////////////////////////////////
 	// 以下方法liuheng添加测试
-	func() {
-		service.RegisterApi(&nam,
-			"recharge", data.APILevel_client, x.recharge)
-	}()
+	var testTool int
+	err := config.LoadJsonNode(config.GetBastionPayConfigDir()+"/cobank.json", "test_tool", &testTool)
+	l4g.Info("test tool mode: %d", testTool)
+	if err == nil && testTool == 1 {
+		func() {
+			service.RegisterApi(&nam,
+				"recharge", data.APILevel_client, x.recharge)
+		}()
 
-	func() {
-		service.RegisterApi(&nam,
-			"generate", data.APILevel_client, x.generate)
-	}()
+		func() {
+			service.RegisterApi(&nam,
+				"generate", data.APILevel_client, x.generate)
+		}()
 
-	func() {
-		service.RegisterApi(&nam,
-			"importaddress", data.APILevel_admin, x.importAddress)
-	}()
+		func() {
+			service.RegisterApi(&nam,
+				"importaddress", data.APILevel_admin, x.importAddress)
+		}()
 
-	func() {
-		service.RegisterApi(&nam,
-			"sendsignedtx", data.APILevel_admin, x.sendSignedTx)
-	}()
+		func() {
+			service.RegisterApi(&nam,
+				"sendsignedtx", data.APILevel_admin, x.sendSignedTx)
+		}()
+	}
 
 	return nam
 }

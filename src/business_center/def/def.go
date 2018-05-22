@@ -19,13 +19,13 @@ const (
 
 type (
 	UserAccount struct {
-		UserKey         string `json:"user_key"`
-		UserClass       int    `json:"user_class"`
-		AssetName       string `json:"asset_name"`
-		AvailableAmount int64  `json:"available_amount"`
-		FrozenAmount    int64  `json:"frozen_amount"`
-		CreateTime      int64  `json:"create_time"`
-		UpdateTime      int64  `json:"update_time"`
+		UserKey         string  `json:"user_key"`
+		UserClass       int     `json:"user_class"`
+		AssetName       string  `json:"asset_name"`
+		AvailableAmount float64 `json:"available_amount"`
+		FrozenAmount    float64 `json:"frozen_amount"`
+		CreateTime      int64   `json:"create_time"`
+		UpdateTime      int64   `json:"update_time"`
 	}
 
 	UserProperty struct {
@@ -56,36 +56,36 @@ type (
 	}
 
 	UserAddress struct {
-		UserKey         string `json:"user_key"`
-		UserClass       int    `json:"user_class"`
-		AssetName       string `json:"asset_name"`
-		Address         string `json:"address"`
-		PrivateKey      string `json:"private_key"`
-		AvailableAmount int64  `json:"available_amount"`
-		FrozenAmount    int64  `json:"frozen_amount"`
-		Enabled         int    `json:"enabled"`
-		CreateTime      int64  `json:"create_time"`
-		AllocationTime  int64  `json:"allocation_time"`
-		UpdateTime      int64  `json:"update_time"`
+		UserKey         string  `json:"user_key"`
+		UserClass       int     `json:"user_class"`
+		AssetName       string  `json:"asset_name"`
+		Address         string  `json:"address"`
+		PrivateKey      string  `json:"private_key"`
+		AvailableAmount float64 `json:"available_amount"`
+		FrozenAmount    float64 `json:"frozen_amount"`
+		Enabled         int     `json:"enabled"`
+		CreateTime      int64   `json:"create_time"`
+		AllocationTime  int64   `json:"allocation_time"`
+		UpdateTime      int64   `json:"update_time"`
 	}
 
 	TransactionBlockin struct {
-		AssetName     string `json:"asset_name"`
-		Hash          string `json:"hash"`
-		Status        int    `json:"status"`
-		MinerFee      int64  `json:"miner_fee"`
-		BlockinHeight int64  `json:"blockin_height"`
-		OrderID       string `json:"order_id"`
-		Time          int64  `json:"blockin_time"`
+		AssetName     string  `json:"asset_name"`
+		Hash          string  `json:"hash"`
+		Status        int     `json:"status"`
+		MinerFee      float64 `json:"miner_fee"`
+		BlockinHeight int64   `json:"blockin_height"`
+		OrderID       string  `json:"order_id"`
+		Time          int64   `json:"blockin_time"`
 	}
 
 	TransactionDetail struct {
-		AssetName string `json:"asset_name"`
-		Address   string `json:"address"`
-		TransType string `json:"trans_type"`
-		Amount    int64  `json:"amount"`
-		Hash      string `json:"hash"`
-		DetailID  string `json:"detail_id"`
+		AssetName string  `json:"asset_name"`
+		Address   string  `json:"address"`
+		TransType string  `json:"trans_type"`
+		Amount    float64 `json:"amount"`
+		Hash      string  `json:"hash"`
+		DetailID  string  `json:"detail_id"`
 	}
 
 	TransactionStatus struct {
@@ -99,33 +99,33 @@ type (
 	}
 
 	TransactionNotice struct {
-		UserKey       string `json:"user_key"`
-		MsgID         int64  `json:"msg_id"`
-		TransType     int    `json:"trans_type"`
-		Status        int    `json:"status"`
-		BlockinHeight int64  `json:"blockin_height"`
-		AssetName     string `json:"asset_name"`
-		Address       string `json:"address"`
-		Amount        int64  `json:"amount"`
-		PayFee        int64  `json:"pay_fee"`
-		Balance       int64  `json:"balance"`
-		Hash          string `json:"hash"`
-		OrderID       string `json:"order_id"`
-		Time          int64  `json:"time"`
+		UserKey       string  `json:"user_key"`
+		MsgID         int64   `json:"msg_id"`
+		TransType     int     `json:"trans_type"`
+		Status        int     `json:"status"`
+		BlockinHeight int64   `json:"blockin_height"`
+		AssetName     string  `json:"asset_name"`
+		Address       string  `json:"address"`
+		Amount        float64 `json:"amount"`
+		PayFee        float64 `json:"pay_fee"`
+		Balance       float64 `json:"balance"`
+		Hash          string  `json:"hash"`
+		OrderID       string  `json:"order_id"`
+		Time          int64   `json:"time"`
 	}
 
 	TransactionOrder struct {
-		ID        int64  `json:"id"`
-		UserKey   string `json:"user_key"`
-		AssetName string `json:"asset_name"`
-		Address   string `json:"address"`
-		TransType int    `json:"trans_type"`
-		Amount    int64  `json:"amount"`
-		PayFee    int64  `json:"pay_fee"`
-		Balance   int64  `json:"balance"`
-		Hash      string `json:"hash"`
-		OrderID   string `json:"order_id"`
-		Status    int    `json:"status"`
-		Time      int64  `json:"time"`
+		ID        int64   `json:"id"`
+		UserKey   string  `json:"user_key"`
+		AssetName string  `json:"asset_name"`
+		Address   string  `json:"address"`
+		TransType int     `json:"trans_type"`
+		Amount    float64 `json:"amount"`
+		PayFee    float64 `json:"pay_fee"`
+		Balance   float64 `json:"balance"`
+		Hash      string  `json:"hash"`
+		OrderID   string  `json:"order_id"`
+		Status    int     `json:"status"`
+		Time      int64   `json:"time"`
 	}
 )

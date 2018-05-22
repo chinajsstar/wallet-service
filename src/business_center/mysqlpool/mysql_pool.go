@@ -100,24 +100,34 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				*params = append(*params, int64(value))
 			}
 		case "max_create_time":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int64); ok {
 				sqls += " and create_time <= ?"
-				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
 			}
 		case "min_create_time":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int64); ok {
 				sqls += " and create_time >= ?"
-				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
 			}
 		case "max_update_time":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int64); ok {
 				sqls += " and update_time <= ?"
-				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
 			}
 		case "min_update_time":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int64); ok {
 				sqls += " and update_time >= ?"
-				*params = append(*params, time.Unix(int64(value), 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+			}
+		case "max_allocation_time":
+			if value, ok := value.(int64); ok {
+				sqls += " and allocation_time <= ?"
+				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+			}
+		case "min_allocation_time":
+			if value, ok := value.(int64); ok {
+				sqls += " and allocation_time >= ?"
+				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
 			}
 		case "max_msg_id":
 			if value, ok := value.(float64); ok {

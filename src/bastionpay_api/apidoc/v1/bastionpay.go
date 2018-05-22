@@ -38,7 +38,7 @@ var ApiDocGetBalance = apidoc.ApiDoc{
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "get_balance",
-	Input:       &v1.ReqUserBalance{Assets: []string{"btc"}},
+	Input:       &v1.ReqUserBalance{AssetNames: []string{"btc"}},
 	Output:      &v1.AckUserBalanceList{Data: []v1.AckUserBalance{v1.AckUserBalance{}}},
 }
 
