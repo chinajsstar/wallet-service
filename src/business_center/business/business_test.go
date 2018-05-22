@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 2
+	testType := 0
 	switch testType {
 	case 1:
 		req.Method.Function = "new_address"
@@ -25,7 +25,7 @@ func TestHandleMsg(t *testing.T) {
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		params := fmt.Sprintf("{\"asset_name\":\"ZToken\",\"amount\":30, \"address\":\"0xC2FF9B168951758033CA17F3F13010084C1A2492\","+
+		params := fmt.Sprintf("{\"asset_name\":\"ZToken\",\"amount\":15, \"address\":\"0x461f87aBb8a595e39e1E2AAAC2f332684856a30c\","+
 			"\"user_order_id\":\"%s\" }", transaction.GenerateUUID("UR"))
 		req.Argv.Message = params
 	case 3:

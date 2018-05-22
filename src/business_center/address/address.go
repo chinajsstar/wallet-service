@@ -396,6 +396,7 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 	}
 
 	queryMap := make(map[string]interface{})
+	queryMap["user_key"] = userProperty.UserKey
 
 	if len(params.AssetNames) > 0 {
 		queryMap["asset_names"] = params.AssetNames
@@ -494,7 +495,11 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		queryMap["min_update_time"] = params.MinUpdateTime
 	}
 
-	dataList := v1.AckHistoryTransactionOrderList{}
+	dataList := v1.AckHistoryTransactionOrderList{
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
 
 	if params.PageIndex > 0 {
 		queryMap["page_index"] = params.PageIndex
@@ -573,7 +578,11 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 		queryMap["min_msg_id"] = params.MinMessageID
 	}
 
-	dataList := v1.AckHistoryTransactionMessageList{}
+	dataList := v1.AckHistoryTransactionMessageList{
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
 
 	if params.PageIndex > 0 {
 		queryMap["page_index"] = params.PageIndex
@@ -627,7 +636,12 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 		return errors.New(res.ErrMsg)
 	}
 
-	params := v1.ReqUserAddress{}
+	params := v1.ReqUserAddress{
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
+
 	err := json.Unmarshal([]byte(req.Argv.Message), &params)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
@@ -642,7 +656,11 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 		queryMap["asset_names"] = params.AssetNames
 	}
 
-	dataList := v1.AckUserAddressList{}
+	dataList := v1.AckUserAddressList{
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
 
 	if params.PageIndex > 0 {
 		queryMap["page_index"] = params.PageIndex
