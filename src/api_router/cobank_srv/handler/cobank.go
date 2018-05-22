@@ -138,12 +138,11 @@ func (x *Cobank)HandleNotify(req *data.SrvRequest){
 func (x *Cobank) handler(req *data.SrvRequest, res *data.SrvResponse) {
 	res.Err = data.NoErr
 
-	l4g.Debug("argv: %s", req.Argv)
-
 	err := x.business.HandleMsg(req, res)
 	if err != nil {
-		l4g.Error("err: ", err)
+		l4g.Error("err: %s", err.Error())
 	}
-
-	l4g.Debug("value: %s", res.Value)
+	if res.Err != data.NoErr {
+		l4g.Error("res err: %d-%s", res.Err, res.ErrMsg)
+	}
 }
