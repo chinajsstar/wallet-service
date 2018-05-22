@@ -51,7 +51,7 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				*params = append(*params, value)
 			}
 		case "user_class":
-			if value, ok := value.(string); ok {
+			if value, ok := value.(int); ok {
 				sqls += " and user_class = ?"
 				*params = append(*params, value)
 			}
@@ -70,7 +70,7 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				sqls += ")"
 			}
 		case "is_token":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int); ok {
 				sqls += " and is_token = ?"
 				*params = append(*params, value)
 			}
@@ -80,12 +80,12 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				*params = append(*params, value)
 			}
 		case "trans_type":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int); ok {
 				sqls += " and trans_type = ?"
 				*params = append(*params, int(value))
 			}
 		case "status":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int); ok {
 				sqls += " and status = ?"
 				*params = append(*params, int(value))
 			}
@@ -130,12 +130,12 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
 			}
 		case "max_msg_id":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int64); ok {
 				sqls += " and msg_id <= ?"
 				*params = append(*params, int(value))
 			}
 		case "min_msg_id":
-			if value, ok := value.(float64); ok {
+			if value, ok := value.(int64); ok {
 				sqls += " and msg_id >= ?"
 				*params = append(*params, int(value))
 			}
@@ -147,16 +147,16 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 func andPagination(queryMap map[string]interface{}, params *[]interface{}) string {
 	sqls := ""
 	if value, ok := queryMap["max_disp_lines"]; ok {
-		if value, ok := value.(float64); ok {
+		if value, ok := value.(int); ok {
 			sqls += " limit ?, ?;"
 
-			var pageIndex float64 = 1
+			var pageIndex = 1
 			if v, ok := queryMap["page_index"]; ok {
-				if value, ok := v.(float64); ok {
-					pageIndex = math.Max(pageIndex, value)
+				if value, ok := v.(int); ok {
+					pageIndex = int(math.Max(float64(pageIndex), float64(value)))
 				}
 			}
-			*params = append(*params, (int64(pageIndex)-1)*int64(value))
+			*params = append(*params, (pageIndex-1)*value)
 			*params = append(*params, value)
 		}
 	}

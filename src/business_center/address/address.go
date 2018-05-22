@@ -470,7 +470,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		queryMap["asset_name"] = params.AssetName
 	}
 
-	if params.TransType > 0 {
+	if params.TransType >= 0 {
 		queryMap["trans_type"] = params.TransType
 	}
 
@@ -478,11 +478,11 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		queryMap["hash"] = params.Hash
 	}
 
-	if params.MaxAmount > 0 {
+	if params.MaxAmount >= 0 {
 		queryMap["max_amount"] = params.MaxAmount
 	}
 
-	if params.MinAmount > 0 {
+	if params.MinAmount >= 0 {
 		queryMap["min_amount"] = params.MinAmount
 	}
 
