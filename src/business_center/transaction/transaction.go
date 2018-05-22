@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
-	"math"
 	"time"
 )
 
@@ -117,7 +116,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 
 func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callback PushMsgCallback) {
 	db := mysqlpool.Get()
-	fn := func(assetName string, address string, transType string, amount int64, hash string) {
+	fn := func(assetName string, address string, transType string, amount float64, hash string) {
 		uuID := GenerateUUID("")
 		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetName, address); ok {
 			db.Exec("update user_address set available_amount = available_amount + ?, update_time = ?"+
@@ -150,19 +149,19 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -FromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", FromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -FromChainValue(transfer.Fee), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -transfer.TokenTx.Value, transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", transfer.TokenTx.Value, transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -transfer.Fee, transfer.Tx_hash)
 	} else {
-		fn(blockin.AssetName, transfer.From, "from", -FromChainValue(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.To, "to", FromChainValue(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -FromChainValue(transfer.Fee), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "from", -transfer.Value, transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.To, "to", transfer.Value, transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -transfer.Fee, transfer.Tx_hash)
 	}
 }
 
 func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callback PushMsgCallback) {
 	db := mysqlpool.Get()
-	fn := func(assetName string, address string, transType string, amount int64, hash string) {
+	fn := func(assetName string, address string, transType string, amount float64, hash string) {
 		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetName, address); ok {
 			if userAddress.UserClass == 0 && transType == "to" {
 				//充值帐户余额修改
@@ -194,13 +193,13 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 	}
 
 	if transfer.IsTokenTx() {
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -FromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", FromChainValue(transfer.TokenTx.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -FromChainValue(transfer.Fee), transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.From, "from", -transfer.TokenTx.Value, transfer.Tx_hash)
+		fn(transfer.TokenTx.Symbol(), transfer.TokenTx.To, "to", transfer.TokenTx.Value, transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -transfer.Fee, transfer.Tx_hash)
 	} else {
-		fn(blockin.AssetName, transfer.From, "from", -FromChainValue(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.To, "to", FromChainValue(transfer.Value), transfer.Tx_hash)
-		fn(blockin.AssetName, transfer.From, "miner_fee", -FromChainValue(transfer.Fee), transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "from", -transfer.Value, transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.To, "to", transfer.Value, transfer.Tx_hash)
+		fn(blockin.AssetName, transfer.From, "miner_fee", -transfer.Fee, transfer.Tx_hash)
 	}
 }
 
@@ -259,12 +258,4 @@ func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallba
 func GenerateUUID(prefix string) string {
 	uID, _ := uuid.NewV4()
 	return fmt.Sprintf("%s%s%X", prefix, time.Now().UTC().Format("20060102150405"), uID.Bytes())
-}
-
-func FromChainValue(value float64) int64 {
-	return int64(value * math.Pow10(8))
-}
-
-func ToChainValue(value int64) float64 {
-	return float64(value) * math.Pow10(-8)
 }

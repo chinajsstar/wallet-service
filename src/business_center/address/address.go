@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	l4g "github.com/alecthomas/log4go"
-	"math"
 	"sync"
 )
 
@@ -204,7 +203,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	payFee := int64(assetProperty.WithdrawalValue*math.Pow10(8)) + int64(float64(amount)*assetProperty.WithdrawalRate)
+	payFee := assetProperty.WithdrawalValue + amount*assetProperty.WithdrawalRate
 	if userAccount.AvailableAmount < amount+payFee {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
 		l4g.Error(res.ErrMsg)
@@ -234,7 +233,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 
 	if assetProperty.IsToken > 0 {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
-			address, assetProperty.AssetName, userAddress.PrivateKey, transaction.ToChainValue(amount))
+			address, assetProperty.AssetName, userAddress.PrivateKey, amount)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
 			l4g.Error(res.ErrMsg)
@@ -243,7 +242,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		a.wallet.SendTx(cmdTx)
 	} else {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
-			address, "", "", transaction.ToChainValue(amount))
+			address, "", "", amount)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
 			l4g.Error(res.ErrMsg)
@@ -407,8 +406,8 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 		for _, v := range arr {
 			data := v1.AckUserBalance{}
 			data.AssetName = v.AssetName
-			data.AvailableAmount = transaction.ToChainValue(v.AvailableAmount)
-			data.FrozenAmount = transaction.ToChainValue(v.FrozenAmount)
+			data.AvailableAmount = v.AvailableAmount
+			data.FrozenAmount = v.FrozenAmount
 			dataList.Data = append(dataList.Data, data)
 		}
 	}
@@ -607,9 +606,9 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 			data.BlockinHeight = v.BlockinHeight
 			data.AssetName = v.AssetName
 			data.Address = v.Address
-			data.Amount = transaction.ToChainValue(v.Amount)
-			data.PayFee = transaction.ToChainValue(v.PayFee)
-			data.Balance = transaction.ToChainValue(v.Balance)
+			data.Amount = v.Amount
+			data.PayFee = v.PayFee
+			data.Balance = v.Balance
 			data.Hash = v.Hash
 			data.OrderId = v.OrderID
 			data.Time = v.Time
@@ -637,9 +636,12 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 	}
 
 	params := v1.ReqUserAddress{
-		TotalLines:   -1,
-		PageIndex:    -1,
-		MaxDispLines: -1,
+		MaxAllocationTime: -1,
+		MinAllocationTime: -1,
+		Address:           "",
+		TotalLines:        -1,
+		PageIndex:         -1,
+		MaxDispLines:      -1,
 	}
 
 	err := json.Unmarshal([]byte(req.Argv.Message), &params)
@@ -654,6 +656,18 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 
 	if len(params.AssetNames) > 0 {
 		queryMap["asset_names"] = params.AssetNames
+	}
+
+	if params.MaxAllocationTime > 0 {
+		queryMap["max_allocation_time"] = params.MaxAllocationTime
+	}
+
+	if params.MinAllocationTime > 0 {
+		queryMap["min_allocation_time"] = params.MinAllocationTime
+	}
+
+	if len(params.Address) > 0 {
+		queryMap["address"] = params.Address
 	}
 
 	dataList := v1.AckUserAddressList{

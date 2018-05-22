@@ -20,7 +20,7 @@ func RemoveUserOrder(userKey string, userOrderID string) error {
 	return err
 }
 
-func WithDrawalOrder(userKey string, assetName string, address string, amount int64, payFee int64,
+func WithDrawalOrder(userKey string, assetName string, address string, amount float64, payFee float64,
 	uuID string, userOrderID string) error {
 	nowTM := time.Now().UTC().Format(TimeFormat)
 
