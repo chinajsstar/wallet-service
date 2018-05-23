@@ -48,6 +48,7 @@ func init()  {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocQueryUserAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocHistoryTransactionOrder})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocHistoryTransactionMessage})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBillDaily})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocNewAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocWithdrawal})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetPayAddress})

@@ -2,13 +2,13 @@ package v1
 
 import (
 	"bastionpay_api/api/v1"
-	"bastionpay_api/apidoc"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apidoc"
 )
 
 // 支持币种
 var ApiDocSupportAssets = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "获取币种",
 	Description: "获取支持币种",
 	VerName:     "v1",
@@ -20,7 +20,7 @@ var ApiDocSupportAssets = apidoc.ApiDoc{
 
 // 币种属性
 var ApiDocAssetAttribute = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "获取币种属性",
 	Description: "获取币种属性",
 	VerName:     "v1",
@@ -32,7 +32,7 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 
 // 币种余额
 var ApiDocGetBalance = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "查询用户币种余额",
 	Description: "查询币种余额",
 	VerName:     "v1",
@@ -44,7 +44,7 @@ var ApiDocGetBalance = apidoc.ApiDoc{
 
 // 用户地址
 var ApiDocQueryUserAddress = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "查询用户地址",
 	Description: "用户查询地址",
 	VerName:     "v1",
@@ -56,7 +56,7 @@ var ApiDocQueryUserAddress = apidoc.ApiDoc{
 
 // 历史交易订单
 var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "查询历史交易订单",
 	Description: "查询历史交易订单",
 	VerName:     "v1",
@@ -68,7 +68,7 @@ var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
 
 // 历史交易消息
 var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "查询历史交易信息",
 	Description: "查询历史交易信息",
 	VerName:     "v1",
@@ -78,9 +78,21 @@ var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
 	Output:      &v1.AckHistoryTransactionMessageList{Data: []v1.AckHistoryTransactionMessage{v1.AckHistoryTransactionMessage{}}},
 }
 
+// 日结帐单查询
+var ApiDocTransactionBillDaily = apidoc.ApiDoc{
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Name:        "查询日结帐单",
+	Description: "查询日结帐单",
+	VerName:     "v1",
+	SrvName:     "bastionpay",
+	FuncName:    "transaction_bill_daily",
+	Input:       &v1.ReqTransactionBillDaily{},
+	Output:      &v1.AckTransactionBillDailyList{Data: []v1.AckTransactionBillDaily{v1.AckTransactionBillDaily{}}},
+}
+
 // TODO:以下需继续
 var ApiDocNewAddress = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "生成地址",
 	Description: "生成地址",
 	VerName:     "v1",
@@ -91,7 +103,7 @@ var ApiDocNewAddress = apidoc.ApiDoc{
 }
 
 var ApiDocWithdrawal = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "提币",
 	Description: "提币",
 	VerName:     "v1",
@@ -102,7 +114,7 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 }
 
 var ApiDocSetPayAddress = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "设置热钱包地址",
 	Description: "设置热钱包地址，管理员权限api",
 	VerName:     "v1",

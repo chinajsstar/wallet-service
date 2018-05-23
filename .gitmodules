@@ -61,3 +61,6 @@
 [submodule "src/golang.org/grpc"]
 	path = src/golang.org/grpc
 	url = https://github.com/grpc/grpc-go.git
+[submodule "src/github.com/shopspring/decimal"]
+	path = src/github.com/shopspring/decimal
+	url = https://github.com/shopspring/decimal

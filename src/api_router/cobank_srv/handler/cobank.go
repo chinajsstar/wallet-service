@@ -3,10 +3,10 @@ package handler
 import (
 	"api_router/base/data"
 	//"api_router/base/service"
+	"api_router/base/config"
 	service "api_router/base/service2"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
-	"api_router/base/config"
 )
 
 type Cobank struct {
@@ -88,6 +88,11 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
+			"transaction_bill_daily", data.APILevel_client, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
 			"history_transaction_message", data.APILevel_client, x.handler)
 	}()
 
@@ -131,7 +136,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 	return nam
 }
 
-func (x *Cobank)HandleNotify(req *data.SrvRequest){
+func (x *Cobank) HandleNotify(req *data.SrvRequest) {
 	l4g.Info("HandleNotify-reloadUserLevel: do nothing")
 }
 
