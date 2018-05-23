@@ -57,6 +57,7 @@ func BuildTokenApproveInput(address common.Address, value *big.Int) (input[]byte
 	input = common.FromHex("0x095ea7b3")
 	input = append(input, common.LeftPadBytes(address.Bytes(), 32)[:]...)
 	input = append(input, common.LeftPadBytes(value.Bytes(), 32)[:]...)
+
 	return
 }
 
