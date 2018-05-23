@@ -1,16 +1,16 @@
 package v1
 
 import (
-	"api_router/base/data"
 	"bastionpay_api/api/v1"
 	"bastionpay_api/apidoc"
+	"bastionpay_api/apibackend"
 )
 
 // 支持币种
 var ApiDocSupportAssets = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "获取币种",
 	Description: "获取支持币种",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "support_assets",
@@ -20,9 +20,9 @@ var ApiDocSupportAssets = apidoc.ApiDoc{
 
 // 币种属性
 var ApiDocAssetAttribute = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "获取币种属性",
 	Description: "获取币种属性",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "asset_attribute",
@@ -32,9 +32,9 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 
 // 币种余额
 var ApiDocGetBalance = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "查询用户币种余额",
 	Description: "查询币种余额",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "get_balance",
@@ -44,9 +44,9 @@ var ApiDocGetBalance = apidoc.ApiDoc{
 
 // 用户地址
 var ApiDocQueryUserAddress = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "查询用户地址",
 	Description: "用户查询地址",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "query_user_address",
@@ -56,9 +56,9 @@ var ApiDocQueryUserAddress = apidoc.ApiDoc{
 
 // 历史交易订单
 var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "查询历史交易订单",
 	Description: "查询历史交易订单",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "history_transaction_order",
@@ -68,9 +68,9 @@ var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
 
 // 历史交易消息
 var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "查询历史交易信息",
 	Description: "查询历史交易信息",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "history_transaction_message",
@@ -80,9 +80,9 @@ var ApiDocHistoryTransactionMessage = apidoc.ApiDoc{
 
 // TODO:以下需继续
 var ApiDocNewAddress = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "生成地址",
 	Description: "生成地址",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "new_address",
@@ -91,9 +91,9 @@ var ApiDocNewAddress = apidoc.ApiDoc{
 }
 
 var ApiDocWithdrawal = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "提币",
 	Description: "提币",
-	Level:       data.APILevel_client,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "withdrawal",
@@ -102,9 +102,9 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 }
 
 var ApiDocSetPayAddress = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi, apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
 	Name:        "设置热钱包地址",
 	Description: "设置热钱包地址，管理员权限api",
-	Level:       data.APILevel_admin,
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "set_pay_address",
