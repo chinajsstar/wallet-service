@@ -6,18 +6,19 @@ import (
 )
 
 type (
+	ApiGroupInfo struct {
+		Description string
+	}
+
 	ApiDoc struct{
+		Group 			[]string
 		Name  			string
 		Description 	string
-		Level 			int
 		VerName 		string
 		SrvName 		string
 		FuncName 		string
 		Input 			interface{}
 		Output 			interface{}
-		InputComment 	string
-		OutputComment 	string
-		Example			string
 	}
 
 	ApiDocHandler struct{

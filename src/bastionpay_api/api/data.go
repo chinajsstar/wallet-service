@@ -8,9 +8,9 @@ type UserData struct {
 	// user unique key
 	UserKey string `json:"user_key" doc:"用户唯一标示"`
 	// message = origin data -> rsa encode -> base64
-	Message    string `json:"message" doc:"加密数据"`
+	Message    string `json:"message" doc:"加密数据，(原始数据->RSA加密)->Base64"`
 	// signature = origin data -> sha512 -> rsa sign -> base64
-	Signature  string `json:"signature" doc:"签名数据"`
+	Signature  string `json:"signature" doc:"签名数据，(原始数据->RSA加密)->sha512->RSA签名->Base64"`
 }
 
 // input/output method
@@ -23,7 +23,7 @@ type UserMethod struct {
 // user response/push data
 type UserResponseData struct{
 	Method		UserMethod 	`json:"method"`					// response method
-	Err     	int    		`json:"err" doc:"错误码"`    	// error code
+	Err     	int    		`json:"err" doc:"错误码,0:成功"` // error code
 	ErrMsg  	string 		`json:"errmsg" doc:"错误信息"` 	// error message
 	Value   	UserData 	`json:"value" doc:"返回数据"` 	// response data
 }

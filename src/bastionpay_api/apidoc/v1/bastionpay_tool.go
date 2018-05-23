@@ -3,13 +3,13 @@ package v1
 import (
 	"bastionpay_api/apidoc"
 	"bastionpay_api/api/v1"
-	"api_router/base/data"
+	"bastionpay_api/apibackend"
 )
 
 var ApiDocRecharge = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi},
 	Name:"模拟充值",
 	Description:"模拟充值",
-	Level:data.APILevel_client,
 	VerName:"v1",
 	SrvName:"bastionpay",
 	FuncName:"recharge",
@@ -18,9 +18,9 @@ var ApiDocRecharge = apidoc.ApiDoc{
 }
 
 var ApiDocGenerate = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterApi},
 	Name:"模拟挖矿",
 	Description:"模拟挖矿",
-	Level:data.APILevel_client,
 	VerName:"v1",
 	SrvName:"bastionpay",
 	FuncName:"generate",

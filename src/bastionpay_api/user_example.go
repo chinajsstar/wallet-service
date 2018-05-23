@@ -232,13 +232,13 @@ func main()  {
 				fmt.Println(apiProxy.Help().Path())
 
 				fmt.Println("输入：")
-				fmt.Println(apiProxy.Help().InputComment)
+				fmt.Println(utils.FormatComment(apiProxy.Help().Input))
 
 				fmt.Println("输出：")
-				fmt.Println(apiProxy.Help().OutputComment)
+				fmt.Println(utils.FormatComment(apiProxy.Help().Output))
 
 				fmt.Println("示例：")
-				fmt.Println(apiProxy.Help().Example)
+				fmt.Println(utils.FormatSample(apiProxy.Help().Input))
 
 				fmt.Println("---------------------")
 			}

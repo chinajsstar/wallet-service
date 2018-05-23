@@ -4,17 +4,31 @@ import (
 	"bastionpay_api/apidoc/v1"
 	"bastionpay_api/apidoc"
 	"fmt"
-	"encoding/json"
-	"reflect"
-	"bastionpay_api/utils"
+	"bastionpay_api/apibackend"
 )
 
 var (
+	apiDocGroupInfo map[string]*apidoc.ApiGroupInfo
 	apiDocGroupHandlers map[string][]apidoc.ApiDocHandler
 )
 
 func init()  {
+	apiDocGroupInfo = make(map[string]*apidoc.ApiGroupInfo)
 	apiDocGroupHandlers = make(map[string][]apidoc.ApiDocHandler)
+
+	apiDocGroupInfo[apibackend.HttpRouterApi] = &apidoc.ApiGroupInfo{
+		Description:`This api document is for developers to access BastionPay service, 
+					all api request and response json body is not real body data,
+					developers need convert json to string, and then package string to common json,
+					you can go to github.com to download golang sdk.`,
+	}
+
+	apiDocGroupInfo[apibackend.HttpRouterUser] = &apidoc.ApiGroupInfo{
+		Description:"",
+	}
+	apiDocGroupInfo[apibackend.HttpRouterAdmin] = &apidoc.ApiGroupInfo{
+		Description:"",
+	}
 
 	// gateway
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocListSrv})
@@ -45,26 +59,20 @@ func init()  {
 	// push
 }
 
+func GetApiGroupInfo(apiGroup string) (*apidoc.ApiGroupInfo, error) {
+	if v1, ok := apiDocGroupInfo[apiGroup]; ok {
+		return v1, nil
+	}
+
+	return nil, fmt.Errorf("Not find %s", apiGroup)
+}
+
 func RegisterApiDocHandler(apiProxy *apidoc.ApiDocHandler) error {
 	apiDocInfo := apiProxy.ApiDocInfo
 	_, err := FindApiBySrvFunction(apiDocInfo.VerName, apiDocInfo.SrvName, apiDocInfo.FuncName)
 	if err == nil {
 		return fmt.Errorf("%s.%s.%s exist!", apiDocInfo.VerName, apiDocInfo.SrvName, apiDocInfo.FuncName)
 	}
-
-	if apiProxy.ApiDocInfo.Input == nil{
-		apiProxy.ApiDocInfo.Example = ""
-	} else if reflect.TypeOf(apiProxy.ApiDocInfo.Input) == nil{
-		apiProxy.ApiDocInfo.Example = ""
-	} else if reflect.TypeOf(apiProxy.ApiDocInfo.Input).Kind() == reflect.String {
-		apiProxy.ApiDocInfo.Example = apiProxy.ApiDocInfo.Input.(string)
-	}else{
-		example, _ := json.Marshal(apiProxy.ApiDocInfo.Input)
-		apiProxy.ApiDocInfo.Example = string(example)
-	}
-
-	apiProxy.ApiDocInfo.InputComment = utils.FieldTag(apiProxy.Help().Input, 0)
-	apiProxy.ApiDocInfo.OutputComment = utils.FieldTag(apiProxy.Help().Output, 0)
 
 	apiGroup := apiDocGroupHandlers[apiDocInfo.VerName + "." + apiDocInfo.SrvName]
 	apiGroup = append(apiGroup, *apiProxy)
