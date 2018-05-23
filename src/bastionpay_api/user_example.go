@@ -3,16 +3,16 @@ package main
 import (
 	"fmt"
 	"strings"
-	"io/ioutil"
-	"encoding/json"
-	"net/http"
-	"bastionpay_api/api"
 	"bastionpay_api/utils"
 	"bastionpay_api/gateway"
 	"bastionpay_api/apigroup"
+	"io/ioutil"
+	"net/http"
+	"encoding/json"
+	"bastionpay_api/api"
 )
 
-func usage()  {
+func userUsage()  {
 	fmt.Println(">q")
 	fmt.Println("		quit")
 	fmt.Println(">rsagen name")
@@ -42,7 +42,7 @@ func main()  {
 	fmt.Println("======================")
 	fmt.Println("执行目录：", runDir)
 
-	usage()
+	userUsage()
 
 	for ; ;  {
 		fmt.Println("Please input command: ")
@@ -77,7 +77,7 @@ func main()  {
 				continue
 			}
 			port := argv[1]
-			startHttpServer(port)
+			userStartHttpServer(port)
 
 			fmt.Println("==set http port ok==")
 		} else if argv[0] == "switch"{
@@ -243,13 +243,13 @@ func main()  {
 				fmt.Println("---------------------")
 			}
 		} else {
-			usage()
+			userUsage()
 		}
 	}
 }
 
 // 处理推送
-func handlePush(w http.ResponseWriter, req *http.Request) {
+func userHandlePush(w http.ResponseWriter, req *http.Request) {
 	b, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		fmt.Println("#read body: %s", err.Error())
@@ -275,10 +275,10 @@ func handlePush(w http.ResponseWriter, req *http.Request) {
 }
 
 // start http server
-func startHttpServer(port string) error {
+func userStartHttpServer(port string) error {
 	fmt.Println("Start http server on: ", port)
 
-	http.Handle("/walletcb", http.HandlerFunc(handlePush))
+	http.Handle("/walletcb", http.HandlerFunc(userHandlePush))
 	go func() {
 		fmt.Println("Http server routine running... ")
 		err := http.ListenAndServe(":"+port, nil)
