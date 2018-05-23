@@ -826,7 +826,7 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 		destTx.From = srcTx.From()
 		destTx.Value = WeiToEther(srcTx.Value())
 		destTx.Total = WeiToEther(srcTx.Cost())
-		destTx.Fee = destTx.Total - destTx.Value
+		destTx.Fee = utils.PrecisionN(destTx.Total-destTx.Value, 6)
 		destTx.InBlock = srcTx.Inblock
 		destTx.Gas = srcTx.Gas()
 		destTx.Time = self.blockTime(destTx.InBlock)
