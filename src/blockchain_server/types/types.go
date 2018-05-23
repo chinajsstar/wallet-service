@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"math"
+	"blockchain_server/utils"
 )
 
 //-32700	Parse error	Invalid JSON was received by the server.
@@ -120,7 +121,7 @@ func (self *Token) Undecimal(v *big.Int) float64 {
 	val := new(big.Float).SetInt(v)
 	val = val.Mul(val, big.NewFloat(math.Pow10(-self.Decimals)))
 	f, _ := val.Float64()
-	return f
+	return utils.PrecisionN(f, 6)
 }
 
 func (self *Token) String() string {

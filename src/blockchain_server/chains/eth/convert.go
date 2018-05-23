@@ -3,14 +3,14 @@ package eth
 import (
 	"math/big"
 	"fmt"
+	"blockchain_server/utils"
 )
 
 func WeiToEther(w *big.Int) float64 {
 	bigfloat := new(big.Float).SetInt(w)
 	bigfloat = bigfloat.Mul(bigfloat, big.NewFloat(1.0e-18))
-
 	f, _ := bigfloat.Float64()
-	return f
+	return utils.PrecisionN(f, 6)
 }
 
 func EtherToWei(e float64) *big.Int {

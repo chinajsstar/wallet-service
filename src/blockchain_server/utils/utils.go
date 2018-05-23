@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"crypto/md5"
 	"encoding/hex"
+	"strconv"
 )
 
 func Faltal_error(err error) {
@@ -106,4 +107,16 @@ func SilenceHaveString(src []string, dest string)bool{
 		if value==dest {return true}
 	}
 	return false
+}
+
+func PrecisionN(f float64, n int) float64 {
+	if n>10 {
+		n=10
+	} else if n<0 {
+		n=0
+	}
+	s := fmt.Sprint("%." + strconv.Itoa(n) + "f", f)
+	f, _ = strconv.ParseFloat(s, 64)
+
+	return f
 }
