@@ -43,8 +43,14 @@ type Client struct {
 	contracts map[string]*token.Token // symbol ->token.EthToken
 
 	//abi       abi.ABI
-	txMtx		sync.Mutex
+	nonceMtx *sync.Mutex
+	nonceMap map[string]uint64
 }
+
+const (
+	max_nonce = 1024 * 1024
+	first_custom_nonce = max_nonce + 1
+)
 
 func (self *Client) lock() {
 	self.address_locker.Lock()
@@ -76,9 +82,37 @@ func ClientInstance() (*Client, error) {
 	return instance, nil
 }
 
+func (self *Client) nextNonce(from string) (nonce uint64) {
+	self.nonceMtx.Lock()
+	var err error
+	nonce = self.nonceMap[from]
+	if 0==nonce {
+		nonce, err = self.c.PendingNonceAt(context.TODO(), common.HexToAddress(from))
+		if err!=nil { }
+	} else {
+		if nonce == max_nonce {
+			nonce, err = self.c.PendingNonceAt(context.TODO(), common.HexToAddress(from))
+			if err!=nil { }
+		}
+	}
+	self.nonceMap[from] = nonce + 1
+	self.nonceMtx.Unlock()
+
+	return nonce
+}
+
+func (self *Client) removeNonc(from string) {
+	self.nonceMtx.Lock()
+	delete(self.nonceMap, from)
+	self.nonceMtx.Unlock()
+}
+
 func (self *Client) init() error {
 	// self.ctx must
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
+
+	self.nonceMtx = new(sync.Mutex)
+	self.nonceMap = make(map[string]uint64, 256)
 
 	self.addresslist = new(utils.FoldedStrings)
 
@@ -108,7 +142,8 @@ func (self *Client) init() error {
 		self.scanblock = self.virtualBlockHeight()
 	}
 
-	self.tokens = make(map[string]*types.Token, 128)
+	self.tokens = make(map[string]*types.Token, 256)
+
 	l4g.Trace("----------------Init %s EthToken-----------------")
 	// create configed tokens
 	self.contracts = make(map[string]*token.Token)
@@ -221,9 +256,12 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 		pendingcode     []byte
 	)
 
-	if nonce, err = self.c.PendingNonceAt(context.TODO(), from); err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
+	//if nonce, err = self.c.PendingNonceAt(context.TODO(), from); err != nil {
+	//	return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
+	//}
+	nonce = self.nextNonce(from.String())
+
+	l4g.Trace("PendingNonceAt(%s) = %d", from.String(), nonce)
 
 	if gasprice, err = self.c.SuggestGasPrice(context.TODO()); err != nil {
 		return nil, fmt.Errorf("failed to suggest gas price: %v", err)
@@ -297,7 +335,7 @@ func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
 					if receipt.GasUsed > tmptx.Gas() {
 						state = types.Tx_state_unconfirmed
 					} else {
-						l4g.Trace("transaction(%s), receipt success!")
+						l4g.Trace("transaction(%s), receipt success!", tx.Hash().String())
 						state = types.Tx_state_confirmed
 					}
 				}
@@ -338,68 +376,68 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 		return err
 	}
 
-	txfee := gasprice.Mul(gasprice, big.NewInt(int64(gaslimit)))
+	txfee := new(big.Int).Set(gasprice)
+	txfee = txfee.Mul(txfee, big.NewInt(int64(gaslimit)))
 	signer := etypes.HomesteadSigner{}
 
 	// Spender需要充owner转走token, 首先需要Token的Owner调用合约给自己授权
 	// 所以由Spender先发送txfee给owner, 作为执行授权的交易费
 	// 因为Spender中没有'ether'作为txfee
-	{
-		self.txMtx.Lock()
-		tx, err = self.buildRawTx(spender, owner, txfee, nil)
-		l4g.Trace("Build Fee ethereumTx:%s, value:%d", tx.String(), value.Uint64())
-		if err != nil {
-			goto TxMtxUnlock
-		}
-
-		signedTx, err = etypes.SignTx(tx, signer, privSpenderKey)
-		if err != nil {
-			goto TxMtxUnlock
-		}
-		if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
-			goto TxMtxUnlock
-		}
-
-		self.txMtx.Unlock()
-
-		isok, err = self.blockTraceTx(signedTx)
-		if err != nil {
-			goto TxMtxUnlock
-		}
-
-		if !isok {
-			err = fmt.Errorf("trace txfee send error!")
-			goto TxMtxUnlock
-		}
-	}
-
-	self.txMtx.Lock()
-	nonce, err = self.c.PendingNonceAt(context.TODO(), owner)
-	if err!=nil { goto TxMtxUnlock}
-
-	tx = etypes.NewTransaction(nonce, contract, big.NewInt(0), gaslimit, gasprice, input)
-	signedTx, err = etypes.SignTx(tx, signer, privOwnerKey)
+	tx, err = self.buildRawTx(spender, owner, txfee, nil)
+	//l4g.Trace("Build Fee ethereumTx:%s, txfee:(%d * %d) = %d",
+	//	tx.String(), gasprice.Uint64(), gaslimit, txfee)
 	if err != nil {
-		return err
+		goto Exception
 	}
 
-	if err := self.c.SendTransaction(context.TODO(), signedTx); err != nil {
-		l4g.Error("SendTransaction error:message:%s", err.Error())
-		return err
+	signedTx, err = etypes.SignTx(tx, signer, privSpenderKey)
+	if err != nil {
+		goto Exception
+	}
+	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
+		goto Exception
 	}
 
 	isok, err = self.blockTraceTx(signedTx)
 	if err != nil {
-		goto TxMtxUnlock
+		goto Exception
 	}
 
 	if !isok {
-		err = fmt.Errorf("approve TokenSymbol Tx(%s) faild", signedTx.Hash().String())
-		goto TxMtxUnlock
+		err = fmt.Errorf("trace txfee send error!")
+		goto Exception
 	}
 
-	TxMtxUnlock:
-		self.txMtx.Unlock()
+	nonce = self.nextNonce(owner_string)
+	//nonce, err = self.c.PendingNonceAt(context.TODO(), owner);
+	if err!=nil {
+		goto Exception
+	}
+	tx = etypes.NewTransaction(nonce, contract, big.NewInt(0), gaslimit, gasprice, input)
+
+	signedTx, err = etypes.SignTx(tx, signer, privOwnerKey);
+	if  err!=nil {
+		goto Exception
+	}
+
+	err = self.c.SendTransaction(context.TODO(), signedTx)
+	if err != nil {
+		goto Exception
+	} else {
+		l4g.Trace("SendTxOk:%s", signedTx.Hash().String())
+	}
+	time.Sleep(time.Second)
+
+Exception:
+
+	if err!=nil {
+		l4g.Trace("Approve token error, message:%s", err.Error())
+		return err
+	}
+
+	isok, err = self.blockTraceTx(signedTx)
+	if err != nil { return err }
+	if !isok { err = fmt.Errorf("approve TokenSymbol Tx(%s) faild", signedTx.Hash().String()) }
 
 	return err
 }
@@ -428,36 +466,31 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 		etx, signedTx *etypes.Transaction
 	)
 
-	// 必须在self.c.PendingNonceAt之前加锁
-	// 在使用对应nonce来创建的tx被调用self.c.SendTransaction之后解锁
-	// 不然如果from, value的值如果一样, PendingNonceAt得到的值不会变化
-	// 导致并发交易时, SendTransaction发送失败的问题
-	self.txMtx.Lock()
 	etx, err = self.buildRawTx(
 		common.HexToAddress(tx.From),
 		common.HexToAddress(tx.To),
 		EtherToWei(tx.Value), input)
 
 	if err!=nil {
-		goto TxMtxUnlock
+		goto Exception
 	}
+
 	tx.State = types.Tx_state_BuildOk
 	signedTx, err = etypes.SignTx(etx, etypes.HomesteadSigner{}, fromPrivkey)
 	tx.Tx_hash = signedTx.Hash().String()
 	if err != nil {
 		l4g.Error("sign Transaction error:%s", err.Error())
-		goto TxMtxUnlock
+		goto Exception
 	}
 	tx.State = types.Tx_state_Signed
 
 	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
-		l4g.Error("SendTransaction error: %s", err.Error())
-		goto TxMtxUnlock
+		l4g.Error("SendTransaction error: %s txinfo:%s", err.Error(), signedTx.String())
+		goto Exception
 	}
 	tx.State = types.Tx_state_pending
 
-TxMtxUnlock:
-	self.txMtx.Unlock()
+Exception:
 	return err
 }
 

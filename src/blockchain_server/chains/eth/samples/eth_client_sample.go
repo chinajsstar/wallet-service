@@ -195,9 +195,7 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
 						l4g.Trace("Transaction Command Channel is closed!")
 						cdone++
 					} else {
-						l4g.Trace("Transaction state changed, transaction information:%s\n",
-							cmdTx.Tx.String())
-
+						l4g.Trace("Transaction state changed, hash=%s", cmdTx.Tx.Tx_hash)
 						if cmdTx.Tx.State == types.Tx_state_confirmed ||
 							cmdTx.Tx.State == types.Tx_state_unconfirmed {
 							cdone++
@@ -218,6 +216,7 @@ func testSendTokenTx(ctx context.Context, clientManager *service.ClientManager,
 
 	for i:=0; i<5; i++ {
 		go makeAndSend(coin, callFromKey, tokenTo, token, tokenOwnerKey, float64(i+1))
+		csend++
 	}
 
 	go waitingfun(subCtx, txStateChannel)
