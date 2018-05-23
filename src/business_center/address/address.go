@@ -104,11 +104,11 @@ func (a *Address) NewAddress(req *data.SrvRequest, res *data.SrvResponse) error 
 
 	userAddress := a.generateAddress(&userProperty, &assetProperty, count)
 	if len(userAddress) > 0 {
-		data := make([]string, 0)
+		d := make([]string, 0)
 		for _, v := range userAddress {
-			data = append(data, v.Address)
+			d = append(d, v.Address)
 		}
-		resMap["data"] = data
+		resMap["data"] = d
 	}
 	res.Value.Message = responseJson(resMap)
 
@@ -340,22 +340,22 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 	}
 
 	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryTransactionOrderCount(queryMap)
+		dataList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
 		for _, v := range arr {
-			data := v1.AckAssetsAttribute{}
-			data.AssetName = v.AssetName
-			data.FullName = v.FullName
-			data.IsToken = v.IsToken
-			data.ParentName = v.ParentName
-			data.DepositMin = v.DepositMin
-			data.WithdrawalRate = v.WithdrawalRate
-			data.WithdrawalValue = v.WithdrawalValue
-			data.ConfirmationNum = v.ConfirmationNum
-			data.Decimals = v.Decimals
-			dataList.Data = append(dataList.Data, data)
+			d := v1.AckAssetsAttribute{}
+			d.AssetName = v.AssetName
+			d.FullName = v.FullName
+			d.IsToken = v.IsToken
+			d.ParentName = v.ParentName
+			d.DepositMin = v.DepositMin
+			d.WithdrawalRate = v.WithdrawalRate
+			d.WithdrawalValue = v.WithdrawalValue
+			d.ConfirmationNum = v.ConfirmationNum
+			d.Decimals = v.Decimals
+			dataList.Data = append(dataList.Data, d)
 		}
 	}
 
@@ -404,11 +404,11 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 	dataList := v1.AckUserBalanceList{}
 	if arr, ok := mysqlpool.QueryUserAccount(queryMap); ok {
 		for _, v := range arr {
-			data := v1.AckUserBalance{}
-			data.AssetName = v.AssetName
-			data.AvailableAmount = v.AvailableAmount
-			data.FrozenAmount = v.FrozenAmount
-			dataList.Data = append(dataList.Data, data)
+			d := v1.AckUserBalance{}
+			d.AssetName = v.AssetName
+			d.AvailableAmount = v.AvailableAmount
+			d.FrozenAmount = v.FrozenAmount
+			dataList.Data = append(dataList.Data, d)
 		}
 	}
 
@@ -432,18 +432,18 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 	}
 
 	params := v1.ReqHistoryTransactionOrder{
-		ID:            -1,
-		OrderID:       "",
-		AssetName:     "",
-		TransType:     -1,
-		Hash:          "",
-		MaxAmount:     -1,
-		MinAmount:     -1,
-		MaxUpdateTime: -1,
-		MinUpdateTime: -1,
-		TotalLines:    -1,
-		PageIndex:     -1,
-		MaxDispLines:  -1,
+		ID:             -1,
+		OrderID:        "",
+		AssetName:      "",
+		TransType:      -1,
+		Hash:           "",
+		MaxAmount:      -1,
+		MinAmount:      -1,
+		MaxConfirmTime: -1,
+		MinConfirmTime: -1,
+		TotalLines:     -1,
+		PageIndex:      -1,
+		MaxDispLines:   -1,
 	}
 
 	if len(req.Argv.Message) > 0 {
@@ -486,12 +486,12 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		queryMap["min_amount"] = params.MinAmount
 	}
 
-	if params.MaxUpdateTime > 0 {
-		queryMap["max_update_time"] = params.MaxUpdateTime
+	if params.MaxConfirmTime > 0 {
+		queryMap["max_confirm_time"] = params.MaxConfirmTime
 	}
 
-	if params.MinUpdateTime > 0 {
-		queryMap["min_update_time"] = params.MinUpdateTime
+	if params.MinConfirmTime > 0 {
+		queryMap["min_confirm_time"] = params.MinConfirmTime
 	}
 
 	dataList := v1.AckHistoryTransactionOrderList{
@@ -511,24 +511,28 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 	}
 
 	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryTransactionOrderCount(queryMap)
+		dataList.TotalLines = mysqlpool.QueryTransactionBillCount(queryMap)
 	}
 
-	if arr, ok := mysqlpool.QueryTransactionOrder(queryMap); ok {
+	if arr, ok := mysqlpool.QueryTransactionBill(queryMap); ok {
 		for _, v := range arr {
-			data := v1.AckHistoryTransactionOrder{}
-			data.ID = v.ID
-			data.AssetName = v.AssetName
-			data.Address = v.Address
-			data.TransType = v.TransType
-			data.Status = v.Status
-			data.Amount = v.Amount
-			data.PayFee = v.PayFee
-			data.Balance = v.Balance
-			data.Hash = v.Hash
-			data.OrderID = v.OrderID
-			data.Time = v.Time
-			dataList.Data = append(dataList.Data, data)
+			d := v1.AckHistoryTransactionOrder{}
+			d.ID = v.ID
+			d.OrderID = v.OrderID
+			d.UserOrderID = v.UserOrderID
+			d.AssetName = v.AssetName
+			d.Address = v.Address
+			d.TransType = v.TransType
+			d.Amount = v.Amount
+			d.PayFee = v.PayFee
+			d.Balance = v.Balance
+			d.Hash = v.Hash
+			d.Status = v.Status
+			d.BlockinHeight = v.BlockinHeight
+			d.CreateOrderTime = v.CreateOrderTime
+			d.BlockinTime = v.BlockinTime
+			d.ConfirmTime = v.ConfirmTime
+			dataList.Data = append(dataList.Data, d)
 		}
 	}
 
@@ -595,25 +599,25 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 	}
 
 	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryTransactionOrderCount(queryMap)
+		dataList.TotalLines = mysqlpool.QueryTransactionMessageCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryTransactionMessage(queryMap); ok {
 		for _, v := range arr {
-			data := v1.AckHistoryTransactionMessage{}
-			data.MsgID = v.MsgID
-			data.TransType = v.TransType
-			data.Status = v.Status
-			data.BlockinHeight = v.BlockinHeight
-			data.AssetName = v.AssetName
-			data.Address = v.Address
-			data.Amount = v.Amount
-			data.PayFee = v.PayFee
-			data.Balance = v.Balance
-			data.Hash = v.Hash
-			data.OrderId = v.OrderID
-			data.Time = v.Time
-			dataList.Data = append(dataList.Data, data)
+			d := v1.AckHistoryTransactionMessage{}
+			d.MsgID = v.MsgID
+			d.TransType = v.TransType
+			d.Status = v.Status
+			d.BlockinHeight = v.BlockinHeight
+			d.AssetName = v.AssetName
+			d.Address = v.Address
+			d.Amount = v.Amount
+			d.PayFee = v.PayFee
+			d.Balance = v.Balance
+			d.Hash = v.Hash
+			d.OrderId = v.OrderID
+			d.Time = v.Time
+			dataList.Data = append(dataList.Data, d)
 		}
 	}
 
@@ -693,12 +697,12 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 
 	if arr, ok := mysqlpool.QueryUserAddress(queryMap); ok {
 		for _, v := range arr {
-			data := v1.AckUserAddress{}
-			data.AssetName = v.AssetName
-			data.Address = v.Address
-			data.AllocationTime = v.AllocationTime
+			d := v1.AckUserAddress{}
+			d.AssetName = v.AssetName
+			d.Address = v.Address
+			d.AllocationTime = v.AllocationTime
 
-			dataList.Data = append(dataList.Data, data)
+			dataList.Data = append(dataList.Data, d)
 		}
 	}
 
@@ -783,5 +787,91 @@ func (a *Address) QueryPayAddress(req *data.SrvRequest, res *data.SrvResponse) e
 	res.Err = 0
 	res.ErrMsg = ""
 
+	return nil
+}
+
+func (a *Address) TransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) error {
+	_, _, userKey := req.GetUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
+	if !ok {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	params := v1.ReqTransactionBillDaily{
+		AssetName:    "",
+		MaxPeriod:    -1,
+		MinPeriod:    -1,
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
+
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
+	queryMap := make(map[string]interface{})
+	queryMap["user_key"] = userProperty.UserKey
+
+	if len(params.AssetName) > 0 {
+		queryMap["asset_name"] = params.AssetName
+	}
+
+	if params.MaxPeriod >= 0 {
+		queryMap["max_period"] = params.MaxPeriod
+	}
+
+	if params.MinPeriod >= 0 {
+		queryMap["min_period"] = params.MinPeriod
+	}
+
+	dataList := v1.AckTransactionBillDailyList{
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
+
+	if params.PageIndex > 0 {
+		queryMap["page_index"] = params.PageIndex
+		dataList.PageIndex = params.PageIndex
+	}
+
+	if params.MaxDispLines > 0 {
+		queryMap["max_disp_lines"] = params.MaxDispLines
+		dataList.MaxDispLines = params.MaxDispLines
+	}
+
+	if params.TotalLines == 0 {
+		dataList.TotalLines = mysqlpool.QueryTransactionBillDailyCount(queryMap)
+	}
+
+	if arr, ok := mysqlpool.QueryTransactionBillDaily(queryMap); ok {
+		for _, v := range arr {
+			d := v1.AckTransactionBillDaily{}
+			d.Period = v.Period
+			d.AssetName = v.AssetName
+			d.SumDPAmount = v.SumDPAmount
+			d.SumWDAmount = v.SumWDAmount
+			d.SumPayFee = v.SumPayFee
+			d.PreBalance = v.PreBalance
+			d.LastBalance = v.LastBalance
+			dataList.Data = append(dataList.Data, d)
+		}
+	}
+
+	pack, err := json.Marshal(dataList)
+	if err != nil {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+	res.Value.Message = string(pack)
 	return nil
 }

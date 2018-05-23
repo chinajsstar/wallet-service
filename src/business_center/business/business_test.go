@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 0
+	testType := 11
 	switch testType {
 	case 1:
 		req.Method.Function = "new_address"
@@ -25,7 +25,7 @@ func TestHandleMsg(t *testing.T) {
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":10, \"address\":\"mxLju5VqXZR6f8aeFvk82Ltv6WmdnYg8KY\","+
+		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":30, \"address\":\"mxLju5VqXZR6f8aeFvk82Ltv6WmdnYg8KY\","+
 			"\"user_order_id\":\"%s\" }", transaction.GenerateUUID("UR"))
 		req.Argv.Message = params
 	case 3:
@@ -39,7 +39,7 @@ func TestHandleMsg(t *testing.T) {
 	case 5:
 		req.Method.Function = "asset_attribute"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"asset_names\":[\"btc\", \"eth\"], \"max_disp_lines\":1, \"total_lines\":0}"
+		req.Argv.Message = "{\"asset_names\":[\"btc\", \"eth\"], \"max_disp_lines\":2, \"total_lines\":0}"
 	case 6:
 		req.Method.Function = "get_balance"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
@@ -60,6 +60,10 @@ func TestHandleMsg(t *testing.T) {
 		req.Method.Function = "query_pay_address"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = "[\"btc\"]"
+	case 11:
+		req.Method.Function = "transaction_bill_daily"
+		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
+		req.Argv.Message = ""
 	}
 
 	if testType > 0 {

@@ -237,6 +237,7 @@ CREATE TABLE `withdrawal_order` (
   `address` varchar(255) NOT NULL DEFAULT '',
   `amount` double NOT NULL DEFAULT 0,
   `pay_fee` double NOT NULL DEFAULT 0,
+  `miner_fee` double NOT NULL DEFAULT 0 COMMENT '矿工费',
   `create_time` datetime NOT NULL, 
   `hash` varchar(255) DEFAULT NULL DEFAULT '',
   `status` int(11) NOT NULL DEFAULT 0 COMMENT '0入块,1已确认,>=2错误状态',
@@ -258,6 +259,7 @@ CREATE TABLE `transaction_bill` (
   `address` varchar(255) NOT NULL DEFAULT '' COMMENT '地址',
   `amount` double NOT NULL DEFAULT 0 COMMENT '金额',
   `pay_fee` double NOT NULL DEFAULT 0 COMMENT '手续费',
+  `miner_fee` double NOT NULL DEFAULT 0 COMMENT '矿工费',
   `balance` double NOT NULL DEFAULT 0 COMMENT '余额',
   `hash` varchar(255) NOT NULL DEFAULT '',
   `order_id` varchar(255) NOT NULL DEFAULT '',
@@ -281,6 +283,7 @@ CREATE TABLE `transaction_notice` (
   `address` varchar(255) NOT NULL DEFAULT '' COMMENT '地址',
   `amount` double NOT NULL DEFAULT 0 COMMENT '金额',
   `pay_fee` double NOT NULL DEFAULT 0 COMMENT '手续费',
+  `miner_fee` double NOT NULL DEFAULT 0 COMMENT '矿工费',  
   `balance` double NOT NULL DEFAULT 0 COMMENT '余额',
   `hash` varchar(255) NOT NULL DEFAULT '',
   `order_id` varchar(255) NOT NULL DEFAULT '',
@@ -299,6 +302,28 @@ CREATE TABLE `user_order` (
   `user_order_id` varchar(255) NOT NULL DEFAULT '',
   `order_id` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`user_key`,`user_order_id`),
+  UNIQUE KEY `id_UNIQUE` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+-- ----------------------------
+-- Table structure for `transaction_bill_daily`
+-- ----------------------------
+DROP TABLE IF EXISTS `transaction_bill_daily`;
+CREATE TABLE `transaction_bill_daily` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `period` int(11) NOT NULL DEFAULT 0 COMMENT '周期标识',
+  `user_key` varchar(255) NOT NULL DEFAULT '商户Key',
+  `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '币种',
+  `sum_dp_amount` double NOT NULL DEFAULT 0 COMMENT '总充币数量',
+  `sum_wd_amount` double NOT NULL DEFAULT 0 COMMENT '总提币数据',
+  `sum_pay_fee` double NOT NULL DEFAULT 0 COMMENT '总手续费',
+  `sum_miner_fee` double NOT NULL DEFAULT 0 COMMENT '总矿工费',
+  `pre_balance` double NOT NULL DEFAULT 0 COMMENT '上期余额',
+  `last_balance` double NOT NULL DEFAULT 0 COMMENT '当期余额',
+  `pre_time` datetime NOT NULL COMMENT '当期最早时间',
+  `last_time` datetime NOT NULL COMMENT '最后更新时间',              
+  PRIMARY KEY (`period`,`user_key`,`asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

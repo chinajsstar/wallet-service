@@ -77,33 +77,36 @@ type (
 
 	// 历史交易订单
 	ReqHistoryTransactionOrder struct {
-		ID            int64   `json:"serial_id" doc:"流水号"`
-		OrderID       string  `json:"order_id" doc:"订单号"`
-		AssetName     string  `json:"asset_name" doc:"币种"`
-		TransType     int     `json:"trans_type" doc:"交易类型"`
-		Hash          string  `json:"hash" doc:"交易哈希"`
-		MaxAmount     float64 `json:"max_amount" doc:"最大金额"`
-		MinAmount     float64 `json:"min_amount" doc:"最小金额"`
-		MaxUpdateTime int64   `json:"max_update_time" doc:"开始时间"`
-		MinUpdateTime int64   `json:"min_update_time" doc:"结束时间"`
-
-		TotalLines   int `json:"total_lines" doc:"总数,0：表示首次查询"`
-		PageIndex    int `json:"page_index" doc:"页索引,1开始"`
-		MaxDispLines int `json:"max_disp_lines" doc:"页最大数，100以下"`
+		ID             int64   `json:"serial_id" doc:"流水号"`
+		OrderID        string  `json:"order_id" doc:"订单号"`
+		AssetName      string  `json:"asset_name" doc:"币种"`
+		TransType      int     `json:"trans_type" doc:"交易类型"`
+		Hash           string  `json:"hash" doc:"交易哈希"`
+		MaxAmount      float64 `json:"max_amount" doc:"最大金额"`
+		MinAmount      float64 `json:"min_amount" doc:"最小金额"`
+		MaxConfirmTime int64   `json:"max_confirm_time" doc:"开始时间"`
+		MinConfirmTime int64   `json:"min_confirm_time" doc:"结束时间"`
+		TotalLines     int     `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex      int     `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines   int     `json:"max_disp_lines" doc:"页最大数，100以下"`
 	}
 
 	AckHistoryTransactionOrder struct {
-		ID        int64   `json:"serial_id" doc:"流水号"`
-		OrderID   string  `json:"order_id" doc:"交易订单"`
-		AssetName string  `json:"asset_name" doc:"币种"`
-		Address   string  `json:"address" doc:"提币地址或充值地址"`
-		TransType int     `json:"trans_type" doc:"交易类型"`
-		Amount    float64 `json:"amount" doc:"数量"`
-		PayFee    float64 `json:"pay_fee" doc:"交易费用"`
-		Balance   float64 `json:"balance" doc:"当前余额"`
-		Hash      string  `json:"hash" doc:"交易哈希"`
-		Status    int     `json:"status" doc:"交易状态"`
-		Time      int64   `json:"time" doc:"更新时间"`
+		ID              int64   `json:"id" doc:"流水号"`
+		OrderID         string  `json:"order_id" doc:"交易订单"`
+		UserOrderID     string  `json:"user_order_id" doc:"用户订单号"`
+		AssetName       string  `json:"asset_name" doc:"币种"`
+		Address         string  `json:"address" doc:"地址"`
+		TransType       int     `json:"trans_type" doc:"交易类型"`
+		Amount          float64 `json:"amount" doc:"数量"`
+		PayFee          float64 `json:"pay_fee" doc:"交易费用"`
+		Balance         float64 `json:"balance"doc:"当前余额"`
+		Hash            string  `json:"hash"`
+		Status          int     `json:"status" doc:"交易状态"`
+		BlockinHeight   int64   `json:"blockin_height" doc:"入块高度"`
+		CreateOrderTime int64   `json:"create_order_time" doc:"订单创建时间"`
+		BlockinTime     int64   `json:"blockin_time" doc:"入块时间"`
+		ConfirmTime     int64   `json:"confirm_time" doc:"确认时间"`
 	}
 
 	AckHistoryTransactionOrderList struct {
@@ -142,5 +145,31 @@ type (
 		TotalLines   int                            `json:"total_lines" doc:"总数"`
 		PageIndex    int                            `json:"page_index" doc:"页索引"`
 		MaxDispLines int                            `json:"max_disp_lines" doc:"页最大数"`
+	}
+
+	ReqTransactionBillDaily struct {
+		AssetName    string `json:"asset_name" doc:"币种"`
+		MaxPeriod    int    `json:"max_period" doc:"最大周期值"`
+		MinPeriod    int    `json:"min_period" doc:"最小周期值"`
+		TotalLines   int    `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex    int    `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines int    `json:"max_disp_lines" doc:"页最大数，100以下"`
+	}
+
+	AckTransactionBillDaily struct {
+		Period      int     `json:"period"`
+		AssetName   string  `json:"asset_name"`
+		SumDPAmount float64 `json:"sum_dp_amount"`
+		SumWDAmount float64 `json:"sum_wd_amount"`
+		SumPayFee   float64 `json:"sum_pay_fee"`
+		PreBalance  float64 `json:"pre_balance"`
+		LastBalance float64 `json:"last_balance"`
+	}
+
+	AckTransactionBillDailyList struct {
+		Data         []AckTransactionBillDaily `json:"data" doc:"历史日结帐单"`
+		TotalLines   int                       `json:"total_lines" doc:"总数"`
+		PageIndex    int                       `json:"page_index" doc:"页索引"`
+		MaxDispLines int                       `json:"max_disp_lines" doc:"页最大数"`
 	}
 )

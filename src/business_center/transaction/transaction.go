@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
+	"strconv"
 	"time"
 )
 
@@ -32,11 +33,15 @@ func Blockin(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 		if err == nil {
 			if len(transNotice.Hash) <= 0 {
 				transNotice.Hash = blockin.Hash
-				db.Exec("update withdrawal_order set hash = ? where order_id = ?", blockin.Hash, blockin.OrderID)
+				transNotice.MinerFee = blockin.MinerFee
+				db.Exec("update withdrawal_order set hash = ?, miner_fee = ? where order_id = ?",
+					blockin.Hash, blockin.MinerFee, blockin.OrderID)
 				row := db.QueryRow("select available_amount from user_account where user_key = ? and asset_name = ?",
 					transNotice.UserKey, transNotice.AssetName)
 				row.Scan(&transNotice.Balance)
 				SendTransactionNotic(&transNotice, callback)
+				AddTransactionBill(&transNotice)
+				AddTransactionBillDaily(&transNotice)
 			}
 		}
 	}
@@ -64,7 +69,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 		if ret, err := db.Exec("update withdrawal_order set status = 1"+
 			" where order_id = ? and status = 0", blockin.OrderID); err == nil {
 			if affectedRows, _ := ret.RowsAffected(); affectedRows > 0 {
-				row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash, user_order_id"+
+				row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, miner_fee, hash, user_order_id"+
 					" from withdrawal_order where order_id = ?", blockin.OrderID)
 				transNotice := TransactionNotice{
 					MsgID:         0,
@@ -76,7 +81,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 				}
 				var userOrderID string
 				err := row.Scan(&transNotice.UserKey, &transNotice.AssetName, &transNotice.Address, &transNotice.Amount,
-					&transNotice.PayFee, &transNotice.Hash, &userOrderID)
+					&transNotice.PayFee, &transNotice.MinerFee, &transNotice.Hash, &userOrderID)
 				if err == nil {
 					tx, _ := db.Begin()
 					tx.Exec("update user_account set frozen_amount = frozen_amount - ?, update_time = ?"+
@@ -90,6 +95,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 					mysqlpool.RemoveUserOrder(transNotice.UserKey, userOrderID)
 					SendTransactionNotic(&transNotice, callback)
 					AddTransactionBill(&transNotice)
+					AddTransactionBillDaily(&transNotice)
 				}
 			}
 		}
@@ -141,6 +147,8 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 					transNotice.UserKey, transNotice.AssetName)
 				row.Scan(&transNotice.Balance)
 				SendTransactionNotic(&transNotice, callback)
+				AddTransactionBill(&transNotice)
+				AddTransactionBillDaily(&transNotice)
 			}
 		}
 		db.Exec("insert transaction_detail (asset_name, address, trans_type, amount, hash, detail_id) "+
@@ -188,6 +196,7 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 				tx.Commit()
 				SendTransactionNotic(&transNotice, callback)
 				AddTransactionBill(&transNotice)
+				AddTransactionBillDaily(&transNotice)
 			}
 		}
 	}
@@ -211,7 +220,7 @@ func AddTransactionBill(transNotice *TransactionNotice) error {
 
 	ret, err := tx.Exec("update transaction_bill set status = ?, balance = ?, time = ? where status = 0 and user_key = ?"+
 		" and asset_name = ? and order_id = ?",
-		transNotice.Status, transNotice.Balance, time.Unix(transNotice.Time, 0).Format(TimeFormat),
+		transNotice.Status, transNotice.Balance, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat),
 		transNotice.UserKey, transNotice.AssetName, transNotice.OrderID)
 	if err != nil {
 		return err
@@ -223,19 +232,95 @@ func AddTransactionBill(transNotice *TransactionNotice) error {
 	}
 
 	if rowAffected > 0 {
-		return nil
+		return tx.Commit()
 	}
 
 	_, err = tx.Exec("insert transaction_bill (user_key, trans_type, status, blockin_height, asset_name, address, amount, "+
-		"pay_fee, balance, hash, order_id, time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"pay_fee, miner_fee, balance, hash, order_id, time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		transNotice.UserKey, transNotice.TransType, transNotice.Status, transNotice.BlockinHeight, transNotice.AssetName,
-		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.Balance, transNotice.Hash,
-		transNotice.OrderID, time.Unix(transNotice.Time, 0).Format(TimeFormat))
+		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.MinerFee, transNotice.Balance, transNotice.Hash,
+		transNotice.OrderID, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat))
 	if err != nil {
 		return err
 	}
 
 	return tx.Commit()
+}
+
+func AddTransactionBillDaily(transNotice *TransactionNotice) error {
+	if transNotice.Status == 1 {
+		period, err := strconv.Atoi(time.Unix(transNotice.Time, 0).Format(DateFormat))
+		if err != nil {
+			return err
+		}
+
+		db := mysqlpool.Get()
+		timeF := time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat)
+		if transNotice.TransType == 0 {
+			ret, err := db.Exec("update transaction_bill_daily set sum_dp_amount = sum_dp_amount + ?,"+
+				" pre_balance = if(pre_time > ?, ?, pre_balance),"+
+				" last_balance = if(last_time < ?, ?, last_balance),"+
+				" pre_time = if(pre_time > ?, ?, pre_time),"+
+				" last_time = if(last_time < ?, ?, last_time)"+
+				" where period = ? and user_key = ? and asset_name = ?",
+				transNotice.Amount, timeF, transNotice.Balance, timeF, transNotice.Balance, timeF, timeF, timeF, timeF,
+				period, transNotice.UserKey, transNotice.AssetName)
+			if err != nil {
+				return err
+			}
+
+			rowAffected, err := ret.RowsAffected()
+			if err != nil {
+				return err
+			}
+
+			if rowAffected > 0 {
+				return nil
+			}
+
+			_, err = db.Exec("insert transaction_bill_daily (period, user_key, asset_name, sum_dp_amount,"+
+				" sum_wd_amount, sum_pay_fee, sum_miner_fee, pre_balance, last_balance, pre_time, last_time)"+
+				" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				period, transNotice.UserKey, transNotice.AssetName, transNotice.Amount, 0, 0, 0,
+				transNotice.Balance-transNotice.Amount, transNotice.Balance, timeF, timeF)
+			if err != nil {
+				return err
+			}
+		} else {
+			ret, err := db.Exec("update transaction_bill_daily set sum_wd_amount = sum_wd_amount + ?,"+
+				" sum_pay_fee = sum_pay_fee + ?,"+
+				" sum_miner_fee = sum_miner_fee + ?,"+
+				" pre_balance = if(pre_time > ?, ?, pre_balance),"+
+				" last_balance = if(last_time < ?, ?, last_balance),"+
+				" pre_time = if(pre_time > ?, ?, pre_time),"+
+				" last_time = if(last_time < ?, ?, last_time)"+
+				" where period = ? and user_key = ? and asset_name = ?",
+				transNotice.Amount, transNotice.PayFee, transNotice.MinerFee, timeF, transNotice.Balance, timeF,
+				transNotice.Balance, timeF, timeF, timeF, timeF, period, transNotice.UserKey, transNotice.AssetName)
+			if err != nil {
+				return err
+			}
+
+			rowAffected, err := ret.RowsAffected()
+			if err != nil {
+				return err
+			}
+
+			if rowAffected > 0 {
+				return nil
+			}
+
+			_, err = db.Exec("insert transaction_bill_daily (period, user_key, asset_name, sum_dp_amount,"+
+				" sum_wd_amount, sum_pay_fee, sum_miner_fee, pre_balance, last_balance, pre_time, last_time)"+
+				" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				period, transNotice.UserKey, transNotice.AssetName, 0, transNotice.Amount, transNotice.PayFee,
+				transNotice.MinerFee, transNotice.Balance-transNotice.Amount, transNotice.Balance, timeF, timeF)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallback) error {
@@ -247,12 +332,12 @@ func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallba
 		row.Scan(&transNotice.OrderID)
 	}
 
-	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id,"+
-		" trans_type, status, blockin_height, asset_name, address, amount, pay_fee, balance, hash, order_id, time)"+
-		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?",
+	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id, trans_type, status, blockin_height,"+
+		" asset_name, address, amount, pay_fee, miner_fee, balance, hash, order_id, time)"+
+		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?",
 		transNotice.UserKey, transNotice.TransType, transNotice.Status, transNotice.BlockinHeight, transNotice.AssetName,
-		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.Balance, transNotice.Hash, transNotice.OrderID,
-		time.Unix(transNotice.Time, 0).Format(TimeFormat), transNotice.UserKey)
+		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.MinerFee, transNotice.Balance,
+		transNotice.Hash, transNotice.OrderID, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat), transNotice.UserKey)
 	if err != nil {
 		return err
 	}

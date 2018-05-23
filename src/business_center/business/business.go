@@ -104,6 +104,9 @@ func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error 
 
 	case "query_pay_address":
 		return b.address.QueryPayAddress(req, res)
+
+	case "transaction_bill_daily":
+		return b.address.TransactionBillDaily(req, res)
 	}
 	return errors.New("invalid command")
 }

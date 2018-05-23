@@ -4,6 +4,7 @@ type PushMsgCallback func(userID string, callbackMsg string)
 
 const (
 	TimeFormat = "2006-01-02 15:04:05"
+	DateFormat = "20060102"
 )
 
 const (
@@ -108,6 +109,7 @@ type (
 		Address       string  `json:"address"`
 		Amount        float64 `json:"amount"`
 		PayFee        float64 `json:"pay_fee"`
+		MinerFee      float64 `json:"miner_fee"`
 		Balance       float64 `json:"balance"`
 		Hash          string  `json:"hash"`
 		OrderID       string  `json:"order_id"`
@@ -122,10 +124,44 @@ type (
 		TransType int     `json:"trans_type"`
 		Amount    float64 `json:"amount"`
 		PayFee    float64 `json:"pay_fee"`
+		MinerFee  float64 `json:"miner_fee"`
 		Balance   float64 `json:"balance"`
 		Hash      string  `json:"hash"`
 		OrderID   string  `json:"order_id"`
 		Status    int     `json:"status"`
 		Time      int64   `json:"time"`
+	}
+
+	TransactionBill struct {
+		ID              int64   `json:"id"`
+		UserKey         string  `json:"user_key"`
+		OrderID         string  `json:"order_id"`
+		UserOrderID     string  `json:"user_order_id"`
+		TransType       int     `json:"trans_type"`
+		AssetName       string  `json:"asset_name"`
+		Address         string  `json:"address"`
+		Amount          float64 `json:"amount"`
+		PayFee          float64 `json:"pay_fee"`
+		MinerFee        float64 `json:"miner_fee"`
+		Balance         float64 `json:"balance"`
+		Hash            string  `json:"hash"`
+		Status          int     `json:"status"`
+		BlockinHeight   int64   `json:"blockin_height"`
+		ConfirmHeight   int64   `json:"confirm_height"`
+		CreateOrderTime int64   `json:"create_order_time"`
+		BlockinTime     int64   `json:"blockin_time"`
+		ConfirmTime     int64   `json:"confirm_time"`
+	}
+
+	TransactionBillDaily struct {
+		Period      int     `json:"period"`
+		UserKey     string  `json:"user_key"`
+		AssetName   string  `json:"asset_name"`
+		SumDPAmount float64 `json:"sum_dp_amount"`
+		SumWDAmount float64 `json:"sum_wd_amount"`
+		SumPayFee   float64 `json:"sum_pay_fee"`
+		SumMinerFee float64 `json:"sum_miner_fee"`
+		PreBalance  float64 `json:"pre_balance"`
+		LastBalance float64 `json:"last_balance"`
 	}
 )

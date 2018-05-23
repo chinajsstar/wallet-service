@@ -89,6 +89,26 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				sqls += " and status = ?"
 				*params = append(*params, int(value))
 			}
+		case "hash":
+			if value, ok := value.(string); ok {
+				sqls += " and hash = ?"
+				*params = append(*params, value)
+			}
+		case "order_id":
+			if value, ok := value.(string); ok {
+				sqls += " and order_id = ?"
+				*params = append(*params, value)
+			}
+		case "max_period":
+			if value, ok := value.(int); ok {
+				sqls += " and period <= ?"
+				*params = append(*params, value)
+			}
+		case "min_period":
+			if value, ok := value.(int); ok {
+				sqls += " and period >= ?"
+				*params = append(*params, value)
+			}
 		case "max_amount":
 			if value, ok := value.(float64); ok {
 				sqls += " and amount <= ?"
@@ -102,32 +122,42 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 		case "max_create_time":
 			if value, ok := value.(int64); ok {
 				sqls += " and create_time <= ?"
-				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
 			}
 		case "min_create_time":
 			if value, ok := value.(int64); ok {
 				sqls += " and create_time >= ?"
-				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
+			}
+		case "max_confirm_time":
+			if value, ok := value.(int64); ok {
+				sqls += " and confirm_time <= ?"
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
+			}
+		case "min_confirm_time":
+			if value, ok := value.(int64); ok {
+				sqls += " and confirm_time >= ?"
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
 			}
 		case "max_update_time":
 			if value, ok := value.(int64); ok {
 				sqls += " and update_time <= ?"
-				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
 			}
 		case "min_update_time":
 			if value, ok := value.(int64); ok {
 				sqls += " and update_time >= ?"
-				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
 			}
 		case "max_allocation_time":
 			if value, ok := value.(int64); ok {
 				sqls += " and allocation_time <= ?"
-				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
 			}
 		case "min_allocation_time":
 			if value, ok := value.(int64); ok {
 				sqls += " and allocation_time >= ?"
-				*params = append(*params, time.Unix(value, 0).Format(TimeFormat))
+				*params = append(*params, time.Unix(value, 0).UTC().Format(TimeFormat))
 			}
 		case "max_msg_id":
 			if value, ok := value.(int64); ok {
