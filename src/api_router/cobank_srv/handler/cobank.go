@@ -98,12 +98,12 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
-			"set_pay_address", data.APILevel_client, x.handler)
+			"set_pay_address", data.APILevel_admin, x.handler)
 	}()
 
 	func() {
 		service.RegisterApi(&nam,
-			"query_pay_address", data.APILevel_client, x.handler)
+			"query_pay_address", data.APILevel_admin, x.handler)
 	}()
 
 	////////////////////////////////////////////////////////////////

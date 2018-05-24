@@ -7,7 +7,7 @@ import (
 )
 
 var ApiDocRecharge = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi},
+	Group:[]string{apibackend.HttpRouterAdmin},
 	Name:"模拟充值",
 	Description:"模拟充值",
 	VerName:"v1",
@@ -18,7 +18,7 @@ var ApiDocRecharge = apidoc.ApiDoc{
 }
 
 var ApiDocGenerate = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterApi},
+	Group:[]string{apibackend.HttpRouterAdmin},
 	Name:"模拟挖矿",
 	Description:"模拟挖矿",
 	VerName:"v1",

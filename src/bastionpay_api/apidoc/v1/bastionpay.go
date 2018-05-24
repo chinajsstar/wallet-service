@@ -114,7 +114,7 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 }
 
 var ApiDocSetPayAddress = apidoc.ApiDoc{
-	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "设置热钱包地址",
 	Description: "设置热钱包地址，管理员权限api",
 	VerName:     "v1",
