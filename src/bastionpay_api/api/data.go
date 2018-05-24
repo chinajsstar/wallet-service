@@ -23,7 +23,7 @@ type UserMethod struct {
 // user response/push data
 type UserResponseData struct{
 	Method		UserMethod 	`json:"method"`					// response method
-	Err     	int    		`json:"err" doc:"错误码,0:成功"` // error code
+	Err     	int    		`json:"err" doc:"错误码"` // error code
 	ErrMsg  	string 		`json:"errmsg" doc:"错误信息"` 	// error message
 	Value   	UserData 	`json:"value" doc:"返回数据"` 	// response data
 }

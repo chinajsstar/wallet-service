@@ -1,44 +1,85 @@
 package data
 
-// error code and message
-var(
-	err_msg map[int]string
+import (
+	"os"
+	"fmt"
+	"bastionpay_api/apibackend"
 )
 
-func init()  {
-	err_msg = make(map[int]string)
-	err_msg[NoErr] 									= ""
-	err_msg[ErrInternal] 							= "internal error"
-	err_msg[ErrDataCorrupted] 						= "data corrupted"
-	err_msg[ErrCallFailed] 							= "call failed"
-	err_msg[ErrIllegallyCall] 						= "illegally call"
-	err_msg[ErrNotFindAuth] 						= "not find auth service"
-	err_msg[ErrNotFindSrv] 							= "not find service"
-	err_msg[ErrNotFindFunction] 					= "not find function"
-	err_msg[ErrConnectSrvFailed] 					= "connect service failed"
+// error code and message
+type ErrorInfo struct {
+	Code 	int
+	Msg 	string
+	Groups  []string
+}
 
-	err_msg[ErrAccountSrvNoUser] 					= "no user"
-	err_msg[ErrAccountSrvUpdateProfile] 			= "update profile failed"
-	err_msg[ErrAccountSrvListUsers] 				= "list users failed"
-	err_msg[ErrAccountSrvListUsersCount] 			= "list users count failed"
-	err_msg[ErrAccountPubKeyParse] 					= "pub key parse failed"
+var(
+	err_msg map[int]*ErrorInfo
+)
 
-	err_msg[ErrAuthSrvNoUserKey] 					= "no user key"
-	err_msg[ErrAuthSrvNoPublicKey] 					= "no public key"
-	err_msg[ErrAuthSrvNoApiLevel] 					= "no api level"
-	err_msg[ErrAuthSrvUserFrozen] 					= "user key is frozen"
-	err_msg[ErrAuthSrvIllegalData] 					= "illegal data"
-	err_msg[ErrAuthSrvIllegalDataType] 				= "illegal data type"
-
-	err_msg[ErrPushSrvPushData] 					= "push failed"
+func AddErrMsg(errId int, errMsg string, groups []string)  {
+	if _, ok := err_msg[errId]; ok{
+		fmt.Printf("Error code %d exist!", errId)
+		os.Exit(1)
+	}
+	err_msg[errId] = &ErrorInfo{errId,errMsg, groups}
 }
 
 func GetErrMsg(errId int) string {
-	if msg, ok := err_msg[errId]; ok{
-		return msg
+	if msgInfo, ok := err_msg[errId]; ok{
+		return msgInfo.Msg
 	}
 	return "service internal error"
 }
+
+func GetGroupErrMsg(group string) map[int]*ErrorInfo {
+	if group == ""{
+		return err_msg
+	}
+
+	errMsgs := make(map[int]*ErrorInfo)
+	for _, v := range err_msg {
+		for _, g := range v.Groups {
+			if g == group {
+				errMsgs[v.Code] = v
+				break
+			}
+		}
+	}
+
+	return errMsgs
+}
+
+func init()  {
+	err_msg = make(map[int]*ErrorInfo)
+
+	AddErrMsg(NoErr, "成功", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrInternal,"内部错误", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrDataCorrupted, "数据损坏", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrCallFailed, "调用服务失败", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrIllegallyCall, "非法调用", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrNotFindAuth, "未发现验证服务", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrNotFindSrv, "未找到服务", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrNotFindFunction, "未找到方法", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrConnectSrvFailed, "连接服务失败", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+
+	AddErrMsg(ErrAccountSrvNoUser, "用户不存在", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAccountSrvUpdateProfile, "更新设置失败", []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAccountSrvListUsers, "获取用户列表失败", []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAccountSrvListUsersCount, "获取用户列表数量失败", []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAccountPubKeyParse, "公钥解析失败", []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+
+	AddErrMsg(ErrAuthSrvNoUserKey, "未找到用户id", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAuthSrvNoPublicKey, "未找到公钥", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAuthSrvNoApiLevel, "没有权限", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAuthSrvUserFrozen, "用户被冻结", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAuthSrvIllegalData, "非法数据", []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+	AddErrMsg(ErrAuthSrvIllegalDataType, "非法数据解析", []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+
+	AddErrMsg(ErrPushSrvPushData, "推送失败", []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin})
+}
+
+
 
 const(
 	// /////////////////////////////////////////////////////
