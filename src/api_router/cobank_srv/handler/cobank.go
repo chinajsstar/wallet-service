@@ -83,7 +83,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
-			"history_transaction_order", data.APILevel_client, x.handler)
+			"history_transaction_bill", data.APILevel_client, x.handler)
 	}()
 
 	func() {
