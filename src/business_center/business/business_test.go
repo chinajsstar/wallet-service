@@ -47,7 +47,7 @@ func TestHandleMsg(t *testing.T) {
 	case 7:
 		req.Method.Function = "history_transaction_order"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"trans_type\":1}"
+		req.Argv.Message = "{\"trans_type\":0}"
 	case 8:
 		req.Method.Function = "history_transaction_message"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
