@@ -422,7 +422,7 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 	return nil
 }
 
-func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvResponse) error {
+func (a *Address) HistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error {
 	_, _, userKey := req.GetUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
@@ -431,11 +431,13 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		return errors.New(res.ErrMsg)
 	}
 
-	params := v1.ReqHistoryTransactionOrder{
+	params := v1.ReqHistoryTransactionBill{
 		ID:             -1,
 		OrderID:        "",
 		AssetName:      "",
+		Address:        "",
 		TransType:      -1,
+		Status:         -1,
 		Hash:           "",
 		MaxAmount:      -1,
 		MinAmount:      -1,
@@ -470,8 +472,16 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		queryMap["asset_name"] = params.AssetName
 	}
 
+	if len(params.Address) > 0 {
+		queryMap["address"] = params.Address
+	}
+
 	if params.TransType >= 0 {
 		queryMap["trans_type"] = params.TransType
+	}
+
+	if params.Status >= 0 {
+		queryMap["status"] = params.Status
 	}
 
 	if len(params.Hash) > 0 {
@@ -494,7 +504,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 		queryMap["min_confirm_time"] = params.MinConfirmTime
 	}
 
-	dataList := v1.AckHistoryTransactionOrderList{
+	dataList := v1.AckHistoryTransactionBillList{
 		TotalLines:   -1,
 		PageIndex:    -1,
 		MaxDispLines: -1,
@@ -516,7 +526,7 @@ func (a *Address) HistoryTransactionOrder(req *data.SrvRequest, res *data.SrvRes
 
 	if arr, ok := mysqlpool.QueryTransactionBill(queryMap); ok {
 		for _, v := range arr {
-			d := v1.AckHistoryTransactionOrder{}
+			d := v1.AckHistoryTransactionBill{}
 			d.ID = v.ID
 			d.OrderID = v.OrderID
 			d.UserOrderID = v.UserOrderID

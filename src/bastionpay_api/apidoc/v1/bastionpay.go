@@ -55,15 +55,15 @@ var ApiDocQueryUserAddress = apidoc.ApiDoc{
 }
 
 // 历史交易订单
-var ApiDocHistoryTransactionOrder = apidoc.ApiDoc{
+var ApiDocHistoryTransactionBill = apidoc.ApiDoc{
 	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	Name:        "查询历史交易订单",
 	Description: "查询历史交易订单",
 	VerName:     "v1",
 	SrvName:     "bastionpay",
-	FuncName:    "history_transaction_order",
-	Input:       &v1.ReqHistoryTransactionOrder{},
-	Output:      &v1.AckHistoryTransactionOrderList{Data: []v1.AckHistoryTransactionOrder{v1.AckHistoryTransactionOrder{}}},
+	FuncName:    "history_transaction_bill",
+	Input:       &v1.ReqHistoryTransactionBill{},
+	Output:      &v1.AckHistoryTransactionBillList{Data: []v1.AckHistoryTransactionBill{v1.AckHistoryTransactionBill{}}},
 }
 
 // 历史交易消息
