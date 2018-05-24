@@ -116,7 +116,7 @@ func PrecisionN(f float64, n int) float64 {
 		n=0
 	}
 	//f = f - 5 * math.Pow10(-(n+1))
-	s := fmt.Sprint("%." + strconv.Itoa(n) + "f", f)
+	s := fmt.Sprintf("%." + strconv.Itoa(n) + "f", f)
 	f, _ = strconv.ParseFloat(s, 64)
 
 	return f
