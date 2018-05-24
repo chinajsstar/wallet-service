@@ -90,8 +90,8 @@ func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error 
 	case "get_balance":
 		return b.address.GetBalance(req, res)
 
-	case "history_transaction_order":
-		return b.address.HistoryTransactionOrder(req, res)
+	case "history_transaction_bill":
+		return b.address.HistoryTransactionBill(req, res)
 
 	case "history_transaction_message":
 		return b.address.HistoryTransactionMessage(req, res)

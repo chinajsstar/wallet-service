@@ -7,7 +7,7 @@ import (
 
 func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, bool) {
 	sqls := "select id,user_key,order_id,user_order_id,trans_type,asset_name,address,amount,pay_fee,miner_fee,balance,hash,status," +
-		" blockin_height,unix_timestamp(create_order_time),unix_timestamp(blockin_time),unix_timestamp(confirm_time)" +
+		" blockin_height,ifnull(unix_timestamp(create_order_time),0),ifnull(unix_timestamp(blockin_time),0),ifnull(unix_timestamp(confirm_time),0)" +
 		" from transaction_bill_view where true "
 
 	dataList := make([]TransactionBill, 0)
@@ -34,6 +34,8 @@ func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, b
 			&data.CreateOrderTime, &data.BlockinTime, &data.ConfirmTime)
 		if err == nil {
 			dataList = append(dataList, data)
+		} else {
+			fmt.Println(err.Error())
 		}
 	}
 	return dataList, len(dataList) > 0
