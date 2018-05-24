@@ -181,7 +181,7 @@ func (self *ClientManager) startAllClient() error {
 		instance.SubscribeRechargeTx(self.txRchChannel)
 
 		if err := instance.Start(); err != nil {
-			invalid_inst = append(invalid_inst,  instance)
+			invalid_inst = append(invalid_inst, instance)
 			l4g.Trace("start client instance : %s, faild, message:%s", instance.Name(), err.Error())
 		} else {
 			l4g.Trace("start client instance :  !!!!!>-%s,success<-!!!!!", instance.Name())
@@ -230,7 +230,9 @@ func (self *ClientManager) trackRechargeTx(rechTx *types.RechargeTx) {
 		case tx := <-tx_channel:
 			{
 				rechTx.Tx = tx
-				l4g.Trace("Send Recharge Transaction to channel********")
+				l4g.Trace(`
+ψ(｀∇´)ψψ(｀∇´)ψ [Track Recharge Tx information] ψ(｀∇´)ψψ(｀∇´)ψ
+`, tx.String())
 				self.rechTxFeed.Send(rechTx)
 				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
 					goto endfor
@@ -263,7 +265,8 @@ func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
 			{
 				txCmd.Tx = tx
 
-				l4g.Trace("{{{{{{{{{{TrackTxCmd information}}}}}}}}}}\n%s", tx.String())
+				l4g.Trace(`(＠。ε。＠)(＠。ε。＠) [[TrackTxCmd information]] (*≧∪≦)(*≧∪≦)(*≧∪≦)
+%s`, tx.String())
 
 				self.txCmdFeed.Send(txCmd)
 				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
@@ -409,10 +412,10 @@ endfor:
 }
 
 func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
-//	l4g.Trace(`
-//------------send transaction begin------------
-//Asset:%s , Crypted Key:%s
-//TxInfo : %s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
+	//	l4g.Trace(`
+	//------------send transaction begin------------
+	//Asset:%s , Crypted Key:%s
+	//TxInfo : %s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
 
 	instance := self.clients[txCmd.Coinname]
 

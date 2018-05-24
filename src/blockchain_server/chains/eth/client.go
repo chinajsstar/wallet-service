@@ -10,6 +10,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"github.com/ethereum/go-ethereum"
 	//"github.com/ethereum/go-ethereum/accounts/abi"
+	"crypto/ecdsa"
 	"github.com/ethereum/go-ethereum/common"
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -19,7 +20,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"crypto/ecdsa"
 )
 
 type Client struct {
@@ -48,7 +48,7 @@ type Client struct {
 }
 
 const (
-	max_nonce = 1024 * 1024
+	max_nonce          = 1024 * 1024
 	first_custom_nonce = max_nonce + 1
 )
 
@@ -86,13 +86,15 @@ func (self *Client) nextNonce(from string) (nonce uint64) {
 	self.nonceMtx.Lock()
 	var err error
 	nonce = self.nonceMap[from]
-	if 0==nonce {
+	if 0 == nonce {
 		nonce, err = self.c.PendingNonceAt(context.TODO(), common.HexToAddress(from))
-		if err!=nil { }
+		if err != nil {
+		}
 	} else {
 		if nonce == max_nonce {
 			nonce, err = self.c.PendingNonceAt(context.TODO(), common.HexToAddress(from))
-			if err!=nil { }
+			if err != nil {
+			}
 		}
 	}
 	self.nonceMap[from] = nonce + 1
@@ -144,7 +146,7 @@ func (self *Client) init() error {
 
 	self.tokens = make(map[string]*types.Token, 256)
 
-	l4g.Trace("----------------Init %s EthToken-----------------")
+	l4g.Trace("----------------Init EthToken-----------------")
 	// create configed tokens
 	self.contracts = make(map[string]*token.Token)
 
@@ -162,13 +164,8 @@ func (self *Client) init() error {
 			continue
 		}
 
-		if config.Debugmode {
-			l4g.Trace("only use decimal 1 for token for Debug mode!!!!!")
-			tk.Decimals = 0
-		} else {
-			if d, err := tmp_tk.Decimals(nil); err == nil {
-				tk.Decimals = int(d)
-			}
+		if d, err := tmp_tk.Decimals(nil); err == nil {
+			tk.Decimals = int(d)
 		}
 
 		tk.Symbol, _ = tmp_tk.Symbol(nil)
@@ -242,7 +239,7 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 		return
 	}
 	msg := ethereum.CallMsg{From: from, To: &to, Value: value, Data: input}
-	gaslimit, err = self.c.EstimateGas(context.TODO(), msg);
+	gaslimit, err = self.c.EstimateGas(context.TODO(), msg)
 	return
 }
 
@@ -320,25 +317,12 @@ func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
 					return false, err
 				}
 
-				// if codeat is not empty, means address is a contact address
-				// in practice testing, receipt transaction of cantract,
-				// if success it's 'Logs' field will not be empty, or will faild ,
-				// this conclusion need more proving
-				codeat, _ := self.c.PendingCodeAt(context.TODO(), *tx.To())
-				//self.c.CodeAt()
-
-				// TODO: to use following condition
-				if (receipt.Status == etypes.ReceiptStatusFailed ||
-					(len(codeat) != 0 && len(receipt.Logs) == 0)) && false {
+				if receipt.Status == etypes.ReceiptStatusFailed {
 					state = types.Tx_state_unconfirmed
 				} else {
-					if receipt.GasUsed > tmptx.Gas() {
-						state = types.Tx_state_unconfirmed
-					} else {
-						l4g.Trace("transaction(%s), receipt success!", tx.Hash().String())
-						state = types.Tx_state_confirmed
-					}
+					state = types.Tx_state_confirmed
 				}
+
 				return state == types.Tx_state_confirmed, nil
 			}
 		}
@@ -365,10 +349,10 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 	var (
 		tx, signedTx *etypes.Transaction
-		nonce uint64
-		gasprice *big.Int
-		gaslimit uint64
-		isok bool
+		nonce        uint64
+		gasprice     *big.Int
+		gaslimit     uint64
+		isok         bool
 	)
 
 	gasprice, gaslimit, err = self.estimatTxFee(owner, contract, big.NewInt(0), input)
@@ -410,13 +394,13 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 	nonce = self.nextNonce(owner_string)
 	//nonce, err = self.c.PendingNonceAt(context.TODO(), owner);
-	if err!=nil {
+	if err != nil {
 		goto Exception
 	}
 	tx = etypes.NewTransaction(nonce, contract, big.NewInt(0), gaslimit, gasprice, input)
 
-	signedTx, err = etypes.SignTx(tx, signer, privOwnerKey);
-	if  err!=nil {
+	signedTx, err = etypes.SignTx(tx, signer, privOwnerKey)
+	if err != nil {
 		goto Exception
 	}
 
@@ -430,14 +414,18 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 Exception:
 
-	if err!=nil {
+	if err != nil {
 		l4g.Trace("Approve token error, message:%s", err.Error())
 		return err
 	}
 
 	isok, err = self.blockTraceTx(signedTx)
-	if err != nil { return err }
-	if !isok { err = fmt.Errorf("approve TokenSymbol Tx(%s) faild", signedTx.Hash().String()) }
+	if err != nil {
+		return err
+	}
+	if !isok {
+		err = fmt.Errorf("approve TokenSymbol Tx(%s) faild", signedTx.Hash().String())
+	}
 
 	return err
 }
@@ -446,7 +434,7 @@ Exception:
 func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 
 	fromPrivkey, input, err := self.initTxInfo(fromkey, tx)
-	if err!=nil {
+	if err != nil {
 		return err
 	}
 
@@ -454,7 +442,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	// 用户地址上应该是没有ether的. 则需要授权token
 	// 如果tx.From==tx.TokenTx.From, 说明是用户从热钱包地址提币,
 	// 热钱包地址应该保留了一定数量的ether
-	if tx.IsTokenTx() && tx.From!=tx.TokenTx.From {
+	if tx.IsTokenTx() && tx.From != tx.TokenTx.From {
 		if err := self.approveTokenTx(tx.TokenFromKey, fromkey,
 			tx.TokenTx.ContractAddress(),
 			tx.TokenTx.Value_decimaled()); err != nil {
@@ -471,7 +459,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 		common.HexToAddress(tx.To),
 		EtherToWei(tx.Value), input)
 
-	if err!=nil {
+	if err != nil {
 		goto Exception
 	}
 
@@ -521,8 +509,10 @@ func (self *Client) GetBalance(addstr string, tokenSymbol string) (float64, erro
 			if err != nil {
 				return 0, err
 			}
+
 			fb, _ := new(big.Float).SetString(balance.String())
 			f, _ := fb.Mul(fb, big.NewFloat(math.Pow10(-int(decimal)))).Float64()
+			f = utils.PrecisionN(f, 6)
 			return f, nil
 		}
 	}
@@ -722,7 +712,7 @@ func (self *Client) blockTime(bn uint64) uint64 {
 }
 
 func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
-	height := self.virtualBlockHeight()
+	//height := self.virtualBlockHeight()
 
 	receipt, err := self.c.TransactionReceipt(self.ctx, common.HexToHash(tx.Tx_hash))
 	if err != nil {
@@ -737,37 +727,24 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 	// in practice testing, receipt transaction of cantract,
 	// if success it's 'Logs' field will not be empty, or will faild ,
 	// this conclusion need more proving, no offical document said that!!!!
-	// TODO: to use the following condition!!!
-	if (receipt.Status == etypes.ReceiptStatusFailed ||
-		(tx.IsTokenTx() && len(receipt.Logs) == 0)) && false {
-		tx.State = types.Tx_state_unconfirmed
-		l4g.Trace("Transaction(%s) receipt statue: faild", tx.Tx_hash)
+	if receipt.Status == etypes.ReceiptStatusSuccessful {
+		tx.State = types.Tx_state_confirmed
 	} else {
-		if receipt.GasUsed > tx.Gas { // not enough tx fee
-			tx.State = types.Tx_state_unconfirmed
-		} else {
-			if tx.InBlock <= height {
-				tx.State = types.Tx_state_confirmed
-				tx.Gas = receipt.GasUsed
-				tx.ConfirmatedHeight = height + uint64(self.confirm_count)
-			} else {
-				tx.State = types.Tx_state_mined
-			}
-		}
+		tx.State = types.Tx_state_unconfirmed
 	}
 
 	return nil
 }
 
 func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transaction) error {
-	if srcTx==nil {
+	if srcTx == nil {
 		return fmt.Errorf("update tx error, message:sourceTx is nil")
 	}
 	hash := srcTx.Hash().String()
 
-	if destTx.Tx_hash=="" {
+	if destTx.Tx_hash == "" {
 		destTx.Tx_hash = hash
-	} else if hash!=destTx.Tx_hash {
+	} else if hash != destTx.Tx_hash {
 		return fmt.Errorf("updateTx error, destTx.Hash(%s) != srcTx.Hash(%s)",
 			destTx.Tx_hash, hash)
 	}
@@ -828,7 +805,7 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 		destTx.Total = WeiToEther(srcTx.Cost())
 		destTx.Fee = utils.PrecisionN(destTx.Total-destTx.Value, 6)
 		destTx.InBlock = srcTx.Inblock
-		destTx.Gas = srcTx.Gas()
+		//destTx.Gas = srcTx.Gas()
 		destTx.Time = self.blockTime(destTx.InBlock)
 	}
 	destTx.State = state
@@ -849,20 +826,21 @@ func (self *Client) UpdateTx(tx *types.Transfer) error {
 		return fmt.Errorf("Invalid paramater!")
 	}
 
-	if etx, err := self.c.TransactionByHash(self.ctx, common.HexToHash(tx.Tx_hash));
-		err!=nil {
+	if etx, err := self.c.TransactionByHash(self.ctx, common.HexToHash(tx.Tx_hash)); err != nil {
 		return err
-	} else if err:= self.updateTxWithTx(tx, etx); err!=nil {
+	} else if err := self.updateTxWithTx(tx, etx); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
-	if tx==nil { return nil }
+	if tx == nil {
+		return nil
+	}
 
 	tmpTx := &types.Transfer{}
-	if err:=self.updateTxWithTx(tmpTx, tx); err!=nil {
+	if err := self.updateTxWithTx(tmpTx, tx); err != nil {
 		return nil
 	}
 
@@ -925,11 +903,10 @@ func (self *Client) SendTxBySteps(chiperKey string, tx *types.Transfer) error {
 	return self.SendSignedTx(txByte, tx)
 }
 
-
 func (self *Client) initTxInfo(fromKey string, tx *types.Transfer) (fromPrivkey *ecdsa.PrivateKey, input []byte, err error) {
 	var from string
 	fromPrivkey, from, err = ParseKey(fromKey)
-	if err!=nil {
+	if err != nil {
 		return
 	}
 	tx.From = from

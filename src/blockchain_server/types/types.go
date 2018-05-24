@@ -180,7 +180,7 @@ type Transfer struct {
 	To                  string
 	Value               float64// 交易金额
 	Fee                 float64
-	Gas                 uint64
+	//Gas                 uint64	// deprecated!!!!
 	Total				float64// 总花费金额
 	State               TxState
 	InBlock             uint64 // 所在块高
