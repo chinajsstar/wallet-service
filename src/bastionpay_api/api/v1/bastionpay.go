@@ -53,13 +53,13 @@ type (
 
 	// 获取用户地址
 	ReqUserAddress struct {
-		AssetNames        string `json:"asset_name" doc:"币种"`
-		MaxAllocationTime int64  `json:"max_allocation_time" doc:"分配地址时间"`
-		MinAllocationTime int64  `json:"min_allocation_time" doc:"分配地址时间"`
-		Address           string `json:"address" doc:"地址"`
-		TotalLines        int    `json:"total_lines" doc:"总数,0：表示首次查询"`
-		PageIndex         int    `json:"page_index" doc:"页索引,1开始"`
-		MaxDispLines      int    `json:"max_disp_lines" doc:"页最大数，100以下"`
+		AssetNames        []string `json:"asset_names" doc:"币种"`
+		MaxAllocationTime int64    `json:"max_allocation_time" doc:"分配地址时间"`
+		MinAllocationTime int64    `json:"min_allocation_time" doc:"分配地址时间"`
+		Address           string   `json:"address" doc:"地址"`
+		TotalLines        int      `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex         int      `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines      int      `json:"max_disp_lines" doc:"页最大数，100以下"`
 	}
 
 	AckUserAddress struct {
@@ -77,7 +77,7 @@ type (
 
 	// 历史交易订单
 	ReqHistoryTransactionOrder struct {
-		ID             int64   `json:"serial_id" doc:"流水号"`
+		ID             int64   `json:"id" doc:"流水号"`
 		OrderID        string  `json:"order_id" doc:"订单号"`
 		AssetName      string  `json:"asset_name" doc:"币种"`
 		TransType      int     `json:"trans_type" doc:"交易类型"`
