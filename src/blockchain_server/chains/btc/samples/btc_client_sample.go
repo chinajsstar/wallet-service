@@ -4,7 +4,7 @@ import (
 	"blockchain_server/service"
 	"blockchain_server/types"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"time"
 	"blockchain_server/conf"
 	"blockchain_server/chains/btc"
@@ -61,7 +61,7 @@ var (
 )
 
 func main() {
-	l4g.Trace("-------------------bitcoin client sample start-------------------")
+	L4g.Trace("-------------------bitcoin client sample start-------------------")
 	clientManager := service.NewClientManager()
 	client, err := btc.ClientInstance()
 
@@ -106,23 +106,23 @@ func main() {
 	for ; i>0; i-- {
 		select {
 		case <-done_sendTx: {
-			l4g.Trace("SendTransaction done!")
+			L4g.Trace("SendTransaction done!")
 		}
 		case <-done_watchaddress: {
-			l4g.Trace("Watch Address done!")
+			L4g.Trace("Watch Address done!")
 		}
 		}
 	}
 
 	clientManager.Close()
 
-	l4g.Trace("-------------------bitcoin client sample stop!-------------------")
+	L4g.Trace("-------------------bitcoin client sample stop!-------------------")
 	config.MainConfiger().Save()
 	time.Sleep(time.Second)
 }
 
 func testWatchAddress(ctx context.Context, clientManager *service.ClientManager, coin string, token *string, addresslist []string, done chan bool) {
-	defer l4g.Trace("exit watch address!!!")
+	defer L4g.Trace("exit watch address!!!")
 	rcTxChannel := make(types.RechargeTxChannel)
 	subscribe := clientManager.SubscribeTxRecharge(rcTxChannel)
 
@@ -139,7 +139,7 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 
 	subCtx, cancel := context.WithCancel(ctx)
 	go func(ctx context.Context, channel types.RechargeTxChannel) {
-		l4g.Trace("exit go routine of watch address!!")
+		L4g.Trace("exit go routine of watch address!!")
 		defer subscribe.Unsubscribe()
 		defer close(channel)
 
@@ -149,9 +149,9 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 			case rct := <-channel:
 				{
 					if rct == nil {
-						l4g.Trace("Watch Address channel is close!")
+						L4g.Trace("Watch Address channel is close!")
 					} else {
-						l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+						L4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
 						if rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed {
 							watch_address_channel <- true
 						}
@@ -198,13 +198,13 @@ func testSendTx(ctx context.Context, clientManager *service.ClientManager,
 			case cmdTx := <-txStateChannel:
 				{
 					if cmdTx == nil {
-						l4g.Trace("Transaction Command Channel is closed!")
+						L4g.Trace("Transaction Command Channel is closed!")
 						txok_channel <- false
 					} else {
-						l4g.Trace("Transaction state changed, transaction information:%s\n",
+						L4g.Trace("Transaction state changed, transaction information:%s\n",
 							cmdTx.Tx.String())
 						if cmdTx.Error != nil {
-							l4g.Trace("SendTx error: %s", cmdTx.Error.Message)
+							L4g.Trace("SendTx error: %s", cmdTx.Error.Message)
 							cdone++
 						} else {
 							if cmdTx.Tx.State == types.Tx_state_confirmed ||
@@ -229,7 +229,7 @@ func testSendTx(ctx context.Context, clientManager *service.ClientManager,
 		txCmd, err := service.NewSendTxCmd(fmt.Sprintf("message id:%f", value),
 			coin, privatekey, to, token, "", float64(i+1)/10)
 		if err!=nil {
-			l4g.Trace("err:%s", err.Error())
+			L4g.Trace("err:%s", err.Error())
 			return
 		}
 		clientManager.SendTx(txCmd)
@@ -248,11 +248,11 @@ func testSendTx(ctx context.Context, clientManager *service.ClientManager,
 
 func testGetBalance(manager *service.ClientManager, address string, tokenname string) {
 	cmd_balance := service.NewQueryBalanceCmd("getbalance message id", Coinname, address, "")
-	l4g.Trace("----------bitcoin get address balance---------")
+	L4g.Trace("----------bitcoin get address balance---------")
 	if balance, err := manager.GetBalance(context.TODO(), cmd_balance, nil); err == nil {
-		l4g.Trace("address: %s balance: %d", address, balance)
+		L4g.Trace("address: %s balance: %d", address, balance)
 	} else {
-		l4g.Error("error : %s", err.Error())
+		L4g.Error("error : %s", err.Error())
 	}
-	l4g.Trace("----------bitcoin get address balance---------")
+	L4g.Trace("----------bitcoin get address balance---------")
 }

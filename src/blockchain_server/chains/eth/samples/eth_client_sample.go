@@ -6,7 +6,7 @@ import (
 	"blockchain_server/types"
 	"context"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
+	l4g "blockchain_server/l4g"
 	"time"
 )
 

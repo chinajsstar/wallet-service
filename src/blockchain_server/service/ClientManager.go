@@ -13,7 +13,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"time"
 )
 
@@ -89,19 +89,19 @@ func (self *ClientManager) loopTxCmd() {
 	}
 
 	if self.txCmdChannel == nil {
-		l4g.Trace("self.txCmdChannel is nil , create new")
+		L4g.Trace("self.txCmdChannel is nil , create new")
 		self.txCmdChannel = make(types.CmdTxChannel, 512)
 	}
 
 	go func() {
 		defer func() { self.loopTxCmdRuning = false }()
-		l4g.Trace("start transaction command loop!!")
+		L4g.Trace("start transaction command loop!!")
 		for {
 			select {
 			case txCmd := <-self.txCmdChannel:
 				{
 					if txCmd == nil {
-						l4g.Trace("!!!!!!!!!!!!!txcmd is nil, maybe Transaction Cmd Channel was closed, exit loop !!!!!!!!!!!!!")
+						L4g.Trace("!!!!!!!!!!!!!txcmd is nil, maybe Transaction Cmd Channel was closed, exit loop !!!!!!!!!!!!!")
 						goto endfor
 					} else {
 						go self.innerSendTx(txCmd)
@@ -118,7 +118,7 @@ func (self *ClientManager) loopTxCmd() {
 			}
 		}
 	endfor:
-		l4g.Trace("exit transaction command loop!!")
+		L4g.Trace("exit transaction command loop!!")
 	}()
 }
 
@@ -131,7 +131,7 @@ func (self *ClientManager) loopRechargeTxMessage() {
 
 	go func() {
 		defer func() { self.loopRechageRuning = false }()
-		l4g.Trace("start recharge transaction loop!")
+		L4g.Trace("start recharge transaction loop!")
 		for {
 			select {
 			// txRchChannel 通过Client.SubscribeRecharge, 传递给Client
@@ -141,18 +141,18 @@ func (self *ClientManager) loopRechargeTxMessage() {
 					if rechTx != nil {
 						go self.trackRechargeTx(rechTx)
 					} else {
-						l4g.Trace("Recharge Transaction channel was closed!")
+						L4g.Trace("Recharge Transaction channel was closed!")
 					}
 				}
 			case <-self.ctx.Done():
 				{
-					l4g.Trace(self.ctx.Err().Error())
+					L4g.Trace(self.ctx.Err().Error())
 					goto endfor
 				}
 			}
 		}
 	endfor:
-		l4g.Trace("exit recharge transaction loop!")
+		L4g.Trace("exit recharge transaction loop!")
 	}()
 
 }
@@ -175,16 +175,16 @@ func (self *ClientManager) startAllClient() error {
 	var invalid_inst []chainclient.ChainClient
 
 	for _, instance := range self.clients {
-		l4g.Trace(`-----------start ***%s*** instance-----------`,
+		L4g.Trace(`-----------start ***%s*** instance-----------`,
 			instance.Name())
 
 		instance.SubscribeRechargeTx(self.txRchChannel)
 
 		if err := instance.Start(); err != nil {
 			invalid_inst = append(invalid_inst, instance)
-			l4g.Trace("start client instance : %s, faild, message:%s", instance.Name(), err.Error())
+			L4g.Trace("start client instance : %s, faild, message:%s", instance.Name(), err.Error())
 		} else {
-			l4g.Trace("start client instance :  !!!!!>-%s,success<-!!!!!", instance.Name())
+			L4g.Trace("start client instance :  !!!!!>-%s,success<-!!!!!", instance.Name())
 		}
 	}
 
@@ -230,7 +230,7 @@ func (self *ClientManager) trackRechargeTx(rechTx *types.RechargeTx) {
 		case tx := <-tx_channel:
 			{
 				rechTx.Tx = tx
-				l4g.Trace(`
+				L4g.Trace(`
 ψ(｀∇´)ψψ(｀∇´)ψ [Track Recharge Tx information] ψ(｀∇´)ψψ(｀∇´)ψ
 `, tx.String())
 				self.rechTxFeed.Send(rechTx)
@@ -252,7 +252,7 @@ func (self *ClientManager) trackRechargeTx(rechTx *types.RechargeTx) {
 		}
 	}
 endfor:
-	l4g.Trace("Recharge Transaction(%s) done!!!", rechTx.Tx.Tx_hash)
+	L4g.Trace("Recharge Transaction(%s) done!!!", rechTx.Tx.Tx_hash)
 }
 
 func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
@@ -265,7 +265,7 @@ func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
 			{
 				txCmd.Tx = tx
 
-				l4g.Trace(`(＠。ε。＠)(＠。ε。＠) [[TrackTxCmd information]] (*≧∪≦)(*≧∪≦)(*≧∪≦)
+				L4g.Trace(`(＠。ε。＠)(＠。ε。＠) [[TrackTxCmd information]] (*≧∪≦)(*≧∪≦)(*≧∪≦)
 %s`, tx.String())
 
 				self.txCmdFeed.Send(txCmd)
@@ -348,7 +348,7 @@ func (self *ClientManager) QuryTx(cmdqTx *types.CmdqueryTx, qTxChannel types.Cmd
 func (self *ClientManager) BlockHeight(assert string) uint64 {
 	instance := self.clients[assert]
 	if instance == nil {
-		l4g.Error("query on not supported coin type(%s)", assert)
+		L4g.Error("query on not supported coin type(%s)", assert)
 		return 0
 	}
 	return instance.BlockHeight()
@@ -361,7 +361,7 @@ func (self *ClientManager) BlockHeight(assert string) uint64 {
 func (self *ClientManager) trackTxState(clientName string,
 	tx *types.Transfer, tx_channel chan *types.Transfer, err_channel chan error) {
 
-	l4g.Trace("********start trace transaction(%s)", tx.Tx_hash)
+	L4g.Trace("********start trace transaction(%s)", tx.Tx_hash)
 	instance := self.clients[clientName]
 
 	max_try_count := 30
@@ -384,7 +384,7 @@ func (self *ClientManager) trackTxState(clientName string,
 		err := instance.UpdateTx(tx)
 		if err != nil {
 			if _, ok := err.(*types.NotFound); !ok {
-				l4g.Error("update Tx faild, message:%s", err.Error())
+				L4g.Error("update Tx faild, message:%s", err.Error())
 				err_channel <- err
 				goto endfor
 			}
@@ -403,16 +403,16 @@ func (self *ClientManager) trackTxState(clientName string,
 
 	if i == max_try_count {
 		message := "Update Transaction state upto max count, still can not confirm!!!"
-		l4g.Error(message)
+		L4g.Error(message)
 		err_channel <- fmt.Errorf(message)
 	}
 
 endfor:
-	l4g.Trace("********stop trace transaction(%s)", tx.Tx_hash)
+	L4g.Trace("********stop trace transaction(%s)", tx.Tx_hash)
 }
 
 func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
-	//	l4g.Trace(`
+	//	L4g.Trace(`
 	//------------send transaction begin------------
 	//Asset:%s , Crypted Key:%s
 	//TxInfo : %s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
@@ -426,13 +426,13 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 		err = func() error {
 			txCmdSignedByte, err := base64.StdEncoding.DecodeString(txCmd.SignedTxString)
 			if nil != err {
-				l4g.Error("Signed tx DecodeString error:%s", err.Error())
+				L4g.Error("Signed tx DecodeString error:%s", err.Error())
 				return err
 			}
 
 			err = instance.SendSignedTx(txCmdSignedByte, txCmd.Tx)
 			if nil != err {
-				l4g.Error("SendSignedTx Transaction error:%s", err.Error())
+				L4g.Error("SendSignedTx Transaction error:%s", err.Error())
 				return err
 			}
 
@@ -445,7 +445,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	if nil != err {
 		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
-		l4g.Error("Send Transaction error:%s", txCmd.Error.Message)
+		L4g.Error("Send Transaction error:%s", txCmd.Error.Message)
 		self.txCmdFeed.Send(txCmd)
 		return
 	}
@@ -461,8 +461,8 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 		message = ""
 	}
 
-	l4g.Trace("send transaction(%s), result: %s, message:", types.TxStateString(txCmd.Tx.State), message)
-	l4g.Trace("------------send transaction end------------")
+	L4g.Trace("send transaction(%s), result: %s, message:", types.TxStateString(txCmd.Tx.State), message)
+	L4g.Trace("------------send transaction end------------")
 }
 
 func NewClientManager() *ClientManager {
@@ -513,14 +513,14 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 // 即1^8 单位为一个bitcoin或者eth
 func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
 	if self.loopTxCmdRuning == false {
-		l4g.Error("TxCommandLoop is not runing!!!")
+		L4g.Error("TxCommandLoop is not runing!!!")
 		return
 	}
 
-	l4g.Trace("Recived one SendTx command:%s", cmdTx.MsgId)
+	L4g.Trace("Recived one SendTx command:%s", cmdTx.MsgId)
 
 	if self.txCmdChannel == nil {
-		l4g.Trace("txCmdChannel is nil, create new")
+		L4g.Trace("txCmdChannel is nil, create new")
 		self.txCmdChannel = make(chan *types.CmdSendTx, 512)
 	}
 
@@ -540,47 +540,47 @@ func (self *ClientManager) Close() {
 
 // build transaction, return types.CmdSendTx 's json string
 func (self *ClientManager) BuildTx(txCmd *types.CmdSendTx) (string, error) {
-	l4g.Trace("------------Build transaction begin------------")
+	L4g.Trace("------------Build transaction begin------------")
 	instance := self.clients[txCmd.Coinname]
 
 	err := instance.BuildTx(txCmd.FromKey, txCmd.Tx)
 	if nil != err {
-		l4g.Error("Build Transaction error:%s", err.Error())
+		L4g.Error("Build Transaction error:%s", err.Error())
 		return "", err
 	}
 
 	txCmdByte, err := json.Marshal(txCmd)
 	if nil != err {
-		l4g.Error("Build Transaction Marshal error:%s", err.Error())
+		L4g.Error("Build Transaction Marshal error:%s", err.Error())
 		return "", err
 	}
 
 	txCmdString := base64.StdEncoding.EncodeToString(txCmdByte)
 	if nil != err {
-		l4g.Error("Build Transaction base64 EncodeToString error:%s", err.Error())
+		L4g.Error("Build Transaction base64 EncodeToString error:%s", err.Error())
 		return "", err
 	}
 
-	l4g.Trace("------------Build transaction end------------")
+	L4g.Trace("------------Build transaction end------------")
 
 	return txCmdString, nil
 }
 
 // sing transaction, return types.CmdSendTx 's json string
 func (self *ClientManager) SignTx(chiperPrikey string, txCmdString string) (string, error) {
-	l4g.Trace("------------Sign transaction begin------------")
+	L4g.Trace("------------Sign transaction begin------------")
 
 	// 解包
 	txCmdByte, err := base64.StdEncoding.DecodeString(txCmdString)
 	if nil != err {
-		l4g.Error("Sign Transaction base64 DecodeString error:%s", err.Error())
+		L4g.Error("Sign Transaction base64 DecodeString error:%s", err.Error())
 		return "", err
 	}
 
 	var txCmd types.CmdSendTx
 	err = json.Unmarshal(txCmdByte, &txCmd)
 	if err != nil {
-		l4g.Error("Sign Transaction Unmarshal error:%s", err.Error())
+		L4g.Error("Sign Transaction Unmarshal error:%s", err.Error())
 		return "", err
 	}
 
@@ -589,13 +589,13 @@ func (self *ClientManager) SignTx(chiperPrikey string, txCmdString string) (stri
 
 	txCmdSignedByte, err := instance.SignTx(chiperPrikey, txCmd.Tx)
 	if nil != err {
-		l4g.Error("Sign Transaction SignTx error:%s", err.Error())
+		L4g.Error("Sign Transaction SignTx error:%s", err.Error())
 		return "", err
 	}
 
 	txCmdSignedByteString := base64.StdEncoding.EncodeToString(txCmdSignedByte)
 	if nil != err {
-		l4g.Error("Sign Transaction base64 error:%s", err.Error())
+		L4g.Error("Sign Transaction base64 error:%s", err.Error())
 		return "", err
 	}
 
@@ -603,40 +603,40 @@ func (self *ClientManager) SignTx(chiperPrikey string, txCmdString string) (stri
 	txCmd.SignedTxString = txCmdSignedByteString
 	txCmdByte2, err := json.Marshal(txCmd)
 	if nil != err {
-		l4g.Error("Sign Transaction Marshal error:%s", err.Error())
+		L4g.Error("Sign Transaction Marshal error:%s", err.Error())
 		return "", err
 	}
 
 	txCmdString2 := base64.StdEncoding.EncodeToString(txCmdByte2)
 	if nil != err {
-		l4g.Error("Sign Transaction base64 EncodeToString error:%s", err.Error())
+		L4g.Error("Sign Transaction base64 EncodeToString error:%s", err.Error())
 		return "", err
 	}
 
-	l4g.Trace("------------Sign transaction end------------")
+	L4g.Trace("------------Sign transaction end------------")
 
 	return txCmdString2, nil
 }
 
 // send transaction, txCmdString may signed, or unsigned, if unsigned, chiperprikey need real prikey
 func (self *ClientManager) SendSignedTx(txCmdString string) error {
-	l4g.Trace("------------SendSignedTx transaction begin------------")
+	L4g.Trace("------------SendSignedTx transaction begin------------")
 
 	txCmdByte, err := base64.StdEncoding.DecodeString(txCmdString)
 	if nil != err {
-		l4g.Error("SendSignedTx Transaction base64 DecodeString error:%s", err.Error())
+		L4g.Error("SendSignedTx Transaction base64 DecodeString error:%s", err.Error())
 		return err
 	}
 
 	txCmd := &types.CmdSendTx{}
 	err = json.Unmarshal(txCmdByte, txCmd)
 	if err != nil {
-		l4g.Error("SendSignedTx Transaction Unmarshal error:%s", err.Error())
+		L4g.Error("SendSignedTx Transaction Unmarshal error:%s", err.Error())
 		return err
 	}
 
 	self.SendTx(txCmd)
 
-	l4g.Trace("------------SendSignedTx transaction end------------")
+	L4g.Trace("------------SendSignedTx transaction end------------")
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 	etype "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"blockchain_server/conf"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"strings"
@@ -30,14 +30,14 @@ var (
 func TestSendTokenTx(t *testing.T) {
 	client, err := ethclient.Dial(config.MainConfiger().Clientconfig[types.Chain_eth].RPC_url)
 	if nil!=err {
-		l4g.Error("create eth client error! message:%s", err.Error())
+		L4g.Error("create eth client error! message:%s", err.Error())
 		return
 	}
 
 	if false {
 		tmp_tk, err := token.NewToken(common.HexToAddress(token_address), client);
 		if err!=nil {
-			l4g.Trace("SendTransactrion error:%s", err.Error())
+			L4g.Trace("SendTransactrion error:%s", err.Error())
 			return
 		}
 
@@ -45,15 +45,15 @@ func TestSendTokenTx(t *testing.T) {
 		opts := bind.NewKeyedTransactor(key)
 		tx, err := tmp_tk.Transfer(opts, common.HexToAddress(tmp_toaddress), big.NewInt(10))
 		if err!=nil {
-			l4g.Trace("SendTransactrion error:%s", err.Error())
+			L4g.Trace("SendTransactrion error:%s", err.Error())
 			return
 		}
 
-		l4g.Trace("Tx information:%s", tx.String())
+		L4g.Trace("Tx information:%s", tx.String())
 
 		//signedTx, _ := etype.SignTx(tx, etype.HomesteadSigner{}, key)
 		//if err := client.SendTransaction(context.TODO(), signedTx); err!=nil {
-		//	l4g.Trace("SendTransactrion error:%s", err.Error())
+		//	L4g.Trace("SendTransactrion error:%s", err.Error())
 		//}
 	}
 
@@ -63,7 +63,7 @@ func TestSendTokenTx(t *testing.T) {
 			tmp_account,
 			common.HexToAddress(tmp_toaddress),
 			big.NewInt(10)); err!=nil {
-			l4g.Error("send transaction error:%s", err)
+			L4g.Error("send transaction error:%s", err)
 		}
 	}
 }
@@ -93,7 +93,7 @@ func transferToken(client * ethclient.Client, tokenAddress common.Address, from 
 
 	code, err := client.PendingCodeAt(context.TODO(), tokenAddress)
 	if err!=nil { return err } else if len(code) ==0 { return bind.ErrNoCode }
-	l4g.Trace("code:0x%x\n", code)
+	L4g.Trace("code:0x%x\n", code)
 
 	msg := ethereum.CallMsg{From: fromAddress, To: &tokenAddress, Value: value, Data: input}
 	gasLimit, err := client.EstimateGas(context.TODO(), msg)
@@ -101,14 +101,14 @@ func transferToken(client * ethclient.Client, tokenAddress common.Address, from 
 		return err
 	}
 
-	l4g.Trace("nonce:%d, to:0x%x, value:%d gaslimit:%d, gasprice:%d\ninput:0x%x",
+	L4g.Trace("nonce:%d, to:0x%x, value:%d gaslimit:%d, gasprice:%d\ninput:0x%x",
 		nonce, tokenAddress, value.Uint64(), gasLimit, gasPrice.Uint64(), input)
 	rawTx := etype.NewTransaction(nonce, tokenAddress, value, gasLimit, gasPrice, input)
 	fmt.Println("TX information:%s", rawTx.String())
 
 	signer := etype.HomesteadSigner{}
 	txhash := signer.Hash(rawTx).Bytes()
-	l4g.Trace("tx_hash:0x%x", txhash)
+	L4g.Trace("tx_hash:0x%x", txhash)
 	signature, err := crypto.Sign(signer.Hash(rawTx).Bytes(), key)
 	if err != nil {
 		return nil

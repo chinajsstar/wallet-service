@@ -7,7 +7,7 @@ import (
 	"blockchain_server/utils"
 	"context"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"github.com/ethereum/go-ethereum"
 	//"github.com/ethereum/go-ethereum/accounts/abi"
 	"crypto/ecdsa"
@@ -71,7 +71,7 @@ func ClientInstance() (*Client, error) {
 
 	client, err := ethclient.Dial(config.MainConfiger().Clientconfig[types.Chain_eth].RPC_url)
 	if nil != err {
-		l4g.Error("create eth client error! message:%s", err.Error())
+		L4g.Error("create eth client error! message:%s", err.Error())
 		return nil, err
 	}
 	c := &Client{c: client}
@@ -120,7 +120,7 @@ func (self *Client) init() error {
 
 	// 起始扫描高度为 当前真实高度 - 确认数
 	if _, err := self.refreshBlockHeight(); err != nil {
-		//l4g.Trace("eth refresh height faild, message:%s", err)
+		//L4g.Trace("eth refresh height faild, message:%s", err)
 		return err
 	}
 
@@ -146,7 +146,7 @@ func (self *Client) init() error {
 
 	self.tokens = make(map[string]*types.Token, 256)
 
-	l4g.Trace("----------------Init EthToken-----------------")
+	L4g.Trace("----------------Init EthToken-----------------")
 	// create configed tokens
 	self.contracts = make(map[string]*token.Token)
 
@@ -155,7 +155,7 @@ func (self *Client) init() error {
 		tmp_tk, err := token.NewToken(tkaddress, self.c)
 
 		if err != nil {
-			l4g.Trace("Create EthToken instance(%s) error:%s", symbol, err.Error())
+			L4g.Trace("Create EthToken instance(%s) error:%s", symbol, err.Error())
 			continue
 		}
 
@@ -171,7 +171,7 @@ func (self *Client) init() error {
 		tk.Symbol, _ = tmp_tk.Symbol(nil)
 
 		self.contracts[tk.Symbol] = tmp_tk
-		l4g.Trace("EthToken information: {%s}", tk.String())
+		L4g.Trace("EthToken information: {%s}", tk.String())
 
 		self.tokens[tkaddress.String()] = tk
 	}
@@ -180,7 +180,7 @@ func (self *Client) init() error {
 	//if self.abi, err = abi.JSON(strings.NewReader(token.TokenABI)); err != nil {
 	//	// TODO:here may should print error message and exit process
 	//	return err
-	//	//l4g.Error("Create erc20 token abi error:%s", err.Error())
+	//	//L4g.Error("Create erc20 token abi error:%s", err.Error())
 	//}
 	return nil
 }
@@ -213,7 +213,7 @@ func (self *Client) NewAccount(c uint32) ([]*types.Account, error) {
 	accounts := make([]*types.Account, c)
 	for i := 0; uint32(i) < c; i++ {
 		if tmp, err := NewAccount(); err != nil {
-			l4g.Trace("%s Create New account error message:%s", err.Error())
+			L4g.Trace("%s Create New account error message:%s", err.Error())
 			return nil, err
 		} else {
 			accounts[i] = tmp
@@ -258,7 +258,7 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 	//}
 	nonce = self.nextNonce(from.String())
 
-	l4g.Trace("PendingNonceAt(%s) = %d", from.String(), nonce)
+	L4g.Trace("PendingNonceAt(%s) = %d", from.String(), nonce)
 
 	if gasprice, err = self.c.SuggestGasPrice(context.TODO()); err != nil {
 		return nil, fmt.Errorf("failed to suggest gas price: %v", err)
@@ -301,10 +301,10 @@ func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
 					if tmptx.Inblock != 0 {
 						if state != types.Tx_state_mined {
 							state = types.Tx_state_mined
-							l4g.Trace("Transaction(%s) state changed to 'mind' onblock=%d",
+							L4g.Trace("Transaction(%s) state changed to 'mind' onblock=%d",
 								tmptx.Hash().String(), tmptx.Inblock)
 						} else if int(int64(self.realBlockHeight())-int64(tmptx.Inblock)) > int(self.confirm_count) {
-							l4g.Trace("Transaction(%s) state changed to 'confirmed'", tmptx.Hash().String())
+							L4g.Trace("Transaction(%s) state changed to 'confirmed'", tmptx.Hash().String())
 							state = types.Tx_state_confirmed
 						}
 					}
@@ -368,7 +368,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 	// 所以由Spender先发送txfee给owner, 作为执行授权的交易费
 	// 因为Spender中没有'ether'作为txfee
 	tx, err = self.buildRawTx(spender, owner, txfee, nil)
-	//l4g.Trace("Build Fee ethereumTx:%s, txfee:(%d * %d) = %d",
+	//L4g.Trace("Build Fee ethereumTx:%s, txfee:(%d * %d) = %d",
 	//	tx.String(), gasprice.Uint64(), gaslimit, txfee)
 	if err != nil {
 		goto Exception
@@ -408,14 +408,14 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 	if err != nil {
 		goto Exception
 	} else {
-		l4g.Trace("SendTxOk:%s", signedTx.Hash().String())
+		L4g.Trace("SendTxOk:%s", signedTx.Hash().String())
 	}
 	time.Sleep(time.Second)
 
 Exception:
 
 	if err != nil {
-		l4g.Trace("Approve token error, message:%s", err.Error())
+		L4g.Trace("Approve token error, message:%s", err.Error())
 		return err
 	}
 
@@ -467,13 +467,13 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	signedTx, err = etypes.SignTx(etx, etypes.HomesteadSigner{}, fromPrivkey)
 	tx.Tx_hash = signedTx.Hash().String()
 	if err != nil {
-		l4g.Error("sign Transaction error:%s", err.Error())
+		L4g.Error("sign Transaction error:%s", err.Error())
 		goto Exception
 	}
 	tx.State = types.Tx_state_Signed
 
 	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
-		l4g.Error("SendTransaction error: %s txinfo:%s", err.Error(), signedTx.String())
+		L4g.Error("SendTransaction error: %s txinfo:%s", err.Error(), signedTx.String())
 		goto Exception
 	}
 	tx.State = types.Tx_state_pending
@@ -521,7 +521,7 @@ func (self *Client) GetBalance(addstr string, tokenSymbol string) (float64, erro
 func (self *Client) refreshBlockHeight() (uint64, error) {
 	block, err := self.c.BlockByNumber(self.ctx, nil)
 	if err != nil {
-		l4g.Error("ETH get block height faild, message:%s", err.Error())
+		L4g.Error("ETH get block height faild, message:%s", err.Error())
 		return 0, err
 	}
 	h := block.NumberU64()
@@ -564,10 +564,10 @@ func (self *Client) beginSubscribeBlockHaders() error {
 	subscription, err := self.c.SubscribeNewHead(self.ctx, true, header_chan)
 
 	if err != nil || nil == subscription {
-		l4g.Error("subscribefiler error:%s\n", err.Error())
+		L4g.Error("subscribefiler error:%s\n", err.Error())
 		return err
 	}
-	l4g.Trace("eth Subscribe new block header, begin!")
+	L4g.Trace("eth Subscribe new block header, begin!")
 
 	go func(header_chan chan *etypes.Header) {
 		defer subscription.Unsubscribe()
@@ -575,7 +575,7 @@ func (self *Client) beginSubscribeBlockHaders() error {
 			select {
 			case <-self.ctx.Done():
 				{
-					l4g.Error("subscribe block header exit loop for:%s", self.ctx.Err().Error())
+					L4g.Error("subscribe block header exit loop for:%s", self.ctx.Err().Error())
 					close(header_chan)
 					goto endfor
 				}
@@ -585,13 +585,13 @@ func (self *Client) beginSubscribeBlockHaders() error {
 					// 设置当前块高为 真实高度 - 确认数的高度
 					atomic.StoreUint64(&self.blockHeight, h)
 
-					//l4g.Trace("get new block(%s) height:%d",
+					//L4g.Trace("get new block(%s) height:%d",
 					//	header.Hash().String(), h)
 				}
 			}
 		}
 	endfor:
-		l4g.Trace("Will stop subscribe block header!")
+		L4g.Trace("Will stop subscribe block header!")
 	}(header_chan)
 
 	return nil
@@ -611,24 +611,24 @@ func (self *Client) beginScanBlock() error {
 				//height <= self.scanblock - uint64(self.confirm_count) ||
 				top < self.scanblock ||
 				self.rctChannel == nil {
-				//l4g.Trace("Recharge channel is nil, or block height(%d)==scanblock(%d), or addresslit is empty!", top, self.scanblock)
-				time.Sleep(time.Second * 5)
+				//L4g.Trace("Recharge channel is nil, or block height(%d)==scanblock(%d), or addresslit is empty!", top, self.scanblock)
+				time.Sleep(time.Second * 2)
 				continue
 			}
 
 			block, err := self.c.BlockByNumber(self.ctx, big.NewInt(int64(scanblock)))
 
 			if err != nil {
-				l4g.Error("get block error, stop scanning block, message:%s", err.Error())
+				L4g.Error("get block error, stop scanning block, message:%s", err.Error())
 				goto endfor
 			}
 
-			l4g.Trace("scaning block :%d", self.scanblock)
+			L4g.Trace("scaning block :%d", self.scanblock)
 
 			txs := block.Transactions()
 
 			for _, tx := range txs {
-				l4g.Trace("tx on block(%d), tx information:%s", block.NumberU64(), tx.String())
+				L4g.Trace("tx on block(%d), tx information:%s", block.NumberU64(), tx.String())
 				to := tx.To()
 				if to == nil {
 					continue
@@ -665,7 +665,7 @@ func (self *Client) beginScanBlock() error {
 						// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
 						select {
 						case <-self.ctx.Done():
-							l4g.Trace("ethereum client close")
+							L4g.Trace("ethereum client close")
 							return
 						case self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}:
 						}
@@ -683,7 +683,7 @@ func (self *Client) beginScanBlock() error {
 			select {
 			case <-self.ctx.Done():
 				{
-					l4g.Trace("stop scaning blocks! for message:%s", self.ctx.Err().Error())
+					L4g.Trace("stop scaning blocks! for message:%s", self.ctx.Err().Error())
 					goto endfor
 				}
 			default:
@@ -716,7 +716,7 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 
 	receipt, err := self.c.TransactionReceipt(self.ctx, common.HexToHash(tx.Tx_hash))
 	if err != nil {
-		l4g.Error("Update Transaction(%s) with Receipt error : %s", tx.Tx_hash, err.Error())
+		L4g.Error("Update Transaction(%s) with Receipt error : %s", tx.Tx_hash, err.Error())
 		return err
 	}
 
@@ -867,7 +867,7 @@ func (self *Client) InsertWatchingAddress(address []string) (invalid []string) {
 		if !self.addresslist.Contains(value) {
 			self.addresslist.Insert(value)
 		}
-		l4g.Trace(value)
+		L4g.Trace(value)
 	}
 
 	// eth always return nil
@@ -891,13 +891,13 @@ func (self *Client) Stop() {
 func (self *Client) SendTxBySteps(chiperKey string, tx *types.Transfer) error {
 	err := self.BuildTx(chiperKey, tx)
 	if err != nil {
-		l4g.Error("buildtx failed: %s", err.Error())
+		L4g.Error("buildtx failed: %s", err.Error())
 		return err
 	}
 
 	txByte, err := self.SignTx(chiperKey, tx)
 	if err != nil {
-		l4g.Error("signtx failed: %s", err.Error())
+		L4g.Error("signtx failed: %s", err.Error())
 		return err
 	}
 	return self.SendSignedTx(txByte, tx)
@@ -955,7 +955,7 @@ func (self *Client) BuildTx(fromKey string, tx *types.Transfer) (err error) {
 		EtherToWei(tx.Value), input)
 
 	if tx.Additional_data, err = etx.MarshalJSON(); err != nil {
-		l4g.Error("ethereum BuildTx faild, message:%s", err.Error())
+		L4g.Error("ethereum BuildTx faild, message:%s", err.Error())
 		return err
 	} else {
 		tx.State = types.Tx_state_BuildOk
@@ -988,17 +988,17 @@ func (self *Client) SignTx(chiperKey string, tx *types.Transfer) ([]byte, error)
 	signer := etypes.HomesteadSigner{}
 	signedTx, err := etypes.SignTx(etx, signer, key)
 	if err != nil {
-		l4g.Error("sign Transaction error:%s", err.Error())
+		L4g.Error("sign Transaction error:%s", err.Error())
 		return nil, err
 	}
 
 	tx.Additional_data, err = signedTx.MarshalJSON()
 	if err != nil {
-		l4g.Error("SignTx-MarshalJSON error:%s", err.Error())
+		L4g.Error("SignTx-MarshalJSON error:%s", err.Error())
 		return nil, err
 	}
 
-	l4g.Trace("eth sign Transaction: ", signedTx.String())
+	L4g.Trace("eth sign Transaction: ", signedTx.String())
 	tx.State = types.Tx_state_Signed
 	return tx.Additional_data, nil
 }
@@ -1008,17 +1008,17 @@ func (self *Client) SendSignedTx(txByte []byte, tx *types.Transfer) error {
 	var signedTx etypes.Transaction
 	err := signedTx.UnmarshalJSON(txByte)
 	if err != nil {
-		l4g.Error("SendSignedTx UnmarshalJSON: %s", err.Error())
+		L4g.Error("SendSignedTx UnmarshalJSON: %s", err.Error())
 		return err
 	}
 
 	if err := self.c.SendTransaction(context.TODO(), &signedTx); err != nil {
-		l4g.Trace("Transaction gas * price + value = %d", signedTx.Cost().Uint64())
-		l4g.Error("SendTransaction error: %s", err.Error())
+		L4g.Trace("Transaction gas * price + value = %d", signedTx.Cost().Uint64())
+		L4g.Error("SendTransaction error: %s", err.Error())
 		return err
 	}
 
-	l4g.Trace("SendSignedTx Tx information:%s", tx.String())
+	L4g.Trace("SendSignedTx Tx information:%s", tx.String())
 	tx.State = types.Tx_state_pending
 	return nil
 }

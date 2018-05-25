@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"os"
 	"strings"
-	l4g "github.com/alecthomas/log4go"
 	"time"
 	"math/rand"
 	"crypto/md5"
@@ -18,7 +17,7 @@ func Faltal_error(err error) {
 	if err==nil {
 		return
 	}
-	l4g.Error(err)
+	fmt.Printf("init error:%s", err.Error())
 	os.Exit(1)
 }
 
@@ -121,3 +120,4 @@ func PrecisionN(f float64, n int) float64 {
 
 	return f
 }
+

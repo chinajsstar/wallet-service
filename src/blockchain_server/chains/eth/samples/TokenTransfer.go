@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/ethereum/go-ethereum/ethclient"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"github.com/ethereum/go-ethereum/crypto"
 	etypes "github.com/ethereum/go-ethereum/core/types"
 	"math/big"
@@ -79,12 +79,12 @@ func main() {
 
 	c, err := ethclient.Dial("ws://127.0.0.1:8500")
 	if nil != err {
-		l4g.Error("create eth client error! message:%s", err.Error())
+		L4g.Error("create eth client error! message:%s", err.Error())
 		return
 	}
 
 	if nonce, err = c.PendingNonceAt(context.TODO(), bankaddress); err != nil {
-		l4g.Error("error:%#v", err.Error())
+		L4g.Error("error:%#v", err.Error())
 		return
 	}
 

@@ -1,7 +1,7 @@
 package btc
 
 import (
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
@@ -36,7 +36,7 @@ import (
 //		}
 //		}
 //		if err != nil {
-//			l4g.Error("Cannot handle chain server notification: %v", err)
+//			L4G.Error("Cannot handle chain server notification: %v", err)
 //		}
 //	}
 //}
@@ -72,7 +72,7 @@ func (c *Client) handler() {
 					return
 				}
 
-				l4g.Trace("new block, hash = %v ", blockHash)
+				L4g.Trace("new block, hash = %v ", blockHash)
 				c.refresh_blockheight()
 
 			}(n)
@@ -81,7 +81,7 @@ func (c *Client) handler() {
 			if !ok { continue }
 
 			if false {
-				l4g.Trace("wallet notify is ignored! this is for testing!!!! %#v", n)
+				L4g.Trace("wallet notify is ignored! this is for testing!!!! %#v", n)
 				continue
 			}
 
@@ -91,17 +91,17 @@ func (c *Client) handler() {
 					return
 				}
 
-				l4g.Trace("new txid, hash = %v", txHash)
+				L4g.Trace("new txid, hash = %v", txHash)
 
 				hs, err := chainhash.NewHashFromStr(txHash)
 
 				if err != nil {
-					l4g.Error("err:%v", err)
+					L4g.Error("err:%v", err)
 					return
 				}
 
 				if btx, err := c.GetTransaction(hs); err!=nil {
-					l4g.Error("bitcoin get transaction error, message:%s", hs.String())
+					L4g.Error("bitcoin get transaction error, message:%s", hs.String())
 					return
 				} else {
 					if len(btx.Details)==0 || btx.Details[0].Category=="immature" {
@@ -112,7 +112,7 @@ func (c *Client) handler() {
 						c.rechargeTxNotification <- &types.RechargeTx{
 							Tx: tx, Coin_name: types.Chain_bitcoin, Err: nil}
 					} else {
-						l4g.Error("bitcoin transaction to types.Transfer error:%v", err)
+						L4g.Error("bitcoin transaction to types.Transfer error:%v", err)
 						return
 					}
 				}
@@ -139,14 +139,14 @@ func (c *Client)startHttpServer() error {
 	http.Handle("/isok", http.HandlerFunc(func(r http.ResponseWriter, req *http.Request){
 		bts, err := ioutil.ReadAll(req.Body)
 		if err!=nil {
-			l4g.Error("bitcoin http server handler /isok error, message:%s", err.Error())
+			L4g.Error("bitcoin http server handler /isok error, message:%s", err.Error())
 		} else {
 			message := string(bts)
-			l4g.Trace("bitcoin http server get plain/text:%s", message)
+			L4g.Trace("bitcoin http server get plain/text:%s", message)
 
 			if message == "close" {
 				close = true
-				l4g.Trace("bitcoin http server close!!!")
+				L4g.Trace("bitcoin http server close!!!")
 			} else {
 				r.Write([]byte("http server ok!!!!"))
 			}
@@ -158,12 +158,12 @@ func (c *Client)startHttpServer() error {
 		err := http.ListenAndServe(c.rpc_settings.Http_server, nil)
 
 		if close {
-			l4g.Trace("========notic:bitcoin http server will shutdown!========")
+			L4g.Trace("========notic:bitcoin http server will shutdown!========")
 			return
 		}
 
 		if err != nil {
-			l4g.Error(`
+			L4g.Error(`
 ==========start callback http service faild!!!!==========
 error message:%s`,err.Error())
 			return
@@ -174,11 +174,11 @@ error message:%s`,err.Error())
 
 	if res, err:=http.Post("http://127.0.0.1" + c.rpc_settings.Http_server + "/isok",
 		"text/plain; charset=utf-8", bytes.NewBuffer([]byte(`isok`))); err!=nil {
-		l4g.Error("try post to http server faild, message:%s", err.Error())
+		L4g.Error("try post to http server faild, message:%s", err.Error())
 		return err
 	} else if bs, err := ioutil.ReadAll(res.Body); err==nil {
-		l4g.Trace(string(bs))
-		l4g.Trace(`
+		L4g.Trace(string(bs))
+		L4g.Trace(`
 ==========start callback http service success!!==========
 http port	 :%s,
 wallet notify:%s,
@@ -199,15 +199,15 @@ alert  notify:%s)`,
 func (c *Client) handleWaletNotify(w http.ResponseWriter, req *http.Request) {
 	if err:=req.ParseForm(); err!=nil {
 		if content, err := ioutil.ReadAll(req.Body); err==nil {
-			l4g.Error("Bitcoin http server handle wallet notify, err content:%s",
+			L4g.Error("Bitcoin http server handle wallet notify, err content:%s",
 				err.Error())
 		}else {
-			l4g.Error("Bitcoin http server cannot parse form data : %s", string(content))
+			L4g.Error("Bitcoin http server cannot parse form data : %s", string(content))
 		}
 	}
 
 	message := req.Form["txid"]
-	l4g.Trace("get new transaction txId=%s", message)
+	L4g.Trace("get new transaction txId=%s", message)
 	c.walletNotification <- message[0]
 }
 
@@ -215,10 +215,10 @@ func (c *Client) handleWaletNotify(w http.ResponseWriter, req *http.Request) {
 func (c *Client)handleBlockNotify(w http.ResponseWriter, req *http.Request) {
 	if err:=req.ParseForm(); err!=nil {
 		if content, err := ioutil.ReadAll(req.Body); err==nil {
-			l4g.Error("Bitcoin http server handle wallet notify, err content:%s",
+			L4g.Error("Bitcoin http server handle wallet notify, err content:%s",
 				err.Error())
 		}else {
-			l4g.Error("Bitcoin http server cannot parse form data : %s", string(content))
+			L4g.Error("Bitcoin http server cannot parse form data : %s", string(content))
 		}
 	}
 	message := req.Form["blhash"]
@@ -229,13 +229,13 @@ func (c *Client)handleBlockNotify(w http.ResponseWriter, req *http.Request) {
 func (c *Client)handleAlertNotify(w http.ResponseWriter, req *http.Request) {
 	if err:=req.ParseForm(); err!=nil {
 		if content, err := ioutil.ReadAll(req.Body); err==nil {
-			l4g.Error("Bitcoin http server handle wallet notify, err content:%s",
+			L4g.Error("Bitcoin http server handle wallet notify, err content:%s",
 				err.Error())
 		}else {
-			l4g.Error("Bitcoin http server cannot parse form data : %s", string(content))
+			L4g.Error("Bitcoin http server cannot parse form data : %s", string(content))
 		}
 	}
 	message := req.Form["alert"]
-	l4g.Trace("alert=%s", message[0])
+	L4g.Trace("alert=%s", message[0])
 }
 

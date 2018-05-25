@@ -3,7 +3,7 @@ import (
 	"github.com/pki-io/core/crypto"
 	"crypto/ecdsa"
 	"blockchain_server/conf"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"os"
 	"crypto/x509"
 	"io/ioutil"
@@ -19,7 +19,7 @@ var (
 
 func l4g_fatalln(v error) {
 	if v==nil {return}
-	l4g.Trace(`
+	L4g.Trace(`
 ------------------Config init faild------------------
 message : %s
 appliaction will exit in 1 second!

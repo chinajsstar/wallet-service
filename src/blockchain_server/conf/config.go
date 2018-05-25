@@ -4,7 +4,7 @@ import (
 	"blockchain_server/utils"
 	"encoding/json"
 	"io/ioutil"
-	l4g "github.com/alecthomas/log4go"
+	L4g "github.com/alecthomas/log4go"
 	"fmt"
 	"os"
 	"blockchain_server/types"
@@ -62,7 +62,7 @@ func (self *Configer) LogPath() string {
 	return  appDir + "/" + configer.LogsPath
 }
 
-func (self *Configer)LogConfigFile() string {
+func (self *Configer) L4gConfigFile() string {
 	appDir, err := apiutils.GetAppDir()
 
 	if err!=nil { return "" }
@@ -98,11 +98,11 @@ func (self *Configer) Save() error {
 	var err error = nil
 
 	self.Lock()
-	if d, err = json.Marshal(configer); err!=nil {
-		l4g.Error("Save configer error, message:%s", err.Error())
+	if d, err = json.MarshalIndent(configer, "", "\t"); err!=nil {
+		L4g.Error("Save configer error, message:%s", err.Error())
 	} else {
 		if err = ioutil.WriteFile(GetConfigFilePath(), d, os.ModePerm); err!=nil {
-			l4g.Error("Save configer error, message:%s", err.Error())
+			L4g.Error("Save configer error, message:%s", err.Error())
 		}
 	}
 	self.Unlock()
@@ -111,17 +111,17 @@ func (self *Configer) Save() error {
 }
 
 func (self *Configer)Trace() {
-	l4g.Trace(`
+	L4g.Trace(`
 	global config informations: 
 	crypte_key_file:			%s,
 	log_config_file:			%s,
 	log_path:					%s`,
 		self.Cryptokeyfile(),
-		self.LogConfigFile(),
+		self.L4gConfigFile(),
 		self.LogPath() )
 
 	for _, c := range self.Clientconfig {
-		l4g.Trace(c.String())
+		L4g.Trace(c.String())
 	}
 }
 func (self *Configer)ClientConfiger(coinname string) *ClientConfig{
@@ -130,7 +130,7 @@ func (self *Configer)ClientConfiger(coinname string) *ClientConfig{
 
 func l4g_fatalln(err error) {
 	if err==nil {return}
-	l4g.Trace(`
+	L4g.Trace(`
 ------------------Config init faild------------------
 message : %s
 appliaction will exit in 1 second!
@@ -157,13 +157,20 @@ func MainConfiger() (*Configer) {
 	return &configer
 }
 
+func L4gConfigFile() string {
+	return configer.L4gConfigFile()
+}
+
 func GetConfigFilePath() string {
 	if Debugmode {
-		l4g.Trace("running as debug version!")
+		L4g.Trace("running as debug version!")
 		appDir, _:= apiutils.GetAppDir()
 		return appDir + "/blockchain_server/res/app_debug.config"
 	}
-	l4g.Trace("running as release version!")
+	L4g.Trace("running as release version!")
 	return utils.CurrentRuningFileDir() + "./../res/app.config"
 }
 
+func LogPath() string {
+	return configer.LogPath()
+}

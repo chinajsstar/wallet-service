@@ -6,7 +6,7 @@ import (
 	"blockchain_server/chains/eth"
 	"fmt"
 	"context"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"time"
 )
 
@@ -54,16 +54,16 @@ func TestNetCmdSvr(t *testing.T) {
 
 	select {
 	case <-done_sendTx:{
-		l4g.Trace("SendTransaction done!")
+		L4g.Trace("SendTransaction done!")
 	}
 	case <-done_watchaddress:{
-		l4g.Trace("Watch Address done!")
+		L4g.Trace("Watch Address done!")
 	}
 	}
 
 	clientManager.Close()
 
-	l4g.Trace("exit main!")
+	L4g.Trace("exit main!")
 
 	time.Sleep(1 * time.Second)
 }
@@ -87,9 +87,9 @@ func testWatchAddress(ctx context.Context, clientManager *ClientManager,coin str
 			select {
 			case rct := <-channel:{
 				if rct==nil {
-					l4g.Trace("Watch Address channel is close!")
+					L4g.Trace("Watch Address channel is close!")
 				} else {
-					l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+					L4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
 					if rct.Tx.State==types.Tx_state_confirmed || rct.Tx.State==types.Tx_state_unconfirmed {
 						watch_address_channel <- true
 					}
@@ -134,19 +134,19 @@ func testSendTokenTx(ctx context.Context, clientManager *ClientManager, privatek
 			select {
 			case cmdTx := <-txStateChannel:{
 				if cmdTx==nil {
-					l4g.Trace("Transaction Command Channel is closed!")
+					L4g.Trace("Transaction Command Channel is closed!")
 					txok_channel <- false
 				} else {
 					fmt.Printf("Transaction state changed, transaction information:%s\n",
 						cmdTx.Tx.String())
 
 					if cmdTx.Tx.State == types.Tx_state_confirmed {
-						l4g.Trace("Transaction is confirmed! success!!!")
+						L4g.Trace("Transaction is confirmed! success!!!")
 						txok_channel <- true
 					}
 
 					if cmdTx.Tx.State == types.Tx_state_unconfirmed {
-						l4g.Trace("Transaction is unconfirmed! failed!!!!")
+						L4g.Trace("Transaction is unconfirmed! failed!!!!")
 						txok_channel <- false
 					}
 				}

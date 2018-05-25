@@ -6,7 +6,7 @@ import (
 	"blockchain_server/types"
 	"blockchain_server/conf"
 	"fmt"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 )
 
 func (c *Client) virtualKeyToRealPubkey(privkey string) (*hdkeychain.ExtendedKey, error) {
@@ -55,7 +55,7 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 
 	accs := make([]*types.Account, co)
 
-	l4g.Trace("Bitcoin Create new child new account (from:%d, to:%d)", index_from, index_to)
+	L4g.Trace("Bitcoin Create new child new account (from:%d, to:%d)", index_from, index_to)
 
 	for i:=index_from; i<index_to; i++ {
 		if childpub, err := c.key_settings.Ext_pub.Child(i); err==nil {
@@ -70,7 +70,7 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 				prikey_string := wif.String()
 				address, _ := childpri.Address(c.chain_params)
 
-				l4g.Trace(`
+				L4g.Trace(`
 --->Privatekey:[%d/%d], [key:%s,address:%s]`, depth, i, prikey_string, address.String() )
 			}
 
@@ -79,20 +79,20 @@ func (c *Client) NewAccount(co uint32) ([]*types.Account, error) {
 			// AddressPubKeyHash is an ContractAddress for a pay-to-pubkey-hash (P2PKH)
 			// transaction.
 			if hash, err := childpub.Address(c.chain_params); err!=nil {
-				l4g.Error("Convert child-extended-pub-key to address faild, message:%s", err.Error())
+				L4g.Error("Convert child-extended-pub-key to address faild, message:%s", err.Error())
 				return nil, err
 			} else {
 				if key, err := indexToKey(i, 64, index_prefix); err==nil {
 					//itmp, _ := keyToIndex(key, index_prefix)
-					//l4g.Trace("child index = %d", itmp)
+					//L4G.Trace("child index = %d", itmp)
 					accs[ i-index_from ] = &types.Account{Address:hash.EncodeAddress(), PrivateKey:key}
 				} else {
-					l4g.Error("BTC Convert index to child 'private key' faild, message:%s", err.Error())
+					L4g.Error("BTC Convert index to child 'private key' faild, message:%s", err.Error())
 					return nil, err
 				}
 			}
 		} else {
-			l4g.Error("BTC Get child public key faild, message:%s", err.Error())
+			L4g.Error("BTC Get child public key faild, message:%s", err.Error())
 			return nil, err
 		}
 	}

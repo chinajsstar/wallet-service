@@ -4,7 +4,6 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"sync"
 	"blockchain_server/types"
-	l4g "github.com/alecthomas/log4go"
 	"blockchain_server/chains/btc/btc_settings"
 	"blockchain_server/conf"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -21,11 +20,12 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
 	"fmt"
+	L4g "blockchain_server/l4g"
 )
 
 var (
-	MaxConfiramtionNumber = 999999
-	index_prefix		  = "BTC_HD_Child_PubKey"
+	MaxConfiramtionNumber  = 999999
+	index_prefix          		  = "BTC_HD_Child_PubKey"
 	)
 
 type Client struct {
@@ -120,7 +120,7 @@ func (c *Client)BuildTx(fromkey string, stx *types.Transfer) error {
 	)
 
 	if stx.From, err = c.virtualKeyToAddress(fromkey); err!=nil {
-		l4g.Error("Bitcoin cannot deccrypt virtual key stirng to address, error:%s",
+		L4g.Error("Bitcoin cannot deccrypt virtual key stirng to address, error:%s",
 			err.Error())
 		return err
 	}
@@ -178,13 +178,13 @@ func (c *Client)BuildTx(fromkey string, stx *types.Transfer) error {
 	}
 
 	if true {
-		l4g.Trace("list all unspend utxo!")
+		L4g.Trace("list all unspend utxo!")
 		var allutxo float64 =0
 		for i, utxo := range unspends {
-			l4g.Trace("index:%d, address:%s, amount:%f", i, utxo.Address, utxo.Amount)
+			L4g.Trace("index:%d, address:%s, amount:%f", i, utxo.Address, utxo.Amount)
 			allutxo += utxo.Amount
 		}
-		l4g.Trace("\nTxInfomation: from:%s, to:%s, need:(%f + %f), have:%f",
+		L4g.Trace("\nTxInfomation: from:%s, to:%s, need:(%f + %f), have:%f",
 			stx.From, stx.To, amount, fee_estimat, allutxo)
 	}
 
@@ -286,7 +286,7 @@ func (c *Client)SendSignedTx(txByte []byte, tx *types.Transfer) (error) {
 	}
 
 	if hash, err = c.SendRawTransaction(msgTx, false);err!=nil {
-		l4g.Error("Bitcoin SendRawTransaction error: %s", err.Error())
+		L4g.Error("Bitcoin SendRawTransaction error: %s", err.Error())
 		return err
 	} else {
 		tx.Tx_hash = hash.String()
@@ -320,7 +320,7 @@ func (c *Client) msgTxOutDetail(txout []*wire.TxOut) (adds[]string, values[] flo
 			adds = append(adds, tmps[:]...)
 			values = append(values, btcutil.Amount(txo.Value).ToBTC())
 		} else {
-			l4g.Error("Bitcoin InnerErr:get address(MsgTx.Out), message:%s",
+			L4g.Error("Bitcoin InnerErr:get address(MsgTx.Out), message:%s",
 				err.Error())
 		}
 	}
@@ -336,7 +336,7 @@ func (c *Client) msgTxInDetail(txIns []*wire.TxIn)(from []string, txIntotalValue
 		if tx, err = c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
 			var tmps []string
 			if tmps, _, err = c.msgTxOutDetail(tx.MsgTx().TxOut); err!=nil {
-				l4g.Error("Bitcoin InnerErr:msgTxAddresses, message:%s",
+				L4g.Error("Bitcoin InnerErr:msgTxAddresses, message:%s",
 					err.Error())
 			} else {
 				index := txIn.PreviousOutPoint.Index
@@ -346,7 +346,7 @@ func (c *Client) msgTxInDetail(txIns []*wire.TxIn)(from []string, txIntotalValue
 				}
 			}
 		} else {
-			l4g.Error("Bitcoin InnerErr:msgTxAddresses,message %s", err.Error())
+			L4g.Error("Bitcoin InnerErr:msgTxAddresses,message %s", err.Error())
 		}
 	}
 
@@ -367,7 +367,7 @@ func (c *Client) msgTxInDetail(txIns []*wire.TxIn)(from []string, txIntotalValue
 // blockin, 由于目前这个rpcclient库的transaction没有解析blockin, 所以
 // blockin和confirmheight, 暂时都为0
 func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
-	//l4g.Trace("Bitcoin Update Transaction: %#v", *btx)
+	//L4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
 	var (
 		serializedTx   []byte
@@ -465,19 +465,19 @@ func (c *Client)SubscribeRechargeTx(txChannel types.RechargeTxChannel) {
 func (c *Client) InsertWatchingAddress(addresses []string) (invalid []string) {
 	for _, v := range addresses {
 		if address, err := btcutil.DecodeAddress(v, c.chain_params);err!=nil {
-			l4g.Error("bitcoin decode address faild, message:%s", err.Error())
+			L4g.Error("bitcoin decode address faild, message:%s", err.Error())
 			invalid = append(invalid, v)
 		} else {
 			//if err := c.SetAccount(address, labelname); err!=nil {
 			//	invalid = append(invalid, v)
-			//	l4g.Trace("Bitcoin import address error:%s", err.Error())
+			//	L4g.Trace("Bitcoin import address error:%s", err.Error())
 			//} else {
-			//	l4g.Trace("-------::::::::::Bitcoin import address:'%s', to wallet account:'%s'",
+			//	L4g.Trace("-------::::::::::Bitcoin import address:'%s', to wallet account:'%s'",
 			//		address, "receive")
 			//}
 	if err := c.ImportAddress(address.EncodeAddress(), c.importAddressLabelName, false); err!=nil {
 				invalid = append(invalid, v)
-				l4g.Error("bitcoin import address faild, message:%s", err.Error())
+				L4g.Error("bitcoin import address faild, message:%s", err.Error())
 			}
 		}
 	}
@@ -486,7 +486,7 @@ func (c *Client) InsertWatchingAddress(addresses []string) (invalid []string) {
 
 func (c *Client) GetBalance(address string, _beNil string) (float64, error) {
 	if _beNil!="" {
-		l4g.Trace("bitcoin GetBalance,  not support tokens!")
+		L4g.Trace("bitcoin GetBalance,  not support tokens!")
 	}
 	//c.Client.get
 	adds, err := btcutil.DecodeAddress(address, c.chain_params)
@@ -529,11 +529,11 @@ func (c *Client) Start() error {
 	// field of conn-config struct 'rpcclient.connConfig'
 	if c.rpc_config.HTTPPostMode {
 
-		l4g.Trace("bitcoin net connect mode:'http rpc'")
+		L4g.Trace("bitcoin net connect mode:'http rpc'")
 
 	} else if c.rpc_config.Endpoint=="ws" {
 
-		l4g.Trace("bitcoin net conncet mode:'ws rpc")
+		L4g.Trace("bitcoin net conncet mode:'ws rpc")
 		err := c.Connect(0)
 		if err != nil { return err }
 		// Verify that the server is running on the expected network.

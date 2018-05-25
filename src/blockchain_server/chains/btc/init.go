@@ -4,7 +4,7 @@ import (
 	"blockchain_server/chains/btc/btc_settings"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/chaincfg"
-	l4g "github.com/alecthomas/log4go"
+	L4g "blockchain_server/l4g"
 	"blockchain_server/conf"
 	"errors"
 	"fmt"
@@ -15,7 +15,7 @@ var instance *Client = nil
 
 func (c *Client)init_rpc_settings() error {
 	if !config.MainConfiger().IsOnlineMode() {
-		l4g.Trace("btc client working on offline mode, will not init rpc!")
+		L4g.Trace("btc client working on offline mode, will not init rpc!")
 		return nil
 	}
 
@@ -58,17 +58,17 @@ func (c *Client) init_rpc_client() error {
 	}
 	var err error
 	if err = c.init_rpc_settings(); err!=nil {
-		l4g.Error("btc get network settings faild, message:%v", err)
+		L4g.Error("btc get network settings faild, message:%v", err)
 		return err
 	}
 
 	if err = c.init_rpc_config(); err!=nil {
-		l4g.Error("btc client online mode, rpc_config faild, message:%v", err)
+		L4g.Error("btc client online mode, rpc_config faild, message:%v", err)
 		return err
 	}
 
 	if c.Client, err = rpcclient.New(c.rpc_config, c.getHandlers()); err!=nil {
-		l4g.Error("btc client online mode, create rpc client error!, message:%s",
+		L4g.Error("btc client online mode, create rpc client error!, message:%s",
 			err.Error())
 		return err
 	}
@@ -114,7 +114,7 @@ func  (c *Client) init_chain_params() error {
 func ClientInstance() (*Client, error) {
 	if !btc_settings.InitOk() {
 		message := "btc settings init faild."
-		l4g.Trace(message)
+		L4g.Trace(message)
 		return nil, fmt.Errorf(message)
 	}
 
@@ -127,7 +127,7 @@ func ClientInstance() (*Client, error) {
 		quit:               make(chan struct{}),
 	}
 	if err:=inst.init(); err!=nil {
-		l4g.Error("btc client instance initialize faild, message:%v", err)
+		L4g.Error("btc client instance initialize faild, message:%v", err)
 		return nil, err
 	}
 
@@ -140,7 +140,7 @@ func (c *Client) init () error {
 	if _, err := c.refresh_blockheight(); err!=nil { return err }
 	if err := c.init_key_settings(); err!=nil {return nil}
 
-	l4g.Trace("coinname:%s, blockheight:%d", c.Name(), c.BlockHeight())
+	L4g.Trace("coinname:%s, blockheight:%d", c.Name(), c.BlockHeight())
 
 	configer := btc_settings.Client_config()
 	atomic.StoreUint64(&c.startScanHeight, configer.Start_scan_Blocknumber)
