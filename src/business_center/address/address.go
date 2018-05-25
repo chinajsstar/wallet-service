@@ -410,13 +410,35 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 		queryMap["asset_names"] = params.AssetNames
 	}
 
-	dataList := v1.AckUserBalanceList{}
+	dataList := v1.AckUserBalanceList{
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
+
+	if params.PageIndex > 0 {
+		queryMap["page_index"] = params.PageIndex
+		dataList.PageIndex = params.PageIndex
+	}
+
+	if params.MaxDispLines > 0 {
+		queryMap["max_disp_lines"] = params.MaxDispLines
+		dataList.MaxDispLines = params.MaxDispLines
+	}
+
+	if params.TotalLines == 0 {
+		dataList.TotalLines = mysqlpool.QueryUserAccountCount(queryMap)
+	} else if params.TotalLines > 0 {
+		dataList.TotalLines = params.TotalLines
+	}
+
 	if arr, ok := mysqlpool.QueryUserAccount(queryMap); ok {
 		for _, v := range arr {
 			d := v1.AckUserBalance{}
 			d.AssetName = v.AssetName
 			d.AvailableAmount = v.AvailableAmount
 			d.FrozenAmount = v.FrozenAmount
+			d.Time = v.UpdateTime
 			dataList.Data = append(dataList.Data, d)
 		}
 	}
