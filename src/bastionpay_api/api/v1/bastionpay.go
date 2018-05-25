@@ -60,17 +60,24 @@ type (
 
 	// 获取用户余额
 	ReqUserBalance struct {
-		AssetNames []string `json:"asset_names" doc:"需要查询余额的币种列表"`
+		AssetNames   []string `json:"asset_names" doc:"需要查询余额的币种列表"`
+		TotalLines   int      `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex    int      `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines int      `json:"max_disp_lines" doc:"页最大数,100以下"`
 	}
 
 	AckUserBalance struct {
 		AssetName       string  `json:"asset_name" doc:"币种简称"`
 		AvailableAmount float64 `json:"available_amount" doc:"可用余额"`
 		FrozenAmount    float64 `json:"frozen_amount" doc:"冻结余额"`
+		Time            int64   `json:"time" doc:"刷新时间"`
 	}
 
 	AckUserBalanceList struct {
-		Data []AckUserBalance `json:"data" doc:"币种余额列表"`
+		Data         []AckUserBalance `json:"data" doc:"币种余额列表"`
+		TotalLines   int              `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex    int              `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines int              `json:"max_disp_lines" doc:"页最大数,100以下"`
 	}
 
 	// 获取用户地址
@@ -171,6 +178,21 @@ type (
 		MaxDispLines int                            `json:"max_disp_lines" doc:"页最大数"`
 	}
 
+	PushTransactionMessage struct {
+		MsgID         int64   `json:"msg_id"`
+		TransType     int     `json:"trans_type"`
+		Status        int     `json:"status"`
+		BlockinHeight int64   `json:"blockin_height"`
+		AssetName     string  `json:"asset_name"`
+		Address       string  `json:"address"`
+		Amount        float64 `json:"amount"`
+		PayFee        float64 `json:"pay_fee"`
+		Balance       float64 `json:"balance"`
+		Hash          string  `json:"hash"`
+		OrderID       string  `json:"order_id"`
+		Time          int64   `json:"time"`
+	}
+
 	ReqTransactionBillDaily struct {
 		AssetName    string `json:"asset_name" doc:"币种"`
 		MaxPeriod    int    `json:"max_period" doc:"最大周期值"`
@@ -195,5 +217,20 @@ type (
 		TotalLines   int                       `json:"total_lines" doc:"总数"`
 		PageIndex    int                       `json:"page_index" doc:"页索引"`
 		MaxDispLines int                       `json:"max_disp_lines" doc:"页最大数"`
+	}
+
+	ReqPayAddress struct {
+		AssetNames []string `json:"asset_names" doc:"需要查询属性的币种列表，不空表示精确查找"`
+	}
+
+	AckPayAddress struct {
+		AssetName  string  `json:"asset_name"`
+		Address    string  `json:"address"`
+		Amount     float64 `json:"amount"`
+		UpdateTime int64   `json:"update_time"`
+	}
+
+	AckPayAddressList struct {
+		Data []AckPayAddress
 	}
 )

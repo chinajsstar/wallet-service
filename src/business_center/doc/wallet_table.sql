@@ -300,7 +300,7 @@ CREATE TABLE `profit_bill` (
   `pay_fee` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '手续费',
   `miner_fee` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '矿工',
   `profit` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '利润',
-  `time` bigint(20) NOT NULL DEFAULT 0 COMMENT '时间',             
+  `time` datetime NOT NULL COMMENT '时间',             
   PRIMARY KEY (`profit_user_key`, `asset_name`, `order_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -316,7 +316,7 @@ CREATE TABLE `profit_bill_daily` (
   `profit_user_key` varchar(255) NOT NULL DEFAULT '' COMMENT '利润归属对象',
   `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '币种', 
   `sum_profit` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '利润',
-  `time` bigint(20) NOT NULL DEFAULT 0 COMMENT '时间',             
+  `time` datetime NOT NULL COMMENT '时间',             
   PRIMARY KEY (`profit_user_key`, `asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

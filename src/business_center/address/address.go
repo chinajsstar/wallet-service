@@ -214,7 +214,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	userAddress, ok := mysqlpool.QueryPayAddress([]string{assetProperty.AssetName})
+	userAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetName)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "没有设置可用的热钱包")
 		l4g.Error(res.ErrMsg)
@@ -348,6 +348,8 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 
 	if params.TotalLines == 0 {
 		dataList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
+	} else if params.TotalLines > 0 {
+		dataList.TotalLines = params.TotalLines
 	}
 
 	if arr, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
@@ -408,13 +410,35 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 		queryMap["asset_names"] = params.AssetNames
 	}
 
-	dataList := v1.AckUserBalanceList{}
+	dataList := v1.AckUserBalanceList{
+		TotalLines:   -1,
+		PageIndex:    -1,
+		MaxDispLines: -1,
+	}
+
+	if params.PageIndex > 0 {
+		queryMap["page_index"] = params.PageIndex
+		dataList.PageIndex = params.PageIndex
+	}
+
+	if params.MaxDispLines > 0 {
+		queryMap["max_disp_lines"] = params.MaxDispLines
+		dataList.MaxDispLines = params.MaxDispLines
+	}
+
+	if params.TotalLines == 0 {
+		dataList.TotalLines = mysqlpool.QueryUserAccountCount(queryMap)
+	} else if params.TotalLines > 0 {
+		dataList.TotalLines = params.TotalLines
+	}
+
 	if arr, ok := mysqlpool.QueryUserAccount(queryMap); ok {
 		for _, v := range arr {
 			d := v1.AckUserBalance{}
 			d.AssetName = v.AssetName
 			d.AvailableAmount = v.AvailableAmount
 			d.FrozenAmount = v.FrozenAmount
+			d.Time = v.UpdateTime
 			dataList.Data = append(dataList.Data, d)
 		}
 	}
@@ -529,6 +553,8 @@ func (a *Address) HistoryTransactionBill(req *data.SrvRequest, res *data.SrvResp
 
 	if params.TotalLines == 0 {
 		dataList.TotalLines = mysqlpool.QueryTransactionBillCount(queryMap)
+	} else if params.TotalLines > 0 {
+		dataList.TotalLines = params.TotalLines
 	}
 
 	if arr, ok := mysqlpool.QueryTransactionBill(queryMap); ok {
@@ -617,6 +643,8 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 
 	if params.TotalLines == 0 {
 		dataList.TotalLines = mysqlpool.QueryTransactionMessageCount(queryMap)
+	} else if params.TotalLines > 0 {
+		dataList.TotalLines = params.TotalLines
 	}
 
 	if arr, ok := mysqlpool.QueryTransactionMessage(queryMap); ok {
@@ -710,6 +738,8 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 
 	if params.TotalLines == 0 {
 		dataList.TotalLines = mysqlpool.QueryUserAddressCount(queryMap)
+	} else if params.TotalLines > 0 {
+		dataList.TotalLines = params.TotalLines
 	}
 
 	if arr, ok := mysqlpool.QueryUserAddress(queryMap); ok {
@@ -791,19 +821,35 @@ func (a *Address) QueryPayAddress(req *data.SrvRequest, res *data.SrvResponse) e
 		return errors.New(res.ErrMsg)
 	}
 
-	params, err := jsonparse.Parse(req.Argv.Message)
+	params := v1.ReqPayAddress{}
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
+	dataList := v1.AckPayAddressList{}
+	if arr, ok := mysqlpool.QueryPayAddressList(params.AssetNames); ok {
+		for _, v := range arr {
+			d := v1.AckPayAddress{}
+			d.AssetName = v.AssetName
+			d.Address = v.Address
+			d.Amount = v.AvailableAmount
+			d.UpdateTime = v.UpdateTime
+			dataList.Data = append(dataList.Data, d)
+		}
+	}
+
+	pack, err := json.Marshal(dataList)
 	if err != nil {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
-
-	assetName, _ := params.AssetNameArray()
-	userAddress, _ := mysqlpool.QueryPayAddress(assetName)
-	res.Value.Message = responseJson(userAddress)
-	res.Err = 0
-	res.ErrMsg = ""
-
+	res.Value.Message = string(pack)
 	return nil
 }
 
@@ -867,6 +913,8 @@ func (a *Address) TransactionBillDaily(req *data.SrvRequest, res *data.SrvRespon
 
 	if params.TotalLines == 0 {
 		dataList.TotalLines = mysqlpool.QueryTransactionBillDailyCount(queryMap)
+	} else if params.TotalLines > 0 {
+		dataList.TotalLines = params.TotalLines
 	}
 
 	if arr, ok := mysqlpool.QueryTransactionBillDaily(queryMap); ok {

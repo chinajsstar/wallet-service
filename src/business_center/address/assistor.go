@@ -7,7 +7,6 @@ import (
 	"business_center/mysqlpool"
 	"business_center/transaction"
 	"context"
-	"encoding/json"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	"time"
@@ -172,12 +171,4 @@ func (a *Address) recvCmdTxChannel() {
 			}
 		}
 	}(a.ctx, a.cmdTxChannel)
-}
-
-func responseJson(v interface{}) string {
-	s, err := json.Marshal(v)
-	if err != nil {
-		return ""
-	}
-	return string(s)
 }
