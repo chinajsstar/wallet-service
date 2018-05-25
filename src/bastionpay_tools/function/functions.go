@@ -139,7 +139,7 @@ func (f *Functions) NewAddress(coinType string, count uint32, savedDir string) (
 	}
 
 	l4g.Info("===结束生成地址文件===")
-	return dstUniDir, nil
+	return dstUniDir, err
 }
 
 func (f* Functions) SaveAddress(uniName string, src io.Reader) error{
