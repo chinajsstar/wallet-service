@@ -65,26 +65,49 @@ func QueryUserAddressByNameAddress(assetName string, address string) (UserAddres
 	return UserAddress{}, false
 }
 
-func QueryPayAddress(assetName []string) (UserAddress, bool) {
+func QueryPayAddress(assetName string) (UserAddress, bool) {
 	db := Get()
-	sqls := "select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount," +
-		"enabled, unix_timestamp(create_time), unix_timestamp(update_time) from pay_address_view where true"
+	row := db.QueryRow("select user_key,user_class,asset_name,address,private_key,"+
+		" available_amount,frozen_amount,enabled, unix_timestamp(create_time), unix_timestamp(update_time)"+
+		" from pay_address_view where asset_name = ?", assetName)
+
+	data := UserAddress{}
+	err := row.Scan(&data.UserKey, &data.UserClass, &data.AssetName, &data.Address, &data.PrivateKey, &data.AvailableAmount,
+		&data.FrozenAmount, &data.Enabled,
+		&data.CreateTime, &data.UpdateTime)
+	if err != nil {
+		return UserAddress{}, false
+	}
+	return data, true
+}
+
+func QueryPayAddressList(assetName []string) ([]UserAddress, bool) {
+	sqls := "select user_key,user_class,asset_name,address,private_key,available_amount,frozen_amount,enabled, " +
+		" unix_timestamp(create_time), unix_timestamp(update_time) from pay_address_view where true "
 
 	params := make([]interface{}, 0)
-	for _, value := range assetName {
+	for _, v := range assetName {
 		sqls += " and asset_name = ?"
-		params = append(params, value)
+		params = append(params, v)
 	}
 
-	row := db.QueryRow(sqls, params...)
-	var userAddress UserAddress
-	err := row.Scan(&userAddress.UserKey, &userAddress.UserClass, &userAddress.AssetName, &userAddress.Address,
-		&userAddress.PrivateKey, &userAddress.AvailableAmount, &userAddress.FrozenAmount, &userAddress.Enabled,
-		&userAddress.CreateTime, &userAddress.UpdateTime)
+	arr := make([]UserAddress, 0)
+	db := Get()
+	rows, err := db.Query(sqls, params...)
 	if err != nil {
-		return userAddress, false
+		return arr, false
 	}
-	return userAddress, true
+
+	for rows.Next() {
+		data := UserAddress{}
+		err := rows.Scan(&data.UserKey, &data.UserClass, &data.AssetName, &data.Address, &data.PrivateKey, &data.AvailableAmount,
+			&data.FrozenAmount, &data.Enabled,
+			&data.CreateTime, &data.UpdateTime)
+		if err == nil {
+			arr = append(arr, data)
+		}
+	}
+	return arr, len(arr) > 0
 }
 
 func SetPayAddress(assetName string, address string) error {

@@ -116,22 +116,6 @@ type (
 		Time          int64   `json:"time"`
 	}
 
-	TransactionOrder struct {
-		ID        int64   `json:"id"`
-		UserKey   string  `json:"user_key"`
-		AssetName string  `json:"asset_name"`
-		Address   string  `json:"address"`
-		TransType int     `json:"trans_type"`
-		Amount    float64 `json:"amount"`
-		PayFee    float64 `json:"pay_fee"`
-		MinerFee  float64 `json:"miner_fee"`
-		Balance   float64 `json:"balance"`
-		Hash      string  `json:"hash"`
-		OrderID   string  `json:"order_id"`
-		Status    int     `json:"status"`
-		Time      int64   `json:"time"`
-	}
-
 	TransactionBill struct {
 		ID              int64   `json:"id"`
 		UserKey         string  `json:"user_key"`
@@ -163,5 +147,27 @@ type (
 		SumMinerFee float64 `json:"sum_miner_fee"`
 		PreBalance  float64 `json:"pre_balance"`
 		LastBalance float64 `json:"last_balance"`
+	}
+
+	ProfitBill struct {
+		ProfitUserKey string  `json:"profit_user_key"`
+		UserKey       string  `json:"user_key"`
+		TransType     int     `json:"trans_type"`
+		AssetName     string  `json:"asset_name"`
+		OrderID       string  `json:"order_id"`
+		Hash          string  `json:"hash"`
+		Amount        float64 `json:"amount"`
+		PayFee        float64 `json:"pay_fee"`
+		MinerFee      float64 `json:"miner_fee"`
+		Profit        float64 `json:"profit"`
+		Time          int64   `json:"time"`
+	}
+
+	ProfitBillDaily struct {
+		Period        string  `json:"period"`
+		ProfitUserKey string  `json:"profit_user_key"`
+		AssetName     string  `json:"asset_name"`
+		SumProfit     float64 `json:"sum_profit"`
+		Time          int64   `json:"time"`
 	}
 )

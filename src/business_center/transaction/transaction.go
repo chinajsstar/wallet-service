@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bastionpay_api/api/v1"
 	"blockchain_server/types"
 	. "business_center/def"
 	"business_center/mysqlpool"
@@ -40,6 +41,7 @@ func Blockin(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 					transNotice.UserKey, transNotice.AssetName)
 				row.Scan(&transNotice.Balance)
 				SendTransactionNotic(&transNotice, callback)
+				AddProfitBill(&transNotice)
 				AddTransactionBill(&transNotice)
 				AddTransactionBillDaily(&transNotice)
 			}
@@ -94,6 +96,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 					tx.Commit()
 					mysqlpool.RemoveUserOrder(transNotice.UserKey, userOrderID)
 					SendTransactionNotic(&transNotice, callback)
+					AddProfitBill(&transNotice)
 					AddTransactionBill(&transNotice)
 					AddTransactionBillDaily(&transNotice)
 				}
@@ -147,6 +150,7 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 					transNotice.UserKey, transNotice.AssetName)
 				row.Scan(&transNotice.Balance)
 				SendTransactionNotic(&transNotice, callback)
+				AddProfitBill(&transNotice)
 				AddTransactionBill(&transNotice)
 				AddTransactionBillDaily(&transNotice)
 			}
@@ -187,7 +191,7 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 					TransType:     TypeDeposit,
 					Status:        StatusConfirm,
 					BlockinHeight: blockin.BlockinHeight,
-					OrderID:       blockin.OrderID,
+					OrderID:       "",
 					Time:          blockin.Time,
 				}
 				row := tx.QueryRow("select available_amount from user_account where user_key = ? and asset_name = ?",
@@ -195,6 +199,7 @@ func finSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 				row.Scan(&transNotice.Balance)
 				tx.Commit()
 				SendTransactionNotic(&transNotice, callback)
+				AddProfitBill(&transNotice)
 				AddTransactionBill(&transNotice)
 				AddTransactionBillDaily(&transNotice)
 			}
@@ -326,10 +331,17 @@ func AddTransactionBillDaily(transNotice *TransactionNotice) error {
 func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallback) error {
 	db := mysqlpool.Get()
 	if len(transNotice.OrderID) <= 0 {
-		row := db.QueryRow("select order_id from transaction_notice"+
-			" where user_key = ? and asset_name = ? and hash = ? and order_id <> ''",
-			transNotice.UserKey, transNotice.AssetName, transNotice.Hash)
-		row.Scan(&transNotice.OrderID)
+		if transNotice.TransType == TypeDeposit {
+			row := db.QueryRow("select order_id from transaction_notice"+
+				" where user_key = ? and asset_name = ? and hash = ? and order_id like 'DP%'",
+				transNotice.UserKey, transNotice.AssetName, transNotice.Hash)
+			row.Scan(&transNotice.OrderID)
+		} else if transNotice.TransType == TypeWithdrawal {
+			row := db.QueryRow("select order_id from transaction_notice"+
+				" where user_key = ? and asset_name = ? and hash = ? and order_id like 'WD%'",
+				transNotice.UserKey, transNotice.AssetName, transNotice.Hash)
+			row.Scan(&transNotice.OrderID)
+		}
 	}
 
 	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id, trans_type, status, blockin_height,"+
@@ -350,15 +362,76 @@ func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallba
 	row := db.QueryRow("select msg_id from transaction_notice where id = ?", insertID)
 	row.Scan(&transNotice.MsgID)
 
-	data, err := json.Marshal(transNotice)
+	data := v1.PushTransactionMessage{
+		MsgID:         transNotice.MsgID,
+		TransType:     transNotice.TransType,
+		Status:        transNotice.Status,
+		BlockinHeight: transNotice.BlockinHeight,
+		AssetName:     transNotice.AssetName,
+		Address:       transNotice.Address,
+		Amount:        transNotice.Amount,
+		PayFee:        transNotice.PayFee,
+		Balance:       transNotice.Balance,
+		Hash:          transNotice.Hash,
+		OrderID:       transNotice.OrderID,
+		Time:          transNotice.Time,
+	}
+
+	pack, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
 	if callback != nil {
-		callback(transNotice.UserKey, string(data))
+		callback(transNotice.UserKey, string(pack))
 	}
 
+	return nil
+}
+
+func AddProfitBill(transNotice *TransactionNotice) error {
+	if transNotice.Status == 1 {
+		tx, err := mysqlpool.Get().Begin()
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec("insert profit_bill (profit_user_key, user_key, trans_type, asset_name, order_id,"+
+			" hash, amount, pay_fee, miner_fee, profit, time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"", transNotice.UserKey, transNotice.TransType, transNotice.AssetName, transNotice.OrderID,
+			transNotice.Hash, transNotice.Amount, transNotice.PayFee, transNotice.MinerFee,
+			transNotice.PayFee-transNotice.MinerFee, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat))
+		if err != nil {
+			return err
+		}
+
+		ret, err := tx.Exec("update profit_bill_daily set sum_profit = sum_profit + ?, time = ?"+
+			" where period = ? and profit_user_key = ? and asset_name = ?",
+			transNotice.PayFee-transNotice.MinerFee, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat),
+			time.Unix(transNotice.Time, 0).UTC().Format(DateFormat), "", transNotice.AssetName)
+		if err != nil {
+			return err
+		}
+
+		rowAffected, err := ret.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if rowAffected > 0 {
+			return tx.Commit()
+		}
+
+		_, err = tx.Exec("insert profit_bill_daily(period, profit_user_key, asset_name, sum_profit, time)"+
+			" values (?, ?, ?, ?, ?)",
+			time.Unix(transNotice.Time, 0).UTC().Format(DateFormat), "", transNotice.AssetName,
+			transNotice.PayFee-transNotice.MinerFee, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat))
+		if err != nil {
+			return err
+		}
+
+		return tx.Commit()
+	}
 	return nil
 }
 
