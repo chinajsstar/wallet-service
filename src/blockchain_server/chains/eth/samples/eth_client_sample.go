@@ -6,7 +6,7 @@ import (
 	"blockchain_server/types"
 	"context"
 	"fmt"
-	l4g "blockchain_server/l4g"
+	L4g "blockchain_server/l4g"
 	"time"
 )
 
@@ -39,7 +39,7 @@ func main() {
 	client, err := eth.ClientInstance()
 
 	if nil != err {
-		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error())
+		L4g.Error("create client:%s error:%s", types.Chain_eth, err.Error())
 		return
 	}
 
@@ -91,18 +91,18 @@ func main() {
 		select {
 		case <-done_sendTx:
 			{
-				l4g.Trace("SendTransaction done!")
+				L4g.Trace("SendTransaction done!")
 			}
 		case <-done_watchaddress:
 			{
-				l4g.Trace("Watch AddressOfContract done!")
+				L4g.Trace("Watch AddressOfContract done!")
 			}
 		}
 	}
 
 	clientManager.Close()
 
-	l4g.Trace("exit main!")
+	L4g.Trace("exit main!")
 
 	time.Sleep(1 * time.Second)
 }
@@ -133,9 +133,9 @@ func watch_Address(ctx context.Context, clientManager *service.ClientManager, co
 			case rct := <-channel:
 				{
 					if rct == nil {
-						l4g.Trace("Watch AddressOfContract channel is close!")
+						L4g.Trace("Watch AddressOfContract channel is close!")
 					} else {
-						l4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+						L4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
 						if (rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed) && false {
 							watch_address_channel <- true
 						}
@@ -175,7 +175,7 @@ func send_tokenTx(ctx context.Context, clientManager *service.ClientManager,
 			coin, callFromKey, tokenTo, token,
 			tokenOwnerKey, value)
 		if err != nil {
-			l4g.Trace("CreateSendTxCmd faild, message:%s", err.Error())
+			L4g.Trace("CreateSendTxCmd faild, message:%s", err.Error())
 			return
 		}
 		clientManager.SendTx(txCmd)
@@ -190,10 +190,10 @@ func send_tokenTx(ctx context.Context, clientManager *service.ClientManager,
 			case cmdTx := <-txStateChannel:
 				{
 					if cmdTx == nil {
-						l4g.Trace("Transaction Command Channel is closed!")
+						L4g.Trace("Transaction Command Channel is closed!")
 						cdone++
 					} else {
-						l4g.Trace("Transaction state changed, hash=%s", cmdTx.Tx.Tx_hash)
+						L4g.Trace("Transaction state changed, hash=%s", cmdTx.Tx.Tx_hash)
 						if cmdTx.Tx.State == types.Tx_state_confirmed ||
 							cmdTx.Tx.State == types.Tx_state_unconfirmed {
 							cdone++
@@ -233,18 +233,18 @@ func get_balance(manager *service.ClientManager, address string, tokenSymbol str
 	cmd_balance := service.NewQueryBalanceCmd("getbalance message id", types.Chain_eth, address, "")
 	cmd_balance_token := service.NewQueryBalanceCmd("getbalance message id", types.Chain_eth, address, tokenSymbol)
 
-	l4g.Trace("------------------")
+	L4g.Trace("------------------")
 	if balance, err := manager.GetBalance(context.TODO(), cmd_balance, nil); err == nil {
-		l4g.Trace("balance(%s) = %f", address, balance)
+		L4g.Trace("balance(%s) = %f", address, balance)
 	} else {
-		l4g.Error("error : %s", err.Error())
+		L4g.Error("error : %s", err.Error())
 	}
 
-	l4g.Trace("------------------")
+	L4g.Trace("------------------")
 	if balance, err := manager.GetBalance(context.TODO(), cmd_balance_token, nil); err == nil {
-		l4g.Trace("%s balance(%s) = %f", tokenSymbol, address, balance)
+		L4g.Trace("%s balance(%s) = %f", tokenSymbol, address, balance)
 	} else {
-		l4g.Error("error : %s", err.Error())
+		L4g.Error("error : %s", err.Error())
 	}
-	l4g.Trace("------------------")
+	L4g.Trace("------------------")
 }

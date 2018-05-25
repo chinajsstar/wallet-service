@@ -23,7 +23,7 @@ func TestNetCmdSvr(t *testing.T) {
 	client, err := eth.ClientInstance()
 
 	if nil!=err {
-		fmt.Printf("create client:%s error:%s", types.Chain_eth, err.Error() )
+		L4g.Error("create client:%s error:%s", types.Chain_eth, err.Error() )
 		return
 	}
 
@@ -48,8 +48,8 @@ func TestNetCmdSvr(t *testing.T) {
 	//go testWatchAddress(ctx, clientManager, types.Chain_eth, nil, []string{tmp_toaddress,}, done_watchaddress)
 
 	token := "ZToken"
-	go testSendTokenTx(ctx, clientManager, tmp_account.PrivateKey, tmp_toaddress, types.Chain_eth,
-		&token, 10, done_sendTx)
+	go sendTokenTx(ctx, clientManager, tmp_account.PrivateKey, tmp_toaddress, types.Chain_eth,
+		token, 10, done_sendTx)
 
 
 	select {
@@ -111,9 +111,14 @@ func testWatchAddress(ctx context.Context, clientManager *ClientManager,coin str
 	done <- true
 }
 
-func testSendTokenTx(ctx context.Context, clientManager *ClientManager, privatekey, to, coin string,
-	token *string, value uint64, done chan bool) {
-	txCmd := NewSendTxCmd("message id", coin, privatekey, to, token, value)
+func sendTokenTx(ctx context.Context, clientManager *ClientManager, privatekey, to, coin string,
+	token string, value float64, done chan bool) {
+	txCmd, err := NewSendTxCmd("message id", coin, privatekey, to, token, "", value)
+	if err!=nil {
+		L4g.Trace("create SendTxCmd faild, message:%s", err.Error())
+		done <- false
+		return
+	}
 	clientManager.SendTx(txCmd)
 
 	/*********监控提币交易的channel*********/

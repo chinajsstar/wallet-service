@@ -122,6 +122,11 @@ func (self *ClientManager) loopTxCmd() {
 	}()
 }
 
+
+func (self *ClientManager) Client(coinName string) chainclient.ChainClient {
+	return self.clients[coinName]
+}
+
 func (self *ClientManager) loopRechargeTxMessage() {
 	if self.loopRechageRuning {
 		return
