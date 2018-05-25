@@ -136,7 +136,7 @@ func sendPostData(addr, subUserKey string, rawmessage, version, srv, function st
 		return nil, nil, err
 	}
 
-	if ackData.Err != data.NoErr {
+	if ackData.Err != apibackend.NoErr {
 		fmt.Println("err: ", ackData.Err, "-msg: ", ackData.ErrMsg)
 		return ackData, nil, errors.New("# got err: " + ackData.ErrMsg)
 	}
@@ -267,7 +267,7 @@ func (self *Web) handleListSrv(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if d1.Err != data.NoErr {
+	if d1.Err != apibackend.NoErr {
 		w.Write([]byte(d1.ErrMsg))
 		return
 	}
@@ -296,7 +296,7 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 
 	if len(self.nodes) == 0 {
 		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "center", "listsrv")
-		if d1.Err != data.NoErr {
+		if d1.Err != apibackend.NoErr {
 			w.Write([]byte(d1.ErrMsg))
 			return
 		}
@@ -362,7 +362,7 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 
 	if len(self.nodes) == 0 {
 		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "gateway", "listsrv")
-		if d1.Err != data.NoErr {
+		if d1.Err != apibackend.NoErr {
 			w.Write([]byte(d1.ErrMsg))
 			return
 		}
@@ -383,7 +383,7 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 
 	var ures api.UserResponseData
 	d1, _, err := sendPostData(httpaddrGateway, cookie.Value, example, ver, srv, function)
-	if d1.Err != data.NoErr {
+	if d1.Err != apibackend.NoErr {
 		w.Write([]byte(d1.ErrMsg))
 		return
 	}
@@ -499,7 +499,7 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 	func(){
 		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			ures.Err = data.ErrDataCorrupted
+			ures.Err = apibackend.ErrDataCorrupted
 			return
 		}
 		fmt.Println("argv=", string(bb))
@@ -519,7 +519,7 @@ func (this *Web)LoginAction(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(d1)
 
 		ures = *d1
-		if d1.Err != data.NoErr {
+		if d1.Err != apibackend.NoErr {
 			return
 		}
 		if err != nil {
@@ -553,7 +553,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 		message := ""
 		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			ures.Err = data.ErrDataCorrupted
+			ures.Err = apibackend.ErrDataCorrupted
 			return
 		}
 		message = string(bb)
@@ -570,7 +570,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 
 		b1, err := base64.StdEncoding.DecodeString(ul.PublicKey)
 		if err != nil {
-			ures.Err = data.ErrDataCorrupted
+			ures.Err = apibackend.ErrDataCorrupted
 			return
 		}
 
@@ -581,7 +581,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(d1)
 
 		ures = *d1
-		if d1.Err != data.NoErr {
+		if d1.Err != apibackend.NoErr {
 			return
 		}
 		if err != nil {
@@ -604,7 +604,7 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		message := ""
 		bb, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			ures.Err = data.ErrDataCorrupted
+			ures.Err = apibackend.ErrDataCorrupted
 			return
 		}
 		message = string(bb)
@@ -617,7 +617,7 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(d1)
 
 		ures = *d1
-		if d1.Err != data.NoErr {
+		if d1.Err != apibackend.NoErr {
 			return
 		}
 		if err != nil {
@@ -678,14 +678,14 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 		message := ""
 		bb, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			ures.Err = data.ErrDataCorrupted
+			ures.Err = apibackend.ErrDataCorrupted
 			return
 		}
 		message = string(bb)
 		fmt.Println("argv=", message)
 
 		d1, _, err := sendPostData(httpaddrGateway, "", message, method.Version, method.Srv, method.Function)
-		if d1.Err != data.NoErr {
+		if d1.Err != apibackend.NoErr {
 			w.Write([]byte(d1.ErrMsg))
 			return
 		}

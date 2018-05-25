@@ -145,7 +145,7 @@ func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.SrvRequest, r
 	mi.srvCall(req, res)
 
 	// make sure no data if err
-	if res.Err != data.NoErr {
+	if res.Err != apibackend.NoErr {
 		res.Value.Message = ""
 		res.Value.Signature = ""
 	}
@@ -159,7 +159,7 @@ func (mi *ServiceGateway) innerCallByEncrypt(client *rpc2.Client, req *data.SrvR
 	mi.srvCallByEncrypt(req, res)
 
 	// make sure no data if err
-	if res.Err != data.NoErr {
+	if res.Err != apibackend.NoErr {
 		res.Value.Message = ""
 		res.Value.Signature = ""
 	}
@@ -254,7 +254,7 @@ func (mi *ServiceGateway) startTcpServer(ctx context.Context) {
 func (mi *ServiceGateway) srvCall(req *data.SrvRequest, res *data.SrvResponse) {
 	api := mi.getApiInfo(req)
 	if api == nil {
-		res.Err = data.ErrNotFindSrv
+		res.Err = apibackend.ErrNotFindSrv
 		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
@@ -265,7 +265,7 @@ func (mi *ServiceGateway) srvCall(req *data.SrvRequest, res *data.SrvResponse) {
 	rpcSrv.Argv = req.Argv
 	rpcSrv.Context.ApiLever = api.Level
 	var rpcSrvRes data.SrvResponse
-	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != data.NoErr{
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != apibackend.NoErr{
 		*res = rpcSrvRes
 		return
 	}
@@ -279,7 +279,7 @@ func (mi *ServiceGateway) srvCallByEncrypt(req *data.SrvRequest, res *data.SrvRe
 	reqEncrypted.Method = req.Method
 	reqEncrypted.Argv = req.Argv
 	var reqEncryptedRes data.SrvResponse
-	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != data.NoErr{
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
 		*res = reqEncryptedRes
 		return
 	}
@@ -300,7 +300,7 @@ func (mi *ServiceGateway) srvCallByEncrypt(req *data.SrvRequest, res *data.SrvRe
 func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	// can not call auth service
 	if req.Method.Srv == "auth" {
-		res.Err = data.ErrIllegallyCall
+		res.Err = apibackend.ErrIllegallyCall
 		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
@@ -308,7 +308,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	// find api
 	api := mi.getApiInfo(req)
 	if api == nil {
-		res.Err = data.ErrNotFindSrv
+		res.Err = apibackend.ErrNotFindSrv
 		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
@@ -318,7 +318,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(apibackend.ApiTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+	if mi.authData(apibackend.ApiTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -329,7 +329,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	rpcSrv.Context.ApiLever = api.Level
 	rpcSrv.Argv.Message = rpcAuthRes.Value.Message
 	var rpcSrvRes data.SrvResponse
-	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != data.NoErr{
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != apibackend.NoErr{
 		*res = rpcSrvRes
 		return
 	}
@@ -340,7 +340,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	reqEncrypted.Context.ApiLever = api.Level
 	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
 	var reqEncryptedRes data.SrvResponse
-	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != data.NoErr{
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
 		*res = reqEncryptedRes
 		return
 	}
@@ -352,7 +352,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) {
 	// can not call auth service
 	if req.Method.Srv == "auth" {
-		res.Err = data.ErrIllegallyCall
+		res.Err = apibackend.ErrIllegallyCall
 		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
@@ -360,7 +360,7 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	// find api
 	api := mi.getApiInfo(req)
 	if api == nil {
-		res.Err = data.ErrNotFindSrv
+		res.Err = apibackend.ErrNotFindSrv
 		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
@@ -370,7 +370,7 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(apibackend.ApiTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != data.NoErr{
+	if mi.authData(apibackend.ApiTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -379,7 +379,7 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	userParams := apibackend.UserMessage{}
 	err := json.Unmarshal([]byte(rpcAuthRes.Value.Message), &userParams)
 	if err != nil {
-		res.Err = data.ErrDataCorrupted
+		res.Err = apibackend.ErrDataCorrupted
 		l4g.Error("parse user params %s %d %s", req.String(), res.Err, err.Error())
 		return
 	}
@@ -391,7 +391,7 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	rpcSrv.Argv.SubUserKey = userParams.SubUserKey
 	rpcSrv.Argv.Message = userParams.Message
 	var rpcSrvRes data.SrvResponse
-	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != data.NoErr{
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != apibackend.NoErr{
 		*res = rpcSrvRes
 		return
 	}
@@ -402,7 +402,7 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	reqEncrypted.Context.ApiLever = api.Level
 	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
 	var reqEncryptedRes data.SrvResponse
-	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != data.NoErr{
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
 		*res = reqEncryptedRes
 		return
 	}
@@ -419,7 +419,7 @@ func (mi *ServiceGateway) authData(dataType int, req *data.SrvRequest, res *data
 	reqAuthData.ChipperData = reqAuth.Argv.Message
 	b, err := json.Marshal(reqAuthData)
 	if err != nil {
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		l4g.Error("authData Marshal %s", err.Error())
 		return
 	}
@@ -461,16 +461,16 @@ func (mi *ServiceGateway) callFunction(req *data.SrvRequest, res *data.SrvRespon
 		if h != nil {
 			h.ApiHandler(req, res)
 		}else{
-			res.Err = data.ErrNotFindFunction
+			res.Err = apibackend.ErrNotFindFunction
 		}
-		if res.Err != data.NoErr {
+		if res.Err != apibackend.NoErr {
 			l4g.Error("call failed: %d", res.Err)
 		}
 		return
 	}else{
 		srvNodeGroup := mi.srvNodeNameMapSrvNodeGroup[versionSrvName]
 		if srvNodeGroup == nil{
-			res.Err = data.ErrNotFindSrv
+			res.Err = apibackend.ErrNotFindSrv
 			l4g.Error("%s %d", req.String(), res.Err)
 			return
 		}
@@ -508,7 +508,7 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 		b, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			userResponse.Err = data.ErrDataCorrupted
+			userResponse.Err = apibackend.ErrDataCorrupted
 			return
 		}
 
@@ -520,7 +520,7 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 		err = json.Unmarshal(b, &userData);
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			userResponse.Err = data.ErrDataCorrupted
+			userResponse.Err = apibackend.ErrDataCorrupted
 			return
 		}
 
@@ -533,11 +533,11 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 		resData.ToApiResponse(&userResponse)
 	}()
 
-	if userResponse.Err != data.NoErr && userResponse.ErrMsg == "" {
-		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
+	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = apibackend.GetErrMsg(userResponse.Err)
 	}
 
-	if userResponse.Err != data.NoErr {
+	if userResponse.Err != apibackend.NoErr {
 		l4g.Error("handleAPi request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
@@ -569,7 +569,7 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 		b, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			userResponse.Err = data.ErrDataCorrupted
+			userResponse.Err = apibackend.ErrDataCorrupted
 			return
 		}
 
@@ -581,7 +581,7 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 		err = json.Unmarshal(b, &userData);
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			userResponse.Err = data.ErrDataCorrupted
+			userResponse.Err = apibackend.ErrDataCorrupted
 			return
 		}
 
@@ -594,11 +594,11 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 		resData.ToApiResponse(&userResponse)
 	}()
 
-	if userResponse.Err != data.NoErr && userResponse.ErrMsg == "" {
-		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
+	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = apibackend.GetErrMsg(userResponse.Err)
 	}
 
-	if userResponse.Err != data.NoErr {
+	if userResponse.Err != apibackend.NoErr {
 		l4g.Error("handleUser request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
@@ -630,7 +630,7 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 		b, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			userResponse.Err = data.ErrDataCorrupted
+			userResponse.Err = apibackend.ErrDataCorrupted
 			return
 		}
 
@@ -638,7 +638,7 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 		err = json.Unmarshal(b, &userData);
 		if err != nil {
 			l4g.Error("http handler: %s", err.Error())
-			userResponse.Err = data.ErrDataCorrupted
+			userResponse.Err = apibackend.ErrDataCorrupted
 			return
 		}
 
@@ -651,11 +651,11 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 		resData.ToApiResponse(&userResponse)
 	}()
 
-	if userResponse.Err != data.NoErr && userResponse.ErrMsg == "" {
-		userResponse.ErrMsg = data.GetErrMsg(userResponse.Err)
+	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = apibackend.GetErrMsg(userResponse.Err)
 	}
 
-	if userResponse.Err != data.NoErr {
+	if userResponse.Err != apibackend.NoErr {
 		l4g.Error("handleApiTest request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
@@ -679,7 +679,7 @@ func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
 
 	b, err := json.Marshal(nodes)
 	if err != nil {
-		res.Err = data.ErrDataCorrupted
+		res.Err = apibackend.ErrDataCorrupted
 		res.Value.Message = ""
 		res.Value.Signature = ""
 		return
@@ -687,7 +687,7 @@ func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
 	res.Value.Message = string(b)
 
 	// make sure no data if err
-	if res.Err != data.NoErr {
+	if res.Err != apibackend.NoErr {
 		res.Value.Message = ""
 		res.Value.Signature = ""
 	}

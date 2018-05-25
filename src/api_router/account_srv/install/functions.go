@@ -12,6 +12,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/account_srv/handler"
 	"api_router/base/config"
+	"bastionpay_api/apibackend"
 )
 
 func BuildWebAdmin() (*v1.ReqUserRegister, *v1.ReqUserUpdateProfile, error) {
@@ -105,7 +106,7 @@ func InstallBastionPay(dir string) error {
 			var res data.SrvResponse
 			req.Argv.Message = string(b)
 			handler.AccountInstance().Register(&req, &res)
-			if res.Err != data.NoErr {
+			if res.Err != apibackend.NoErr {
 				return errors.New(res.ErrMsg)
 			}
 
@@ -127,7 +128,7 @@ func InstallBastionPay(dir string) error {
 			req.Argv.SubUserKey = ackUc.UserKey
 			req.Argv.Message = ""
 			handler.AccountInstance().UpdateProfile(&req, &res)
-			if res.Err != data.NoErr {
+			if res.Err != apibackend.NoErr {
 				return errors.New(res.ErrMsg)
 			}
 

@@ -16,6 +16,7 @@ import (
 	"business_center/def"
 	l4g "github.com/alecthomas/log4go"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/apibackend"
 )
 
 ////////////////////////////////////////////////////////////
@@ -27,7 +28,7 @@ const (
 )
 
 func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
-	res.Err = data.NoErr
+	res.Err = apibackend.NoErr
 
 	l4g.Debug("argv: %s", req.Argv)
 
@@ -92,7 +93,7 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 }
 
 func (x *Cobank) generate(req *data.SrvRequest, res *data.SrvResponse) {
-	res.Err = data.NoErr
+	res.Err = apibackend.NoErr
 
 	l4g.Debug("argv: %s", req.Argv)
 
@@ -134,7 +135,7 @@ type ImportAddress struct {
 }
 
 func (x *Cobank) importAddress(req *data.SrvRequest, res *data.SrvResponse) {
-	res.Err = data.NoErr
+	res.Err = apibackend.NoErr
 
 	l4g.Debug("argv: %s", req.Argv)
 
@@ -212,7 +213,7 @@ type SendSignedTx struct {
 }
 
 func (x *Cobank) sendSignedTx(req *data.SrvRequest, res *data.SrvResponse) {
-	res.Err = data.NoErr
+	res.Err = apibackend.NoErr
 
 	l4g.Debug("argv: %s", req.Argv)
 

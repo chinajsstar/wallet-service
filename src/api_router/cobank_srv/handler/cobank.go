@@ -7,6 +7,7 @@ import (
 	service "api_router/base/service2"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
+	"bastionpay_api/apibackend"
 )
 
 type Cobank struct {
@@ -141,13 +142,13 @@ func (x *Cobank) HandleNotify(req *data.SrvRequest) {
 }
 
 func (x *Cobank) handler(req *data.SrvRequest, res *data.SrvResponse) {
-	res.Err = data.NoErr
+	res.Err = apibackend.NoErr
 
 	err := x.business.HandleMsg(req, res)
 	if err != nil {
 		l4g.Error("err: %s", err.Error())
 	}
-	if res.Err != data.NoErr {
+	if res.Err != apibackend.NoErr {
 		l4g.Error("res err: %d-%s", res.Err, res.ErrMsg)
 	}
 }

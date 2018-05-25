@@ -13,6 +13,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/apibackend"
 )
 
 // node api interface
@@ -114,9 +115,9 @@ func (ni *ServiceNode) call(client *rpc2.Client, req *data.SrvRequest, res *data
 	if h != nil {
 		h.ApiHandler(req, res)
 	}else{
-		res.Err = data.ErrNotFindFunction
+		res.Err = apibackend.ErrNotFindFunction
 	}
-	if res.Err != data.NoErr {
+	if res.Err != apibackend.NoErr {
 		l4g.Error("call failed: %d", res.Err)
 	}
 	return nil

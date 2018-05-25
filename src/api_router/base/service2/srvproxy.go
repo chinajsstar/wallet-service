@@ -7,6 +7,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/apibackend"
 )
 
 // service node group
@@ -68,7 +69,7 @@ func (sng *SrvNodeGroup) Call(req *data.SrvRequest, res *data.SrvResponse) {
 	// get a free srv node
 	node := sng.getFreeNode()
 	if node == nil{
-		res.Err = data.ErrNotFindSrv
+		res.Err = apibackend.ErrNotFindSrv
 		return
 	}
 
@@ -77,7 +78,7 @@ func (sng *SrvNodeGroup) Call(req *data.SrvRequest, res *data.SrvResponse) {
 	if err != nil {
 		l4g.Error("#Call srv:%s", err.Error())
 
-		res.Err = data.ErrCallFailed
+		res.Err = apibackend.ErrCallFailed
 		return
 	}
 }

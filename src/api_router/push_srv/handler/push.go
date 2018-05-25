@@ -10,6 +10,7 @@ import (
 	"api_router/base/nethelper"
 	"encoding/json"
 	"bastionpay_api/api"
+	"bastionpay_api/apibackend"
 )
 
 type Push struct{
@@ -103,7 +104,7 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 	url, err := push.getUserCallbackUrl(req.Argv.UserKey)
 	if err != nil {
 		l4g.Error("(%s) no user callback: %s",req.Argv.UserKey, err.Error())
-		res.Err = data.ErrPushSrvPushData
+		res.Err = apibackend.ErrPushSrvPushData
 		return
 	}
 
@@ -117,14 +118,14 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 		b, err := json.Marshal(pushData)
 		if err != nil {
 			l4g.Error("error json message: %s", err.Error())
-			res.Err = data.ErrDataCorrupted
+			res.Err = apibackend.ErrDataCorrupted
 			return
 		}
 		var ret string
 		err = nethelper.CallToHttpServer(url, "", string(b), &ret)
 		if err != nil {
 			l4g.Error("push http: %s", err.Error())
-			res.Err = data.ErrPushSrvPushData
+			res.Err = apibackend.ErrPushSrvPushData
 			return
 		}
 

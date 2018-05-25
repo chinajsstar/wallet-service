@@ -53,7 +53,8 @@ const(
 var timeBegin,timeEnd time.Time
 
 func DoApi(count *int64, right *int64, times int64){
-	d, err := gateway.Output("/api" + testApi, []byte(testMessage))
+	var d []byte
+	err := gateway.RunApi("/api" + testApi, []byte(testMessage), &d)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil{
@@ -70,7 +71,8 @@ func DoApi(count *int64, right *int64, times int64){
 }
 
 func DoApiTest(count *int64, right *int64, times int64){
-	d, err := gateway.Output("/apitest" + testApi, []byte(testMessage))
+	var d []byte
+	err := gateway.RunApiTest("/apitest" + testApi, []byte(testMessage), &d)
 
 	atomic.AddInt64(count, 1)
 	if  err == nil{
@@ -122,12 +124,14 @@ func main() {
 			fmt.Println("I do quit")
 			break;
 		}else if argv[0] == "api" {
-			d, err := gateway.Output("/api" + testApi, []byte(testMessage))
+			var d []byte
+			err := gateway.RunApi("/api" + testApi, []byte(testMessage), &d)
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(d))
 
 		}else if argv[0] == "apitest" {
-			d, err := gateway.Output("/apitest" + testApi, []byte(testMessage))
+			var d []byte
+			err := gateway.RunApiTest("/apitest" + testApi, []byte(testMessage), &d)
 			fmt.Println("err==", err)
 			fmt.Println("ack==", string(d))
 

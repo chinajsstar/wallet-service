@@ -126,25 +126,25 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 	ul, err := auth.getUserLevel(req.Argv.UserKey)
 	if err != nil {
 		l4g.Error("(%s) get user level failed: %s",req.Argv.UserKey, err.Error())
-		res.Err = data.ErrAuthSrvNoUserKey
+		res.Err = apibackend.ErrAuthSrvNoUserKey
 		return
 	}
 
 	if ul.PublicKey == "" {
 		l4g.Error("(%s-%s) failed: no public key", req.Argv.UserKey, req.Method.Function)
-		res.Err = data.ErrAuthSrvNoPublicKey
+		res.Err = apibackend.ErrAuthSrvNoPublicKey
 		return
 	}
 
 	if req.Context.ApiLever > ul.Level{
 		l4g.Error("(%s-%s) failed: no api level", req.Argv.UserKey, req.Method.Function)
-		res.Err = data.ErrAuthSrvNoApiLevel
+		res.Err = apibackend.ErrAuthSrvNoApiLevel
 		return
 	}
 
 	if req.Context.ApiLever > ul.Level || ul.IsFrozen != 0{
 		l4g.Error("(%s-%s) failed: user frozen", req.Argv.UserKey, req.Method.Function)
-		res.Err = data.ErrAuthSrvUserFrozen
+		res.Err = apibackend.ErrAuthSrvUserFrozen
 		return
 	}
 
@@ -152,14 +152,14 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 	err = json.Unmarshal([]byte(req.Argv.Message), &reqAuth)
 	if err != nil {
 		l4g.Error("decrypt: %s", err.Error())
-		res.Err = data.ErrAuthSrvIllegalData
+		res.Err = apibackend.ErrAuthSrvIllegalData
 		return
 	}
 
 	if(reqAuth.DataType == apibackend.ApiTypeUserMessage){
 		if ul.UserClass != data.UserClass_Admin {
 			l4g.Error("%s illegally call data type", req.Argv.UserKey)
-			res.Err = data.ErrAuthSrvIllegalDataType
+			res.Err = apibackend.ErrAuthSrvIllegalDataType
 			return
 		}
 	}
@@ -167,14 +167,14 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 	bencrypted, err := base64.StdEncoding.DecodeString(reqAuth.ChipperData)
 	if err != nil {
 		l4g.Error("error base64: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
 	bsignature, err := base64.StdEncoding.DecodeString(req.Argv.Signature)
 	if err != nil {
 		l4g.Error("error base64: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
@@ -187,7 +187,7 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, []byte(ul.PublicKey))
 	if err != nil {
 		l4g.Error("verify: %s", err.Error())
-		res.Err = data.ErrAuthSrvIllegalData
+		res.Err = apibackend.ErrAuthSrvIllegalData
 		return
 	}
 
@@ -196,7 +196,7 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 	originData, err = utils.RsaDecrypt(bencrypted, auth.privateKey, utils.RsaDecodeLimit2048)
 	if err != nil {
 		l4g.Error("decrypt: %s", err.Error())
-		res.Err = data.ErrAuthSrvIllegalData
+		res.Err = apibackend.ErrAuthSrvIllegalData
 		return
 	}
 
@@ -208,13 +208,13 @@ func (auth *Auth)EncryptData(req *data.SrvRequest, res *data.SrvResponse) {
 	ul, err := auth.getUserLevel(req.Argv.UserKey)
 	if err != nil {
 		l4g.Error("(%s) get user level failed: %s",req.Argv.UserKey, err.Error())
-		res.Err = data.ErrAuthSrvNoUserKey
+		res.Err = apibackend.ErrAuthSrvNoUserKey
 		return
 	}
 
 	if ul.PublicKey == "" {
 		l4g.Error("(%s-%s) failed: no public key", req.Argv.UserKey, req.Method.Function)
-		res.Err = data.ErrAuthSrvNoPublicKey
+		res.Err = apibackend.ErrAuthSrvNoPublicKey
 		return
 	}
 
@@ -230,7 +230,7 @@ func (auth *Auth)EncryptData(req *data.SrvRequest, res *data.SrvResponse) {
 	}()
 	if err != nil {
 		l4g.Error("encrypt: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
@@ -252,7 +252,7 @@ func (auth *Auth)EncryptData(req *data.SrvRequest, res *data.SrvResponse) {
 	}()
 	if err != nil {
 		l4g.Error("sign: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 

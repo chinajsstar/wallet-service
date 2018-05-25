@@ -12,6 +12,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
 	"bastionpay_api/utils"
+	"bastionpay_api/apibackend"
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -82,7 +83,7 @@ func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserRegister)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Err = data.ErrDataCorrupted
+		res.Err = apibackend.ErrDataCorrupted
 		return
 	}
 
@@ -90,7 +91,7 @@ func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 	uuid, err := uuid.NewV4()
 	if err != nil {
 		l4g.Error("error create user key: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 	userKey := uuid.String()
@@ -99,7 +100,7 @@ func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 	err = db.Register(&reqUserRegister, userKey)
 	if err != nil {
 		l4g.Error("error create user: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
@@ -111,7 +112,7 @@ func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 	if err != nil {
 		db.Delete(userKey)
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
@@ -128,7 +129,7 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserList)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Err = data.ErrDataCorrupted
+		res.Err = apibackend.ErrDataCorrupted
 		return
 	}
 
@@ -144,7 +145,7 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 		totalLine, err = db.ListUserCount()
 		if err != nil {
 			l4g.Error("error json message: %s", err.Error())
-			res.Err = data.ErrAccountSrvListUsersCount
+			res.Err = apibackend.ErrAccountSrvListUsersCount
 			return
 		}
 	}
@@ -158,7 +159,7 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	ackUserList, err := db.ListUsers(beginIndex, pageNum)
 	if err != nil {
 		l4g.Error("error ListUsers: %s", err.Error())
-		res.Err = data.ErrAccountSrvListUsers
+		res.Err = apibackend.ErrAccountSrvListUsers
 		return
 	}
 
@@ -170,7 +171,7 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	dataAck, err := json.Marshal(ackUserList)
 	if err != nil {
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
@@ -194,7 +195,7 @@ func (s * Account) ReadProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	ackReadProfile, err := db.ReadProfile(req.Argv.SubUserKey)
 	if err != nil {
 		l4g.Error("error ReadProfile: %s", err.Error())
-		res.Err = data.ErrAccountSrvNoUser
+		res.Err = apibackend.ErrAccountSrvNoUser
 		return
 	}
 
@@ -206,7 +207,7 @@ func (s * Account) ReadProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	dataAck, err := json.Marshal(ackReadProfile)
 	if err != nil {
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
@@ -222,14 +223,14 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Err = data.ErrDataCorrupted
+		res.Err = apibackend.ErrDataCorrupted
 		return
 	}
 
 	err = utils.RsaVerifyPubKey([]byte(reqUpdateProfile.PublicKey))
 	if err != nil {
 		l4g.Error("pub key parse: %s", err.Error())
-		res.Err = data.ErrAccountPubKeyParse
+		res.Err = apibackend.ErrAccountPubKeyParse
 		return
 	}
 
@@ -237,7 +238,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	oldUserReadProfile, err := db.ReadProfile(req.Argv.SubUserKey)
 	if err != nil {
 		l4g.Error("error ReadProfile: %s", err.Error())
-		res.Err = data.ErrAccountSrvNoUser
+		res.Err = apibackend.ErrAccountSrvNoUser
 		return
 	}
 
@@ -254,7 +255,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	// update key
 	if err := db.UpdateProfile(req.Argv.SubUserKey, &reqUpdateProfile); err != nil {
 		l4g.Error("error update profile: %s", err.Error())
-		res.Err = data.ErrAccountSrvUpdateProfile
+		res.Err = apibackend.ErrAccountSrvUpdateProfile
 		return
 	}
 
@@ -271,7 +272,7 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 		oldUserUpdateProfile.CallbackUrl = oldUserReadProfile.CallbackUrl
 		db.UpdateProfile(req.Argv.SubUserKey, &oldUserUpdateProfile)
 		l4g.Error("error Marshal: %s", err.Error())
-		res.Err = data.ErrInternal
+		res.Err = apibackend.ErrInternal
 		return
 	}
 
