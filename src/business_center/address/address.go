@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	"sync"
 )
@@ -59,66 +60,73 @@ func (a *Address) Stop() {
 }
 
 func (a *Address) NewAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Argv.UserKey)
+	_, _, userKey := req.GetUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Argv.UserKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	resMap := make(map[string]interface{})
-	params, err := jsonparse.Parse(req.Argv.Message)
-	if err != nil {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
+	params := v1.ReqNewAddress{
+		AssetName: "",
+		Count:     -1,
 	}
 
-	assetName, ok := params.AssetName()
-	if !ok {
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
+	if len(params.AssetName) <= 0 {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(params.AssetName)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "参数:\"asset_name\"无效")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
-	resMap["asset_name"] = assetProperty.AssetName
 
-	count, ok := params.Count()
-	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"count\"参数")
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
-	}
-
-	if count <= 0 {
+	if params.Count <= 0 {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "参数:\"count\"要大于0")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	userAddress := a.generateAddress(&userProperty, &assetProperty, count)
-	if len(userAddress) > 0 {
-		d := make([]string, 0)
-		for _, v := range userAddress {
-			d = append(d, v.Address)
-		}
-		resMap["data"] = d
+	dataList := v1.AckNewAddressList{
+		AssetName: userKey,
 	}
-	res.Value.Message = responseJson(resMap)
 
+	userAddress := a.generateAddress(&userProperty, &assetProperty, params.Count)
+	if len(userAddress) > 0 {
+		for _, v := range userAddress {
+			dataList.Data = append(dataList.Data, v.Address)
+		}
+	}
+
+	pack, err := json.Marshal(dataList)
+	if err != nil {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+	res.Value.Message = string(pack)
 	return nil
 }
 
 func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Argv.UserKey)
+	_, _, userKey := req.GetUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Argv.UserKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -129,57 +137,53 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	resMap := make(map[string]interface{})
-	params, err := jsonparse.Parse(req.Argv.Message)
-	if err != nil {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
+	params := v1.ReqWithdrawal{
+		AssetName:   "",
+		Amount:      -1,
+		Address:     "",
+		UserOrderID: "",
 	}
 
-	uuID := transaction.GenerateUUID("WD")
-	userOrderID, ok := params.UserOrderID()
-	if ok {
-		if len(userOrderID) > 0 {
-			err := mysqlpool.AddUserOrder(userProperty.UserKey, userOrderID, uuID)
-			if err != nil {
-				res.Err, res.ErrMsg = CheckError(ErrorFailed, "不能发起重复订单交易")
-				l4g.Error(res.ErrMsg)
-				return errors.New(res.ErrMsg)
-			}
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
 		}
 	}
 
-	assetName, ok := params.AssetName()
-	if !ok {
+	uuID := transaction.GenerateUUID("WD")
+	if len(params.UserOrderID) > 0 {
+		err := mysqlpool.AddUserOrder(userProperty.UserKey, params.UserOrderID, uuID)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "不能发起重复订单交易")
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
+	if len(params.AssetName) <= 0 {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	amount, ok := params.Amount()
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(params.AssetName)
 	if !ok {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "参数:\"asset_name\"无效")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if params.Amount <= 0 {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"amount\"参数")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	if amount <= 0 {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "提币金额要大于0")
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
-	}
-
-	address, ok := params.Address()
-	if !ok {
+	if len(params.Address) <= 0 {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"address\"参数")
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
-	}
-
-	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(assetName)
-	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "获取币种信息失败")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -191,21 +195,21 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	if userAccount.AvailableAmount < amount {
+	if userAccount.AvailableAmount < params.Amount {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	if amount <= 0 {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "提币金额必需大于0")
+	payFee := assetProperty.WithdrawalValue + params.Amount*assetProperty.WithdrawalRate
+	if userAccount.AvailableAmount < params.Amount+payFee {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	payFee := assetProperty.WithdrawalValue + amount*assetProperty.WithdrawalRate
-	if userAccount.AvailableAmount < amount+payFee {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足")
+	if params.Amount <= assetProperty.DepositMin {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, fmt.Sprint("提币金额要大于", assetProperty.DepositMin))
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -217,15 +221,16 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		return errors.New(res.ErrMsg)
 	}
 
-	if userAddress.AvailableAmount < amount+payFee {
+	if userAddress.AvailableAmount < params.Amount+payFee {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "热钱包可用资金不足(这里需要特殊处理)")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	err = mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, address, amount, payFee, uuID, userOrderID)
+	err := mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, params.Address, params.Amount,
+		payFee, uuID, params.UserOrderID)
 	if err != nil {
-		mysqlpool.RemoveUserOrder(userProperty.UserKey, userOrderID)
+		mysqlpool.RemoveUserOrder(userProperty.UserKey, params.UserOrderID)
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "帐户可用资金不足!")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
@@ -233,7 +238,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 
 	if assetProperty.IsToken > 0 {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
-			address, assetProperty.AssetName, userAddress.PrivateKey, amount)
+			params.Address, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
 			l4g.Error(res.ErrMsg)
@@ -242,7 +247,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		a.wallet.SendTx(cmdTx)
 	} else {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
-			address, "", "", amount)
+			params.Address, "", "", params.Amount)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
 			l4g.Error(res.ErrMsg)
@@ -251,10 +256,12 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		a.wallet.SendTx(cmdTx)
 	}
 
-	resMap["order_id"] = uuID
-	resMap["user_order_id"] = userOrderID
+	ack := v1.AckWithdrawal{
+		OrderID:     uuID,
+		UserOrderID: params.UserOrderID,
+	}
 
-	pack, err := json.Marshal(resMap)
+	pack, err := json.Marshal(ack)
 	if err != nil {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
