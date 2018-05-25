@@ -174,21 +174,6 @@ func (a *Address) recvCmdTxChannel() {
 	}(a.ctx, a.cmdTxChannel)
 }
 
-func responsePagination(queryMap map[string]interface{}, totalLines int) map[string]interface{} {
-	resMap := make(map[string]interface{})
-	resMap["total_lines"] = totalLines
-
-	if len(queryMap) > 0 {
-		if value, ok := queryMap["page_index"]; ok {
-			resMap["page_index"] = value
-		}
-		if value, ok := queryMap["max_disp_lines"]; ok {
-			resMap["max_disp_lines"] = value
-		}
-	}
-	return resMap
-}
-
 func responseJson(v interface{}) string {
 	s, err := json.Marshal(v)
 	if err != nil {

@@ -20,12 +20,12 @@ func TestHandleMsg(t *testing.T) {
 	case 1:
 		req.Method.Function = "new_address"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"asset_name\":\"btc\",\"count\":2}"
+		req.Argv.Message = "{\"asset_name\":\"btc\",\"count\":1}"
 	case 2:
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":30, \"address\":\"mxLju5VqXZR6f8aeFvk82Ltv6WmdnYg8KY\","+
+		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":3.2, \"address\":\"mxLju5VqXZR6f8aeFvk82Ltv6WmdnYg8KY\","+
 			"\"user_order_id\":\"%s\" }", transaction.GenerateUUID("UR"))
 		req.Argv.Message = params
 	case 3:

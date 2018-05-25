@@ -290,7 +290,8 @@ CREATE TABLE `transaction_bill_daily` (
 DROP TABLE IF EXISTS `profit_bill`;
 CREATE TABLE `profit_bill` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_key` varchar(255) NOT NULL DEFAULT '商户Key',
+  `profit_user_key` varchar(255) NOT NULL DEFAULT '' COMMENT '利润归属对象',
+  `user_key` varchar(255) NOT NULL DEFAULT '' COMMENT '商户Key',
   `trans_type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
   `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '币种', 
   `order_id` varchar(255) NOT NULL DEFAULT '' COMMENT '交易订单号',
@@ -299,8 +300,8 @@ CREATE TABLE `profit_bill` (
   `pay_fee` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '手续费',
   `miner_fee` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '矿工',
   `profit` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '利润',
-  `time` int64 NOT NULL DEFAULT 0 COMMENT '时间',             
-  PRIMARY KEY (`user_key`, `asset_name`, `order_id`),
+  `time` bigint(20) NOT NULL DEFAULT 0 COMMENT '时间',             
+  PRIMARY KEY (`profit_user_key`, `asset_name`, `order_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -309,14 +310,14 @@ CREATE TABLE `profit_bill` (
 -- Table structure for `profit_bill_daily`
 -- ----------------------------
 DROP TABLE IF EXISTS `profit_bill_daily`;
-CREATE TABLE `profit_bill` (
+CREATE TABLE `profit_bill_daily` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `period` int(11) NOT NULL DEFAULT 0 COMMENT '周期标识',
-  `user_key` varchar(255) NOT NULL DEFAULT '商户Key',
+  `profit_user_key` varchar(255) NOT NULL DEFAULT '' COMMENT '利润归属对象',
   `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '币种', 
   `sum_profit` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '利润',
-  `time` int64 NOT NULL DEFAULT 0 COMMENT '时间',             
-  PRIMARY KEY (`user_key`, `asset_name`),
+  `time` bigint(20) NOT NULL DEFAULT 0 COMMENT '时间',             
+  PRIMARY KEY (`profit_user_key`, `asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

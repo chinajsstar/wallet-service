@@ -2,6 +2,28 @@ package v1
 
 // 获取支持币种
 type (
+	ReqNewAddress struct {
+		AssetName string `json:"asset_name" doc:"币种简称"`
+		Count     int    `json:"count" doc:"数量"`
+	}
+
+	AckNewAddressList struct {
+		AssetName string   `json:"asset_name" doc:"币种简称"`
+		Data      []string `json:"data" doc:"新生成的地址"`
+	}
+
+	ReqWithdrawal struct {
+		AssetName   string  `json:"asset_name" doc:"币种简称"`
+		Amount      float64 `json:"" doc:"数量"`
+		Address     string  `json:"" doc:"提币地址"`
+		UserOrderID string  `json:"" doc:"用户自定义序号"`
+	}
+
+	AckWithdrawal struct {
+		OrderID     string `json:"" doc:"交易订单号"`
+		UserOrderID string `json:"" doc:"用户自定义序号"`
+	}
+
 	ReqSupportAssets struct{}
 
 	AckSupportAssetList struct {
