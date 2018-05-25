@@ -4,7 +4,7 @@ import (
 	"blockchain_server/chains/eth"
 	"blockchain_server/service"
 	"blockchain_server/types"
-	"api_router/base/utils"
+	"bastionpay_api/utils"
 	"bastionpay_tools/web_offline/handler"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
@@ -64,6 +64,12 @@ func main() {
 		l4g.Crashf("Create client:%s error:%s", types.Chain_eth, err.Error())
 	}
 	clientManager.AddClient(ethClient)
+	// btc client
+	//btcClient, err := btc.ClientInstance()
+	//if nil != err {
+	//	l4g.Crashf("Create client:%s error:%s", types.Chain_bitcoin, err.Error())
+	//}
+	//clientManager.AddClient(btcClient)
 
 	// 启动服务
 	web := new(handler.Web)

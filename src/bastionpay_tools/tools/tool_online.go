@@ -154,20 +154,25 @@ func BuildTxTest(ol *OnLine, argv []string) (string, error) {
 		return "", errors.New("command is error")
 	}
 
+	//tmp_account_ztoken := &types.Account{
+	//	"0x04e2b6c9bfeacd4880d99790a03a3db4ad8d87c82bb7d72711b277a9a03e49743077f3ae6d0d40e6bc04eceba67c2b3ec670b22b30d57f9d6c42779a05fba097536c412af73be02d1642aecea9fa7082db301e41d1c3c2686a6a21ca431e7e8605f761d8e12d61ca77605b31d707abc3f17bc4a28f4939f352f283a48ed77fc274b039590cc2c43ef739bd3ea13e491316",
+	//	"0x54b2e44d40d3df64e38487dd4e145b3e6ae25927"}
+
 	t := argv[1]
 	chiperprikey := argv[2]
 	from := argv[3]
 	to := argv[4]
-	value, err := strconv.Atoi(argv[5])
+	value, err := strconv.ParseFloat(argv[5], 64)
 	if err != nil {
 		fmt.Printf("数量不正确: %s\n", err.Error())
 		return "", err
 	}
-
-	txCmd := service.NewSendTxCmd("message id", t, "", to, nil, uint64(value))
-	if txCmd == nil{
-		fmt.Printf("创建交易失败\n")
-		return "", errors.New("create tx failed")
+	//msgId, coinName, fromKey, to, tkname, tokenFromkey string, value float64
+	txCmd, err := service.NewSendTxCmd("", t, chiperprikey, to, "", "", value)
+	//txCmd := service.NewSendTxCmd("", t, "", to, nil, uint64(value))
+	if err != nil{
+		fmt.Printf("创建交易失败:%s", err.Error())
+		return "", err
 	}
 	txCmd.Tx.From = from
 	txCmd.FromKey = chiperprikey

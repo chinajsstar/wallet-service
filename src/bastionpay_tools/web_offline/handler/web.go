@@ -2,12 +2,12 @@ package handler
 
 import (
 	"net/http"
-	"html/template"
 	l4g "github.com/alecthomas/log4go"
-	"encoding/json"
 	"blockchain_server/service"
 	"bastionpay_tools/function"
 	"strconv"
+	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,78 +41,57 @@ func (self *Web) StartHttpServer(port string) error {
 	// http
 	l4g.Info("Start http server on: %s", port)
 
-	http.Handle("/",http.HandlerFunc(self.handle404))
-	http.Handle("/css/", http.FileServer(http.Dir("template")))
-	http.Handle("/js/", http.FileServer(http.Dir("template")))
+	engine := gin.Default()
+	engine.Use(cors.New(cors.Config{
+		AllowAllOrigins:true,
+		AllowMethods:     []string{"POST", "GET", "OPTIONS", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Authorization", "X-Requested-With", "X_Requested_With", "Content-Type", "Access-Token", "Accept-Language"},
+		//AllowOrigins:     []string{"*"},
+		//AllowCredentials: true,
+		//AllowOriginFunc: func(origin string) bool {
+		//	return true;//origin == "https://github.com"
+		//},
+		//MaxAge: 12 * time.Hour,
+	}))
 
-	var path string
-	// files
-	path = "index"
-	self.filesMap["/" + path] = path + ".html"
-	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+	//router := engine.Group("/offline", func(ctx *gin.Context) {
+	//
+	//})
 
-	path = "newaddress"
-	self.filesMap["/" + path] = path + ".html"
-	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+	//engine.GET("/", self.handle404)
 
-	path = "signtx"
-	self.filesMap["/" + path] = path + ".html"
-	http.Handle("/" + path,http.HandlerFunc(self.handlePathFile))
+	engine.Static("", "template")
+	//router.Static("/js", "template")
+	//
+	//var path string
+	//path = "index"
+	//router.Static("/" + path, "template/html/" + path + ".html")
+	//
+	//path = "newaddress"
+	//router.Static("/" + path, "template/html/" + path + ".html")
+	//
+	//path = "signtx"
+	//router.Static("/" + path, "template/html/" + path + ".html")
 
-	// act post
-	http.Handle("/newaddressact", http.HandlerFunc(self.handleNewAddressAct))
-	http.Handle("/signtxact", http.HandlerFunc(self.handleSigntxAct))
+	engine.POST("/newaddressact", self.handleNewAddressAct)
+	engine.POST("/signtxact", self.handleSigntxAct)
 
-	go func() {
-		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(":" + port, nil)
-		if err != nil {
-			l4g.Crashf("", err)
-		}
-	}()
+	engine.Run(":" + port)
 
 	return nil
 }
 
-func (self *Web) handle404(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" {
-		http.Redirect(w, r, "/index", http.StatusFound)
-	}
-
-	t, err := template.ParseFiles("template/html/404.html")
-	if (err != nil) {
-		l4g.Error("%s", err.Error())
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	t.Execute(w, nil)
+func (self *Web) handle404(ctx *gin.Context) {
+	ctx.Redirect(http.StatusFound, "/index")
 }
 
-func (self *Web) handlePathFile(w http.ResponseWriter, req *http.Request) {
-	filename, ok := self.filesMap[req.URL.Path]
-	if ok == false {
-		filename = "404.html"
-	}
-
-	t, err := template.ParseFiles("template/html/" + filename)
-	if err != nil {
-		l4g.Error("%s", err.Error())
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	t.Execute(w, nil)
-}
-
-func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
+func (self *Web) handleNewAddressAct(ctx *gin.Context) {
 	rb := WebRes{Err:1, ErrMsg:""}
 
 	err := func() error {
-		coinType := req.FormValue("cointype")
-		count := req.FormValue("count")
-		newAddressSaveDir := req.FormValue("newaddresssavedir")
-		//newAddressBackDir := req.FormValue("newaddressbackdir")
+		coinType := ctx.PostForm("cointype")
+		count := ctx.PostForm("count")
+		newAddressSaveDir := ctx.PostForm("newaddresssavedir")
 
 		// new address
 		l4g.Info("newaddress: %s-%s-%s", coinType, count,  newAddressSaveDir)
@@ -138,17 +117,16 @@ func (self *Web) handleNewAddressAct(w http.ResponseWriter, req *http.Request) {
 		l4g.Error("handleNewAddressAct: %s", err.Error())
 	}
 
-	b, _ := json.Marshal(rb)
-	w.Write(b)
+	ctx.JSON(http.StatusOK, rb)
 	return
 }
 
-func (self *Web) handleSigntxAct(w http.ResponseWriter, req *http.Request) {
+func (self *Web) handleSigntxAct(ctx *gin.Context) {
 	rb := WebRes{Err:1, ErrMsg:""}
 
 	err := func()error{
-		txFilePath := req.FormValue("txfilepath")
-		txSignedSaveDir := req.FormValue("txsignedsavedir")
+		txFilePath := ctx.PostForm("txfilepath")
+		txSignedSaveDir := ctx.PostForm("txsignedsavedir")
 
 		// signtx
 		l4g.Info("signtx: %s-%s", txFilePath, txSignedSaveDir)
@@ -169,7 +147,7 @@ func (self *Web) handleSigntxAct(w http.ResponseWriter, req *http.Request) {
 		l4g.Error("handleSigntxAct: %s", err.Error())
 	}
 
-	b, _ := json.Marshal(rb)
-	w.Write(b)
+	ctx.JSON(http.StatusOK, rb)
+
 	return
 }
