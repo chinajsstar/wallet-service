@@ -30,6 +30,18 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 	Output:      &v1.AckAssetsAttributeList{Data: []v1.AckAssetsAttribute{v1.AckAssetsAttribute{}}},
 }
 
+// 设置币种属性
+var ApiDocSetAssetAttribute = apidoc.ApiDoc{
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Name:        "设置币种属性",
+	Description: "设置币种属性",
+	VerName:     "v1",
+	SrvName:     "bastionpay",
+	FuncName:    "set_asset_attribute",
+	Input:       &v1.ReqSetAssetAttribute{},
+	Output:      nil,
+}
+
 // 币种余额
 var ApiDocGetBalance = apidoc.ApiDoc{
 	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
