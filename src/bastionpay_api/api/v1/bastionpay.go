@@ -59,17 +59,23 @@ type (
 	}
 
 	ReqSetAssetAttribute struct {
-		AssetName       string  `json:"asset_name" doc:"币种简称"`
-		FullName        string  `json:"full_name" doc:"币种全称"`
-		IsToken         int     `json:"is_token" doc:"是否代币，0：不是代币，非0：代币"`
-		ParentName      string  `json:"parent_name" doc:"公链平台"`
-		Logo            string  `json:"logo" doc:"图标"`
-		DepositMin      float64 `json:"deposit_min" doc:"最小充值"`
-		WithdrawalRate  float64 `json:"withdrawal_rate" doc:"单笔费率"`
-		WithdrawalValue float64 `json:"withdrawal_value" doc:"单笔费用"`
-		ConfirmationNum int     `json:"confirmation_num" doc:"确认数"`
-		Decimals        int     `json:"decimals" doc:"精度"`
-		Enabled         int     `json:"enabled" doc:"可用"`
+		AssetName             string  `json:"asset_name" doc:"币种简称"`
+		FullName              string  `json:"full_name" doc:"币种全称"`
+		IsToken               int     `json:"is_token" doc:"是否代币，0：不是代币，非0：代币"`
+		ParentName            string  `json:"parent_name" doc:"公链平台"`
+		Logo                  string  `json:"logo" doc:"图标"`
+		DepositMin            float64 `json:"deposit_min" doc:"最小充值"`
+		WithdrawalRate        float64 `json:"withdrawal_rate" doc:"单笔费率"`
+		WithdrawalValue       float64 `json:"withdrawal_value" doc:"单笔费用"`
+		WithdrawalReserveRate float64 `json:"withdrawal_value" doc:"准备金费用"`
+		WithdrawalAlertRate   float64 `json:"withdrawal_value" doc:"预警值"`
+		WithdrawalStategy     float64 `json:"withdrawal_value" doc:"提币策略"`
+		ConfirmationNum       int     `json:"confirmation_num" doc:"确认数"`
+		Decimals              int     `json:"decimals" doc:"精度"`
+		GasFactor             float64 `json:"withdrawal_value" doc:"矿工因子"`
+		Debt                  float64 `json:"withdrawal_value" doc:"负债"`
+		ParkAmount            float64 `json:"withdrawal_value" doc:"归集数"`
+		Enabled               int     `json:"enabled" doc:"可用"`
 	}
 
 	// 获取用户余额
