@@ -577,7 +577,9 @@ func (a *Address) HistoryTransactionBill(req *data.SrvRequest, res *data.SrvResp
 	}
 
 	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = userProperty.UserKey
+	if userProperty.UserClass == 0 {
+		queryMap["user_key"] = userProperty.UserKey
+	}
 
 	if params.ID > 0 {
 		queryMap["id"] = params.ID
@@ -703,7 +705,9 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 		}
 	}
 	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = userProperty.UserKey
+	if userProperty.UserClass == 0 {
+		queryMap["user_key"] = userProperty.UserKey
+	}
 
 	if params.MaxMessageID > 0 {
 		queryMap["max_msg_id"] = params.MaxMessageID
@@ -766,9 +770,9 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 
 func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 	_, _, userKey := req.GetUserKey()
-	_, ok := mysqlpool.QueryUserPropertyByKey(userKey)
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -790,7 +794,9 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 	}
 
 	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = userKey
+	if userProperty.UserClass == 0 {
+		queryMap["user_key"] = userProperty.UserKey
+	}
 
 	if len(params.AssetNames) > 0 {
 		queryMap["asset_names"] = params.AssetNames
@@ -859,7 +865,7 @@ func (a *Address) SetPayAddress(req *data.SrvRequest, res *data.SrvResponse) err
 		return errors.New(res.ErrMsg)
 	}
 
-	if userProperty.UserClass != 1 {
+	if !(userProperty.UserClass == 1 || userProperty.UserClass == 2) {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "此不能操作此命令")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
@@ -903,7 +909,7 @@ func (a *Address) QueryPayAddress(req *data.SrvRequest, res *data.SrvResponse) e
 		return errors.New(res.ErrMsg)
 	}
 
-	if userProperty.UserClass != 1 {
+	if !(userProperty.UserClass == 1 || userProperty.UserClass == 2) {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "此不能操作此命令")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
