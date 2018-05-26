@@ -2,7 +2,6 @@ package v1
 
 import (
 	"bastionpay_api/apidoc"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend"
 )
 
@@ -13,7 +12,7 @@ var ApiDocAuth = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"auth",
 	FuncName:"authdata",
-	Input:&v1.ReqAuth{},
+	Input:new(string),
 	Output:new(string),
 }
 

@@ -25,6 +25,8 @@ func userUsage()  {
 	fmt.Println("		call api with json message")
 	fmt.Println(">user subuserkey srv function jsonmessage")
 	fmt.Println("		call user with json message")
+	fmt.Println(">admin subuserkey srv function jsonmessage")
+	fmt.Println("		call admin with json message")
 	fmt.Println(">apitest srv function jsonmessage")
 	fmt.Println("		call apitest with json message")
 	fmt.Println(">apidoc [ver srv function]")
@@ -153,6 +155,30 @@ func main()  {
 
 			var ack []byte
 			err := gateway.RunUser("/user/v1/"+srv+"/"+function, subUserKey, []byte(message), &ack)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			fmt.Println("err==", err)
+			fmt.Println("ack==", string(ack))
+		} else if argv[0] == "admin"{
+			if len(argv) < 4 {
+				fmt.Println("格式：admin subuserkey srv function message")
+				continue
+			}
+			subUserKey := argv[1]
+			srv := argv[2]
+			function := argv[3]
+
+			message := ""
+			if len(argv) > 4 {
+				message = argv[4]
+			}
+
+			fmt.Println(message)
+
+			var ack []byte
+			err := gateway.RunAdmin("/admin/v1/"+srv+"/"+function, subUserKey, []byte(message), &ack)
 			if err != nil {
 				fmt.Println(err)
 				continue

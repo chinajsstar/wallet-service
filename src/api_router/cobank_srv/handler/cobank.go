@@ -151,4 +151,6 @@ func (x *Cobank) handler(req *data.SrvRequest, res *data.SrvResponse) {
 	if res.Err != apibackend.NoErr {
 		l4g.Error("res err: %d-%s", res.Err, res.ErrMsg)
 	}
+
+	l4g.Info("res message: %s", res.Value.Message)
 }

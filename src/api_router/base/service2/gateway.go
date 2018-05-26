@@ -173,6 +173,7 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 
 	http.Handle("/" + apibackend.HttpRouterApi + "/", http.HandlerFunc(mi.handleApi))
 	http.Handle("/" + apibackend.HttpRouterUser + "/", http.HandlerFunc(mi.handleUser))
+	http.Handle("/" + apibackend.HttpRouterAdmin + "/", http.HandlerFunc(mi.handleAdmin))
 
 	// test mode
 	if mi.cfgGateway.TestMode != 0 {
@@ -317,8 +318,9 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	var rpcAuth data.SrvRequest
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
+	rpcAuth.Context.DataFrom = apibackend.DataFromApi
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(apibackend.ApiTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
+	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -369,8 +371,9 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	var rpcAuth data.SrvRequest
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
+	rpcAuth.Context.DataFrom = apibackend.DataFromUser
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(apibackend.ApiTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
+	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -410,21 +413,73 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	*res = reqEncryptedRes
 }
 
-// auth data
-func (mi *ServiceGateway) authData(dataType int, req *data.SrvRequest, res *data.SrvResponse) {
-	reqAuth := *req
-
-	reqAuthData := v1.ReqAuth{}
-	reqAuthData.DataType = dataType
-	reqAuthData.ChipperData = reqAuth.Argv.Message
-	b, err := json.Marshal(reqAuthData)
-	if err != nil {
-		res.Err = apibackend.ErrInternal
-		l4g.Error("authData Marshal %s", err.Error())
+// user call by admin
+func (mi *ServiceGateway) adminCall(req *data.SrvRequest, res *data.SrvResponse) {
+	// can not call auth service
+	if req.Method.Srv == "auth" {
+		res.Err = apibackend.ErrIllegallyCall
+		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
 
-	reqAuth.Argv.Message = string(b)
+	// find api
+	api := mi.getApiInfo(req)
+	if api == nil {
+		res.Err = apibackend.ErrNotFindSrv
+		l4g.Error("%s %d", req.String(), res.Err)
+		return
+	}
+
+	// decode and verify data
+	var rpcAuth data.SrvRequest
+	rpcAuth = *req
+	rpcAuth.Context.ApiLever = api.Level
+	rpcAuth.Context.DataFrom = apibackend.DataFromAdmin
+	var rpcAuthRes data.SrvResponse
+	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
+		*res = rpcAuthRes
+		return
+	}
+
+	// 解析来自管理员的数据后台
+	adminParams := apibackend.AdminMessage{}
+	err := json.Unmarshal([]byte(rpcAuthRes.Value.Message), &adminParams)
+	if err != nil {
+		res.Err = apibackend.ErrDataCorrupted
+		l4g.Error("parse admin params %s %d %s", req.String(), res.Err, err.Error())
+		return
+	}
+
+	// call real srv
+	var rpcSrv data.SrvRequest
+	rpcSrv = *req
+	rpcSrv.Context.ApiLever = api.Level
+	rpcSrv.Argv.SubUserKey = adminParams.SubUserKey
+	rpcSrv.Argv.Message = adminParams.Message
+	var rpcSrvRes data.SrvResponse
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != apibackend.NoErr{
+		*res = rpcSrvRes
+		return
+	}
+
+	// encode and sign data
+	var reqEncrypted data.SrvRequest
+	reqEncrypted = *req
+	reqEncrypted.Context.ApiLever = api.Level
+	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
+	var reqEncryptedRes data.SrvResponse
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
+		*res = reqEncryptedRes
+		return
+	}
+
+	*res = reqEncryptedRes
+}
+
+// auth data
+func (mi *ServiceGateway) authData(req *data.SrvRequest, res *data.SrvResponse) {
+	reqAuth := *req
+
 	reqAuth.Method.Srv = "auth"
 	reqAuth.Method.Function = "AuthData"
 	reqAuthRes := data.SrvResponse{}
@@ -530,6 +585,7 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 		mi.apiCall(&reqData, &resData)
 
 		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
 	}()
 
 	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
@@ -590,6 +646,7 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 		mi.userCall(&reqData, &resData)
 
 		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
 	}()
 
 	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
@@ -598,6 +655,68 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 
 	if userResponse.Err != apibackend.NoErr {
 		l4g.Error("handleUser request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
+	}
+
+	// write back http
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := json.Marshal(userResponse)
+	w.Write(b)
+	return
+}
+
+
+func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) {
+	l4g.Debug("Http server Accept a admin client: %s", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
+	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
+
+	mi.wg.Add(1)
+	defer mi.wg.Done()
+
+	userResponse := api.UserResponseData{}
+	func (){
+		//fmt.Println("path=", req.URL.Path)
+		reqData := data.SrvRequest{}
+
+		reqData.Method.FromPath(req.URL.Path)
+
+		// get argv
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			userResponse.Err = apibackend.ErrDataCorrupted
+			return
+		}
+
+		//body := string(b)
+		//fmt.Println("body=", string(b))
+
+		// make data
+		userData := api.UserData{}
+		err = json.Unmarshal(b, &userData);
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			userResponse.Err = apibackend.ErrDataCorrupted
+			return
+		}
+
+		reqData.Argv.FromApiData(&userData)
+
+		resData := data.SrvResponse{}
+		mi.adminCall(&reqData, &resData)
+
+		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
+	}()
+
+	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = apibackend.GetErrMsg(userResponse.Err)
+	}
+
+	if userResponse.Err != apibackend.NoErr {
+		l4g.Error("handleAdmin request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
 	// write back http
@@ -646,6 +765,7 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 		mi.srvCall(&reqData, &resData)
 
 		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
 	}()
 
 	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {

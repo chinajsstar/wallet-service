@@ -2,9 +2,10 @@ package apibackend
 
 // router's message format
 const (
-	ApiTypeString 		= 0		// from /api/ver/srv/function real message
-	ApiTypeUserMessage 	= 1		// from /user/ver/srv/function UserMessage(subuserkey+real message)
-	ApiTypeAdminMessage = 2		// from /admin/ver/srv/function AdminMessage(subuserkey+real message)
+	DataFromDefault 	= 0		// from internal
+	DataFromApi 		= 1		// from /api/ver/srv/function real message
+	DataFromUser 		= 2		// from /user/ver/srv/function UserMessage(subuserkey+real message)
+	DataFromAdmin 		= 3		// from /admin/ver/srv/function AdminMessage(subuserkey+real message)
 
 	HttpRouterApi		= "api"
 	HttpRouterApiTest	= "apitest"

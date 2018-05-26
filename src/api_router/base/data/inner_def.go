@@ -42,6 +42,7 @@ const(
 // srv context
 type SrvContext struct{
 	ApiLever int `json:"apilevel"`	// api info level
+	DataFrom int `json:"datafrom"`	// data from router
 	// future...
 }
 
