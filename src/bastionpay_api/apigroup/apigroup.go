@@ -52,6 +52,7 @@ func init() {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocNewAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocWithdrawal})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetPayAddress})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetAssetAttribute})
 
 	// bastionpay_tool
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocRecharge})
