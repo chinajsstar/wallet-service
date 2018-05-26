@@ -14,8 +14,6 @@ import (
 	"sync"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
-	"bastionpay_api/api/v1"
-	"encoding/json"
 	"bastionpay_api/apibackend"
 )
 
@@ -148,15 +146,7 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
-	reqAuth := v1.ReqAuth{}
-	err = json.Unmarshal([]byte(req.Argv.Message), &reqAuth)
-	if err != nil {
-		l4g.Error("decrypt: %s", err.Error())
-		res.Err = apibackend.ErrAuthSrvIllegalData
-		return
-	}
-
-	if(reqAuth.DataType == apibackend.ApiTypeUserMessage){
+	if(req.Context.DataFrom == apibackend.DataFromUser || req.Context.DataFrom == apibackend.DataFromAdmin){
 		if ul.UserClass != data.UserClass_Admin {
 			l4g.Error("%s illegally call data type", req.Argv.UserKey)
 			res.Err = apibackend.ErrAuthSrvIllegalDataType
@@ -164,7 +154,7 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 		}
 	}
 
-	bencrypted, err := base64.StdEncoding.DecodeString(reqAuth.ChipperData)
+	bencrypted, err := base64.StdEncoding.DecodeString(req.Argv.Message)
 	if err != nil {
 		l4g.Error("error base64: %s", err.Error())
 		res.Err = apibackend.ErrInternal

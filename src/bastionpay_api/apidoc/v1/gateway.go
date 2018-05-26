@@ -14,5 +14,5 @@ var ApiDocListSrv = apidoc.ApiDoc{
 	SrvName:"gateway",
 	FuncName:"listsrv",
 	Input:nil,
-	Output:&v1.SrvRegisterData{Functions:[]v1.ApiInfo{v1.ApiInfo{}}},
+	Output:&v1.ServiceInfoList{[]v1.ServiceInfo{v1.ServiceInfo{}}},
 }

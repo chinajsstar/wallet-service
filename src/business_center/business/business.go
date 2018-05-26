@@ -87,6 +87,9 @@ func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error 
 	case "asset_attribute":
 		return b.address.AssetAttribute(req, res)
 
+	case "set_asset_attribute":
+		return b.address.SetAssetAttribute(req, res)
+
 	case "get_balance":
 		return b.address.GetBalance(req, res)
 

@@ -111,7 +111,6 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 	func(){
 		pushData := api.UserResponseData{}
 
-		req.Method.ToApiMethod(&pushData.Method)
 		req.Argv.ToApiData(&pushData.Value)
 
 		// call url

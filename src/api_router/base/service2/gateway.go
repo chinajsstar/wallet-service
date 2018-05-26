@@ -28,13 +28,13 @@ type ServiceGateway struct{
 	rwmu                       sync.RWMutex
 	srvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
 	clientMapSrvNodeGroup 	   map[*rpc2.Client]*SrvNodeGroup // name+version mapto srvnodegroup
-	ApiInfo                    map[string]*v1.ApiInfo
+	ApiInfo                    map[string]*data.ApiInfo
 
 	// wait group
 	wg sync.WaitGroup
 
 	// center's apis
-	registerData v1.SrvRegisterData
+	registerData data.SrvRegisterData
 	apiHandler map[string]*NodeApi
 }
 
@@ -54,7 +54,7 @@ func NewServiceGateway(confPath string) (*ServiceGateway, error){
 
 	func(){
 		// api listsrv
-		apiInfo := v1.ApiInfo{Name:"listsrv", Level:data.APILevel_admin}
+		apiInfo := data.ApiInfo{Name:"listsrv", Level:data.APILevel_admin}
 
 		serviceGateway.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceGateway.listSrv, ApiInfo:apiInfo}
 		serviceGateway.registerData.Functions = append(serviceGateway.registerData.Functions, apiInfo)
@@ -82,7 +82,7 @@ func StopCenter(mi *ServiceGateway)  {
 	mi.wg.Wait()
 }
 
-func (mi *ServiceGateway) register(client *rpc2.Client, reg *v1.SrvRegisterData, res *string) error {
+func (mi *ServiceGateway) register(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
 	err := func()error {
 		mi.rwmu.Lock()
 		defer mi.rwmu.Unlock()
@@ -99,11 +99,11 @@ func (mi *ServiceGateway) register(client *rpc2.Client, reg *v1.SrvRegisterData,
 		err := srvNodeGroup.RegisterNode(client, reg)
 		if err == nil {
 			if mi.ApiInfo == nil {
-				mi.ApiInfo = make(map[string]*v1.ApiInfo)
+				mi.ApiInfo = make(map[string]*data.ApiInfo)
 			}
 
 			for _, v := range reg.Functions{
-				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &v1.ApiInfo{v.Name, v.Level}
+				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &data.ApiInfo{v.Name, v.Level}
 			}
 		}
 
@@ -116,7 +116,7 @@ func (mi *ServiceGateway) register(client *rpc2.Client, reg *v1.SrvRegisterData,
 	return err
 }
 
-func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *v1.SrvRegisterData, res *string) error {
+func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
 	mi.disconnectClient(client)
 	*res = "ok"
 	return nil
@@ -173,6 +173,8 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 
 	http.Handle("/" + apibackend.HttpRouterApi + "/", http.HandlerFunc(mi.handleApi))
 	http.Handle("/" + apibackend.HttpRouterUser + "/", http.HandlerFunc(mi.handleUser))
+	http.Handle("/" + apibackend.HttpRouterAdmin + "/", http.HandlerFunc(mi.handleAdmin))
+	http.Handle("/health", http.HandlerFunc(mi.handleHealth))
 
 	// test mode
 	if mi.cfgGateway.TestMode != 0 {
@@ -200,7 +202,7 @@ func (mi *ServiceGateway)disconnectClient(client *rpc2.Client)  {
 	srvNodeGroup.UnRegisterNode(client)
 	if srvNodeGroup.GetSrvNodes() == 0 {
 		// remove srv node group
-		reg := srvNodeGroup.GetSrvInfo()
+		reg, _ := srvNodeGroup.GetSrvInfo()
 		versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
 		if mi.ApiInfo != nil {
 			for _, v := range reg.Functions{
@@ -317,8 +319,9 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	var rpcAuth data.SrvRequest
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
+	rpcAuth.Context.DataFrom = apibackend.DataFromApi
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(apibackend.ApiTypeString, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
+	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -369,8 +372,9 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	var rpcAuth data.SrvRequest
 	rpcAuth = *req
 	rpcAuth.Context.ApiLever = api.Level
+	rpcAuth.Context.DataFrom = apibackend.DataFromUser
 	var rpcAuthRes data.SrvResponse
-	if mi.authData(apibackend.ApiTypeUserMessage, &rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
+	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
 		*res = rpcAuthRes
 		return
 	}
@@ -410,21 +414,73 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	*res = reqEncryptedRes
 }
 
-// auth data
-func (mi *ServiceGateway) authData(dataType int, req *data.SrvRequest, res *data.SrvResponse) {
-	reqAuth := *req
-
-	reqAuthData := v1.ReqAuth{}
-	reqAuthData.DataType = dataType
-	reqAuthData.ChipperData = reqAuth.Argv.Message
-	b, err := json.Marshal(reqAuthData)
-	if err != nil {
-		res.Err = apibackend.ErrInternal
-		l4g.Error("authData Marshal %s", err.Error())
+// user call by admin
+func (mi *ServiceGateway) adminCall(req *data.SrvRequest, res *data.SrvResponse) {
+	// can not call auth service
+	if req.Method.Srv == "auth" {
+		res.Err = apibackend.ErrIllegallyCall
+		l4g.Error("%s %d", req.String(), res.Err)
 		return
 	}
 
-	reqAuth.Argv.Message = string(b)
+	// find api
+	api := mi.getApiInfo(req)
+	if api == nil {
+		res.Err = apibackend.ErrNotFindSrv
+		l4g.Error("%s %d", req.String(), res.Err)
+		return
+	}
+
+	// decode and verify data
+	var rpcAuth data.SrvRequest
+	rpcAuth = *req
+	rpcAuth.Context.ApiLever = api.Level
+	rpcAuth.Context.DataFrom = apibackend.DataFromAdmin
+	var rpcAuthRes data.SrvResponse
+	if mi.authData(&rpcAuth, &rpcAuthRes); rpcAuthRes.Err != apibackend.NoErr{
+		*res = rpcAuthRes
+		return
+	}
+
+	// 解析来自管理员的数据后台
+	adminParams := apibackend.AdminMessage{}
+	err := json.Unmarshal([]byte(rpcAuthRes.Value.Message), &adminParams)
+	if err != nil {
+		res.Err = apibackend.ErrDataCorrupted
+		l4g.Error("parse admin params %s %d %s", req.String(), res.Err, err.Error())
+		return
+	}
+
+	// call real srv
+	var rpcSrv data.SrvRequest
+	rpcSrv = *req
+	rpcSrv.Context.ApiLever = api.Level
+	rpcSrv.Argv.SubUserKey = adminParams.SubUserKey
+	rpcSrv.Argv.Message = adminParams.Message
+	var rpcSrvRes data.SrvResponse
+	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != apibackend.NoErr{
+		*res = rpcSrvRes
+		return
+	}
+
+	// encode and sign data
+	var reqEncrypted data.SrvRequest
+	reqEncrypted = *req
+	reqEncrypted.Context.ApiLever = api.Level
+	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
+	var reqEncryptedRes data.SrvResponse
+	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
+		*res = reqEncryptedRes
+		return
+	}
+
+	*res = reqEncryptedRes
+}
+
+// auth data
+func (mi *ServiceGateway) authData(req *data.SrvRequest, res *data.SrvResponse) {
+	reqAuth := *req
+
 	reqAuth.Method.Srv = "auth"
 	reqAuth.Method.Function = "AuthData"
 	reqAuthRes := data.SrvResponse{}
@@ -479,7 +535,7 @@ func (mi *ServiceGateway) callFunction(req *data.SrvRequest, res *data.SrvRespon
 	}
 }
 
-func (mi *ServiceGateway) getApiInfo(req *data.SrvRequest) (*v1.ApiInfo) {
+func (mi *ServiceGateway) getApiInfo(req *data.SrvRequest) (*data.ApiInfo) {
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
@@ -529,8 +585,8 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 		resData := data.SrvResponse{}
 		mi.apiCall(&reqData, &resData)
 
-		reqData.Method.ToApiMethod(&userResponse.Method)
 		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
 	}()
 
 	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
@@ -590,8 +646,8 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 		resData := data.SrvResponse{}
 		mi.userCall(&reqData, &resData)
 
-		reqData.Method.ToApiMethod(&userResponse.Method)
 		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
 	}()
 
 	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
@@ -600,6 +656,68 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 
 	if userResponse.Err != apibackend.NoErr {
 		l4g.Error("handleUser request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
+	}
+
+	// write back http
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := json.Marshal(userResponse)
+	w.Write(b)
+	return
+}
+
+
+func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) {
+	l4g.Debug("Http server Accept a admin client: %s", req.RemoteAddr)
+	//defer req.Body.Close()
+
+	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
+	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
+
+	mi.wg.Add(1)
+	defer mi.wg.Done()
+
+	userResponse := api.UserResponseData{}
+	func (){
+		//fmt.Println("path=", req.URL.Path)
+		reqData := data.SrvRequest{}
+
+		reqData.Method.FromPath(req.URL.Path)
+
+		// get argv
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			userResponse.Err = apibackend.ErrDataCorrupted
+			return
+		}
+
+		//body := string(b)
+		//fmt.Println("body=", string(b))
+
+		// make data
+		userData := api.UserData{}
+		err = json.Unmarshal(b, &userData);
+		if err != nil {
+			l4g.Error("http handler: %s", err.Error())
+			userResponse.Err = apibackend.ErrDataCorrupted
+			return
+		}
+
+		reqData.Argv.FromApiData(&userData)
+
+		resData := data.SrvResponse{}
+		mi.adminCall(&reqData, &resData)
+
+		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
+	}()
+
+	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
+		userResponse.ErrMsg = apibackend.GetErrMsg(userResponse.Err)
+	}
+
+	if userResponse.Err != apibackend.NoErr {
+		l4g.Error("handleAdmin request err: %d-%s", userResponse.Err, userResponse.ErrMsg)
 	}
 
 	// write back http
@@ -647,8 +765,8 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 		resData := data.SrvResponse{}
 		mi.srvCall(&reqData, &resData)
 
-		reqData.Method.ToApiMethod(&userResponse.Method)
 		resData.ToApiResponse(&userResponse)
+		userResponse.Value.UserKey = userData.UserKey
 	}()
 
 	if userResponse.Err != apibackend.NoErr && userResponse.ErrMsg == "" {
@@ -666,16 +784,22 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 	return
 }
 
+func (mi *ServiceGateway) handleHealth(w http.ResponseWriter, req *http.Request) {
+	l4g.Debug("Http server Accept health client: %s", req.RemoteAddr)
+
+	nodes := mi.getSrvInfo()
+
+	b, err := json.Marshal(nodes)
+	if err != nil {
+		return
+	}
+
+	w.Write(b)
+}
+
 // RPC -- listsrv
 func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
-	mi.rwmu.RLock()
-	defer mi.rwmu.RUnlock()
-
-	var nodes []v1.SrvRegisterData
-	for _, v := range mi.srvNodeNameMapSrvNodeGroup{
-		node := v.GetSrvInfo()
-		nodes = append(nodes, node)
-	}
+	nodes := mi.getSrvInfo()
 
 	b, err := json.Marshal(nodes)
 	if err != nil {
@@ -691,4 +815,23 @@ func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
 		res.Value.Message = ""
 		res.Value.Signature = ""
 	}
+}
+
+func (mi *ServiceGateway) getSrvInfo() *v1.ServiceInfoList {
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
+
+	serviceInfoList := &v1.ServiceInfoList{}
+	for _, v := range mi.srvNodeNameMapSrvNodeGroup{
+		n, c := v.GetSrvInfo()
+
+		node := v1.ServiceInfo{
+			Version:n.Version,
+			Srv:n.Srv,
+			Count:c,
+		}
+		serviceInfoList.Data = append(serviceInfoList.Data, node)
+	}
+
+	return serviceInfoList
 }
