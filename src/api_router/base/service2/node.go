@@ -108,7 +108,7 @@ func StopNode(ni *ServiceNode)  {
 
 // RPC -- call
 func (ni *ServiceNode) call(client *rpc2.Client, req *data.SrvRequest, res *data.SrvResponse) error {
-	l4g.Debug("got call:", req.Argv)
+	l4g.Debug("got call:", req)
 
 	h := ni.apiHandler[strings.ToLower(req.Method.Function)]
 	if h != nil {
