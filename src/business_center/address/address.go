@@ -858,7 +858,8 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 }
 
 func (a *Address) SetPayAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Argv.UserKey)
+	_, _, userKey := req.GetUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Argv.UserKey)
 		l4g.Error(res.ErrMsg)
@@ -902,7 +903,8 @@ func (a *Address) SetPayAddress(req *data.SrvRequest, res *data.SrvResponse) err
 }
 
 func (a *Address) QueryPayAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(req.Argv.UserKey)
+	_, _, userKey := req.GetUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Argv.UserKey)
 		l4g.Error(res.ErrMsg)
