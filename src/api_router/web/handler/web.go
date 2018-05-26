@@ -177,7 +177,7 @@ func sendPostData(addr, subUserKey string, rawmessage, version, srv, function st
 
 ////////////////////////////////////////////////////////////////////////////////
 type Web struct{
-	nodes []*v1.SrvRegisterData
+	srvInfoList v1.ServiceInfoList
 
 	loginUsers map[string]interface{}
 }
@@ -260,7 +260,7 @@ func (self *Web) handleListSrv(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	self.nodes = self.nodes[:0]
+	self.srvInfoList.Data = self.srvInfoList.Data[:0]
 	d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "gateway", "listsrv")
 	if err != nil {
 		w.Write([]byte(err.Error()))
@@ -272,7 +272,7 @@ func (self *Web) handleListSrv(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	json.Unmarshal([]byte(d1.Value.Message), &self.nodes)
+	json.Unmarshal([]byte(d1.Value.Message), &self.srvInfoList)
 	l4g.Debug(d1)
 
 	// listsrv
@@ -281,7 +281,7 @@ func (self *Web) handleListSrv(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	t.Execute(w, self.nodes)
+	t.Execute(w, self.srvInfoList.Data)
 	return
 }
 
@@ -294,7 +294,7 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, "/login", http.StatusFound)
 	}
 
-	if len(self.nodes) == 0 {
+	if len(self.srvInfoList.Data) == 0 {
 		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "center", "listsrv")
 		if d1.Err != apibackend.NoErr {
 			w.Write([]byte(d1.ErrMsg))
@@ -305,7 +305,7 @@ func (self *Web) handleGetApi(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		json.Unmarshal([]byte(d1.Value.Message), &self.nodes)
+		json.Unmarshal([]byte(d1.Value.Message), &self.srvInfoList)
 	}
 
 	// getapi?srv
@@ -360,7 +360,7 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 	}
 	//fmt.Println("argv", example)
 
-	if len(self.nodes) == 0 {
+	if len(self.srvInfoList.Data) == 0 {
 		d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "gateway", "listsrv")
 		if d1.Err != apibackend.NoErr {
 			w.Write([]byte(d1.ErrMsg))
@@ -371,7 +371,7 @@ func (self *Web) handleRunApi(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		json.Unmarshal([]byte(d1.Value.Message), &self.nodes)
+		json.Unmarshal([]byte(d1.Value.Message), &self.srvInfoList)
 	}
 
 	// getapi?srv

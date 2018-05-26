@@ -12,14 +12,13 @@ import (
 	"net"
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend"
 )
 
 // node api interface
 type NodeApiHandler func(req *data.SrvRequest, res *data.SrvResponse)
 type NodeApi struct{
-	ApiInfo 	v1.ApiInfo
+	ApiInfo 	data.ApiInfo
 	ApiHandler 	NodeApiHandler
 }
 
@@ -28,7 +27,7 @@ func RegisterApi(nap *map[string]NodeApi, name string, level int, handler NodeAp
 		return errors.New("function exist")
 	}
 
-	apiInfo := v1.ApiInfo{Name:name, Level:level}
+	apiInfo := data.ApiInfo{Name:name, Level:level}
 	(*nap)[name] = NodeApi{ApiHandler:handler, ApiInfo:apiInfo}
 
 	return nil
@@ -41,7 +40,7 @@ type NodeApiGroup interface {
 // service node
 type ServiceNode struct{
 	// register data
-	registerData v1.SrvRegisterData
+	registerData data.SrvRegisterData
 
 	// callback
 	apiHandler map[string]*NodeApi

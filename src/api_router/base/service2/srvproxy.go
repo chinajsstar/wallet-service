@@ -6,13 +6,12 @@ import (
 	"sync/atomic"
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend"
 )
 
 // service node group
 type SrvNodeGroup struct{
-	registerData v1.SrvRegisterData 	// register data
+	registerData data.SrvRegisterData 	// register data
 
 	rwmu sync.RWMutex					// read/write lock
 	index int64							// index for use
@@ -20,7 +19,7 @@ type SrvNodeGroup struct{
 }
 
 // register a service node
-func (sng *SrvNodeGroup) RegisterNode(client *rpc2.Client, reg *v1.SrvRegisterData) error {
+func (sng *SrvNodeGroup) RegisterNode(client *rpc2.Client, reg *data.SrvRegisterData) error {
 	sng.rwmu.Lock()
 	defer sng.rwmu.Unlock()
 
@@ -48,11 +47,11 @@ func (sng *SrvNodeGroup) UnRegisterNode(client *rpc2.Client) error {
 	return nil
 }
 
-func (sng *SrvNodeGroup) GetSrvInfo() (v1.SrvRegisterData) {
+func (sng *SrvNodeGroup) GetSrvInfo() (data.SrvRegisterData, int) {
 	sng.rwmu.RLock()
 	defer sng.rwmu.RUnlock()
 
-	return sng.registerData
+	return sng.registerData, len(sng.nodes)
 }
 
 func (sng *SrvNodeGroup) GetSrvNodes() (int) {

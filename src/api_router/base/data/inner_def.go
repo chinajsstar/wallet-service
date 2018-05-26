@@ -39,6 +39,19 @@ const(
 	APILevel_genesis = 200
 )
 
+// API info
+type ApiInfo struct{
+	Name 	string 	`json:"name"`    	// api name
+	Level 	int		`json:"level"`		// api level, refer APILevel_*
+}
+
+// srv register data
+type SrvRegisterData struct {
+	Version      string `json:"version"`    // srv version
+	Srv          string `json:"srv"`		// srv name
+	Functions []ApiInfo `json:"functions"`  // srv functions
+}
+
 // srv context
 type SrvContext struct{
 	ApiLever int `json:"apilevel"`	// api info level

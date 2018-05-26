@@ -28,13 +28,13 @@ type ServiceGateway struct{
 	rwmu                       sync.RWMutex
 	srvNodeNameMapSrvNodeGroup map[string]*SrvNodeGroup // name+version mapto srvnodegroup
 	clientMapSrvNodeGroup 	   map[*rpc2.Client]*SrvNodeGroup // name+version mapto srvnodegroup
-	ApiInfo                    map[string]*v1.ApiInfo
+	ApiInfo                    map[string]*data.ApiInfo
 
 	// wait group
 	wg sync.WaitGroup
 
 	// center's apis
-	registerData v1.SrvRegisterData
+	registerData data.SrvRegisterData
 	apiHandler map[string]*NodeApi
 }
 
@@ -54,7 +54,7 @@ func NewServiceGateway(confPath string) (*ServiceGateway, error){
 
 	func(){
 		// api listsrv
-		apiInfo := v1.ApiInfo{Name:"listsrv", Level:data.APILevel_admin}
+		apiInfo := data.ApiInfo{Name:"listsrv", Level:data.APILevel_admin}
 
 		serviceGateway.apiHandler[apiInfo.Name] = &NodeApi{ApiHandler:serviceGateway.listSrv, ApiInfo:apiInfo}
 		serviceGateway.registerData.Functions = append(serviceGateway.registerData.Functions, apiInfo)
@@ -82,7 +82,7 @@ func StopCenter(mi *ServiceGateway)  {
 	mi.wg.Wait()
 }
 
-func (mi *ServiceGateway) register(client *rpc2.Client, reg *v1.SrvRegisterData, res *string) error {
+func (mi *ServiceGateway) register(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
 	err := func()error {
 		mi.rwmu.Lock()
 		defer mi.rwmu.Unlock()
@@ -99,11 +99,11 @@ func (mi *ServiceGateway) register(client *rpc2.Client, reg *v1.SrvRegisterData,
 		err := srvNodeGroup.RegisterNode(client, reg)
 		if err == nil {
 			if mi.ApiInfo == nil {
-				mi.ApiInfo = make(map[string]*v1.ApiInfo)
+				mi.ApiInfo = make(map[string]*data.ApiInfo)
 			}
 
 			for _, v := range reg.Functions{
-				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &v1.ApiInfo{v.Name, v.Level}
+				mi.ApiInfo[strings.ToLower(versionSrvName+"."+v.Name)] = &data.ApiInfo{v.Name, v.Level}
 			}
 		}
 
@@ -116,7 +116,7 @@ func (mi *ServiceGateway) register(client *rpc2.Client, reg *v1.SrvRegisterData,
 	return err
 }
 
-func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *v1.SrvRegisterData, res *string) error {
+func (mi *ServiceGateway) unRegister(client *rpc2.Client, reg *data.SrvRegisterData, res *string) error {
 	mi.disconnectClient(client)
 	*res = "ok"
 	return nil
@@ -174,6 +174,7 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 	http.Handle("/" + apibackend.HttpRouterApi + "/", http.HandlerFunc(mi.handleApi))
 	http.Handle("/" + apibackend.HttpRouterUser + "/", http.HandlerFunc(mi.handleUser))
 	http.Handle("/" + apibackend.HttpRouterAdmin + "/", http.HandlerFunc(mi.handleAdmin))
+	http.Handle("/health", http.HandlerFunc(mi.handleHealth))
 
 	// test mode
 	if mi.cfgGateway.TestMode != 0 {
@@ -201,7 +202,7 @@ func (mi *ServiceGateway)disconnectClient(client *rpc2.Client)  {
 	srvNodeGroup.UnRegisterNode(client)
 	if srvNodeGroup.GetSrvNodes() == 0 {
 		// remove srv node group
-		reg := srvNodeGroup.GetSrvInfo()
+		reg, _ := srvNodeGroup.GetSrvInfo()
 		versionSrvName := strings.ToLower(reg.Srv + "." + reg.Version)
 		if mi.ApiInfo != nil {
 			for _, v := range reg.Functions{
@@ -534,7 +535,7 @@ func (mi *ServiceGateway) callFunction(req *data.SrvRequest, res *data.SrvRespon
 	}
 }
 
-func (mi *ServiceGateway) getApiInfo(req *data.SrvRequest) (*v1.ApiInfo) {
+func (mi *ServiceGateway) getApiInfo(req *data.SrvRequest) (*data.ApiInfo) {
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
@@ -783,16 +784,22 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 	return
 }
 
+func (mi *ServiceGateway) handleHealth(w http.ResponseWriter, req *http.Request) {
+	l4g.Debug("Http server Accept health client: %s", req.RemoteAddr)
+
+	nodes := mi.getSrvInfo()
+
+	b, err := json.Marshal(nodes)
+	if err != nil {
+		return
+	}
+
+	w.Write(b)
+}
+
 // RPC -- listsrv
 func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
-	mi.rwmu.RLock()
-	defer mi.rwmu.RUnlock()
-
-	var nodes []v1.SrvRegisterData
-	for _, v := range mi.srvNodeNameMapSrvNodeGroup{
-		node := v.GetSrvInfo()
-		nodes = append(nodes, node)
-	}
+	nodes := mi.getSrvInfo()
 
 	b, err := json.Marshal(nodes)
 	if err != nil {
@@ -808,4 +815,23 @@ func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
 		res.Value.Message = ""
 		res.Value.Signature = ""
 	}
+}
+
+func (mi *ServiceGateway) getSrvInfo() *v1.ServiceInfoList {
+	mi.rwmu.RLock()
+	defer mi.rwmu.RUnlock()
+
+	serviceInfoList := &v1.ServiceInfoList{}
+	for _, v := range mi.srvNodeNameMapSrvNodeGroup{
+		n, c := v.GetSrvInfo()
+
+		node := v1.ServiceInfo{
+			Version:n.Version,
+			Srv:n.Srv,
+			Count:c,
+		}
+		serviceInfoList.Data = append(serviceInfoList.Data, node)
+	}
+
+	return serviceInfoList
 }
