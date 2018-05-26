@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"bastionpay_api/apibackend"
 )
 
 // /////////////////////////////////////////////////////
@@ -93,23 +94,16 @@ type SrvResponse struct{
 }
 
 //////////////////////////////////////////////////////////////////////
-func (sr *SrvRequest)GetUserKey() (string, string, string) {
-	realUserKey := ""
-	if sr.Argv.SubUserKey != "" {
-		realUserKey = sr.Argv.SubUserKey
-	}else{
-		realUserKey = sr.Argv.UserKey
+func (sr *SrvRequest)GetAccessUserKey() (string) {
+	if sr.Context.DataFrom == apibackend.DataFromUser {
+		return sr.Argv.SubUserKey
+	} else if sr.Context.DataFrom == apibackend.DataFromAdmin {
+		return sr.Argv.SubUserKey
+	} else {
+		return sr.Argv.UserKey
 	}
-
-	return sr.Argv.UserKey, sr.Argv.SubUserKey, realUserKey
 }
-func (sr *SrvRequest)IsSubUserKey() (bool) {
-	if sr.Argv.SubUserKey != "" {
-		return true
-	}
 
-	return false
-}
 func (urd SrvRequest)String() string {
 	return fmt.Sprintf("%s %s-%s-%s", urd.Argv.UserKey, urd.Method.Srv, urd.Method.Version, urd.Method.Function)
 }
