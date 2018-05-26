@@ -403,6 +403,7 @@ func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse)
 		WithdrawalValue: 0,
 		ConfirmationNum: 0,
 		Decimals:        0,
+		Enabled:         -1,
 	}
 
 	if len(req.Argv.Message) > 0 {
@@ -444,6 +445,12 @@ func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse)
 		return errors.New(res.ErrMsg)
 	}
 
+	if params.Enabled < 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"enabled\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
 	assetProperty := AssetProperty{
 		AssetName:             params.AssetName,
 		FullName:              params.FullName,
@@ -461,6 +468,7 @@ func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse)
 		GasFactor:             0,
 		Debt:                  0,
 		ParkAmount:            0,
+		Enabled:               params.Enabled,
 	}
 	mysqlpool.SetAssetProperty(&assetProperty)
 	return nil

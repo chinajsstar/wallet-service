@@ -69,6 +69,7 @@ type (
 		WithdrawalValue float64 `json:"withdrawal_value" doc:"单笔费用"`
 		ConfirmationNum int     `json:"confirmation_num" doc:"确认数"`
 		Decimals        int     `json:"decimals" doc:"精度"`
+		Enabled         int     `json:"enabled" doc:"可用"`
 	}
 
 	// 获取用户余额
