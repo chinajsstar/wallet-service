@@ -22,17 +22,17 @@ type Account struct {
 
 const (
 	Tx_state_ToBuild = iota // 尚未准备好, 调用buildTx后, 状态成为BuildOk
-	Tx_state_BuildOk   // ready to send
-	Tx_state_Signed    // build, and signed, ready for send!
+	Tx_state_BuildOk   		// ready to send
+	Tx_state_Signed    		// build, and signed, ready for send!
 
-	Tx_state_pending   // pending Transaction on node
-	Tx_state_mined     // transaction mined on a block!!
-	Tx_state_confirmed // transaction was mined and stored on a block. confirmed number is 1 or biger
+	Tx_state_pending   		// pending Transaction on node
+	Tx_state_mined     		// transaction mined on a block!!
+	Tx_state_confirmed 		// transaction was mined and stored on a block. confirmed number is 1 or biger
 
-	Tx_state_unconfirmed // some error happened...need to re send
+	Tx_state_unconfirmed 	// some error happened...need to re send
 
-	Chain_eth     = "eth"
-	Chain_bitcoin = "btc"
+	Chain_eth     = "ETH"
+	Chain_bitcoin = "BTC"
 
 	NetCmdCode_success = iota
 	NetCmdCode_failed
@@ -63,11 +63,11 @@ type TokenTx struct {
 func (self *TokenTx) String() string {
 	return fmt.Sprintf(
 	`TokenTransaction inormation: 
-		TokenAddress	: %s
-		Symbol:			: %s
-		From:			: %s
-		To				: %s
-		Value			: %f`,
+		TokenAddress: %s
+		Symbol		: %s
+		From		: %s
+		To  		: %s
+		Value		: %f`,
 		self.Token.Address, self.Token.Symbol, self.From, self.To, self.Value)
 }
 
@@ -126,8 +126,8 @@ func (self *Token) Undecimal(v *big.Int) float64 {
 
 func (self *Token) String() string {
 	return fmt.Sprintf(`
-		name:%-8s, symbol:%-8s, decimals:%-8d, address:%s`,
-		self.Name, self.Symbol, self.Decimals, self.Address)
+		symbol:%-5s, decimals:%-2d, address:%s`,
+		self.Symbol, self.Decimals, self.Address)
 }
 
 type CmdSendTx struct {

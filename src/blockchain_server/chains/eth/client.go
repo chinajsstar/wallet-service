@@ -7,7 +7,7 @@ import (
 	"blockchain_server/utils"
 	"context"
 	"fmt"
-	L4g "blockchain_server/l4g"
+	"blockchain_server/l4g"
 	"github.com/ethereum/go-ethereum"
 	//"github.com/ethereum/go-ethereum/accounts/abi"
 	"crypto/ecdsa"
@@ -21,6 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+var (L4g = L4G.BuildL4g(types.Chain_eth, "ethereum"))
 
 type Client struct {
 	ctx         context.Context
@@ -190,15 +192,8 @@ func (self *Client) SetNotifyChannel(ch chan interface{}) {
 }
 
 func (self *Client) Start() error {
-	if err := self.beginSubscribeBlockHaders(); err != nil {
-		self.Stop()
-		return err
-	}
-
-	if err := self.beginScanBlock(); err != nil {
-		self.Stop()
-		return err
-	}
+	go self.loopRefreshBlockheight()
+	go self.startScanBlock()
 	return nil
 }
 
@@ -559,142 +554,191 @@ func (self *Client) Tx(tx_hash string) (*types.Transfer, error) {
 	return self.toTx(tx), nil
 }
 
-func (self *Client) beginSubscribeBlockHaders() error {
-	header_chan := make(chan *etypes.Header)
-	subscription, err := self.c.SubscribeNewHead(self.ctx, true, header_chan)
-
-	if err != nil || nil == subscription {
-		L4g.Error("subscribefiler error:%s\n", err.Error())
-		return err
-	}
-	L4g.Trace("eth Subscribe new block header, begin!")
-
-	go func(header_chan chan *etypes.Header) {
-		defer subscription.Unsubscribe()
-		for {
-			select {
-			case <-self.ctx.Done():
-				{
-					L4g.Error("subscribe block header exit loop for:%s", self.ctx.Err().Error())
-					close(header_chan)
-					goto endfor
-				}
-			case header := <-header_chan:
-				{
-					h := header.Number.Uint64()
-					// 设置当前块高为 真实高度 - 确认数的高度
-					atomic.StoreUint64(&self.blockHeight, h)
-
-					//L4g.Trace("get new block(%s) height:%d",
-					//	header.Hash().String(), h)
-				}
-			}
+func (self *Client) loopRefreshBlockheight() {
+	break_for:
+	for {
+		select {
+		case <-self.ctx.Done(): {
+			L4g.Trace("ETH Stop refresh block height")
+			break break_for
 		}
-	endfor:
-		L4g.Trace("Will stop subscribe block header!")
-	}(header_chan)
-
-	return nil
+		default : {
+			if height, err := self.refreshBlockHeight(); err!=nil {
+				L4g.Trace("ETH refresh block height faild, meesage:%s", err.Error())
+			} else {
+				L4g.Trace("ETH refresh blocknumber: %d", height)
+			}
+			time.Sleep(time.Second * 5)
+		}
+		}
+	}
+	L4g.Trace("ETH loop for refresh blockheight stoped!!!")
 }
 
-func (self *Client) beginScanBlock() error {
-	go func() {
-		var scanblock, top uint64
-		for {
-			// top block height
-			top = self.virtualBlockHeight()
-			scanblock = self.scanblock
+//func (self *Client) subscribeBlockHeader() error {
+//	header_chan := make(chan *etypes.Header)
+//	subscription, err := self.c.SubscribeNewHead(self.ctx, true, header_chan)
+//
+//	if err != nil || nil == subscription {
+//		L4g.Error("subscribefiler error:%s\n", err.Error())
+//		return err
+//	}
+//	L4g.Trace("eth Subscribe new block header, begin!")
+//
+//	go func(header_chan chan *etypes.Header) {
+//		defer subscription.Unsubscribe()
+//
+//		var lastNotifyTime time.Time = time.Now()
+//
+//		for {
+//			select {
+//			case <-self.ctx.Done():
+//				{
+//					L4g.Error("subscribe block header exit loop for:%s", self.ctx.Err().Error())
+//					close(header_chan)
+//					goto endfor
+//				}
+//			case header := <-header_chan:
+//				{
+//					lastNotifyTime = time.Now()
+//
+//					h := header.Number.Uint64()
+//					atomic.StoreUint64(&self.blockHeight, h)
+//					L4g.Trace("ETH notify new block(%s), blocknumber=%d",
+//						header.Hash().String(),
+//						header.Number.Uint64() )
+//				}
+//			default: {
+//				nowtime := time.Now()
+//				if nowtime.Sub(lastNotifyTime).Seconds() > 60 {
+//					L4g.Trace("ETH wallet did't notify new header duration 60 second, try reconnect!!!")
+//					var err error
+//
+//					subscription.Unsubscribe()
+//
+//					subscription, err = self.c.SubscribeNewHead(self.ctx, true, header_chan)
+//					if err!=nil {
+//						L4g.Trace("Reconnect to ETH wallet faild, message:%s", err.Error())
+//					}
+//
+//
+//					lastNotifyTime = nowtime
+//
+//				} else {
+//					time.Sleep(5 * time.Second)
+//				}
+//
+//			}
+//
+//			}
+//		}
+//	endfor:
+//		L4g.Trace("Will stop subscribe block header!")
+//	}(header_chan)
+//
+//	return nil
+//}
 
-			// the following express to make sure blockchain are not forked
-			// height <= (self.scanblock-self.confirm_count)
-			if nil == self.addresslist || len(*self.addresslist) == 0 ||
-				//height <= self.scanblock - uint64(self.confirm_count) ||
-				top < self.scanblock ||
-				self.rctChannel == nil {
-				//L4g.Trace("Recharge channel is nil, or block height(%d)==scanblock(%d), or addresslit is empty!", top, self.scanblock)
-				time.Sleep(time.Second * 2)
+func (self *Client) startScanBlock() {
+	var scanblock, top uint64
+	for {
+		// top block height
+		top = self.virtualBlockHeight()
+		scanblock = self.scanblock
+
+		// the following express to make sure blockchain are not forked
+		// height <= (self.scanblock-self.confirm_count)
+		if nil == self.addresslist || len(*self.addresslist) == 0 ||
+		//height <= self.scanblock - uint64(self.confirm_count) ||
+			top < self.scanblock || self.rctChannel == nil {
+			L4g.Trace("ETH Scanblock warning:\n[blockheight(%d)==scanblock(%d)],len(addresslit)=%d.",
+				top, self.scanblock,
+				self.addresslist.Len())
+			time.Sleep(time.Second * 2)
+			continue
+		}
+
+		block, err := self.c.BlockByNumber(self.ctx, big.NewInt(int64(scanblock)))
+
+		if err != nil {
+			L4g.Error("get block error, stop scanning block, message:%s", err.Error())
+			time.Sleep(time.Second * 2)
+			continue
+		}
+
+		L4g.Trace("scaning block :%d", self.scanblock)
+
+		txs := block.Transactions()
+
+		for _, tx := range txs {
+			L4g.Trace("find tx(%s) on block(%d)", tx.Hash().String(), block.NumberU64())
+			to := tx.To()
+			if to == nil {
 				continue
 			}
 
-			block, err := self.c.BlockByNumber(self.ctx, big.NewInt(int64(scanblock)))
+			// from和to都需要监控, 所以这个地方用addresses数组来保存
+			// 然后检查addresses中是否有地址在监控地址中
+			// 只要检查到其中一个, 就需要把交易通知到外部
+			addresses := []string{tx.From()}
 
-			if err != nil {
-				L4g.Error("get block error, stop scanning block, message:%s", err.Error())
-				goto endfor
-			}
-
-			L4g.Trace("scaning block :%d", self.scanblock)
-
-			txs := block.Transactions()
-
-			for _, tx := range txs {
-				L4g.Trace("tx on block(%d), tx information:%s", block.NumberU64(), tx.String())
-				to := tx.To()
-				if to == nil {
+			// check if 'to' is a cantract address
+			if code, err := self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
+				tk := self.tokens[to.String()]
+				if tk == nil {
 					continue
 				}
-
-				addresses := []string{tx.From()}
-
-				// check if 'to' is a cantract address
-				if code, err := self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
-					tk := self.tokens[to.String()]
-					if tk == nil {
-						continue
+				tkowner, tkreciver, _, err := token.ParseTokenTxInput(tx.Data())
+				if err == nil {
+					if tkowner != "" {
+						addresses = append(addresses, tkowner)
 					}
-					tkowner, tkreciver, _, err := token.ParseTokenTxInput(tx.Data())
-					if err == nil {
-						if tkowner != "" {
-							addresses = append(addresses, tkowner)
-						}
-						if tkreciver != "" {
-							addresses = append(addresses, tkreciver)
-						}
+					if tkreciver != "" {
+						addresses = append(addresses, tkreciver)
 					}
 				} else {
-					addresses = append(addresses, to.String())
+					L4g.Error("ETH parsing TxInputData error:%s, TxInfo:%s",
+						err.Error(), tx.String())
 				}
+			} else {
+				addresses = append(addresses, to.String())
+			}
 
-				for _, tmp := range addresses {
-					if self.hasAddress(tmp) {
-						// TODO: 测试发现tx中的inblock为0, 应该是库的bug, 先在这里手动设置
-						// TODO: 以后需要看看ethereum库中相关部分
-						tx.Inblock = scanblock
-						tmp_tx := self.toTx(tx)
-
-						// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
-						select {
-						case <-self.ctx.Done():
-							L4g.Trace("ethereum client close")
-							return
-						case self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}:
-						}
-						break
+			for _, tmp := range addresses {
+				if self.hasAddress(tmp) {
+					// TODO: 测试发现tx中的inblock为0, 应该是库的bug, 先在这里手动设置
+					// TODO: 以后需要看看ethereum库中相关部分
+					tx.Inblock = scanblock
+					tmp_tx := self.toTx(tx)
+					// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
+					select {
+					case <-self.ctx.Done():
+						L4g.Trace("stop scaning blocks! for message:%s", self.ctx.Err().Error())
+						goto exitfor
+					case self.rctChannel <- &types.RechargeTx{types.Chain_eth, tmp_tx, nil}:
 					}
-				}
-			}
-			self.scanblock++
-
-			// scan 20 block, once save
-			if self.scanblock%20 == 0 {
-				self.saveConfigurations()
-			}
-
-			select {
-			case <-self.ctx.Done():
-				{
-					L4g.Trace("stop scaning blocks! for message:%s", self.ctx.Err().Error())
-					goto endfor
-				}
-			default:
-				{
-					time.Sleep(time.Millisecond * 200)
+					break
 				}
 			}
 		}
-	endfor:
-	}()
-	return nil
+		self.scanblock++
+
+		// scan 20 block, once save
+		if self.scanblock%20 == 0 {
+			self.saveConfigurations()
+		}
+
+		select {
+		case <-self.ctx.Done(): {
+			L4g.Trace("stop scaning blocks! for message:%s", self.ctx.Err().Error())
+			goto exitfor
+		}
+		default: {
+			time.Sleep(time.Millisecond * 100)
+		}
+		}
+	}
+exitfor:
 }
 
 func (self *Client) hasAddress(address string) bool {

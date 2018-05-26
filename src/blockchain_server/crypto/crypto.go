@@ -3,7 +3,7 @@ import (
 	"github.com/pki-io/core/crypto"
 	"crypto/ecdsa"
 	"blockchain_server/conf"
-	L4g "blockchain_server/l4g"
+	"blockchain_server/l4g"
 	"os"
 	"crypto/x509"
 	"io/ioutil"
@@ -11,10 +11,12 @@ import (
 	"reflect"
 	"time"
 	"blockchain_server/utils"
+	"blockchain_server/types"
 )
 
 var (
 	cryptoKey *ecdsa.PrivateKey
+	L4g = L4G.GetL4g(types.Chain_eth)
 )
 
 func l4g_fatalln(v error) {

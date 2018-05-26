@@ -4,7 +4,7 @@ import (
 	"blockchain_server/service"
 	"blockchain_server/types"
 	"fmt"
-	L4g "blockchain_server/l4g"
+	"blockchain_server/l4g"
 	"time"
 	"blockchain_server/conf"
 	"blockchain_server/chains/btc"
@@ -58,6 +58,8 @@ var (
 	txid = "6f91ccf55f65806fbe161d64d3df5db8df9fbbc3108ac775345b560ff3834c5f"
 	Coinname = types.Chain_bitcoin
 	token string
+
+	L4g = L4G.BuildL4g(types.Chain_bitcoin, "bitcoin")
 )
 
 func main() {

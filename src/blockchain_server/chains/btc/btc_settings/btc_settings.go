@@ -5,19 +5,21 @@ import (
 	"blockchain_server/types"
 	"encoding/hex"
 	"fmt"
-	L4g "blockchain_server/l4g"
+	"blockchain_server/l4g"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil/hdkeychain"
 	"strconv"
 )
 
+var L4g = L4G.BuildL4g(types.Chain_bitcoin, "bitcoin")
+
 const (
 	Name_KeySettings = "key_settings"
 	Name_RPCSettings = "rpc_settings"
 
-	Networktype_test   = "test"
-	Networktype_regnet = "regnet"
-	Networktype_main   = "main"
+	Networktype_test    = "test"
+	Networktype_regtest = "regtest"
+	Networktype_main    = "main"
 )
 
 //type RPCSettings map[string]string
@@ -163,9 +165,9 @@ func RPCSettings_from_MainConfig() (*RPCSettings, error) {
 
 		if e := v["network_mode"]; e != nil {
 			if t, isok := e.(string); isok {
-				if t != Networktype_main && t != Networktype_test && t != Networktype_regnet {
-					L4g.Trace("Not supported network mode:[%s], set to:[%s]", t, Networktype_regnet)
-					rpc_settings_tmp.NetworkMode = Networktype_regnet
+				if t != Networktype_main && t != Networktype_test && t != Networktype_regtest {
+					L4g.Trace("Not supported network mode:[%s], set to:[%s]", t, Networktype_regtest)
+					rpc_settings_tmp.NetworkMode = Networktype_regtest
 				} else {
 					rpc_settings_tmp.NetworkMode = t
 				}

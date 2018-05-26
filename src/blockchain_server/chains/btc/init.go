@@ -4,7 +4,6 @@ import (
 	"blockchain_server/chains/btc/btc_settings"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/chaincfg"
-	L4g "blockchain_server/l4g"
 	"blockchain_server/conf"
 	"errors"
 	"fmt"

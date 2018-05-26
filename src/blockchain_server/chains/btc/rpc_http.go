@@ -1,7 +1,6 @@
 package btc
 
 import (
-	L4g "blockchain_server/l4g"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"

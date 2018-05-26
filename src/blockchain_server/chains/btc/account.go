@@ -6,7 +6,6 @@ import (
 	"blockchain_server/types"
 	"blockchain_server/conf"
 	"fmt"
-	L4g "blockchain_server/l4g"
 )
 
 func (c *Client) virtualKeyToRealPubkey(privkey string) (*hdkeychain.ExtendedKey, error) {

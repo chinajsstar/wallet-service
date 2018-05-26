@@ -13,10 +13,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	L4g "blockchain_server/l4g"
+	"blockchain_server/l4g"
 	"time"
 )
 
+var L4g = L4G.GetL4g("default")
 const (
 	max_once_account_number = 100
 )
@@ -228,8 +229,7 @@ func (self *ClientManager) trackRechargeTx(rechTx *types.RechargeTx) {
 	err_channel := make(chan error)
 
 	go self.trackTxState(rechTx.Coin_name, rechTx.Tx, tx_channel, err_channel)
-	// 收到时, 进行下一次通知!
-	self.rechTxFeed.Send(rechTx)
+
 	for {
 		select {
 		case tx := <-tx_channel:
@@ -237,42 +237,42 @@ func (self *ClientManager) trackRechargeTx(rechTx *types.RechargeTx) {
 				rechTx.Tx = tx
 				L4g.Trace(`
 ψ(｀∇´)ψψ(｀∇´)ψ [Track Recharge Tx information] ψ(｀∇´)ψψ(｀∇´)ψ
-`, tx.String())
+%s`, tx.String())
 				self.rechTxFeed.Send(rechTx)
 				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
-					goto endfor
+					goto breakfor
 				}
 			}
 		case rechTx.Err = <-err_channel:
 			{
 				self.rechTxFeed.Send(rechTx)
-				goto endfor
+				goto breakfor
 			}
 		case <-self.ctx.Done():
 			{
 				rechTx.Err = self.ctx.Err()
 				self.rechTxFeed.Send(rechTx)
-				goto endfor
+				goto breakfor
 			}
 		}
 	}
-endfor:
+breakfor:
 	L4g.Trace("Recharge Transaction(%s) done!!!", rechTx.Tx.Tx_hash)
 }
 
 func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
 	tx_channel := make(chan *types.Transfer)
 	err_channel := make(chan error)
+
 	go self.trackTxState(txCmd.Coinname, txCmd.Tx, tx_channel, err_channel)
+
 	for {
 		select {
 		case tx := <-tx_channel:
 			{
 				txCmd.Tx = tx
-
 				L4g.Trace(`(＠。ε。＠)(＠。ε。＠) [[TrackTxCmd information]] (*≧∪≦)(*≧∪≦)(*≧∪≦)
 %s`, tx.String())
-
 				self.txCmdFeed.Send(txCmd)
 				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
 					goto break_for
@@ -368,9 +368,14 @@ func (self *ClientManager) trackTxState(clientName string,
 
 	L4g.Trace("********start trace transaction(%s)", tx.Tx_hash)
 	instance := self.clients[clientName]
+	tx_channel <- tx
 
 	max_try_count := 30
 	i := 0
+
+	if tx.State==types.Tx_state_unconfirmed || tx.State==types.Tx_state_confirmed {
+		goto exitfor
+	}
 
 	// 每次有新块高增加, 才会去检查transaction的状态是否发生改变
 	// 如果状态没有改变, 说明tansaction还没有被打包到新的块中
@@ -391,7 +396,7 @@ func (self *ClientManager) trackTxState(clientName string,
 			if _, ok := err.(*types.NotFound); !ok {
 				L4g.Error("update Tx faild, message:%s", err.Error())
 				err_channel <- err
-				goto endfor
+				goto exitfor
 			}
 		}
 
@@ -401,7 +406,7 @@ func (self *ClientManager) trackTxState(clientName string,
 
 		if tx.State == types.Tx_state_unconfirmed || tx.State == types.Tx_state_confirmed {
 			tx_channel <- tx
-			goto endfor
+			goto exitfor
 		}
 		i++
 	}
@@ -412,7 +417,7 @@ func (self *ClientManager) trackTxState(clientName string,
 		err_channel <- fmt.Errorf(message)
 	}
 
-endfor:
+exitfor:
 	L4g.Trace("********stop trace transaction(%s)", tx.Tx_hash)
 }
 
@@ -456,7 +461,6 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	}
 
 	txCmd.Tx.State = types.Tx_state_pending
-	self.txCmdFeed.Send(txCmd)
 	self.trackTxCmd(txCmd)
 
 	var message string

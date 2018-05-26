@@ -20,13 +20,14 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"net/http"
 	"fmt"
-	L4g "blockchain_server/l4g"
+	"blockchain_server/l4g"
 )
 
 var (
 	MaxConfiramtionNumber  = 999999
-	index_prefix          		  = "BTC_HD_Child_PubKey"
-	)
+	index_prefix           = "BTC_HD_Child_PubKey"
+	L4g = L4G.BuildL4g(types.Chain_bitcoin, "bitcoin")
+)
 
 type Client struct {
 	*rpcclient.Client

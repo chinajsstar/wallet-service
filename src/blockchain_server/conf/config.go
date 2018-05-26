@@ -72,10 +72,11 @@ func (self *Configer) L4gConfigFile() string {
 func (self *ClientConfig) String() string {
 	str := fmt.Sprintf(`
 	client config informations: %s,
-	rpc_url:			%s,
-	start_scan_block: 	%d,
-	confirmnumber: 		%d`,
+	rpc_url         : %s,
+	start_scan_block: %d,
+	confirmnumber   : %d`,
 		self.Name, self.RPC_url, self.Start_scan_Blocknumber, self.TxConfirmNumber)
+
 	for _, value := range self.Tokens {
 		str += value.String()
 	}
@@ -113,9 +114,9 @@ func (self *Configer) Save() error {
 func (self *Configer)Trace() {
 	L4g.Trace(`
 	global config informations: 
-	crypte_key_file:			%s,
-	log_config_file:			%s,
-	log_path:					%s`,
+	Keyfile      : %s,
+	LogConfieFile: %s,
+	LogsPath     : %s`,
 		self.Cryptokeyfile(),
 		self.L4gConfigFile(),
 		self.LogPath() )

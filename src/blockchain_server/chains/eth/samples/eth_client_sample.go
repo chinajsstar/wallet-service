@@ -6,8 +6,9 @@ import (
 	"blockchain_server/types"
 	"context"
 	"fmt"
-	L4g "blockchain_server/l4g"
+	"blockchain_server/l4g"
 	"time"
+	"blockchain_server/conf"
 )
 
 var (
@@ -31,6 +32,8 @@ var (
 
 	to_account     = default_accs[1]
 	token_receiver = default_accs[2]
+
+	L4g = L4G.BuildL4g(types.Chain_eth, "ethereum")
 )
 
 func main() {
@@ -40,6 +43,7 @@ func main() {
 
 	if nil != err {
 		L4g.Error("create client:%s error:%s", types.Chain_eth, err.Error())
+		L4g.Close()
 		return
 	}
 
@@ -63,15 +67,17 @@ func main() {
 	done_watchaddress := make(chan bool)
 	done_sendTx := make(chan bool)
 
-	token := "ZToken"
+	token := "ZTK"
 	i := 0
-	if false {
-		go watch_Address(ctx, clientManager, types.Chain_eth, nil, []string{to_account.Address, bank_account.Address}, done_watchaddress)
+	if true {
+		go watchRechargeTxByAddress(ctx, clientManager, types.Chain_eth,
+			[]string{default_accs[1].Address, default_accs[2].Address},
+			done_watchaddress)
 	} else {
 		i++
 	}
 
-	if true {
+	if false {
 		go send_tokenTx(
 			ctx,
 			clientManager,
@@ -107,7 +113,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 }
 
-func watch_Address(ctx context.Context, clientManager *service.ClientManager, coin string, token *string, addresslist []string, done chan bool) {
+func watchRechargeTxByAddress(ctx context.Context, clientManager *service.ClientManager, coin string, addresslist []string, done chan bool) {
 	rcTxChannel := make(types.RechargeTxChannel)
 	subscribe := clientManager.SubscribeTxRecharge(rcTxChannel)
 
@@ -135,7 +141,10 @@ func watch_Address(ctx context.Context, clientManager *service.ClientManager, co
 					if rct == nil {
 						L4g.Trace("Watch AddressOfContract channel is close!")
 					} else {
-						L4g.Trace("Recharge Transaction : cointype:%s, information:%s.", rct.Coin_name, rct.Tx.String())
+						L4g.Trace("Recharge Transaction : cointype:%s, information:%s.",
+							rct.Coin_name, rct.Tx.String())
+
+						config.MainConfiger().Save()
 						if (rct.Tx.State == types.Tx_state_confirmed || rct.Tx.State == types.Tx_state_unconfirmed) && false {
 							watch_address_channel <- true
 						}
