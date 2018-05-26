@@ -5,9 +5,9 @@ import (
 	//"api_router/base/service"
 	"api_router/base/config"
 	service "api_router/base/service2"
+	"bastionpay_api/apibackend"
 	"business_center/business"
 	l4g "github.com/alecthomas/log4go"
-	"bastionpay_api/apibackend"
 )
 
 type Cobank struct {
@@ -75,6 +75,11 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 	func() {
 		service.RegisterApi(&nam,
 			"asset_attribute", data.APILevel_client, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"set_asset_attribute", data.APILevel_admin, x.handler)
 	}()
 
 	func() {

@@ -63,3 +63,36 @@ func QueryAssetPropertyByName(assetName string) (AssetProperty, bool) {
 	}
 	return AssetProperty{}, false
 }
+
+func SetAssetProperty(assetProperty *AssetProperty) error {
+	db := Get()
+	params := make([]interface{}, 0)
+	params = append(params, assetProperty.FullName, assetProperty.IsToken, assetProperty.ParentName, assetProperty.Logo,
+		assetProperty.DepositMin, assetProperty.WithdrawalRate, assetProperty.WithdrawalValue,
+		assetProperty.WithdrawalReserveRate, assetProperty.WithdrawalAlertRate, assetProperty.WithdrawalStategy,
+		assetProperty.ConfirmationNum, assetProperty.Decimals, assetProperty.GasFactor, assetProperty.Debt,
+		assetProperty.ParkAmount, assetProperty.AssetName)
+
+	ret, err := db.Exec("update asset_property set full_name = ?, is_token = ?, parent_name = ?, logo = ?,"+
+		" deposit_min = ?,withdrawal_rate = ?, withdrawal_value = ?, withdrawal_reserve_rate = ?,"+
+		" withdrawal_alert_rate = ?, withdrawal_stategy = ?, confirmation_num = ?, decimals = ?, gas_factor = ?,"+
+		" debt = ?, park_amount = ? where asset_name = ?", params...)
+	if err != nil {
+		return err
+	}
+
+	rowAffected, err := ret.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowAffected > 0 {
+		return nil
+	}
+
+	_, err = db.Exec("insert asset_property (full_name, is_token, parent_name, logo, deposit_min, withdrawal_rate,"+
+		" withdrawal_value,withdrawal_reserve_rate, withdrawal_alert_rate, withdrawal_stategy, confirmation_num,"+
+		" decimals, gas_factor, debt, park_amount, asset_name)"+
+		" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", params...)
+	return err
+}
