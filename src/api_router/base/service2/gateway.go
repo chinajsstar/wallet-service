@@ -529,7 +529,6 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 		resData := data.SrvResponse{}
 		mi.apiCall(&reqData, &resData)
 
-		reqData.Method.ToApiMethod(&userResponse.Method)
 		resData.ToApiResponse(&userResponse)
 	}()
 
@@ -590,7 +589,6 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 		resData := data.SrvResponse{}
 		mi.userCall(&reqData, &resData)
 
-		reqData.Method.ToApiMethod(&userResponse.Method)
 		resData.ToApiResponse(&userResponse)
 	}()
 
@@ -647,7 +645,6 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 		resData := data.SrvResponse{}
 		mi.srvCall(&reqData, &resData)
 
-		reqData.Method.ToApiMethod(&userResponse.Method)
 		resData.ToApiResponse(&userResponse)
 	}()
 

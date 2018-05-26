@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	l4g "github.com/alecthomas/log4go"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/apibackend"
 )
 
 type Arith int
@@ -27,14 +28,14 @@ func (arith *Arith)HandleNotify(req *data.SrvRequest){
 }
 
 func (arith *Arith)Add(req *data.SrvRequest, res *data.SrvResponse){
-	res.Err = data.NoErr
+	res.Err = apibackend.NoErr
 
 	// from req
 	din := v1.Args{}
 	err := json.Unmarshal([]byte(req.Argv.Message), &din)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
-		res.Err = data.ErrDataCorrupted
+		res.Err = apibackend.ErrDataCorrupted
 		return
 	}
 

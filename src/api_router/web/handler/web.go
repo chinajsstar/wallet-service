@@ -672,8 +672,8 @@ func (self *Web) handleWallet(w http.ResponseWriter, req *http.Request) {
 	func(){
 		fmt.Println("path=", req.URL.Path)
 
-		method := api.UserMethod{}
-		data.ApiMethodFromPath(&method, req.URL.Path)
+		method := data.SrvMethod{}
+		method.FromPath(req.URL.Path)
 
 		message := ""
 		bb, err := ioutil.ReadAll(req.Body)
