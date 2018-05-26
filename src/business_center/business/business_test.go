@@ -64,6 +64,10 @@ func TestHandleMsg(t *testing.T) {
 		req.Method.Function = "transaction_bill_daily"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
 		req.Argv.Message = ""
+	case 12:
+		req.Method.Function = "set_asset_attribute"
+		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Argv.Message = ""
 	}
 
 	if testType > 0 {
