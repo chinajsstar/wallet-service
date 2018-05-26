@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 func NewBusinessSvr() *Business {
@@ -42,8 +43,8 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	}
 
 	for _, value := range chains {
-		switch value {
-		case "btc":
+		switch strings.ToUpper(value) {
+		case "BTC":
 			//实例化比特币客户端
 			btcClient, err := btc.ClientInstance()
 			if err == nil {
@@ -51,7 +52,7 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 			} else {
 				fmt.Printf("InitAndStart btcClientInstance %s Error : %s\n", types.Chain_bitcoin, err.Error())
 			}
-		case "eth":
+		case "ETH":
 			//实例化以太坊客户端
 			ethClient, err := eth.ClientInstance()
 			if err == nil {
