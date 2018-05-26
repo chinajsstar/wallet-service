@@ -102,7 +102,7 @@ func (a *Address) NewAddress(req *data.SrvRequest, res *data.SrvResponse) error 
 	}
 
 	dataList := v1.AckNewAddressList{
-		AssetName: userKey,
+		AssetName: assetProperty.AssetName,
 	}
 
 	userAddress := a.generateAddress(&userProperty, &assetProperty, params.Count)
