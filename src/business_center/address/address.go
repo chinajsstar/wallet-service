@@ -60,7 +60,7 @@ func (a *Address) Stop() {
 }
 
 func (a *Address) NewAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
@@ -123,7 +123,7 @@ func (a *Address) NewAddress(req *data.SrvRequest, res *data.SrvResponse) error 
 }
 
 func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
@@ -272,7 +272,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 }
 
 func (a *Address) SupportAssets(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
@@ -297,7 +297,7 @@ func (a *Address) SupportAssets(req *data.SrvRequest, res *data.SrvResponse) err
 }
 
 func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
@@ -379,7 +379,7 @@ func (a *Address) AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) er
 }
 
 func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
@@ -467,7 +467,7 @@ func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse)
 }
 
 func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
@@ -542,7 +542,7 @@ func (a *Address) GetBalance(req *data.SrvRequest, res *data.SrvResponse) error 
 }
 
 func (a *Address) HistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
@@ -680,7 +680,7 @@ func (a *Address) HistoryTransactionBill(req *data.SrvRequest, res *data.SrvResp
 }
 
 func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
@@ -769,7 +769,7 @@ func (a *Address) HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvR
 }
 
 func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
@@ -858,7 +858,7 @@ func (a *Address) QueryUserAddress(req *data.SrvRequest, res *data.SrvResponse) 
 }
 
 func (a *Address) SetPayAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Argv.UserKey)
@@ -903,7 +903,7 @@ func (a *Address) SetPayAddress(req *data.SrvRequest, res *data.SrvResponse) err
 }
 
 func (a *Address) QueryPayAddress(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+req.Argv.UserKey)
@@ -950,7 +950,7 @@ func (a *Address) QueryPayAddress(req *data.SrvRequest, res *data.SrvResponse) e
 }
 
 func (a *Address) TransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) error {
-	_, _, userKey := req.GetUserKey()
+	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
