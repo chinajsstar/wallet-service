@@ -330,6 +330,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	var rpcSrv data.SrvRequest
 	rpcSrv = *req
 	rpcSrv.Context.ApiLever = api.Level
+	rpcSrv.Context.DataFrom = apibackend.DataFromApi
 	rpcSrv.Argv.Message = rpcAuthRes.Value.Message
 	var rpcSrvRes data.SrvResponse
 	if mi.callFunction(&rpcSrv, &rpcSrvRes); rpcSrvRes.Err != apibackend.NoErr{
@@ -341,6 +342,7 @@ func (mi *ServiceGateway) apiCall(req *data.SrvRequest, res *data.SrvResponse) {
 	var reqEncrypted data.SrvRequest
 	reqEncrypted = *req
 	reqEncrypted.Context.ApiLever = api.Level
+	reqEncrypted.Context.DataFrom = apibackend.DataFromApi
 	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
 	var reqEncryptedRes data.SrvResponse
 	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
@@ -392,6 +394,7 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	var rpcSrv data.SrvRequest
 	rpcSrv = *req
 	rpcSrv.Context.ApiLever = api.Level
+	rpcSrv.Context.DataFrom = apibackend.DataFromUser
 	rpcSrv.Argv.SubUserKey = userParams.SubUserKey
 	rpcSrv.Argv.Message = userParams.Message
 	var rpcSrvRes data.SrvResponse
@@ -404,6 +407,7 @@ func (mi *ServiceGateway) userCall(req *data.SrvRequest, res *data.SrvResponse) 
 	var reqEncrypted data.SrvRequest
 	reqEncrypted = *req
 	reqEncrypted.Context.ApiLever = api.Level
+	reqEncrypted.Context.DataFrom = apibackend.DataFromUser
 	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
 	var reqEncryptedRes data.SrvResponse
 	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
@@ -455,6 +459,7 @@ func (mi *ServiceGateway) adminCall(req *data.SrvRequest, res *data.SrvResponse)
 	var rpcSrv data.SrvRequest
 	rpcSrv = *req
 	rpcSrv.Context.ApiLever = api.Level
+	rpcSrv.Context.DataFrom = apibackend.DataFromAdmin
 	rpcSrv.Argv.SubUserKey = adminParams.SubUserKey
 	rpcSrv.Argv.Message = adminParams.Message
 	var rpcSrvRes data.SrvResponse
@@ -467,6 +472,7 @@ func (mi *ServiceGateway) adminCall(req *data.SrvRequest, res *data.SrvResponse)
 	var reqEncrypted data.SrvRequest
 	reqEncrypted = *req
 	reqEncrypted.Context.ApiLever = api.Level
+	reqEncrypted.Context.DataFrom = apibackend.DataFromAdmin
 	reqEncrypted.Argv.Message = rpcSrvRes.Value.Message
 	var reqEncryptedRes data.SrvResponse
 	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{

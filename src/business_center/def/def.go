@@ -54,6 +54,7 @@ type (
 		GasFactor             float64 `json:"gas_factor"`
 		Debt                  float64 `json:"debt"`
 		ParkAmount            float64 `json:"park_amount"`
+		Enabled               int     `json:"enabled"`
 	}
 
 	UserAddress struct {

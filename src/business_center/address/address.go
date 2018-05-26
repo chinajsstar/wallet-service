@@ -240,7 +240,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
 			params.Address, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
 		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
@@ -249,7 +249,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
 			params.Address, "", "", params.Amount)
 		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
@@ -403,6 +403,7 @@ func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse)
 		WithdrawalValue: 0,
 		ConfirmationNum: 0,
 		Decimals:        0,
+		Enabled:         -1,
 	}
 
 	if len(req.Argv.Message) > 0 {
@@ -444,6 +445,12 @@ func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse)
 		return errors.New(res.ErrMsg)
 	}
 
+	if params.Enabled < 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"enabled\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
 	assetProperty := AssetProperty{
 		AssetName:             params.AssetName,
 		FullName:              params.FullName,
@@ -453,14 +460,15 @@ func (a *Address) SetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse)
 		DepositMin:            params.DepositMin,
 		WithdrawalRate:        params.WithdrawalRate,
 		WithdrawalValue:       params.WithdrawalValue,
-		WithdrawalReserveRate: 0,
-		WithdrawalAlertRate:   0,
-		WithdrawalStategy:     0,
+		WithdrawalReserveRate: params.WithdrawalReserveRate,
+		WithdrawalAlertRate:   params.WithdrawalAlertRate,
+		WithdrawalStategy:     params.WithdrawalStategy,
 		ConfirmationNum:       params.ConfirmationNum,
 		Decimals:              params.Decimals,
-		GasFactor:             0,
-		Debt:                  0,
-		ParkAmount:            0,
+		GasFactor:             params.GasFactor,
+		Debt:                  params.Debt,
+		ParkAmount:            params.ParkAmount,
+		Enabled:               params.Enabled,
 	}
 	mysqlpool.SetAssetProperty(&assetProperty)
 	return nil

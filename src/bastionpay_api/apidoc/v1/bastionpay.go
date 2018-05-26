@@ -32,14 +32,14 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 
 // 设置币种属性
 var ApiDocSetAssetAttribute = apidoc.ApiDoc{
-	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterAdmin},
 	Name:        "设置币种属性",
 	Description: "设置币种属性",
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "set_asset_attribute",
 	Input:       &v1.ReqSetAssetAttribute{},
-	Output:      nil,
+	Output:      new(string),
 }
 
 // 币种余额
@@ -126,7 +126,7 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 }
 
 var ApiDocSetPayAddress = apidoc.ApiDoc{
-	Group:       []string{apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterAdmin},
 	Name:        "设置热钱包地址",
 	Description: "设置热钱包地址，管理员权限api",
 	VerName:     "v1",

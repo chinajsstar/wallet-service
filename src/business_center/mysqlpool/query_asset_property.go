@@ -71,12 +71,12 @@ func SetAssetProperty(assetProperty *AssetProperty) error {
 		assetProperty.DepositMin, assetProperty.WithdrawalRate, assetProperty.WithdrawalValue,
 		assetProperty.WithdrawalReserveRate, assetProperty.WithdrawalAlertRate, assetProperty.WithdrawalStategy,
 		assetProperty.ConfirmationNum, assetProperty.Decimals, assetProperty.GasFactor, assetProperty.Debt,
-		assetProperty.ParkAmount, assetProperty.AssetName)
+		assetProperty.ParkAmount, assetProperty.Enabled, assetProperty.AssetName)
 
 	ret, err := db.Exec("update asset_property set full_name = ?, is_token = ?, parent_name = ?, logo = ?,"+
 		" deposit_min = ?,withdrawal_rate = ?, withdrawal_value = ?, withdrawal_reserve_rate = ?,"+
 		" withdrawal_alert_rate = ?, withdrawal_stategy = ?, confirmation_num = ?, decimals = ?, gas_factor = ?,"+
-		" debt = ?, park_amount = ? where asset_name = ?", params...)
+		" debt = ?, park_amount = ? enabled = ? where asset_name = ?", params...)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func SetAssetProperty(assetProperty *AssetProperty) error {
 
 	_, err = db.Exec("insert asset_property (full_name, is_token, parent_name, logo, deposit_min, withdrawal_rate,"+
 		" withdrawal_value,withdrawal_reserve_rate, withdrawal_alert_rate, withdrawal_stategy, confirmation_num,"+
-		" decimals, gas_factor, debt, park_amount, asset_name)"+
-		" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", params...)
+		" decimals, gas_factor, debt, park_amount, asset_name, enabled)"+
+		" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", params...)
 	return err
 }

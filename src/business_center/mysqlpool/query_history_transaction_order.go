@@ -15,7 +15,7 @@ func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, b
 
 	if len(queryMap) > 0 {
 		sqls += andConditions(queryMap, &params)
-		sqls += " order by id "
+		sqls += " order by id desc"
 		sqls += andPagination(queryMap, &params)
 	}
 
