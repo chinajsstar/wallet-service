@@ -3,13 +3,14 @@ package L4G
 import (
 	"github.com/alecthomas/log4go"
 	"fmt"
+	"time"
 )
 
 var ( l4gs map[string]log4go.Logger )
 
 func init () {
 	l4gs = make(map[string]log4go.Logger)
-	l := BuildL4g("defualt", "blockchain_api")
+	l := BuildL4g("default", "blockchain_api")
 	l.Trace("blockchain_api 'l4g' instance init ok!!!!")
 }
 
@@ -44,6 +45,7 @@ func BuildL4g(name string, filename string) log4go.Logger {
 }
 
 func Close(name string) {
+	time.Sleep(3 * time.Second)
 	if name=="all" {
 		for _, l := range l4gs {
 			l.Close()

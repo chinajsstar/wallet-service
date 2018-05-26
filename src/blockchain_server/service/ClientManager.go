@@ -18,6 +18,7 @@ import (
 )
 
 var L4g = L4G.GetL4g("default")
+
 const (
 	max_once_account_number = 100
 )
@@ -271,8 +272,7 @@ func (self *ClientManager) trackTxCmd(txCmd *types.CmdSendTx) {
 		case tx := <-tx_channel:
 			{
 				txCmd.Tx = tx
-				L4g.Trace(`(＠。ε。＠)(＠。ε。＠) [[TrackTxCmd information]] (*≧∪≦)(*≧∪≦)(*≧∪≦)
-%s`, tx.String())
+				L4g.Trace(`TrackTxCmd: tx information:%s`, tx.String())
 				self.txCmdFeed.Send(txCmd)
 				if tx.State == types.Tx_state_confirmed || tx.State == types.Tx_state_unconfirmed {
 					goto break_for

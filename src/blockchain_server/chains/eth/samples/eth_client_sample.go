@@ -69,7 +69,7 @@ func main() {
 
 	token := "ZTK"
 	i := 0
-	if true {
+	if false {
 		go watchRechargeTxByAddress(ctx, clientManager, types.Chain_eth,
 			[]string{default_accs[1].Address, default_accs[2].Address},
 			done_watchaddress)
@@ -77,7 +77,7 @@ func main() {
 		i++
 	}
 
-	if false {
+	if true {
 		go send_tokenTx(
 			ctx,
 			clientManager,
@@ -185,6 +185,7 @@ func send_tokenTx(ctx context.Context, clientManager *service.ClientManager,
 			tokenOwnerKey, value)
 		if err != nil {
 			L4g.Trace("CreateSendTxCmd faild, message:%s", err.Error())
+			L4G.Close("all")
 			return
 		}
 		clientManager.SendTx(txCmd)
@@ -221,7 +222,7 @@ func send_tokenTx(ctx context.Context, clientManager *service.ClientManager,
 		}
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 1; i++ {
 		go makeAndSend(coin, callFromKey, tokenTo, token, tokenOwnerKey, float64(i+1))
 		csend++
 	}

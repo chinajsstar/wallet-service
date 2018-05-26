@@ -401,6 +401,9 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 					stx.Value = txOutValues[i]
 					break
 				}
+			} else {
+				L4g.Error("bitcoin get address(%s) label faild, message:%s",
+					toaddress.String(), err.Error())
 			}
 		}
 
