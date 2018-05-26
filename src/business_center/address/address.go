@@ -240,7 +240,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
 			params.Address, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
 		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
@@ -249,7 +249,7 @@ func (a *Address) Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error 
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
 			params.Address, "", "", params.Amount)
 		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败")
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
