@@ -4,6 +4,7 @@ import (
 	"bastionpay_api/apibackend"
 	"bastionpay_api/apidoc"
 	"bastionpay_api/apidoc/v1"
+	"bastionpay_api/apidoc/v1/backend"
 	"fmt"
 )
 
@@ -59,6 +60,9 @@ func init() {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocWithdrawal})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetPayAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetAssetAttribute})
+
+	// backend
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocPostTransaction})
 
 	// bastionpay_tool
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocRecharge})

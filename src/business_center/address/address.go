@@ -3,6 +3,7 @@ package address
 import (
 	"api_router/base/data"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/apibackend/v1/backend"
 	"blockchain_server/service"
 	"blockchain_server/types"
 	. "business_center/def"
@@ -1047,7 +1048,7 @@ func (a *Address) TransactionBillDaily(req *data.SrvRequest, res *data.SrvRespon
 }
 
 func (a *Address) PostTransaction(req *data.SrvRequest, res *data.SrvResponse) error {
-	params := v1.ReqPostTransaction{
+	params := backend.ReqPostTransaction{
 		AssetName: "",
 		From:      "",
 		To:        "",
