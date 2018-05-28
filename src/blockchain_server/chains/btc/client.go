@@ -306,9 +306,15 @@ func (c *Client) toTx(btx *btcjson.GetTransactionResult) (*types.Transfer, error
 	return tx, nil
 }
 
-func (c *Client) scriptAddes(script []byte)(adds []string, err error) {
+func (c *Client) parseTxoutScript(script []byte)(adds []string, err error) {
 	var t *btcjson.DecodeScriptResult
+
+	L4g.Trace("txout pkscript:%s", hex.EncodeToString(script))
+
 	if t, err = c.DecodeScript(script); err==nil {
+
+		L4g.Trace("txout pkscript information:%#v", t)
+
 		adds = t.Addresses
 	}
 	return
@@ -317,7 +323,7 @@ func (c *Client) scriptAddes(script []byte)(adds []string, err error) {
 func (c *Client) msgTxOutDetail(txout []*wire.TxOut) (adds[]string, values[] float64, err error) {
 	var tmps []string
 	for _, txo := range txout {
-		if tmps, err = c.scriptAddes(txo.PkScript); err==nil {
+		if tmps, err = c.parseTxoutScript(txo.PkScript); err==nil {
 			adds = append(adds, tmps[:]...)
 			values = append(values, btcutil.Amount(txo.Value).ToBTC())
 		} else {
