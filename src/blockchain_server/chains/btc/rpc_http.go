@@ -100,6 +100,7 @@ func (c *Client) handler() {
 				}
 
 
+				L4g.Trace("get transaction information:%s", hs.String())
 				if btx, err := c.GetTransaction(hs); err!=nil {
 					L4g.Error("bitcoin get transaction error, message:%s", hs.String())
 					return
