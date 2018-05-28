@@ -8,6 +8,7 @@ import (
 	"time"
 	"io/ioutil"
 	"blockchain_server/types"
+	"sync/atomic"
 )
 
 // Notifications returns a channel of parsed notifications sent by the remote
@@ -72,6 +73,21 @@ func (c *Client) handler() {
 				}
 
 				L4g.Trace("new block, hash = %v ", blockHash)
+
+				if false {
+					hash, err := chainhash.NewHashFromStr(blockHash)
+					if err!=nil {
+						L4g.Error("Block hash stirng to hash faild, message:%s", err.Error())
+						return
+					}
+					bhVerbose, err := c.GetBlockHeaderVerbose(hash)
+					if err!=nil {
+						L4g.Error("get block header verbose faild, message:%s", err.Error())
+						return
+					}
+					atomic.StoreUint64(&c.blockHeight, uint64(bhVerbose.Height))
+				}
+
 				c.refresh_blockheight()
 
 			}(n)
@@ -99,17 +115,18 @@ func (c *Client) handler() {
 					return
 				}
 
-
 				L4g.Trace("get transaction information:%s", hs.String())
 				if btx, err := c.GetTransaction(hs); err!=nil {
 					L4g.Error("bitcoin get transaction error, message:%s", hs.String())
 					return
 				} else {
-					//if len(btx.Details)==0 || btx.Details[0].Category=="immature" {
-					//	L4g.Trace("len(btx.Detail")
-					//	return
-					//}
 
+					if len(btx.Details)!=0 && btx.Details[0].Category=="immature" {
+						L4g.Trace("Transaction(%s) is from a mineding block, ignore this TX!", btx.BlockHash)
+						return
+					}
+
+					L4g.Trace("Notify handler convert BTCTx to StandardTx Start!!")
 					if tx, err := c.toTx(btx); err == nil {
 
 						L4g.Trace("Bitcoin tx notified:%s", tx.String())
@@ -120,6 +137,7 @@ func (c *Client) handler() {
 						L4g.Error("bitcoin transaction to types.Transfer error:%v", err)
 						return
 					}
+					L4g.Trace("Notify handler convert BTCTx to StandardTx End!!!")
 				}
 				return
 			}(n)

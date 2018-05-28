@@ -98,6 +98,10 @@ func (c *Client)SendTx(privkey string, tx *types.Transfer) error {
 	c.cmMtx.Lock()
 	defer c.cmMtx.Unlock()
 
+	L4g.Trace(`********Send tx strat*********
+%s`, tx.String())
+	defer L4g.Trace("********Send tx(%s) end!!********", tx.Tx_hash)
+
 	if err:=c.BuildTx(privkey, tx); err!=nil {
 		return err
 	}
@@ -298,7 +302,7 @@ func (c *Client)SendSignedTx(txByte []byte, tx *types.Transfer) (error) {
 
 func (c *Client) toTx(btx *btcjson.GetTransactionResult) (*types.Transfer, error) {
 	tx := &types.Transfer{}
-	err:=c.updateTxWithBtcTx(tx, btx)
+	err:=c.updateTxWithBTCTx(tx, btx)
 
 	if err!=nil {
 		return nil, err
@@ -329,25 +333,40 @@ func (c *Client) msgTxOutDetail(txout []*wire.TxOut) (adds[]string, values[] flo
 		} else {
 			L4g.Error("Bitcoin InnerErr:get address(MsgTx.Out), message:%s",
 				err.Error())
+			return
 		}
 	}
 	return
 }
 
 
-func (c *Client) msgTxInDetail(txIns []*wire.TxIn)(from []string, txIntotalValue float64, err error) {
+func (c *Client) msgTxInputDetail(txIns []*wire.TxIn)(from []string, txIntotalValue float64, err error) {
+	L4g.Trace("Begin Parsing MsgTxInput Detail")
+	defer L4g.Trace("End Parsing MsgTxInput Detail")
 	var tx *btcutil.Tx
 
 	var total int64 = 0
-	for _, txIn :=  range txIns{
+	for i, txIn :=  range txIns{
 		if tx, err = c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
 			var tmps []string
 			if tmps, _, err = c.msgTxOutDetail(tx.MsgTx().TxOut); err!=nil {
 				L4g.Error("Bitcoin InnerErr:msgTxAddresses, message:%s",
 					err.Error())
 			} else {
+
+				L4g.Trace("GetRawTransaction(txIn.PreviouseOutPoint.Hash=%s) =\n %#v",
+					tx.Hash().String(), *tx)
+
 				index := txIn.PreviousOutPoint.Index
+
 				if uint32(len(tmps))>index {
+
+					L4g.Trace(`
+		The index(%d) input's previousOutPutTx.txOut[%d].PkScript=%s,
+		to adresses=%#v, value=%f`,
+						i, tx.MsgTx().TxOut[index].PkScript, tmps,
+						btcutil.Amount(tx.MsgTx().TxOut[index].Value).ToBTC())
+
 					from = append(from, tmps[index])
 					total += tx.MsgTx().TxOut[index].Value
 				}
@@ -373,9 +392,9 @@ func (c *Client) msgTxInDetail(txIns []*wire.TxIn)(from []string, txIntotalValue
 
 // blockin, 由于目前这个rpcclient库的transaction没有解析blockin, 所以
 // blockin和confirmheight, 暂时都为0
-func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
-
+func (c *Client) updateTxWithBTCTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
 	L4g.Trace("begin update tx!!!!%#v", *btx)
+	defer L4g.Trace("%s end update tx!", stx.String())
 
 	//L4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
@@ -395,7 +414,7 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 	if err!=nil { return err }
 
 	if stx.From=="" || stx.To=="" || stx.Fee==0.0 || stx.Value==0.0 {
-		froms, txInTotalValue, err = c.msgTxInDetail(msgTx.TxIn)
+		froms, txInTotalValue, err = c.msgTxInputDetail(msgTx.TxIn)
 		tos, txOutValues, err = c.msgTxOutDetail(msgTx.TxOut)
 
 		var outTotalValue float64
@@ -425,24 +444,38 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 		stx.Fee = txInTotalValue - outTotalValue
 	}
 
+	if stx.InBlock==0 {
+		var (
+			blockhash *chainhash.Hash
+			bhVerbos  *btcjson.GetBlockHeaderVerboseResult
+		)
+		blockhash, err = chainhash.NewHashFromStr(btx.BlockHash)
+		if err!=nil {
+			return err
+		}
+		bhVerbos, err = c.GetBlockHeaderVerbose(blockhash)
+		if err!=nil {
+			return err
+		}
+		stx.InBlock = uint64(bhVerbos.Height)
+	}
+
 	if uint64(btx.Confirmations) > btc_settings.Client_config().TxConfirmNumber &&
 		btx.Confirmations > 0 {
+
 		stx.State = types.Tx_state_confirmed
-		//stx.ConfirmatedHeight = stx.InBlock + uint64(btx.Confirmations)
+		stx.ConfirmatedHeight = stx.InBlock + uint64(btx.Confirmations)
+
 	} else if btx.Confirmations>0 {
 		stx.State = types.Tx_state_mined
 	} else {
 		stx.State = types.Tx_state_pending
 	}
 
-	// golang bitcoin rpcclient 'block' have not defined height
-	//stx.InBlock = uint64(btx.BlockIndex)
-
 	stx.Time = uint64(btx.Time)
 	stx.TokenTx = nil
 	stx.Additional_data = nil
 
-	L4g.Trace("end update tx!!!!%#v", stx.String())
 	return nil
 
 }
@@ -458,7 +491,7 @@ func (c *Client)UpdateTx(stx *types.Transfer) error {
 	if err!=nil {
 		return err
 	}
-	return c.updateTxWithBtcTx(stx, btx)
+	return c.updateTxWithBTCTx(stx, btx)
 }
 
 func (c *Client)BlockHeight() uint64 {
