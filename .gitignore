@@ -11,3 +11,5 @@ bin/
 src/github.com/
 *.exe
 *.db
+
+*_sample
