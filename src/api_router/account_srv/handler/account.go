@@ -4,7 +4,6 @@ import (
 	"api_router/account_srv/db"
 	"api_router/base/data"
 	"io/ioutil"
-	"bastionpay_api/api/v1"
 	//service "api_router/base/service"
 	service "api_router/base/service2"
 	"encoding/json"
@@ -13,6 +12,7 @@ import (
 	"api_router/base/config"
 	"bastionpay_api/utils"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -79,7 +79,7 @@ func (s *Account)HandleNotify(req *data.SrvRequest){
 // 创建账号
 func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
-	reqUserRegister := v1.ReqUserRegister{}
+	reqUserRegister := backend.ReqUserRegister{}
 	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserRegister)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -105,7 +105,7 @@ func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 
 	// to ack
-	ackUserCreate := v1.AckUserRegister{}
+	ackUserCreate := backend.AckUserRegister{}
 	ackUserCreate.UserKey = userKey
 
 	dataAck, err := json.Marshal(ackUserCreate)
@@ -125,7 +125,7 @@ func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 // 登入
 func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
-	reqUserList := v1.ReqUserList{}
+	reqUserList := backend.ReqUserList{}
 	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserList)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -219,7 +219,7 @@ func (s * Account) ReadProfile(req *data.SrvRequest, res *data.SrvResponse) {
 // 更新key
 func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
-	reqUpdateProfile := v1.ReqUserUpdateProfile{}
+	reqUpdateProfile := backend.ReqUserUpdateProfile{}
 	err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -260,13 +260,13 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 
 	// to ack
-	ackUpdateProfile := v1.AckUserUpdateProfile{
+	ackUpdateProfile := backend.AckUserUpdateProfile{
 		ServerPublicKey:string(s.serverPublicKey),
 	}
 	dataAck, err := json.Marshal(ackUpdateProfile)
 	if err != nil {
 		// 写回去
-		oldUserUpdateProfile := v1.ReqUserUpdateProfile{}
+		oldUserUpdateProfile := backend.ReqUserUpdateProfile{}
 		oldUserUpdateProfile.PublicKey = oldUserReadProfile.PublicKey
 		oldUserUpdateProfile.SourceIP = oldUserReadProfile.SourceIP
 		oldUserUpdateProfile.CallbackUrl = oldUserReadProfile.CallbackUrl

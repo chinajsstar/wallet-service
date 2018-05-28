@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"bastionpay_api/api/v1"
 	_ "github.com/go-sql-driver/mysql"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
 var (
@@ -96,7 +96,7 @@ func Init(configPath string) {
 	}
 }
 
-func Register(userRegister *v1.ReqUserRegister, userKey string) error {
+func Register(userRegister *backend.ReqUserRegister, userKey string) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
 	_, err := st["register"].Exec(
@@ -111,14 +111,14 @@ func Delete(userKey string) error {
 	return err
 }
 
-func UpdateProfile(subUserKey string, userUpdateProfile *v1.ReqUserUpdateProfile) error {
+func UpdateProfile(subUserKey string, userUpdateProfile *backend.ReqUserUpdateProfile) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
 	_, err := st["updateProfile"].Exec(userUpdateProfile.PublicKey, userUpdateProfile.SourceIP, userUpdateProfile.CallbackUrl, datetime, subUserKey)
 	return err
 }
 
-func ReadProfile(userKey string) (*v1.AckUserReadProfile, error) {
+func ReadProfile(userKey string) (*backend.AckUserReadProfile, error) {
 	var r *sql.Rows
 	var err error
 
@@ -132,7 +132,7 @@ func ReadProfile(userKey string) (*v1.AckUserReadProfile, error) {
 		return nil, errors.New("row no next")
 	}
 
-	ackUserReadProfile := &v1.AckUserReadProfile{}
+	ackUserReadProfile := &backend.AckUserReadProfile{}
 	if err := r.Scan(&ackUserReadProfile.PublicKey, &ackUserReadProfile.SourceIP, &ackUserReadProfile.CallbackUrl); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("no rows")
@@ -152,7 +152,7 @@ func SetFrozen(userKey string, frozen rune) error {
 	return err
 }
 
-func ListUsers(beginIndex int, pageNum int) (*v1.AckUserList, error) {
+func ListUsers(beginIndex int, pageNum int) (*backend.AckUserList, error) {
 	var r *sql.Rows
 	var err error
 
@@ -163,9 +163,9 @@ func ListUsers(beginIndex int, pageNum int) (*v1.AckUserList, error) {
 	}
 	defer r.Close()
 
-	ul := &v1.AckUserList{}
+	ul := &backend.AckUserList{}
 	for r.Next()  {
-		up := v1.UserBasic{}
+		up := backend.UserBasic{}
 		if err := r.Scan(&up.Id, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen); err != nil {
 			if err == sql.ErrNoRows {
 				continue

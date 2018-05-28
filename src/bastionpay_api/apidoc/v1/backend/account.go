@@ -1,9 +1,9 @@
-package v1
+package backend
 
 import (
 	"bastionpay_api/apidoc"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
 var ApiDocRegister = apidoc.ApiDoc{
@@ -13,8 +13,8 @@ var ApiDocRegister = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"account",
 	FuncName:"register",
-	Input:&v1.ReqUserRegister{},
-	Output:&v1.AckUserRegister{},
+	Input:&backend.ReqUserRegister{},
+	Output:&backend.AckUserRegister{},
 }
 
 var ApiDocUpdateProfile = apidoc.ApiDoc{
@@ -24,8 +24,8 @@ var ApiDocUpdateProfile = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"account",
 	FuncName:"updateprofile",
-	Input:&v1.ReqUserUpdateProfile{},
-	Output:&v1.AckUserUpdateProfile{},
+	Input:&backend.ReqUserUpdateProfile{},
+	Output:&backend.AckUserUpdateProfile{},
 }
 
 var ApiDocReadProfile = apidoc.ApiDoc{
@@ -35,8 +35,8 @@ var ApiDocReadProfile = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"account",
 	FuncName:"readprofile",
-	Input:&v1.ReqUserReadProfile{},
-	Output:&v1.AckUserReadProfile{},
+	Input:&backend.ReqUserReadProfile{},
+	Output:&backend.AckUserReadProfile{},
 }
 
 var ApiDocListUsers = apidoc.ApiDoc{
@@ -46,6 +46,6 @@ var ApiDocListUsers = apidoc.ApiDoc{
 	VerName:"v1",
 	SrvName:"account",
 	FuncName:"listusers",
-	Input:&v1.ReqUserList{},
-	Output:&v1.AckUserList{Data:[]v1.UserBasic{v1.UserBasic{}}},
+	Input:&backend.ReqUserList{},
+	Output:&backend.AckUserList{Data:[]backend.UserBasic{backend.UserBasic{}}},
 }

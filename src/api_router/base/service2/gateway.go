@@ -13,8 +13,8 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"github.com/cenkalti/rpc2"
 	"bastionpay_api/api"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
 type ServiceGateway struct{
@@ -823,15 +823,15 @@ func (mi *ServiceGateway) listSrv(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 }
 
-func (mi *ServiceGateway) getSrvInfo() *v1.ServiceInfoList {
+func (mi *ServiceGateway) getSrvInfo() *backend.ServiceInfoList {
 	mi.rwmu.RLock()
 	defer mi.rwmu.RUnlock()
 
-	serviceInfoList := &v1.ServiceInfoList{}
+	serviceInfoList := &backend.ServiceInfoList{}
 	for _, v := range mi.srvNodeNameMapSrvNodeGroup{
 		n, c := v.GetSrvInfo()
 
-		node := v1.ServiceInfo{
+		node := backend.ServiceInfo{
 			Version:n.Version,
 			Srv:n.Srv,
 			Count:c,

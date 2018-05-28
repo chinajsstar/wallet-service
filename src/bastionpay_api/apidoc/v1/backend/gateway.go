@@ -1,9 +1,9 @@
-package v1
+package backend
 
 import (
 	"bastionpay_api/apidoc"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
 var ApiDocListSrv = apidoc.ApiDoc{
@@ -14,5 +14,5 @@ var ApiDocListSrv = apidoc.ApiDoc{
 	SrvName:"gateway",
 	FuncName:"listsrv",
 	Input:nil,
-	Output:&v1.ServiceInfoList{[]v1.ServiceInfo{v1.ServiceInfo{}}},
+	Output:&backend.ServiceInfoList{[]backend.ServiceInfo{backend.ServiceInfo{}}},
 }

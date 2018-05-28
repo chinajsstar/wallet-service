@@ -1,4 +1,4 @@
-package v1
+package backend
 
 import (
 	"bastionpay_api/apidoc"

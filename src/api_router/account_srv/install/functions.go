@@ -2,7 +2,6 @@ package install
 
 import (
 	"fmt"
-	"bastionpay_api/api/v1"
 	"bastionpay_api/utils"
 	"io/ioutil"
 	"errors"
@@ -13,11 +12,12 @@ import (
 	"api_router/account_srv/handler"
 	"api_router/base/config"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
-func BuildWebAdmin() (*v1.ReqUserRegister, *v1.ReqUserUpdateProfile, error) {
-	uc := &v1.ReqUserRegister{}
-	up := &v1.ReqUserUpdateProfile{}
+func BuildWebAdmin() (*backend.ReqUserRegister, *backend.ReqUserUpdateProfile, error) {
+	uc := &backend.ReqUserRegister{}
+	up := &backend.ReqUserUpdateProfile{}
 
 	//0:普通用户 1:热钱包; 2:管理员
 	uc.UserClass = 2
@@ -87,8 +87,8 @@ func InstallBastionPay(dir string) error {
 	}
 
 	l4g.Info("2. 创建Web超级管理员账号")
-	ackUc := v1.AckUserRegister{}
-	ackUp := v1.AckUserUpdateProfile{}
+	ackUc := backend.AckUserRegister{}
+	ackUp := backend.AckUserUpdateProfile{}
 	err = func() error {
 		uc, _, err := BuildWebAdmin()
 		if err != nil {
