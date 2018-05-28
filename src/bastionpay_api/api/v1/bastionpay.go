@@ -253,4 +253,11 @@ type (
 	AckPayAddressList struct {
 		Data []AckPayAddress
 	}
+
+	ReqPostTransaction struct {
+		AssetName string
+		From      string
+		To        string
+		Amount    float64
+	}
 )

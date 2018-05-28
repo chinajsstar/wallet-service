@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
+	"strconv"
 	"sync"
 )
 
@@ -1042,5 +1043,76 @@ func (a *Address) TransactionBillDaily(req *data.SrvRequest, res *data.SrvRespon
 		return errors.New(res.ErrMsg)
 	}
 	res.Value.Message = string(pack)
+	return nil
+}
+
+func (a *Address) PostTransaction(req *data.SrvRequest, res *data.SrvResponse) error {
+	params := v1.ReqPostTransaction{
+		AssetName: "",
+		From:      "",
+		To:        "",
+		Amount:    -1,
+	}
+
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
+	if len(params.AssetName) <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	assetProperty, ok := mysqlpool.QueryAssetPropertyByName(params.AssetName)
+	if !ok {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "参数:\"asset_name\"无效")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if len(params.From) <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"From\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(params.AssetName, params.From)
+	if !ok {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "\"From\"参数无效")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if params.Amount >= userAddress.AvailableAmount {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "\"From\"地址金额不足:"+strconv.FormatFloat(userAddress.AvailableAmount, 'f', -1, 64))
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if assetProperty.IsToken > 0 {
+		cmdTx, err := service.NewSendTxCmd("", assetProperty.ParentName, userAddress.PrivateKey,
+			params.To, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+		a.wallet.SendTx(cmdTx)
+	} else {
+		cmdTx, err := service.NewSendTxCmd("", assetProperty.AssetName, userAddress.PrivateKey,
+			params.To, "", "", params.Amount)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+		a.wallet.SendTx(cmdTx)
+	}
 	return nil
 }

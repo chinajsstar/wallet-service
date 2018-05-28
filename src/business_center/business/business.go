@@ -111,6 +111,9 @@ func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error 
 
 	case "transaction_bill_daily":
 		return b.address.TransactionBillDaily(req, res)
+
+	case "sp_transaction":
+		return b.address.PostTransaction(req, res)
 	}
 	return errors.New("invalid command")
 }
