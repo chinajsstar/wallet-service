@@ -112,6 +112,11 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 			"query_pay_address", data.APILevel_admin, x.handler)
 	}()
 
+	func() {
+		service.RegisterApi(&nam,
+			"sp_post_transaction", data.APILevel_admin, x.handler)
+	}()
+
 	////////////////////////////////////////////////////////////////
 	// 以下方法liuheng添加测试
 	var testTool int

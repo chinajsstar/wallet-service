@@ -16,6 +16,7 @@ func init() {
 	apiDocGroupInfo = make(map[string]*apidoc.ApiGroupInfo)
 	apiDocGroupHandlers = make(map[string][]apidoc.ApiDocHandler)
 
+	// api group
 	apiDocGroupInfo[apibackend.HttpRouterApi] = &apidoc.ApiGroupInfo{
 		Description: `This api document is for developers to access BastionPay service, 
 					all api request and response json body is not real body data,
@@ -23,11 +24,16 @@ func init() {
 					you can go to github.com to download golang sdk.`,
 	}
 
+	// user group
 	apiDocGroupInfo[apibackend.HttpRouterUser] = &apidoc.ApiGroupInfo{
-		Description: "",
+		Description: `This api document is for user backend developers to access BastionPay service,
+					`,
 	}
+
+	// admin group
 	apiDocGroupInfo[apibackend.HttpRouterAdmin] = &apidoc.ApiGroupInfo{
-		Description: "",
+		Description: `This api document is for admin backend developers to access BastionPay service,
+					`,
 	}
 
 	// gateway

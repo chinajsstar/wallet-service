@@ -40,8 +40,8 @@ var ApiDocReadProfile = apidoc.ApiDoc{
 }
 
 var ApiDocListUsers = apidoc.ApiDoc{
-	Group:[]string{apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
-	Name:"获取账户信息",
+	Group:[]string{apibackend.HttpRouterAdmin},
+	Name:"获取用户列表",
 	Description:"获取钱包用户列表,管理员权限api",
 	VerName:"v1",
 	SrvName:"account",
