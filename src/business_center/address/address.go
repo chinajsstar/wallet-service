@@ -1097,14 +1097,32 @@ func (a *Address) PostTransaction(req *data.SrvRequest, res *data.SrvResponse) e
 	}
 
 	if assetProperty.IsToken > 0 {
-		cmdTx, err := service.NewSendTxCmd("", assetProperty.ParentName, userAddress.PrivateKey,
-			params.To, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
-		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
+		hotAddress, ok := mysqlpool.QueryPayAddress(assetProperty.AssetName)
+		if !ok {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "没有设置可用的热钱包")
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
-		a.wallet.SendTx(cmdTx)
+
+		if params.To == hotAddress.Address {
+			cmdTx, err := service.NewSendTxCmd("", assetProperty.ParentName, hotAddress.PrivateKey,
+				params.To, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
+			if err != nil {
+				res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
+				l4g.Error(res.ErrMsg)
+				return errors.New(res.ErrMsg)
+			}
+			a.wallet.SendTx(cmdTx)
+		} else {
+			cmdTx, err := service.NewSendTxCmd("", assetProperty.ParentName, userAddress.PrivateKey,
+				params.To, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
+			if err != nil {
+				res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
+				l4g.Error(res.ErrMsg)
+				return errors.New(res.ErrMsg)
+			}
+			a.wallet.SendTx(cmdTx)
+		}
 	} else {
 		cmdTx, err := service.NewSendTxCmd("", assetProperty.AssetName, userAddress.PrivateKey,
 			params.To, "", "", params.Amount)
