@@ -99,10 +99,14 @@ func (c *Client) handler() {
 					return
 				}
 
+
 				if btx, err := c.GetTransaction(hs); err!=nil {
 					L4g.Error("bitcoin get transaction error, message:%s", hs.String())
 					return
 				} else {
+
+					L4g.Trace("Get Transaction information (%s) ok!", btx.TxID)
+
 					if len(btx.Details)==0 || btx.Details[0].Category=="immature" {
 						return
 					}

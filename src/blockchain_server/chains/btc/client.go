@@ -368,6 +368,9 @@ func (c *Client) msgTxInDetail(txIns []*wire.TxIn)(from []string, txIntotalValue
 // blockin, 由于目前这个rpcclient库的transaction没有解析blockin, 所以
 // blockin和confirmheight, 暂时都为0
 func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransactionResult) error {
+
+	L4g.Trace("begin update tx!!!!%#v", *btx)
+
 	//L4g.Trace("Bitcoin Update Transaction: %#v", *btx)
 	stx.Tx_hash = btx.TxID
 	var (
@@ -432,6 +435,8 @@ func (c *Client) updateTxWithBtcTx(stx *types.Transfer, btx *btcjson.GetTransact
 	stx.Time = uint64(btx.Time)
 	stx.TokenTx = nil
 	stx.Additional_data = nil
+
+	L4g.Trace("end update tx!!!!%#v", stx.String())
 	return nil
 
 }
