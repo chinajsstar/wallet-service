@@ -108,6 +108,9 @@ func (c *Client) handler() {
 					}
 
 					if tx, err := c.toTx(btx); err == nil {
+
+						L4g.Trace("Bitcoin tx notified:%s", tx.String())
+
 						c.rechargeTxNotification <- &types.RechargeTx{
 							Tx: tx, Coin_name: types.Chain_bitcoin, Err: nil}
 					} else {

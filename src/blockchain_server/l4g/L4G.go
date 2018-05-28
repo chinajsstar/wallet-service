@@ -10,7 +10,7 @@ var ( l4gs map[string]log4go.Logger )
 
 func init () {
 	l4gs = make(map[string]log4go.Logger)
-	l := BuildL4g("default", "blockchain_api")
+	l := BuildL4g("default", "default")
 	l.Trace("blockchain_api 'l4g' instance init ok!!!!")
 }
 
