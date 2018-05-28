@@ -2,6 +2,8 @@ mainfile = main.go
 objdir = ./$(obj)
 objname = $(obj)
 winobjname = $(obj).exe
+objs = gateway account_srv auth_srv push_srv
+objccs = cobank_srv
 
 mac:
 	go build -o $(objdir)/$(objname) $(objdir)/$(mainfile)
@@ -28,3 +30,19 @@ linuxcc:
 	test -d $(GOPATH)/bin/linux/$(obj)_app || mkdir -p $(GOPATH)/bin/linux/$(obj)_app
 	cp $(objdir)/$(objname) $(GOPATH)/bin/linux/$(obj)_app/$(objname)
 	@echo "======Build linuxcc done======"
+all:
+	@for name in $(objs); \
+	do \
+	echo "$$name" is building; \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./"$$name"/"$$name" ./"$$name"; \
+	test -d $(GOPATH)/bin/linux/"$$name"_app || mkdir -p $(GOPATH)/bin/linux/"$$name"_app; \
+	cp ./"$$name"/"$$name" $(GOPATH)/bin/linux/"$$name"_app/"$$name"; \
+	done
+	@for name in $(objccs); \
+	do \
+	echo "$$name" is building; \
+	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC=gcc go build -o ./"$$name"/"$$name" ./"$$name"; \
+	test -d $(GOPATH)/bin/linux/"$$name"_app || mkdir -p $(GOPATH)/bin/linux/"$$name"_app; \
+	cp ./"$$name"/"$$name" $(GOPATH)/bin/linux/"$$name"_app/"$$name"; \
+	done
+	@echo "======Build done======"
