@@ -105,12 +105,10 @@ func (c *Client) handler() {
 					L4g.Error("bitcoin get transaction error, message:%s", hs.String())
 					return
 				} else {
-
-					L4g.Trace("Get Transaction information (%s) ok!", btx.TxID)
-
-					if len(btx.Details)==0 || btx.Details[0].Category=="immature" {
-						return
-					}
+					//if len(btx.Details)==0 || btx.Details[0].Category=="immature" {
+					//	L4g.Trace("len(btx.Detail")
+					//	return
+					//}
 
 					if tx, err := c.toTx(btx); err == nil {
 
