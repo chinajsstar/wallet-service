@@ -243,8 +243,11 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 	// "gas required exceeds allowance or always failing transaction" error
 	// so, pass nil as 'From'
 	// TODO: make the reason clear
-	msg := ethereum.CallMsg{From: nil, To: &to, Value: value, Data: input}
-	gaslimit, err = self.c.EstimateGas(context.TODO(), msg)
+	var callmsg ethereum.CallMsg
+	if false { callmsg = ethereum.CallMsg{From:nil, To: &to, Value: value, Data: input}
+	} else { callmsg = ethereum.CallMsg{To: &to, Value: value, Data: input} }
+
+	gaslimit, err = self.c.EstimateGas(context.TODO(), callmsg)
 
 	if err!=nil {
 		L4g.Trace("error message:%s", err.Error())
