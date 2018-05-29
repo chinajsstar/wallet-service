@@ -37,6 +37,9 @@ func ParseTokenTxInput (input []byte) (from, to string, value *big.Int, err erro
 		to = common.BytesToAddress(input[48:68]).String()
 		value = big.NewInt(0).SetBytes(input[68:100])
 	}
+	default:{
+		err = fmt.Errorf("TX doesn't transfer token")
+	}
 	}
 	return from, to, value, nil
 }
