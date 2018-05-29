@@ -1083,7 +1083,7 @@ func (a *Address) PostTransaction(req *data.SrvRequest, res *data.SrvResponse) e
 		return errors.New(res.ErrMsg)
 	}
 
-	userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(params.AssetName, params.From)
+	userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetProperty.AssetName, params.From)
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "\"From\"参数无效")
 		l4g.Error(res.ErrMsg)
