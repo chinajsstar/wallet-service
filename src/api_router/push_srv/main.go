@@ -10,6 +10,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/push_srv/db"
 	"api_router/base/config"
+	"bastionpay_api/utils"
 )
 
 const PushSrvConfig = "push.json"
@@ -19,6 +20,8 @@ func main() {
 
 	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
+
+	defer utils.PanicPrint()
 
 	cfgPath := cfgDir + "/" + PushSrvConfig
 	db.Init(cfgPath)

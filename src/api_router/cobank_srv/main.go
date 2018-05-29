@@ -9,6 +9,7 @@ import (
 	"time"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
+	"bastionpay_api/utils"
 )
 
 const CobankSrvConfig = "cobank.json"
@@ -18,6 +19,8 @@ func main() {
 
 	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
+
+	defer utils.PanicPrint()
 
 	// create service node
 	cfgPath := cfgDir + "/" + CobankSrvConfig

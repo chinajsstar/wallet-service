@@ -8,6 +8,7 @@ import (
 	"context"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
+	"bastionpay_api/utils"
 )
 
 const ServiceGatewayConfig = "gateway.json"
@@ -17,6 +18,8 @@ func main() {
 
 	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
+
+	defer utils.PanicPrint()
 
 	cfgPath := cfgDir + "/" + ServiceGatewayConfig
 	fmt.Println("config path:", cfgPath)

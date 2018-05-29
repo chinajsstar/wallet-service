@@ -11,6 +11,7 @@ import (
 	"strconv"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/base/config"
+	"bastionpay_api/utils"
 )
 
 const ArithSrvConfig = "arith.json"
@@ -38,6 +39,8 @@ func main() {
 
 	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
+
+	defer utils.PanicPrint()
 
 	// create service node
 	cfgPath := cfgDir + "/" + ArithSrvConfig
@@ -68,6 +71,10 @@ func main() {
 		if input == "q" {
 			cancel()
 			break;
+		} else if input == "p" {
+			value := 111
+			zero := 0
+			value = value / zero
 		}
 	}
 

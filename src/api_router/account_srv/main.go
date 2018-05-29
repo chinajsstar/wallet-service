@@ -24,6 +24,8 @@ func main() {
 	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
 
+	defer utils.PanicPrint()
+
 	cfgPath := cfgDir + "/" + AccountSrvConfig
 	db.Init(cfgPath)
 

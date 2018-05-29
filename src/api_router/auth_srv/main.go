@@ -10,6 +10,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 	"api_router/auth_srv/db"
 	"api_router/base/config"
+	"bastionpay_api/utils"
 )
 
 const AuthSrvConfig = "auth.json"
@@ -19,6 +20,8 @@ func main() {
 
 	l4g.LoadConfiguration(cfgDir + "/log.xml")
 	defer l4g.Close()
+
+	defer utils.PanicPrint()
 
 	cfgPath := cfgDir + "/" + AuthSrvConfig
 	fmt.Println("config path:", cfgPath)
