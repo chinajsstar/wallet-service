@@ -74,7 +74,7 @@ func Withdrawal(wallet *service.ClientManager, req *data.SrvRequest, res *data.S
 	}
 
 	if len(params.Address) <= 0 {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"monitor\"参数")
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"address\"参数")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}

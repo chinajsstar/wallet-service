@@ -48,7 +48,7 @@ func SpGetChainBalance(wallet *service.ClientManager, req *data.SrvRequest, res 
 	}
 
 	if len(params.Address) > 0 {
-		queryMap["monitor"] = params.Address
+		queryMap["address"] = params.Address
 	}
 
 	dataList := backend.SpAckChainBalanceList{

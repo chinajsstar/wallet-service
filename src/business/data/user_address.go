@@ -54,7 +54,7 @@ func QueryAddress(wallet *service.ClientManager, req *data.SrvRequest, res *data
 	}
 
 	if len(params.Address) > 0 {
-		queryMap["monitor"] = params.Address
+		queryMap["address"] = params.Address
 	}
 
 	dataList := v1.AckUserAddressList{
@@ -143,7 +143,7 @@ func SpQueryAddress(wallet *service.ClientManager, req *data.SrvRequest, res *da
 	}
 
 	if len(params.Address) > 0 {
-		queryMap["monitor"] = params.Address
+		queryMap["address"] = params.Address
 	}
 
 	dataList := v1.AckUserAddressList{
