@@ -332,6 +332,9 @@ func (self *Client) blockTrackTx(tx *etypes.Transaction) (bool, error) {
 }
 
 func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string, value *big.Int) error {
+	L4g.Trace("Token.Approve begin.....")
+	defer L4g.Trace("Token.Approve end....")
+
 	privOwnerKey, owner_string, err := ParseKey(ownerKey)
 	if err != nil {
 		return err
@@ -432,10 +435,17 @@ Exception:
 // from is a crypted private key
 func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 
+	L4g.Trace("Start SendTx......")
+	defer L4g.Trace("SendTx end......")
+
 	fromPrivkey, input, err := self.initTxInfo(fromkey, tx)
 	if err != nil {
+		L4g.Trace("initTxInfo faild, message:%s", err.Error())
 		return err
 	}
+
+	L4g.Trace("SendTx, information:%s", tx.String())
+
 
 	// 如果tx.From不等于tx.TokenTx.From, 应该是从用户地址转出token
 	// 用户地址上应该是没有ether的. 则需要授权token

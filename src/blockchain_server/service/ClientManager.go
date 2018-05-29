@@ -449,7 +449,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	l4g.Trace(`
 	------------send transaction begin------------
 	Asset:%s , Crypted Key:%s
-	TxInfo : %s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
+	%s`, txCmd.Coinname, txCmd.FromKey, txCmd.Tx.String() )
 
 	defer l4g.Trace("------------send transaction end------------")
 
