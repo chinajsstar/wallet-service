@@ -692,17 +692,16 @@ func (self *Client) startScanBlock() {
 				if tk == nil {
 					continue
 				}
+
 				tkowner, tkreciver, _, err := token.ParseTokenTxInput(tx.Data())
-				if err == nil {
-					if tkowner != "" {
-						addresses = append(addresses, tkowner)
-					}
-					if tkreciver != "" {
-						addresses = append(addresses, tkreciver)
-					}
-				} else {
+
+				if err!=nil {
 					L4g.Error("ETH parsing TxInputData error:%s, TxInfo:%s",
 						err.Error(), tx.String())
+					continue
+				} else {
+					if tkowner != "" { addresses = append(addresses, tkowner) }
+					if tkreciver != "" { addresses = append(addresses, tkreciver) }
 				}
 			} else {
 				addresses = append(addresses, to.String())
