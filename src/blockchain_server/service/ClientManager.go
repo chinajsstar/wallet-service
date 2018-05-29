@@ -479,7 +479,7 @@ func (self *ClientManager) innerSendTx(txCmd *types.CmdSendTx) {
 	if nil != err {
 		// -32000 to -32099	Server error Reserved for implementation-defined server-errors.
 		txCmd.Error = types.NewNetCmdErr(-32000, err.Error(), nil)
-		defualtL4g.Error("Send Transaction error:%s", txCmd.Error.Message)
+		l4g.Error("Send Transaction error:%s", txCmd.Error.Message)
 		self.txCmdFeed.Send(txCmd)
 		return
 	}
@@ -544,15 +544,17 @@ func privatekeyFromChiperHexString(chiper string) (*ecdsa.PrivateKey, error) {
 // 交易和充值中的单位都是10^8为一个单位
 // 即1^8 单位为一个bitcoin或者eth
 func (self *ClientManager) SendTx(cmdTx *types.CmdSendTx) {
+	l4g := L4G.GetL4g(cmdTx.Coinname)
+
 	if self.loopTxCmdRuning == false {
-		defualtL4g.Error("TxCommandLoop is not runing!!!")
+		l4g.Error("TxCommandLoop is not runing!!!")
 		return
 	}
 
-	defualtL4g.Trace("Recived one SendTx command:%s", cmdTx.MsgId)
+	l4g.Trace("Recived one SendTx command:%s", cmdTx.MsgId)
 
 	if self.txCmdChannel == nil {
-		defualtL4g.Trace("txCmdChannel is nil, create new")
+		l4g.Trace("txCmdChannel is nil, create new")
 		self.txCmdChannel = make(chan *types.CmdSendTx, 512)
 	}
 

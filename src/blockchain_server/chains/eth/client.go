@@ -380,6 +380,8 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 	if err != nil {
 		goto Exception
 	}
+
+	L4g.Trace("Send tx fee for approving, txinfo:%s", signedTx.String())
 	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
 		goto Exception
 	}
@@ -406,6 +408,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 		goto Exception
 	}
 
+	L4g.Trace("Send approve Tx, tx info:%s", signedTx.String())
 	err = self.c.SendTransaction(context.TODO(), signedTx)
 	if err != nil {
 		goto Exception
