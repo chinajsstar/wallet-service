@@ -230,17 +230,28 @@ func (self *Client) txToken(tx *types.Transfer) *token.Token {
 
 func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 	input []byte) (gasprice *big.Int, gaslimit uint64, err error) {
+
+	L4g.Trace("estimate tx fee: from:%s, to:%s, value:%d, input:%x",
+		from.String(), to.String(), value.Uint64(), input)
+
 	if gasprice, err = self.c.SuggestGasPrice(context.TODO()); err != nil {
+		L4g.Trace("error message:%s", err.Error())
 		return
 	}
 	msg := ethereum.CallMsg{From: from, To: &to, Value: value, Data: input}
 	gaslimit, err = self.c.EstimateGas(context.TODO(), msg)
+
+	if err!=nil {
+		L4g.Trace("error message:%s", err.Error())
+	}
+
 	return
 }
 
 // 这个value是以wei为单位的
 func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []byte) (*etypes.Transaction, error) {
-
+	L4g.Trace("build RawTx begin.....")
+	defer L4g.Trace("build RawTx end......")
 	var (
 		err             error
 		nonce, gaslimit uint64
@@ -359,6 +370,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 
 	gasprice, gaslimit, err = self.estimatTxFee(owner, contract, big.NewInt(0), input)
 	if err != nil {
+		L4g.Trace("estimate tx fee faild, message:%s", err.Error())
 		return err
 	}
 
