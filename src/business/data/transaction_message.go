@@ -3,6 +3,7 @@ package data
 import (
 	"api_router/base/data"
 	"bastionpay_api/api/v1"
+	"blockchain_server/service"
 	. "business/def"
 	"business/mysqlpool"
 	"encoding/json"
@@ -10,7 +11,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 )
 
-func HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) error {
+func HistoryTransactionMessage(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {

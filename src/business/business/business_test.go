@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 9
+	testType := 6
 	switch testType {
 	case 1:
 		req.Method.Function = "support_assets"
@@ -41,7 +41,7 @@ func TestHandleMsg(t *testing.T) {
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":1.9, \"address\":\"mrEfgUBMUM5zjmzSdoBQuodTz16kyZ1tnD\","+
+		params := fmt.Sprintf("{\"asset_name\":\"btc\",\"amount\":1.5, \"address\":\"mrEfgUBMUM5zjmzSdoBQuodTz16kyZ1tnD\","+
 			"\"user_order_id\":\"%s\" }", monitor.GenerateUUID("UR"))
 		req.Argv.Message = params
 	case 7:
@@ -71,11 +71,15 @@ func TestHandleMsg(t *testing.T) {
 	case 13:
 		req.Method.Function = "sp_get_chain_balance"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
-		req.Argv.Message = ""
+		req.Argv.Message = "{\"asset_name\":\"eth\", \"address\":\"0x5563eaB8a68D36156E15621b7D85Ac215C477434\"}"
 	case 20:
 		req.Method.Function = "sp_get_asset_attribute"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = ""
+	case 21:
+		req.Method.Function = "sp_post_transaction"
+		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Argv.Message = "{\"asset_name\":\"eth\", \"address\":\"0x5563eaB8a68D36156E15621b7D85Ac215C477434\"}"
 	}
 
 	if testType > 0 {
