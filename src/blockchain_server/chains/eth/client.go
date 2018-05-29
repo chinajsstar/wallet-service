@@ -275,12 +275,16 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 	return etypes.NewTransaction(nonce, to, value, gaslimit, gasprice, input), nil
 }
 
-func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
+func (self *Client) blockTrackTx(tx *etypes.Transaction) (bool, error) {
 	state := types.Tx_state_pending
 	var tmptx *etypes.Transaction
 	var err error
 
-	for i := 0; i < 60; i++ {
+	for i := 0; i <240; i++ {
+
+		L4g.Trace("blockTrackTx, txhash(%s), try (%d)times, cost (%d)seconds",
+			tx.Hash().String(), i, i*30)
+
 		switch state {
 		case types.Tx_state_pending, types.Tx_state_mined:
 			{
@@ -321,7 +325,7 @@ func (self *Client) blockTraceTx(tx *etypes.Transaction) (bool, error) {
 				return state == types.Tx_state_confirmed, nil
 			}
 		}
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 30)
 		// TODO: to check quit channel and exit
 	}
 	return false, fmt.Errorf("trace tx(%s), time out", tx.Hash().String())
@@ -377,7 +381,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 		goto Exception
 	}
 
-	isok, err = self.blockTraceTx(signedTx)
+	isok, err = self.blockTrackTx(signedTx)
 	if err != nil {
 		goto Exception
 	}
@@ -414,7 +418,7 @@ Exception:
 		return err
 	}
 
-	isok, err = self.blockTraceTx(signedTx)
+	isok, err = self.blockTrackTx(signedTx)
 	if err != nil {
 		return err
 	}
@@ -666,12 +670,12 @@ func (self *Client) startScanBlock() {
 			continue
 		}
 
-		L4g.Trace("scaning block :%d", self.scanblock)
+		L4g.Trace("Start Scaning block :%d", self.scanblock)
 
 		txs := block.Transactions()
 
 		for _, tx := range txs {
-			L4g.Trace("find tx(%s) on block(%d)", tx.Hash().String(), block.NumberU64())
+			L4g.Trace("find tx(%s)", tx.Hash().String())
 			to := tx.To()
 			if to == nil {
 				continue

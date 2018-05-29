@@ -38,13 +38,13 @@ func init() {
 	}
 
 	// gateway
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocListSrv})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocListSrv})
 
 	// account
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocRegister})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocUpdateProfile})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocReadProfile})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocListUsers})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocRegister})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocUpdateProfile})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocReadProfile})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocListUsers})
 
 	// auth
 

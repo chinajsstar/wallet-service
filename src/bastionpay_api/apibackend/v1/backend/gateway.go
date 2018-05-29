@@ -1,4 +1,4 @@
-package v1
+package backend
 
 // service info
 type ServiceInfo struct {
