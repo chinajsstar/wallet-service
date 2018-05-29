@@ -1,7 +1,7 @@
 package mysqlpool
 
 import (
-	. "business_center/def"
+	. "business/def"
 	"fmt"
 	l4g "github.com/alecthomas/log4go"
 	"time"

@@ -1,7 +1,7 @@
 package mysqlpool
 
 import (
-	. "business_center/def"
+	. "business/def"
 	"errors"
 	"time"
 )

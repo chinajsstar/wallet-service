@@ -1,11 +1,11 @@
-package datahouse
+package data
 
 import (
 	"api_router/base/data"
 	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend/v1/backend"
-	"business_center/def"
-	"business_center/mysqlpool"
+	. "business/def"
+	"business/mysqlpool"
 	"encoding/json"
 	"errors"
 	l4g "github.com/alecthomas/log4go"
@@ -14,7 +14,7 @@ import (
 func SupportAssets(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
-		res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "无效用户-"+userProperty.UserKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -27,7 +27,7 @@ func SupportAssets(req *data.SrvRequest, res *data.SrvResponse) error {
 
 		pack, err := json.Marshal(supportAssetList)
 		if err != nil {
-			res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "返回数据包错误")
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
@@ -39,7 +39,7 @@ func SupportAssets(req *data.SrvRequest, res *data.SrvResponse) error {
 func AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
-		res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "无效用户-"+userProperty.UserKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -54,7 +54,7 @@ func AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	if len(req.Argv.Message) > 0 {
 		err := json.Unmarshal([]byte(req.Argv.Message), &params)
 		if err != nil {
-			res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "解析Json失败-"+err.Error())
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
@@ -110,7 +110,7 @@ func AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 
 	pack, err := json.Marshal(dataList)
 	if err != nil {
-		res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "返回数据包错误")
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -118,15 +118,15 @@ func AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	return nil
 }
 
-func SpAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
+func SpGetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
-		res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "无效用户-"+userProperty.UserKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	params := backend.ReqSpAssetsAttributeList{
+	params := backend.SpReqAssetsAttributeList{
 		IsToken:      -1,
 		TotalLines:   -1,
 		PageIndex:    -1,
@@ -136,7 +136,7 @@ func SpAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	if len(req.Argv.Message) > 0 {
 		err := json.Unmarshal([]byte(req.Argv.Message), &params)
 		if err != nil {
-			res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "解析Json失败-"+err.Error())
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
@@ -152,7 +152,7 @@ func SpAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 		queryMap["is_token"] = params.IsToken
 	}
 
-	dataList := backend.AckSpAssetsAttributeList{
+	dataList := backend.SpAckAssetsAttributeList{
 		PageIndex:    -1,
 		MaxDispLines: -1,
 		TotalLines:   -1,
@@ -176,7 +176,7 @@ func SpAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 
 	if arr, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
 		for _, v := range arr {
-			d := backend.AckSpAssetsAttribute{}
+			d := backend.SpAckAssetsAttribute{}
 			d.AssetName = v.AssetName
 			d.FullName = v.FullName
 			d.IsToken = v.IsToken
@@ -200,10 +200,113 @@ func SpAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 
 	pack, err := json.Marshal(dataList)
 	if err != nil {
-		res.Err, res.ErrMsg = def.CheckError(def.ErrorFailed, "返回数据包错误")
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 	res.Value.Message = string(pack)
+	return nil
+}
+
+func SpSetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
+	userKey := req.GetAccessUserKey()
+	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
+	if !ok {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if !(userProperty.UserClass == 1 || userProperty.UserClass == 2) {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "该用户不能执行该操作")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	params := backend.SpReqSetAssetAttribute{
+		AssetName:             "",
+		FullName:              "",
+		IsToken:               -1,
+		ParentName:            "",
+		Logo:                  "",
+		DepositMin:            -1,
+		WithdrawalRate:        -1,
+		WithdrawalValue:       -1,
+		WithdrawalReserveRate: -1,
+		WithdrawalAlertRate:   -1,
+		WithdrawalStategy:     -1,
+		ConfirmationNum:       -1,
+		Decimals:              -1,
+		GasFactor:             -1,
+		Debt:                  -1,
+		ParkAmount:            -1,
+		Enabled:               -1,
+	}
+
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
+	}
+
+	if len(params.AssetName) <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"asset_name\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if params.IsToken < 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"is_token\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if params.IsToken == 1 && len(params.ParentName) <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"parent_name\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if params.ConfirmationNum < 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"confirmation_num\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if params.Decimals < 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"decimals\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	if params.Enabled < 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "缺少\"enabled\"参数")
+		l4g.Error(res.ErrMsg)
+		return errors.New(res.ErrMsg)
+	}
+
+	assetProperty := AssetProperty{
+		AssetName:             params.AssetName,
+		FullName:              params.FullName,
+		IsToken:               params.IsToken,
+		ParentName:            params.ParentName,
+		Logo:                  params.Logo,
+		DepositMin:            params.DepositMin,
+		WithdrawalRate:        params.WithdrawalRate,
+		WithdrawalValue:       params.WithdrawalValue,
+		WithdrawalReserveRate: params.WithdrawalReserveRate,
+		WithdrawalAlertRate:   params.WithdrawalAlertRate,
+		WithdrawalStategy:     params.WithdrawalStategy,
+		ConfirmationNum:       params.ConfirmationNum,
+		Decimals:              params.Decimals,
+		GasFactor:             params.GasFactor,
+		Debt:                  params.Debt,
+		ParkAmount:            params.ParkAmount,
+		Enabled:               params.Enabled,
+	}
+	mysqlpool.SetAssetProperty(&assetProperty)
 	return nil
 }

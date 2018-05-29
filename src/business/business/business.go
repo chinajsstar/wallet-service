@@ -2,14 +2,15 @@ package business
 
 import (
 	"api_router/base/config"
-	"api_router/base/data"
+	adata "api_router/base/data"
 	"blockchain_server/chains/btc"
 	"blockchain_server/chains/eth"
 	"blockchain_server/service"
 	"blockchain_server/types"
-	"business_center/address"
-	"business_center/datahouse"
-	. "business_center/def"
+	"business/chain"
+	"business/data"
+	. "business/def"
+	"business/monitor"
 	"context"
 	"errors"
 	"fmt"
@@ -23,14 +24,31 @@ func addFuncMap(cmdName string, funcV interface{}) {
 	funcMap[cmdName] = reflect.ValueOf(funcV)
 }
 
-func init() {
+func initFunc() {
 	funcMap = make(map[string]reflect.Value)
-	addFuncMap("support_assets", datahouse.SupportAssets)
-	addFuncMap("asset_attribute", datahouse.AssetAttribute)
-	addFuncMap("sp_asset_attribute", datahouse.SpAssetAttribute)
+
+	//普通用户接口
+	addFuncMap("support_assets", data.SupportAssets)
+	addFuncMap("asset_attribute", data.AssetAttribute)
+	addFuncMap("new_address", chain.NewAddress)
+	addFuncMap("withdrawal", chain.Withdrawal)
+	addFuncMap("query_address", data.QueryAddress)
+	addFuncMap("get_balance", data.GetBalance)
+	addFuncMap("transaction_bill", data.HistoryTransactionBill)
+	addFuncMap("transaction_bill_daily", data.HistoryTransactionBillDaily)
+	addFuncMap("transaction_message", data.HistoryTransactionMessage)
+
+	//管理员接口
+	addFuncMap("sp_get_asset_attribute", data.SpGetAssetAttribute)
+	addFuncMap("sp_set_asset_attribute", data.SpSetAssetAttribute)
+	addFuncMap("sp_query_address", data.SpQueryAddress)
+	addFuncMap("sp_get_chain_balance", chain.SpGetChainBalance)
+	addFuncMap("sp_post_transaction", chain.SpPostTransaction)
+	addFuncMap("sp_get_pay_address", data.SpGetPayAddress)
+	addFuncMap("sp_set_pay_address", data.SpSetPayAddress)
 }
 
-func NewBusinessSvr() *Business {
+func NewServer() *Business {
 	return new(Business)
 }
 
@@ -38,7 +56,7 @@ type Business struct {
 	wallet  *service.ClientManager
 	ctx     context.Context
 	cancel  context.CancelFunc
-	address *address.Address
+	monitor *monitor.Monitor
 }
 
 // 模拟充值 add by liuheng
@@ -49,13 +67,15 @@ func (b *Business) GetWallet() *service.ClientManager {
 func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 	b.wallet = service.NewClientManager()
-	b.address = &address.Address{}
+	b.monitor = &monitor.Monitor{}
 
 	var chains []string
 	err := config.LoadJsonNode(config.GetBastionPayConfigDir()+"/cobank.json", "chains", &chains)
 	if err != nil {
 		return err
 	}
+
+	initFunc()
 
 	for _, value := range chains {
 		switch strings.ToUpper(value) {
@@ -78,7 +98,7 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 		}
 	}
 
-	b.address.Run(b.ctx, b.wallet, callback)
+	b.monitor.Run(b.ctx, b.wallet, callback)
 	b.wallet.Start()
 
 	return nil
@@ -86,10 +106,10 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 
 func (b *Business) Stop() {
 	b.cancel()
-	b.address.Stop()
+	b.monitor.Stop()
 }
 
-func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error {
+func (b *Business) HandleMsg(req *adata.SrvRequest, res *adata.SrvResponse) error {
 	if v, ok := funcMap[req.Method.Function]; ok {
 		params := make([]reflect.Value, 0)
 		params = append(params, reflect.ValueOf(req), reflect.ValueOf(res))
@@ -97,47 +117,6 @@ func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error 
 			return e
 		}
 		return nil
-	}
-
-	switch req.Method.Function {
-	case "new_address":
-		return b.address.NewAddress(req, res)
-
-	case "withdrawal":
-		return b.address.Withdrawal(req, res)
-
-	case "support_assets":
-		return b.address.SupportAssets(req, res)
-
-	case "asset_attribute":
-		return b.address.AssetAttribute(req, res)
-
-	case "set_asset_attribute":
-		return b.address.SetAssetAttribute(req, res)
-
-	case "get_balance":
-		return b.address.GetBalance(req, res)
-
-	case "history_transaction_bill":
-		return b.address.HistoryTransactionBill(req, res)
-
-	case "history_transaction_message":
-		return b.address.HistoryTransactionMessage(req, res)
-
-	case "query_user_address":
-		return b.address.QueryUserAddress(req, res)
-
-	case "set_pay_address":
-		return b.address.SetPayAddress(req, res)
-
-	case "query_pay_address":
-		return b.address.QueryPayAddress(req, res)
-
-	case "transaction_bill_daily":
-		return b.address.TransactionBillDaily(req, res)
-
-	case "sp_post_transaction":
-		return b.address.PostTransaction(req, res)
 	}
 	return errors.New("invalid command")
 }

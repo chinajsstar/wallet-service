@@ -1,10 +1,10 @@
-package transaction
+package monitor
 
 import (
 	"bastionpay_api/api/v1"
 	"blockchain_server/types"
-	. "business_center/def"
-	"business_center/mysqlpool"
+	. "business/def"
+	"business/mysqlpool"
 	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
@@ -18,7 +18,7 @@ func Blockin(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 
 	//为提币订单填充Hash
 	if len(blockin.OrderID) > 0 {
-		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash"+
+		row := db.QueryRow("select user_key, asset_name, monitor, amount, pay_fee, hash"+
 			" from withdrawal_order where order_id = ?", blockin.OrderID)
 		transNotice := TransactionNotice{
 			MsgID:         0,
@@ -71,7 +71,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 		if ret, err := db.Exec("update withdrawal_order set status = 1"+
 			" where order_id = ? and status = 0", blockin.OrderID); err == nil {
 			if affectedRows, _ := ret.RowsAffected(); affectedRows > 0 {
-				row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, miner_fee, hash, user_order_id"+
+				row := db.QueryRow("select user_key, asset_name, monitor, amount, pay_fee, miner_fee, hash, user_order_id"+
 					" from withdrawal_order where order_id = ?", blockin.OrderID)
 				transNotice := TransactionNotice{
 					MsgID:         0,
@@ -129,7 +129,7 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 		uuID := GenerateUUID("")
 		if userAddress, ok := mysqlpool.QueryUserAddressByNameAddress(assetName, address); ok {
 			db.Exec("update user_address set available_amount = available_amount + ?, update_time = ?"+
-				" where asset_name = ? and address = ?;",
+				" where asset_name = ? and monitor = ?;",
 				amount, time.Unix(blockin.Time, 0).UTC().Format(TimeFormat), assetName, address)
 
 			if userAddress.UserClass == 0 && transType == "to" {
@@ -155,7 +155,7 @@ func preSettlement(blockin *TransactionBlockin, transfer *types.Transfer, callba
 				AddTransactionBillDaily(&transNotice)
 			}
 		}
-		db.Exec("insert transaction_detail (asset_name, address, trans_type, amount, hash, detail_id) "+
+		db.Exec("insert transaction_detail (asset_name, monitor, trans_type, amount, hash, detail_id) "+
 			" values (?, ?, ?, ?, ?, ?)",
 			assetName, address, transType, amount, hash, uuID)
 	}
@@ -240,7 +240,7 @@ func AddTransactionBill(transNotice *TransactionNotice) error {
 		return tx.Commit()
 	}
 
-	_, err = tx.Exec("insert transaction_bill (user_key, trans_type, status, blockin_height, asset_name, address, amount, "+
+	_, err = tx.Exec("insert transaction_bill (user_key, trans_type, status, blockin_height, asset_name, monitor, amount, "+
 		"pay_fee, miner_fee, balance, hash, order_id, time) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		transNotice.UserKey, transNotice.TransType, transNotice.Status, transNotice.BlockinHeight, transNotice.AssetName,
 		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.MinerFee, transNotice.Balance, transNotice.Hash,
@@ -345,7 +345,7 @@ func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallba
 	}
 
 	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id, trans_type, status, blockin_height,"+
-		" asset_name, address, amount, pay_fee, miner_fee, balance, hash, order_id, time)"+
+		" asset_name, monitor, amount, pay_fee, miner_fee, balance, hash, order_id, time)"+
 		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?",
 		transNotice.UserKey, transNotice.TransType, transNotice.Status, transNotice.BlockinHeight, transNotice.AssetName,
 		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.MinerFee, transNotice.Balance,

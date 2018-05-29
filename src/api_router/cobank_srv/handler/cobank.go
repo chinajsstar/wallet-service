@@ -6,7 +6,7 @@ import (
 	"api_router/base/config"
 	service "api_router/base/service2"
 	"bastionpay_api/apibackend"
-	"business_center/business"
+	"business/business"
 	l4g "github.com/alecthomas/log4go"
 )
 
@@ -59,7 +59,7 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
-			"query_user_address", data.APILevel_client, x.handler)
+			"query_address", data.APILevel_client, x.handler)
 	}()
 
 	func() {
@@ -79,17 +79,12 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
-			"set_asset_attribute", data.APILevel_admin, x.handler)
-	}()
-
-	func() {
-		service.RegisterApi(&nam,
 			"get_balance", data.APILevel_client, x.handler)
 	}()
 
 	func() {
 		service.RegisterApi(&nam,
-			"history_transaction_bill", data.APILevel_client, x.handler)
+			"transaction_bill", data.APILevel_client, x.handler)
 	}()
 
 	func() {
@@ -99,22 +94,42 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
-			"history_transaction_message", data.APILevel_client, x.handler)
+			"transaction_message", data.APILevel_client, x.handler)
 	}()
 
 	func() {
 		service.RegisterApi(&nam,
-			"set_pay_address", data.APILevel_admin, x.handler)
+			"sp_get_asset_attribute", data.APILevel_admin, x.handler)
 	}()
 
 	func() {
 		service.RegisterApi(&nam,
-			"query_pay_address", data.APILevel_admin, x.handler)
+			"sp_set_asset_attribute", data.APILevel_admin, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"sp_get_pay_address", data.APILevel_admin, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"sp_set_pay_address", data.APILevel_admin, x.handler)
 	}()
 
 	func() {
 		service.RegisterApi(&nam,
 			"sp_post_transaction", data.APILevel_admin, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"sp_query_address", data.APILevel_admin, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"sp_get_chain_balance", data.APILevel_admin, x.handler)
 	}()
 
 	////////////////////////////////////////////////////////////////

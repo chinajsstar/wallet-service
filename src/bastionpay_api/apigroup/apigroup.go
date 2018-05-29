@@ -51,18 +51,16 @@ func init() {
 	// bastionpay
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSupportAssets})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocAssetAttribute})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocGetBalance})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocQueryUserAddress})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocHistoryTransactionBill})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocHistoryTransactionMessage})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBillDaily})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocNewAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocWithdrawal})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetPayAddress})
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocSetAssetAttribute})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocGetBalance})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocQueryAddress})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBill})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBillDaily})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionMessage})
 
 	// backend
-	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocPostTransaction})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSpPostTransaction})
 
 	// bastionpay_tool
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocRecharge})

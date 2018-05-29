@@ -107,7 +107,7 @@ type (
 		Status        int     `json:"status"`
 		BlockinHeight int64   `json:"blockin_height"`
 		AssetName     string  `json:"asset_name"`
-		Address       string  `json:"address"`
+		Address       string  `json:"monitor"`
 		Amount        float64 `json:"amount"`
 		PayFee        float64 `json:"pay_fee"`
 		MinerFee      float64 `json:"miner_fee"`
@@ -124,7 +124,7 @@ type (
 		UserOrderID     string  `json:"user_order_id"`
 		TransType       int     `json:"trans_type"`
 		AssetName       string  `json:"asset_name"`
-		Address         string  `json:"address"`
+		Address         string  `json:"monitor"`
 		Amount          float64 `json:"amount"`
 		PayFee          float64 `json:"pay_fee"`
 		MinerFee        float64 `json:"miner_fee"`

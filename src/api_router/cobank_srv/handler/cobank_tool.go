@@ -1,22 +1,22 @@
 package handler
 
 import (
-	bservice "blockchain_server/service"
-	"blockchain_server/types"
 	"api_router/base/data"
+	"bastionpay_api/api/v1"
+	"bastionpay_api/apibackend"
 	"bastionpay_tools/common"
 	"bastionpay_tools/handler"
+	bservice "blockchain_server/service"
+	"blockchain_server/types"
+	"business/def"
+	"business/mysqlpool"
 	"encoding/json"
 	"fmt"
+	l4g "github.com/alecthomas/log4go"
 	"os/exec"
 	"strconv"
 	"strings"
-	"business_center/mysqlpool"
 	"time"
-	"business_center/def"
-	l4g "github.com/alecthomas/log4go"
-	"bastionpay_api/api/v1"
-	"bastionpay_api/apibackend"
 )
 
 ////////////////////////////////////////////////////////////
@@ -37,8 +37,6 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 	if err != nil {
 		l4g.Error("json err: ", err)
 	}
-
-
 
 	if rc.Coin == "eth" {
 		go func(req *v1.ReqRecharge) {
@@ -73,17 +71,17 @@ func (x *Cobank) recharge(req *data.SrvRequest, res *data.SrvResponse) {
 		var c *exec.Cmd
 		if btc_arg != "" {
 			c = exec.Command(btc_cmd, btc_arg, "sendtoaddress", rc.To, amount)
-		} else{
+		} else {
 			c = exec.Command(btc_cmd, "sendtoaddress", rc.To, amount)
 		}
 
-		if c != nil{
+		if c != nil {
 			if err := c.Run(); err != nil {
 				fmt.Println(err)
 				res.Err = 1
 				res.ErrMsg = err.Error()
 			}
-		}else{
+		} else {
 			res.Err = 1
 			res.ErrMsg = "no bitcoin-cli command"
 		}
@@ -108,19 +106,19 @@ func (x *Cobank) generate(req *data.SrvRequest, res *data.SrvResponse) {
 		res.ErrMsg = "not support eth"
 	} else if rc.Coin == "btc" {
 		var c *exec.Cmd
-		if btc_arg != ""{
+		if btc_arg != "" {
 			c = exec.Command(btc_cmd, btc_arg, "generate", strconv.Itoa(rc.Count))
 		} else {
 			c = exec.Command(btc_cmd, "generate", strconv.Itoa(rc.Count))
 		}
 
-		if c != nil{
+		if c != nil {
 			if err := c.Run(); err != nil {
 				fmt.Println(err)
 				res.Err = 1
 				res.ErrMsg = err.Error()
 			}
-		}else{
+		} else {
 			res.Err = 1
 			res.ErrMsg = "no bitcoin-cli command"
 		}
@@ -235,4 +233,3 @@ func (x *Cobank) sendSignedTx(req *data.SrvRequest, res *data.SrvResponse) {
 
 	l4g.Debug("value: %s", res.Value)
 }
-
