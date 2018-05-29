@@ -41,7 +41,7 @@ func ParseTokenTxInput (input []byte) (from, to string, value *big.Int, err erro
 		err = fmt.Errorf("TX doesn't transfer token")
 	}
 	}
-	return from, to, value, nil
+	return from, to, value, err
 }
 
 func BuildTokenTxInput(from *common.Address, to common.Address, value *big.Int) (input[]byte)  {
