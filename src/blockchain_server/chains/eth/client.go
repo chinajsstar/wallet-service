@@ -244,7 +244,7 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 	// so, pass nil as 'From'
 	// TODO: make the reason clear
 	var callmsg ethereum.CallMsg
-	if false { callmsg = ethereum.CallMsg{From:nil, To: &to, Value: value, Data: input}
+	if false { callmsg = ethereum.CallMsg{From:from, To: &to, Value: value, Data: input}
 	} else { callmsg = ethereum.CallMsg{To: &to, Value: value, Data: input} }
 
 	gaslimit, err = self.c.EstimateGas(context.TODO(), callmsg)
