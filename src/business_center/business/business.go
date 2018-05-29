@@ -8,12 +8,27 @@ import (
 	"blockchain_server/service"
 	"blockchain_server/types"
 	"business_center/address"
+	"business_center/datahouse"
 	. "business_center/def"
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 )
+
+var funcMap map[string]reflect.Value
+
+func addFuncMap(cmdName string, funcV interface{}) {
+	funcMap[cmdName] = reflect.ValueOf(funcV)
+}
+
+func init() {
+	funcMap = make(map[string]reflect.Value)
+	addFuncMap("support_assets", datahouse.SupportAssets)
+	addFuncMap("asset_attribute", datahouse.AssetAttribute)
+	addFuncMap("sp_asset_attribute", datahouse.SpAssetAttribute)
+}
 
 func NewBusinessSvr() *Business {
 	return new(Business)
@@ -75,6 +90,15 @@ func (b *Business) Stop() {
 }
 
 func (b *Business) HandleMsg(req *data.SrvRequest, res *data.SrvResponse) error {
+	if v, ok := funcMap[req.Method.Function]; ok {
+		params := make([]reflect.Value, 0)
+		params = append(params, reflect.ValueOf(req), reflect.ValueOf(res))
+		if e, ok := v.Call(params)[0].Interface().(error); ok {
+			return e
+		}
+		return nil
+	}
+
 	switch req.Method.Function {
 	case "new_address":
 		return b.address.NewAddress(req, res)

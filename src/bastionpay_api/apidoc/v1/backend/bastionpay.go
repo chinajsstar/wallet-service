@@ -13,6 +13,6 @@ var ApiDocPostTransaction = apidoc.ApiDoc{
 	VerName:     "v1",
 	SrvName:     "bastionpay",
 	FuncName:    "sp_post_transaction",
-	Input:       &backend.ReqPostTransaction{AssetName: "BTC", From: "mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK", To: "mrEfgUBMUM5zjmzSdoBQuodTz16kyZ1tnD", Amount: 1.0},
+	Input:       &backend.ReqSpPostTransaction{AssetName: "BTC", From: "mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK", To: "mrEfgUBMUM5zjmzSdoBQuodTz16kyZ1tnD", Amount: 1.0},
 	Output:      new(string),
 }

@@ -1048,7 +1048,7 @@ func (a *Address) TransactionBillDaily(req *data.SrvRequest, res *data.SrvRespon
 }
 
 func (a *Address) PostTransaction(req *data.SrvRequest, res *data.SrvResponse) error {
-	params := backend.ReqPostTransaction{
+	params := backend.ReqSpPostTransaction{
 		AssetName: "",
 		From:      "",
 		To:        "",
