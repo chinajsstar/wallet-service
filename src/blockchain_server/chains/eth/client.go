@@ -238,7 +238,12 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 		L4g.Trace("error message:%s", err.Error())
 		return
 	}
-	msg := ethereum.CallMsg{From: from, To: &to, Value: value, Data: input}
+
+	// I don't kown why here set feild 'From' to param:'from' will cause the following,
+	// "gas required exceeds allowance or always failing transaction" error
+	// so, pass nil as 'From'
+	// TODO: make the reason clear
+	msg := ethereum.CallMsg{From: nil, To: &to, Value: value, Data: input}
 	gaslimit, err = self.c.EstimateGas(context.TODO(), msg)
 
 	if err!=nil {
@@ -342,22 +347,22 @@ func (self *Client) blockTrackTx(tx *etypes.Transaction) (bool, error) {
 	return false, fmt.Errorf("trace tx(%s), time out", tx.Hash().String())
 }
 
-func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string, value *big.Int) error {
+func (self *Client) approveTokenTx(tokenOwnerKey, spenderKey, contractHex string, value *big.Int) error {
 	L4g.Trace("Token.Approve begin.....")
 	defer L4g.Trace("Token.Approve end....")
 
-	privOwnerKey, owner_string, err := ParseKey(ownerKey)
+	privOwnerKey, ownerHex, err := ParseKey(tokenOwnerKey)
 	if err != nil {
 		return err
 	}
-	privSpenderKey, spender_string, err := ParseKey(spenderKey)
+	privSpenderKey, spenderHex, err := ParseKey(spenderKey)
 	if err != nil {
 		return err
 	}
 
-	owner := common.HexToAddress(owner_string)
-	spender := common.HexToAddress(spender_string)
-	contract := common.HexToAddress(contract_string)
+	owner := common.HexToAddress(ownerHex)
+	spender := common.HexToAddress(spenderHex)
+	contract := common.HexToAddress(contractHex)
 	input := token.BuildTokenApproveInput(spender, value)
 
 	var (
@@ -408,7 +413,7 @@ func (self *Client) approveTokenTx(ownerKey, spenderKey, contract_string string,
 		goto Exception
 	}
 
-	nonce = self.nextNonce(owner_string)
+	nonce = self.nextNonce(ownerHex)
 	//nonce, err = self.c.PendingNonceAt(context.TODO(), owner);
 	if err != nil {
 		goto Exception
@@ -467,6 +472,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	// 如果tx.From==tx.TokenTx.From, 说明是用户从热钱包地址提币,
 	// 热钱包地址应该保留了一定数量的ether
 	if tx.IsTokenTx() && tx.From != tx.TokenTx.From {
+
 		if err := self.approveTokenTx(tx.TokenFromKey, fromkey,
 			tx.TokenTx.ContractAddress(),
 			tx.TokenTx.Value_decimaled()); err != nil {
