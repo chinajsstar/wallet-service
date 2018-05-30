@@ -20,7 +20,7 @@ var ApiDocSupportAssets = apidoc.ApiDoc{
 
 // 币种属性
 var ApiDocAssetAttribute = apidoc.ApiDoc{
-	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Group:       []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser},
 	Name:        "获取币种属性",
 	Description: "获取币种属性",
 	VerName:     "v1",
