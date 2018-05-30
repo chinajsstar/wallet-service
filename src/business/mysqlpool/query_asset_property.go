@@ -92,7 +92,7 @@ func SetAssetProperty(assetProperty *AssetProperty) error {
 
 	_, err = db.Exec("insert asset_property (full_name, is_token, parent_name, logo, deposit_min, withdrawal_rate,"+
 		" withdrawal_value,withdrawal_reserve_rate, withdrawal_alert_rate, withdrawal_stategy, confirmation_num,"+
-		" decimals, gas_factor, debt, park_amount, asset_name, enabled)"+
+		" decimals, gas_factor, debt, park_amount, enabled, asset_name)"+
 		" values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", params...)
 	return err
 }
