@@ -64,3 +64,9 @@ func BuildTokenApproveInput(address common.Address, value *big.Int) (input[]byte
 	return
 }
 
+func BuildAllowanceInput(owner, spender common.Address) (input[] byte) {
+	L4g.Trace("To implementaion!!")
+	input = nil
+	return
+}
+
