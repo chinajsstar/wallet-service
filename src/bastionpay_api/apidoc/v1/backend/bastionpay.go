@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend"
 	"bastionpay_api/apibackend/v1/backend"
 	"bastionpay_api/apidoc"
@@ -26,7 +25,7 @@ var ApiDocSpReqAssetsAttributeList = apidoc.ApiDoc{
 	SrvName:     "bastionpay",
 	FuncName:    "sp_get_asset_attribute",
 	Input:       &backend.SpReqAssetsAttributeList{},
-	Output:      new(string),
+	Output:      &backend.SpAckAssetsAttributeList{},
 }
 
 var ApiDocSetPayAddress = apidoc.ApiDoc{
@@ -47,7 +46,7 @@ var ApiDocSetAssetAttribute = apidoc.ApiDoc{
 	Description: "设置币种属性",
 	VerName:     "v1",
 	SrvName:     "bastionpay",
-	FuncName:    "set_asset_attribute",
-	Input:       &v1.ReqSetAssetAttribute{},
+	FuncName:    "sp_set_asset_attribute",
+	Input:       &backend.SpReqSetAssetAttribute{},
 	Output:      new(string),
 }

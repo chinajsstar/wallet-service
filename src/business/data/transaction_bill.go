@@ -110,10 +110,10 @@ func HistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error {
 		dataList.MaxDispLines = params.MaxDispLines
 	}
 
-	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryTransactionBillCount(queryMap)
-	} else if params.TotalLines > 0 {
+	if params.TotalLines > 0 {
 		dataList.TotalLines = params.TotalLines
+	} else {
+		dataList.TotalLines = mysqlpool.QueryTransactionBillCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryTransactionBill(queryMap); ok {
@@ -206,10 +206,10 @@ func HistoryTransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) er
 		dataList.MaxDispLines = params.MaxDispLines
 	}
 
-	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryTransactionBillDailyCount(queryMap)
-	} else if params.TotalLines > 0 {
+	if params.TotalLines > 0 {
 		dataList.TotalLines = params.TotalLines
+	} else {
+		dataList.TotalLines = mysqlpool.QueryTransactionBillDailyCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryTransactionBillDaily(queryMap); ok {

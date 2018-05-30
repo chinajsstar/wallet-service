@@ -72,10 +72,10 @@ func QueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 		dataList.MaxDispLines = params.MaxDispLines
 	}
 
-	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryUserAddressCount(queryMap)
-	} else if params.TotalLines > 0 {
+	if params.TotalLines > 0 {
 		dataList.TotalLines = params.TotalLines
+	} else {
+		dataList.TotalLines = mysqlpool.QueryUserAddressCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryUserAddress(queryMap); ok {
@@ -161,10 +161,10 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 		dataList.MaxDispLines = params.MaxDispLines
 	}
 
-	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryUserAddressCount(queryMap)
-	} else if params.TotalLines > 0 {
+	if params.TotalLines > 0 {
 		dataList.TotalLines = params.TotalLines
+	} else {
+		dataList.TotalLines = mysqlpool.QueryUserAddressCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryUserAddress(queryMap); ok {

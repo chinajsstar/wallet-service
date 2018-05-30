@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 6
+	testType := 0
 	switch testType {
 	case 1:
 		req.Method.Function = "support_assets"
