@@ -76,7 +76,7 @@ func SetAssetProperty(assetProperty *AssetProperty) error {
 	ret, err := db.Exec("update asset_property set full_name = ?, is_token = ?, parent_name = ?, logo = ?,"+
 		" deposit_min = ?,withdrawal_rate = ?, withdrawal_value = ?, withdrawal_reserve_rate = ?,"+
 		" withdrawal_alert_rate = ?, withdrawal_stategy = ?, confirmation_num = ?, decimals = ?, gas_factor = ?,"+
-		" debt = ?, park_amount = ? enabled = ? where asset_name = ?", params...)
+		" debt = ?, park_amount = ?, enabled = ? where asset_name = ?", params...)
 	if err != nil {
 		return err
 	}
