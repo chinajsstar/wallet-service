@@ -8,7 +8,7 @@ import (
 func QueryAssetProperty(queryMap map[string]interface{}) ([]AssetProperty, bool) {
 	sqls := "select asset_name,full_name,is_token,parent_name,logo,deposit_min,withdrawal_rate," +
 		"withdrawal_value,withdrawal_reserve_rate,withdrawal_alert_rate,withdrawal_stategy,confirmation_num," +
-		"decimals,gas_factor,debt,park_amount from asset_property where true"
+		"decimals,gas_factor,debt,park_amount,enabled from asset_property where true"
 
 	assetProperty := make([]AssetProperty, 0)
 	params := make([]interface{}, 0)
@@ -31,7 +31,7 @@ func QueryAssetProperty(queryMap map[string]interface{}) ([]AssetProperty, bool)
 		err := rows.Scan(&data.AssetName, &data.FullName, &data.IsToken, &data.ParentName, &data.Logo,
 			&data.DepositMin, &data.WithdrawalRate, &data.WithdrawalValue, &data.WithdrawalReserveRate,
 			&data.WithdrawalAlertRate, &data.WithdrawalStategy, &data.ConfirmationNum, &data.Decimals,
-			&data.GasFactor, &data.Debt, &data.ParkAmount)
+			&data.GasFactor, &data.Debt, &data.ParkAmount, &data.Enabled)
 		if err == nil {
 			assetProperty = append(assetProperty, data)
 		}

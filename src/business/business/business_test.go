@@ -67,7 +67,8 @@ func TestHandleMsg(t *testing.T) {
 	case 12:
 		req.Method.Function = "sp_set_asset_attribute"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
-		req.Argv.Message = "{\"asset_name\":\"BTC\",\"full_name\":\"Bitcoin\",\"is_token\":0,\"parent_name\":\"\",\"logo\":\"\",\"deposit_min\":1,\"withdrawal_rate\":0.001,\"withdrawal_value\":0.002,\"withdrawal_reserve_rate\":0.001,\"withdrawal_alert_rate\":1,\"withdrawal_stategy\":5,\"confirmation_num\":2,\"decimals\":8,\"gas_factor\":0.00005,\"debt\":2,\"park_amount\":1,\"enabled\":1}"
+		//req.Argv.Message = "{\"asset_name\":\"BTC\",\"full_name\":\"Bitcoin\",\"is_token\":0,\"parent_name\":\"\",\"logo\":\"\",\"deposit_min\":1,\"withdrawal_rate\":0.001,\"withdrawal_value\":0.002,\"withdrawal_reserve_rate\":0.001,\"withdrawal_alert_rate\":1,\"withdrawal_stategy\":5,\"confirmation_num\":2,\"decimals\":8,\"gas_factor\":0.00005,\"debt\":2,\"park_amount\":1,\"enabled\":1}"
+		req.Argv.Message = "{\"enabled\":0,\"deposit_min\":2,\"is_token\":0,\"confirmation_num\":2,\"decimals\":2,\"withdrawal_alert_rate\":2,\"withdrawal_reserve_rate\":2,\"withdrawal_rate\":2,\"withdrawal_stategy\":2,\"withdrawal_value\":2,\"logo\":\"\",\"asset_name\":\"2\",\"full_name\":\"2\",\"parent_name\":\"\"}"
 	case 13:
 		req.Method.Function = "sp_get_chain_balance"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
