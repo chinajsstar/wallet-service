@@ -45,6 +45,7 @@ func initFunc() {
 	addFuncMap("transaction_bill", data.HistoryTransactionBill)
 	addFuncMap("transaction_bill_daily", data.HistoryTransactionBillDaily)
 	addFuncMap("transaction_message", data.HistoryTransactionMessage)
+	addFuncMap("block_height", chain.BlockHeight)
 
 	//管理员接口
 	addFuncMap("sp_get_asset_attribute", data.SpGetAssetAttribute)

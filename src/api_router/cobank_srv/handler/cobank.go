@@ -99,6 +99,11 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 
 	func() {
 		service.RegisterApi(&nam,
+			"block_height", data.APILevel_client, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
 			"sp_get_asset_attribute", data.APILevel_admin, x.handler)
 	}()
 

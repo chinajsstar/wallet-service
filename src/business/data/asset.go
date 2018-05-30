@@ -311,6 +311,5 @@ func SpSetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 		ParkAmount:            params.ParkAmount,
 		Enabled:               params.Enabled,
 	}
-	mysqlpool.SetAssetProperty(&assetProperty)
-	return nil
+	return mysqlpool.SetAssetProperty(&assetProperty)
 }

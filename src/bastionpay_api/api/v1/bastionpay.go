@@ -253,4 +253,18 @@ type (
 	AckPayAddressList struct {
 		Data []AckPayAddress
 	}
+
+	ReqBlockHeight struct {
+		AssetNames []string `json:"asset_names"`
+	}
+
+	AckBlockHeight struct {
+		AssetName   string
+		BlockHeight int64
+		UpdateTime  int64
+	}
+
+	AckBlockHeightList struct {
+		Data []AckBlockHeight `json:"data" doc:"块高查询"`
+	}
 )
