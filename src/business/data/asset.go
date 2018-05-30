@@ -128,6 +128,7 @@ func SpGetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 
 	params := backend.SpReqAssetsAttributeList{
 		IsToken:      -1,
+		Enabled:      -1,
 		TotalLines:   -1,
 		PageIndex:    -1,
 		MaxDispLines: -1,
