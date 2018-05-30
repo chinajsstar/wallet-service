@@ -245,7 +245,6 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 	// TODO: make the reason clear
 	gaslimit, err = self.c.EstimateGas(context.TODO(),
 		ethereum.CallMsg{From:from, To:&to, Value:value, Data:input})
-
 	if err!=nil {
 		L4g.Trace("error message:%s", err.Error())
 	}
