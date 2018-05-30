@@ -3,7 +3,6 @@ package data
 import (
 	"api_router/base/data"
 	"bastionpay_api/api/v1"
-	"blockchain_server/service"
 	. "business/def"
 	"business/jsonparse"
 	"business/mysqlpool"
@@ -12,7 +11,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 )
 
-func SpSetPayAddress(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func SpSetPayAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
@@ -57,7 +56,7 @@ func SpSetPayAddress(wallet *service.ClientManager, req *data.SrvRequest, res *d
 	return nil
 }
 
-func SpGetPayAddress(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func SpGetPayAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {

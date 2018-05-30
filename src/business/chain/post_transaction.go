@@ -12,7 +12,7 @@ import (
 	"strconv"
 )
 
-func SpPostTransaction(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func SpPostTransaction(req *data.SrvRequest, res *data.SrvResponse) error {
 	params := backend.SpReqPostTransaction{
 		AssetName: "",
 		From:      "",

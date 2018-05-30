@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func NewAddress(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func NewAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
@@ -58,7 +58,7 @@ func NewAddress(wallet *service.ClientManager, req *data.SrvRequest, res *data.S
 		AssetName: assetProperty.AssetName,
 	}
 
-	userAddress := generateAddress(wallet, &userProperty, &assetProperty, params.Count)
+	userAddress := generateAddress(&userProperty, &assetProperty, params.Count)
 	if len(userAddress) > 0 {
 		for _, v := range userAddress {
 			dataList.Data = append(dataList.Data, v.Address)
@@ -75,7 +75,7 @@ func NewAddress(wallet *service.ClientManager, req *data.SrvRequest, res *data.S
 	return nil
 }
 
-func generateAddress(wallet *service.ClientManager, userProperty *UserProperty, assetProperty *AssetProperty, count int) []UserAddress {
+func generateAddress(userProperty *UserProperty, assetProperty *AssetProperty, count int) []UserAddress {
 	assetName := assetProperty.AssetName
 	if assetProperty.IsToken > 0 {
 		assetName = assetProperty.ParentName

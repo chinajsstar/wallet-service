@@ -18,7 +18,15 @@ import (
 	"strings"
 )
 
-var funcMap map[string]reflect.Value
+var (
+	wallet  *service.ClientManager = nil
+	funcMap map[string]reflect.Value
+)
+
+func init() {
+	wallet = service.NewClientManager()
+	chain.SetWallet(wallet)
+}
 
 func addFuncMap(cmdName string, funcV interface{}) {
 	funcMap[cmdName] = reflect.ValueOf(funcV)
@@ -53,7 +61,6 @@ func NewServer() *Business {
 }
 
 type Business struct {
-	wallet  *service.ClientManager
 	ctx     context.Context
 	cancel  context.CancelFunc
 	monitor *monitor.Monitor
@@ -61,12 +68,11 @@ type Business struct {
 
 // 模拟充值 add by liuheng
 func (b *Business) GetWallet() *service.ClientManager {
-	return b.wallet
+	return wallet
 }
 
 func (b *Business) InitAndStart(callback PushMsgCallback) error {
 	b.ctx, b.cancel = context.WithCancel(context.Background())
-	b.wallet = service.NewClientManager()
 	b.monitor = &monitor.Monitor{}
 
 	var chains []string
@@ -83,7 +89,7 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 			//实例化比特币客户端
 			btcClient, err := btc.ClientInstance()
 			if err == nil {
-				b.wallet.AddClient(btcClient)
+				wallet.AddClient(btcClient)
 			} else {
 				fmt.Printf("InitAndStart btcClientInstance %s Error : %s\n", types.Chain_bitcoin, err.Error())
 			}
@@ -91,15 +97,15 @@ func (b *Business) InitAndStart(callback PushMsgCallback) error {
 			//实例化以太坊客户端
 			ethClient, err := eth.ClientInstance()
 			if err == nil {
-				b.wallet.AddClient(ethClient)
+				wallet.AddClient(ethClient)
 			} else {
 				fmt.Printf("InitAndStart ethClientInstance %s Error : %s\n", types.Chain_eth, err.Error())
 			}
 		}
 	}
 
-	b.monitor.Run(b.ctx, b.wallet, callback)
-	b.wallet.Start()
+	b.monitor.Run(b.ctx, wallet, callback)
+	wallet.Start()
 
 	return nil
 }
@@ -112,7 +118,7 @@ func (b *Business) Stop() {
 func (b *Business) HandleMsg(req *adata.SrvRequest, res *adata.SrvResponse) error {
 	if v, ok := funcMap[req.Method.Function]; ok {
 		params := make([]reflect.Value, 0)
-		params = append(params, reflect.ValueOf(b.wallet), reflect.ValueOf(req), reflect.ValueOf(res))
+		params = append(params, reflect.ValueOf(req), reflect.ValueOf(res))
 		if e, ok := v.Call(params)[0].Interface().(error); ok {
 			return e
 		}

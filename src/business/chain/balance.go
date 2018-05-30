@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func SpGetChainBalance(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func SpGetChainBalance(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {

@@ -4,7 +4,6 @@ import (
 	"api_router/base/data"
 	"bastionpay_api/api/v1"
 	"bastionpay_api/apibackend/v1/backend"
-	"blockchain_server/service"
 	. "business/def"
 	"business/mysqlpool"
 	"encoding/json"
@@ -12,7 +11,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 )
 
-func SupportAssets(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func SupportAssets(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
@@ -37,7 +36,7 @@ func SupportAssets(wallet *service.ClientManager, req *data.SrvRequest, res *dat
 	return nil
 }
 
-func AssetAttribute(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
@@ -119,7 +118,7 @@ func AssetAttribute(wallet *service.ClientManager, req *data.SrvRequest, res *da
 	return nil
 }
 
-func SpGetAssetAttribute(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func SpGetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	if userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey); !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
@@ -209,7 +208,7 @@ func SpGetAssetAttribute(wallet *service.ClientManager, req *data.SrvRequest, re
 	return nil
 }
 
-func SpSetAssetAttribute(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func SpSetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {

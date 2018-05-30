@@ -13,7 +13,7 @@ import (
 	l4g "github.com/alecthomas/log4go"
 )
 
-func Withdrawal(wallet *service.ClientManager, req *data.SrvRequest, res *data.SrvResponse) error {
+func Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
