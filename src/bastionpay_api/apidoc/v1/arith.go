@@ -8,8 +8,6 @@ import (
 
 var ApiDocAdd = apidoc.ApiDoc{
 	Group:[]string{apibackend.HttpRouterApi},
-	Name:"加法",
-	Description:"加法功能",
 	VerName:"v1",
 	SrvName:"arith",
 	FuncName:"add",
