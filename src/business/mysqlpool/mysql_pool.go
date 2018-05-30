@@ -2,7 +2,7 @@ package mysqlpool
 
 import (
 	"api_router/base/config"
-	. "business_center/def"
+	. "business/def"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"

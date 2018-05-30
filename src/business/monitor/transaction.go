@@ -1,10 +1,10 @@
-package transaction
+package monitor
 
 import (
 	"bastionpay_api/api/v1"
 	"blockchain_server/types"
-	. "business_center/def"
-	"business_center/mysqlpool"
+	. "business/def"
+	"business/mysqlpool"
 	"encoding/json"
 	"fmt"
 	"github.com/satori/go.uuid"
