@@ -71,7 +71,9 @@ func ClientInstance() (*Client, error) {
 		return instance, nil
 	}
 
-	client, err := ethclient.Dial(config.MainConfiger().Clientconfig[types.Chain_eth].RPC_url)
+	rawurl := config.MainConfiger().Clientconfig[types.Chain_eth].RPC_url
+	client, err := ethclient.Dial(rawurl)
+
 	if nil != err {
 		L4g.Error("create eth client error! message:%s", err.Error())
 		return nil, err
@@ -105,7 +107,7 @@ func (self *Client) nextNonce(from string) (nonce uint64) {
 	return nonce
 }
 
-func (self *Client) removeNonc(from string) {
+func (self *Client) removeNonce(from string) {
 	self.nonceMtx.Lock()
 	delete(self.nonceMap, from)
 	self.nonceMtx.Unlock()
@@ -366,15 +368,21 @@ func (self *Client) approveTokenTx(tokenOwnerKey, spenderKey, contractHex string
 
 	var (
 		tx, signedTx *etypes.Transaction
-		nonce        uint64
-		gasprice     *big.Int
-		gaslimit     uint64
-		isok         bool
+		nonce, gaslimit       	uint64
+		isok         			bool
+		balance 	 			float64
+		gasprice     			*big.Int
 	)
 
 	gasprice, gaslimit, err = self.estimatTxFee(owner, contract, big.NewInt(0), input)
 	if err != nil {
-		L4g.Trace("estimate tx fee faild, message:%s", err.Error())
+		L4g.Trace(`
+			estimate tx fee faild, message:%s,
+			maybe the allownce owner(%s) to spender(%s) is not 0, should set allownce to 0 first`,
+			ownerHex, spenderHex, err.Error())
+
+		// try approve owner to spender 0 token.
+		// self.approveTokenTx(tokenOwnerKey, spenderKey, contractHex, big.NewInt(0))
 		return err
 	}
 
@@ -382,41 +390,46 @@ func (self *Client) approveTokenTx(tokenOwnerKey, spenderKey, contractHex string
 	txfee = txfee.Mul(txfee, big.NewInt(int64(gaslimit)))
 	signer := etypes.HomesteadSigner{}
 
-	// Spender需要充owner转走token, 首先需要Token的Owner调用合约给自己授权
-	// 所以由Spender先发送txfee给owner, 作为执行授权的交易费
-	// 因为Spender中没有'ether'作为txfee
-	tx, err = self.buildRawTx(spender, owner, txfee, nil)
-	//L4g.Trace("Build Fee ethereumTx:%s, txfee:(%d * %d) = %d",
-	//	tx.String(), gasprice.Uint64(), gaslimit, txfee)
-	if err != nil {
-		goto Exception
-	}
+	balance, err = self.GetBalance(ownerHex, "")
+	// if have enought txfee
+	if balance < WeiToEther(txfee) && false {
+		// Spender需要充owner转走token, 首先需要Token的Owner调用合约给自己授权
+		// 所以由Spender先发送txfee给owner, 作为执行授权的交易费
+		// 因为Spender中没有'ether'作为txfee
+		tx, err = self.buildRawTx(spender, owner, txfee, nil)
+		//L4g.Trace("Build Fee ethereumTx:%s, txfee:(%d * %d) = %d",
+		//	tx.String(), gasprice.Uint64(), gaslimit, txfee)
+		if err != nil {
+			goto Exception
+		}
 
-	signedTx, err = etypes.SignTx(tx, signer, privSpenderKey)
-	if err != nil {
-		goto Exception
-	}
+		signedTx, err = etypes.SignTx(tx, signer, privSpenderKey)
+		if err != nil {
+			goto Exception
+		}
 
-	L4g.Trace("Send tx fee for approving, txinfo:%s", signedTx.String())
-	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
-		goto Exception
-	}
+		L4g.Trace("Send tx fee for approving, txinfo:%s", signedTx.String())
+		if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
+			goto Exception
+		}
 
-	isok, err = self.blockTrackTx(signedTx)
-	if err != nil {
-		goto Exception
-	}
+		isok, err = self.blockTrackTx(signedTx)
+		if err != nil {
+			goto Exception
+		}
 
-	if !isok {
-		err = fmt.Errorf("trace txfee send error!")
-		goto Exception
+		if !isok {
+			err = fmt.Errorf("trace txfee send error!")
+			goto Exception
+		}
 	}
 
 	nonce = self.nextNonce(ownerHex)
 	//nonce, err = self.c.PendingNonceAt(context.TODO(), owner);
-	if err != nil {
-		goto Exception
-	}
+	//if err != nil {
+	//	goto Exception
+	//}
+
 	tx = etypes.NewTransaction(nonce, contract, big.NewInt(0), gaslimit, gasprice, input)
 
 	signedTx, err = etypes.SignTx(tx, signer, privOwnerKey)
