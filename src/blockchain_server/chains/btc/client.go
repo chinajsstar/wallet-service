@@ -341,20 +341,21 @@ func (c *Client) msgTxOutDetail(txout []*wire.TxOut) (adds[]string, values[] flo
 
 
 func (c *Client) msgTxInputDetail(txIns []*wire.TxIn)(from []string, txIntotalValue float64, err error) {
-	L4g.Trace("Begin Parsing MsgTxInput Detail")
-	defer L4g.Trace("End Parsing MsgTxInput Detail")
+	L4g.Trace(">>>>>>>>>>Begin Parsing MsgTxInput Detail")
+	defer L4g.Trace(">>>>>>>>>>End Parsing MsgTxInput Detail")
 	var tx *btcutil.Tx
 
 	var total int64 = 0
 	for i, txIn :=  range txIns{
+		L4g.Trace("--------The index(%d) Txin detail--------", i)
 		if tx, err = c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
 			var tmps []string
 			if tmps, _, err = c.msgTxOutDetail(tx.MsgTx().TxOut); err!=nil {
-				L4g.Error("Bitcoin InnerErr:msgTxAddresses, message:%s",
+				L4g.Error("bitcoin InnerError: msgTxAddresses, message:%s",
 					err.Error())
 			} else {
 
-				L4g.Trace("GetRawTransaction(txIn.PreviouseOutPoint.Hash=%s) =\n %#v",
+				L4g.Trace("GetRawTransaction(txIn.PreviouseOutPoint.Hash=%s):\n%#v",
 					tx.Hash().String(), *tx)
 
 				index := txIn.PreviousOutPoint.Index
@@ -363,8 +364,8 @@ func (c *Client) msgTxInputDetail(txIns []*wire.TxIn)(from []string, txIntotalVa
 
 					L4g.Trace(`
 		The index(%d) input's previousOutPutTx.txOut[%d].PkScript=%s,
-		to adresses=%#v, value=%f`,
-						i, tx.MsgTx().TxOut[index].PkScript, tmps,
+		ToAdresses=%#v, value=%f`,
+						i, index, tx.MsgTx().TxOut[index].PkScript, tmps,
 						btcutil.Amount(tx.MsgTx().TxOut[index].Value).ToBTC())
 
 					from = append(from, tmps[index])
@@ -372,7 +373,7 @@ func (c *Client) msgTxInputDetail(txIns []*wire.TxIn)(from []string, txIntotalVa
 				}
 			}
 		} else {
-			L4g.Error("Bitcoin InnerErr:msgTxAddresses,message %s", err.Error())
+			L4g.Error("bitcoin InnerErr:msgTxAddresses,message %s", err.Error())
 		}
 	}
 
@@ -422,24 +423,32 @@ func (c *Client) updateTxWithBTCTx(stx *types.Transfer, btx *btcjson.GetTransact
 			outTotalValue += v
 		}
 
-		for i, to:=range tos {
-			if toaddress, err := btcutil.DecodeAddress(to, c.chain_params); err==nil {
-				if acc, _ :=c.GetAccount(toaddress); c.importAddressLabelName==acc {
-					stx.To = to
-					stx.Value = txOutValues[i]
-					break
-				}
-			} else {
-				L4g.Error("bitcoin get address(%s) label faild, message:%s",
-					toaddress.String(), err.Error())
+		// 这里的计算并不完全准确
+		if stx.From=="" {
+			stx.From = froms[0]
+		}
+
+		if stx.To=="" {
+			for i, to := range tos {
+				if to==stx.From { continue }
+				stx.To=to
+				stx.Value = txOutValues[i]
+				break
 			}
 		}
 
-		for _, tmp := range froms {
-			if tmp!= stx.To {
-				stx.From = tmp
-			}
-		}
+		//for i, to:=range tos {
+		//	if toaddress, err := btcutil.DecodeAddress(to, c.chain_params); err==nil {
+		//		if acc, _ :=c.GetAccount(toaddress); c.importAddressLabelName==acc {
+		//			stx.To = to
+		//			stx.Value = txOutValues[i]
+		//			break
+		//		}
+		//	} else {
+		//		L4g.Error("bitcoin get address(%s) label faild, message:%s",
+		//			toaddress.String(), err.Error())
+		//	}
+		//}
 
 		stx.Fee = txInTotalValue - outTotalValue
 	}
