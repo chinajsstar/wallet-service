@@ -74,6 +74,11 @@ func andConditions(queryMap map[string]interface{}, params *[]interface{}) strin
 				sqls += " and is_token = ?"
 				*params = append(*params, value)
 			}
+		case "enabled":
+			if value, ok := value.(int); ok {
+				sqls += " and enabled = ?"
+				*params = append(*params, value)
+			}
 		case "address":
 			if value, ok := value.(string); ok {
 				sqls += " and address = ?"

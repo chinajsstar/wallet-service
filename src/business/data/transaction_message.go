@@ -64,10 +64,10 @@ func HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) erro
 		dataList.MaxDispLines = params.MaxDispLines
 	}
 
-	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryTransactionMessageCount(queryMap)
-	} else if params.TotalLines > 0 {
+	if params.TotalLines > 0 {
 		dataList.TotalLines = params.TotalLines
+	} else {
+		dataList.TotalLines = mysqlpool.QueryTransactionMessageCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryTransactionMessage(queryMap); ok {

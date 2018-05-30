@@ -7,8 +7,6 @@ import (
 
 var ApiDocAuth = apidoc.ApiDoc{
 	Group:[]string{apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
-	Name:"验证解密",
-	Description:"验证解密数据",
 	VerName:"v1",
 	SrvName:"auth",
 	FuncName:"authdata",
@@ -18,8 +16,6 @@ var ApiDocAuth = apidoc.ApiDoc{
 
 var ApiDocEncrypt = apidoc.ApiDoc{
 	Group:[]string{apibackend.HttpRouterUser,apibackend.HttpRouterAdmin},
-	Name:"加密签名",
-	Description:"加密签名数据",
 	VerName:"v1",
 	SrvName:"auth",
 	FuncName:"encryptdata",

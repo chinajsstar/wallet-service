@@ -19,22 +19,17 @@ func init() {
 
 	// api group
 	apiDocGroupInfo[apibackend.HttpRouterApi] = &apidoc.ApiGroupInfo{
-		Description: `This api document is for developers to access BastionPay service, 
-					all api request and response json body is not real body data,
-					developers need convert json to string, and then package string to common json,
-					you can go to github.com to download golang sdk.`,
+		Description: "{{.ApiDocDescription}}",
 	}
 
 	// user group
 	apiDocGroupInfo[apibackend.HttpRouterUser] = &apidoc.ApiGroupInfo{
-		Description: `This api document is for user backend developers to access BastionPay service,
-					`,
+		Description: "{{.UserApiDocDescription}}",
 	}
 
 	// admin group
 	apiDocGroupInfo[apibackend.HttpRouterAdmin] = &apidoc.ApiGroupInfo{
-		Description: `This api document is for admin backend developers to access BastionPay service,
-					`,
+		Description: "{{.AdminApiDocDescription}}",
 	}
 
 	// gateway
@@ -85,6 +80,25 @@ func RegisterApiDocHandler(apiProxy *apidoc.ApiDocHandler) error {
 	_, err := FindApiBySrvFunction(apiDocInfo.VerName, apiDocInfo.SrvName, apiDocInfo.FuncName)
 	if err == nil {
 		return fmt.Errorf("%s.%s.%s exist!", apiDocInfo.VerName, apiDocInfo.SrvName, apiDocInfo.FuncName)
+	}
+
+	if apiDocInfo.Tag == "" {
+		apiDocInfo.Tag = "{{."
+		apiDocInfo.Tag += apiDocInfo.SrvName
+		apiDocInfo.Tag += "Tag"
+		apiDocInfo.Tag += "}}"
+	}
+	if apiDocInfo.Name == "" {
+		apiDocInfo.Name = "{{."
+		apiDocInfo.Name += apiDocInfo.FuncName
+		apiDocInfo.Name += "Name"
+		apiDocInfo.Name += "}}"
+	}
+	if apiDocInfo.Description == "" {
+		apiDocInfo.Description = "{{."
+		apiDocInfo.Description += apiDocInfo.FuncName
+		apiDocInfo.Description += "Description"
+		apiDocInfo.Description += "}}"
 	}
 
 	apiGroup := apiDocGroupHandlers[apiDocInfo.VerName+"."+apiDocInfo.SrvName]

@@ -86,10 +86,10 @@ func AssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 		dataList.MaxDispLines = params.MaxDispLines
 	}
 
-	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
-	} else if params.TotalLines > 0 {
+	if params.TotalLines > 0 {
 		dataList.TotalLines = params.TotalLines
+	} else {
+		dataList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
@@ -128,6 +128,7 @@ func SpGetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 
 	params := backend.SpReqAssetsAttributeList{
 		IsToken:      -1,
+		Enabled:      -1,
 		TotalLines:   -1,
 		PageIndex:    -1,
 		MaxDispLines: -1,
@@ -148,8 +149,12 @@ func SpGetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 		queryMap["asset_names"] = params.AssetNames
 	}
 
-	if params.IsToken > 0 {
+	if params.IsToken >= 0 {
 		queryMap["is_token"] = params.IsToken
+	}
+
+	if params.Enabled >= 0 {
+		queryMap["enabled"] = params.Enabled
 	}
 
 	dataList := backend.SpAckAssetsAttributeList{
@@ -168,10 +173,10 @@ func SpGetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 		dataList.MaxDispLines = params.MaxDispLines
 	}
 
-	if params.TotalLines == 0 {
-		dataList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
-	} else if params.TotalLines > 0 {
+	if params.TotalLines > 0 {
 		dataList.TotalLines = params.TotalLines
+	} else {
+		dataList.TotalLines = mysqlpool.QueryAssetPropertyCount(queryMap)
 	}
 
 	if arr, ok := mysqlpool.QueryAssetProperty(queryMap); ok {
@@ -307,6 +312,5 @@ func SpSetAssetAttribute(req *data.SrvRequest, res *data.SrvResponse) error {
 		ParkAmount:            params.ParkAmount,
 		Enabled:               params.Enabled,
 	}
-	mysqlpool.SetAssetProperty(&assetProperty)
-	return nil
+	return mysqlpool.SetAssetProperty(&assetProperty)
 }

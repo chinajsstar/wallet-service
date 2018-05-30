@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 6
+	testType := 12
 	switch testType {
 	case 1:
 		req.Method.Function = "support_assets"
@@ -65,9 +65,10 @@ func TestHandleMsg(t *testing.T) {
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = "{\"asset_names\":[\"btc\"]}"
 	case 12:
-		req.Method.Function = "set_asset_attribute"
+		req.Method.Function = "sp_set_asset_attribute"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
-		req.Argv.Message = ""
+		//req.Argv.Message = "{\"asset_name\":\"BTC\",\"full_name\":\"Bitcoin\",\"is_token\":0,\"parent_name\":\"\",\"logo\":\"\",\"deposit_min\":1,\"withdrawal_rate\":0.001,\"withdrawal_value\":0.002,\"withdrawal_reserve_rate\":0.001,\"withdrawal_alert_rate\":1,\"withdrawal_stategy\":5,\"confirmation_num\":2,\"decimals\":8,\"gas_factor\":0.00005,\"debt\":2,\"park_amount\":1,\"enabled\":1}"
+		req.Argv.Message = "{\"enabled\":0,\"deposit_min\":2,\"is_token\":0,\"confirmation_num\":2,\"decimals\":2,\"withdrawal_alert_rate\":2,\"withdrawal_reserve_rate\":2,\"withdrawal_rate\":2,\"withdrawal_stategy\":2,\"withdrawal_value\":2,\"logo\":\"\",\"asset_name\":\"2\",\"full_name\":\"2\",\"parent_name\":\"\"}"
 	case 13:
 		req.Method.Function = "sp_get_chain_balance"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
@@ -80,6 +81,10 @@ func TestHandleMsg(t *testing.T) {
 		req.Method.Function = "sp_post_transaction"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = "{\"asset_name\":\"eth\", \"address\":\"0x5563eaB8a68D36156E15621b7D85Ac215C477434\"}"
+	case 22:
+		req.Method.Function = "block_height"
+		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Argv.Message = ""
 	}
 
 	if testType > 0 {

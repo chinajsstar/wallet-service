@@ -12,6 +12,7 @@ type (
 
 	ApiDoc struct{
 		Group 			[]string
+		Tag             string
 		Name  			string
 		Description 	string
 		VerName 		string
