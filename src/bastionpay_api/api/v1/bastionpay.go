@@ -125,7 +125,7 @@ type (
 	}
 
 	// 历史交易订单
-	ReqHistoryTransactionBill struct {
+	ReqTransactionBill struct {
 		ID             int64   `json:"id" doc:"流水号"`
 		OrderID        string  `json:"order_id" doc:"订单号"`
 		AssetName      string  `json:"asset_name" doc:"币种"`
@@ -142,7 +142,7 @@ type (
 		MaxDispLines   int     `json:"max_disp_lines" doc:"页最大数，100以下"`
 	}
 
-	AckHistoryTransactionBill struct {
+	AckTransactionBill struct {
 		ID              int64   `json:"id" doc:"流水号"`
 		OrderID         string  `json:"order_id" doc:"交易订单"`
 		UserOrderID     string  `json:"user_order_id" doc:"用户订单号"`
@@ -160,15 +160,15 @@ type (
 		ConfirmTime     int64   `json:"confirm_time" doc:"确认时间"`
 	}
 
-	AckHistoryTransactionBillList struct {
-		Data         []AckHistoryTransactionBill `json:"data" doc:"历史交易订单列表"`
-		TotalLines   int                         `json:"total_lines" doc:"总数"`
-		PageIndex    int                         `json:"page_index" doc:"页索引"`
-		MaxDispLines int                         `json:"max_disp_lines" doc:"页最大数"`
+	AckTransactionBillList struct {
+		Data         []AckTransactionBill `json:"data" doc:"历史交易订单列表"`
+		TotalLines   int                  `json:"total_lines" doc:"总数"`
+		PageIndex    int                  `json:"page_index" doc:"页索引"`
+		MaxDispLines int                  `json:"max_disp_lines" doc:"页最大数"`
 	}
 
 	// 历史交易消息
-	ReqHistoryTransactionMessage struct {
+	ReqTransactionMessage struct {
 		MaxMessageID int64 `json:"max_msg_id" doc:"最大消息id"`
 		MinMessageID int64 `json:"min_msg_id" doc:"最小消息id"`
 		TotalLines   int   `json:"total_lines" doc:"总数,0：表示首次查询"`
@@ -176,7 +176,7 @@ type (
 		MaxDispLines int   `json:"max_disp_lines" doc:"页最大数，100以下"`
 	}
 
-	AckHistoryTransactionMessage struct {
+	AckTransactionMessage struct {
 		MsgID         int64   `json:"msg_id" doc:"消息id"`
 		TransType     int     `json:"trans_type" doc:"交易类型"`
 		Status        int     `json:"status" doc:"交易状态"`
@@ -187,15 +187,15 @@ type (
 		PayFee        float64 `json:"pay_fee" doc:"交易费用"`
 		Balance       float64 `json:"balance" doc:"当前余额"`
 		Hash          string  `json:"hash" doc:"交易哈希"`
-		OrderId       string  `json:"order_id" doc:"交易订单"`
+		OrderID       string  `json:"order_id" doc:"交易订单"`
 		Time          int64   `json:"time" doc:"交易时间"`
 	}
 
-	AckHistoryTransactionMessageList struct {
-		Data         []AckHistoryTransactionMessage `json:"data" doc:"历史交易消息列表"`
-		TotalLines   int                            `json:"total_lines" doc:"总数"`
-		PageIndex    int                            `json:"page_index" doc:"页索引"`
-		MaxDispLines int                            `json:"max_disp_lines" doc:"页最大数"`
+	AckTransactionMessageList struct {
+		Data         []AckTransactionMessage `json:"data" doc:"历史交易消息列表"`
+		TotalLines   int                     `json:"total_lines" doc:"总数"`
+		PageIndex    int                     `json:"page_index" doc:"页索引"`
+		MaxDispLines int                     `json:"max_disp_lines" doc:"页最大数"`
 	}
 
 	PushTransactionMessage struct {

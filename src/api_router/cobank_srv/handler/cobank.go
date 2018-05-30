@@ -137,6 +137,16 @@ func (x *Cobank) GetApiGroup() map[string]service.NodeApi {
 			"sp_get_chain_balance", data.APILevel_admin, x.handler)
 	}()
 
+	func() {
+		service.RegisterApi(&nam,
+			"sp_transaction_bill", data.APILevel_client, x.handler)
+	}()
+
+	func() {
+		service.RegisterApi(&nam,
+			"sp_transaction_bill_daily", data.APILevel_client, x.handler)
+	}()
+
 	////////////////////////////////////////////////////////////////
 	// 以下方法liuheng添加测试
 	var testTool int
