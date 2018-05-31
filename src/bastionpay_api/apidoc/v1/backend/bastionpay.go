@@ -42,3 +42,13 @@ var ApiDocSetAssetAttribute = apidoc.ApiDoc{
 	Input:       &backend.SpReqSetAssetAttribute{},
 	Output:      new(string),
 }
+
+// 获取用户账户
+var ApiDocSpGetbalance = apidoc.ApiDoc{
+	Group:       []string{apibackend.HttpRouterAdmin},
+	VerName:     "v1",
+	SrvName:     "bastionpay",
+	FuncName:    "sp_get_balance",
+	Input:       &backend.SpReqUserBalance{},
+	Output:      &backend.SpAckUserBalanceList{Data:[]backend.SpAckUserBalance{backend.SpAckUserBalance{}}},
+}

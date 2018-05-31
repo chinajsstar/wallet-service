@@ -39,7 +39,7 @@ var (
 		"updateFrozen":           "UPDATE %s.%s set is_frozen = ? where user_key = ?",
 		"readFrozen":         	  "SELECT is_frozen from %s.%s where user_key = ?",
 
-		"listUsers":              "SELECT id, user_name, user_mobile, user_email, user_key, user_class, level, is_frozen from %s.%s order by id desc limit ?, ?",
+		"listUsers":              "SELECT id, user_name, user_mobile, user_email, user_key, user_class, level, is_frozen, unix_timestamp(create_time), unix_timestamp(update_time) from %s.%s order by id desc limit ?, ?",
 		"listUsersCount":         "SELECT count(*) from %s.%s",
 	}
 
@@ -198,7 +198,7 @@ func ListUsers(beginIndex int, pageNum int) (*backend.AckUserList, error) {
 	ul := &backend.AckUserList{}
 	for r.Next()  {
 		up := backend.UserBasic{}
-		if err := r.Scan(&up.Id, &up.UserName, &up.UserMobile, &up.UserEmail, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen); err != nil {
+		if err := r.Scan(&up.Id, &up.UserName, &up.UserMobile, &up.UserEmail, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen, &up.CreateTime, &up.UpdateTime); err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}
@@ -302,7 +302,7 @@ func ListUsersByBasic(beginIndex int, pageNum int, conds map[string]interface{})
 	var r *sql.Rows
 	var err error
 
-	basestatement := "SELECT id, user_name, user_mobile, user_email, user_key, user_class, level, is_frozen from %s.%s"
+	basestatement := "SELECT id, user_name, user_mobile, user_email, user_key, user_class, level, is_frozen, unix_timestamp(create_time), unix_timestamp(update_time) from %s.%s"
 	statement, conditions := buildUserBasicCondition(conds)
 	basestatement += statement
 	basestatement += " order by id desc limit ?, ?"
@@ -328,8 +328,9 @@ func ListUsersByBasic(beginIndex int, pageNum int, conds map[string]interface{})
 	ul := &backend.AckUserList{}
 	for r.Next()  {
 		up := backend.UserBasic{}
-		if err := r.Scan(&up.Id, &up.UserName, &up.UserMobile, &up.UserEmail, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen); err != nil {
+		if err := r.Scan(&up.Id, &up.UserName, &up.UserMobile, &up.UserEmail, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen, &up.CreateTime, &up.UpdateTime); err != nil {
 			if err == sql.ErrNoRows {
+				fmt.Println(err)
 				continue
 			}
 			continue

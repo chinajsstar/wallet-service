@@ -61,6 +61,7 @@ func init() {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSpReqAssetsAttributeList})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSetPayAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSetAssetAttribute})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSpGetbalance})
 
 	// bastionpay_tool
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocRecharge})

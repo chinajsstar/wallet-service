@@ -68,6 +68,8 @@ type UserBasic struct{
 	UserClass 		int 	`json:"user_class" doc:"用户类型"`
 	Level 			int 	`json:"level" doc:"级别"`
 	IsFrozen        int		`json:"is_frozen" doc:"用户冻结状态，0: 正常；1：冻结状态，默认是0"`
+	CreateTime      int64	`json:"create_time" doc:"用户注册时间"`
+	UpdateTime      int64	`json:"update_time" doc:"用户更新时间"`
 }
 type AckUserList struct{
 	Data 			[]UserBasic `json:"data" doc:"用户列表"`
