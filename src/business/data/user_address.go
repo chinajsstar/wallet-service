@@ -110,6 +110,7 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 	}
 
 	params := backend.SpReqUserAddress{
+		UserClass:         -1,
 		MaxAllocationTime: -1,
 		MinAllocationTime: -1,
 		Address:           "",
@@ -130,6 +131,10 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 		queryMap["user_key"] = userProperty.UserKey
 	} else {
 		queryMap["user_key"] = params.UserKey
+	}
+
+	if params.UserClass >= 0 {
+		queryMap["user_class"] = params.UserClass
 	}
 
 	if len(params.AssetNames) > 0 {

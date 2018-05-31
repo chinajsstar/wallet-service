@@ -68,6 +68,7 @@ type (
 	// 获取用户地址
 	SpReqUserAddress struct {
 		UserKey           string   `json:"user_key" doc:"用户Key"`
+		UserClass         int      `json:"user_class" doc:"用户类型"`
 		AssetNames        []string `json:"asset_names" doc:"币种"`
 		MaxAllocationTime int64    `json:"max_allocation_time" doc:"分配地址时间"`
 		MinAllocationTime int64    `json:"min_allocation_time" doc:"分配地址时间"`
