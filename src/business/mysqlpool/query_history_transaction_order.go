@@ -86,8 +86,8 @@ func QueryTransactionBillCount(queryMap map[string]interface{}) int {
 		sqls += andConditions(queryMap, &params)
 	}
 
-	l4g.Error(sqls)
-	l4g.Error(params)
+	l4g.Debug(sqls)
+	l4g.Debug(params)
 
 	db := Get()
 	db.QueryRow(sqls, params...).Scan(&count)
