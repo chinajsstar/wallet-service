@@ -105,3 +105,13 @@ var ApiDocBlockHeight = apidoc.ApiDoc{
 	Input:    &v1.ReqBlockHeight{},
 	Output:   &v1.AckBlockHeightList{Data:[]v1.AckBlockHeight{v1.AckBlockHeight{}}},
 }
+
+// 推送数据
+var ApiDocDataPush = apidoc.ApiDoc{
+	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	VerName:  "v1",
+	SrvName:  "",
+	FuncName: "",
+	Input:    new(string),
+	Output:   &v1.PushTransactionMessage{},
+}
