@@ -54,6 +54,7 @@ func init() {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBill})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBillDaily})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionMessage})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocBlockHeight})
 
 	// backend
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSpPostTransaction})
