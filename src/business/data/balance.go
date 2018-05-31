@@ -88,15 +88,10 @@ func GetBalance(req *data.SrvRequest, res *data.SrvResponse) error {
 
 func SpGetBalance(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
+	userPropertyMap := mysqlpool.QueryUserPropertyMap(nil)
+	userProperty, ok := userPropertyMap[userKey]
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
-	}
-
-	if userProperty.UserClass != 0 {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "此不能操作此命令")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -146,6 +141,10 @@ func SpGetBalance(req *data.SrvRequest, res *data.SrvResponse) error {
 	if arr, ok := mysqlpool.QueryUserAccount(queryMap); ok {
 		for _, v := range arr {
 			d := backend.SpAckUserBalance{}
+			d.UserKey = v.UserKey
+			if u, ok := userPropertyMap[v.UserKey]; ok {
+				d.UserName = u.UserName
+			}
 			d.AssetName = v.AssetName
 			d.AvailableAmount = v.AvailableAmount
 			d.FrozenAmount = v.FrozenAmount

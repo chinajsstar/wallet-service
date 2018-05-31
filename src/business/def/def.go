@@ -31,6 +31,7 @@ type (
 
 	UserProperty struct {
 		UserKey    string `json:"user_key"`
+		UserName   string `json:"user_name"`
 		UserClass  int    `json:"user_class"`
 		IsFrozen   int    `json:"is_frozen"`
 		CreateTime int64  `json:"create_time"`
