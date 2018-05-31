@@ -40,6 +40,7 @@ func init() {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocUpdateProfile})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocReadProfile})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocListUsers})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocUpdateFrozen})
 
 	// auth
 

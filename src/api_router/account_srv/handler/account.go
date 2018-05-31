@@ -69,6 +69,12 @@ func (s * Account)GetApiGroup()(map[string]service.NodeApi){
 
 	}()
 
+	func(){
+		service.RegisterApi(&nam,
+			"updatefrozen", data.APILevel_admin, s.UpdateFrozen)
+
+	}()
+
 	return nam
 }
 
@@ -142,7 +148,8 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	)
 
 	if totalLine == 0 {
-		totalLine, err = db.ListUserCount()
+		//totalLine, err = db.ListUserCount()
+		totalLine, err = db.ListUserCountByBasic(&reqUserList.Basic)
 		if err != nil {
 			l4g.Error("error json message: %s", err.Error())
 			res.Err = apibackend.ErrAccountSrvListUsersCount
@@ -156,7 +163,8 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 
 	beginIndex = pageNum * (pageIndex-1)
 
-	ackUserList, err := db.ListUsers(beginIndex, pageNum)
+	//ackUserList, err := db.ListUsers(beginIndex, pageNum)
+	ackUserList, err := db.ListUsersByBasic(beginIndex, pageNum, &reqUserList.Basic)
 	if err != nil {
 		l4g.Error("error ListUsers: %s", err.Error())
 		res.Err = apibackend.ErrAccountSrvListUsers
@@ -293,5 +301,62 @@ func (s * Account) UpdateProfile(req *data.SrvRequest, res *data.SrvResponse) {
 		s.node.InnerNotify(&notifyReq, &notifyRes)
 
 		l4g.Info("notify a user profile: %s", req.Argv.SubUserKey)
+	}()
+}
+
+// 设置冻结
+func (s * Account) UpdateFrozen(req *data.SrvRequest, res *data.SrvResponse) {
+	// from req
+	reqFrozeUser := backend.ReqFrozenUser{}
+	err := json.Unmarshal([]byte(req.Argv.Message), &reqFrozeUser)
+	if err != nil {
+		l4g.Error("error json message: %s", err.Error())
+		res.Err = apibackend.ErrDataCorrupted
+		return
+	}
+
+	// set frozen
+	err = db.UpdateFrozen(reqFrozeUser.UserKey, reqFrozeUser.IsFrozen)
+	if err != nil {
+		l4g.Error("error UpdateFrozen: %s", err.Error())
+		res.Err = apibackend.ErrAccountSrvSetFrozen
+		return
+	}
+
+	// get frozen
+	ackFrozenUser := backend.AckFrozenUser{}
+	ackFrozenUser.UserKey = reqFrozeUser.UserKey
+	ackFrozenUser.IsFrozen, err = db.ReadFrozen(ackFrozenUser.UserKey)
+	if err != nil {
+		l4g.Error("error UpdateFrozen: %s", err.Error())
+		res.Err = apibackend.ErrAccountSrvSetFrozen
+		return
+	}
+
+	// to ack
+	dataAck, err := json.Marshal(ackFrozenUser)
+	if err != nil {
+		l4g.Error("error Marshal: %s", err.Error())
+		res.Err = apibackend.ErrInternal
+		return
+	}
+
+	// ok
+	res.Value.Message = string(dataAck)
+	l4g.Info("update a user frozen: %s", res.Value.Message)
+
+	// notify
+	func(){
+		notifyReq := data.SrvRequest{}
+		notifyReq.Method.Version = "v1"
+		notifyReq.Method.Srv = "account"
+		notifyReq.Method.Function = "updatefrozen"
+		notifyReq.Argv.UserKey = ""
+		notifyReq.Argv.SubUserKey = ackFrozenUser.UserKey
+
+		notifyRes := data.SrvResponse{}
+		s.node.InnerNotify(&notifyReq, &notifyRes)
+
+		l4g.Info("notify a user frozen: %s", req.Argv.SubUserKey)
 	}()
 }

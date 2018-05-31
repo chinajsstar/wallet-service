@@ -4,6 +4,7 @@ package backend
 type ReqUserRegister struct{
 	UserClass 		int `json:"user_class" doc:"用户类型，0:普通用户 1:热钱包; 2:管理员"`
 	Level 			int `json:"level" doc:"级别，0：用户，100：普通管理员，200：创世管理员"`
+	IsFrozen        int	`json:"is_frozen" doc:"用户冻结状态，0: 正常；1：冻结状态，默认是0"`
 	UserName        string `json:"user_name" doc:"用户名称"`
 	UserMobile      string `json:"user_mobile" doc:"用户电话"`
 	UserEmail       string `json:"user_email" doc:"用户邮箱"`
@@ -40,10 +41,13 @@ type AckUserReadProfile struct{
 // 用户基本资料
 type UserBasic struct{
 	Id 				int    	`json:"id" doc:"用户ID"`
+	UserName        string `json:"user_name" doc:"用户名称"`
+	UserMobile      string `json:"user_mobile" doc:"用户电话"`
+	UserEmail       string `json:"user_email" doc:"用户邮箱"`
 	UserKey 		string 	`json:"user_key" doc:"用户唯一标示"`
 	UserClass 		int 	`json:"user_class" doc:"用户类型"`
 	Level 			int 	`json:"level" doc:"级别"`
-	IsFrozen 		rune 	`json:"is_frozen" doc:"用户是否冻结"`
+	IsFrozen        int		`json:"is_frozen" doc:"用户冻结状态，0: 正常；1：冻结状态，默认是0"`
 }
 
 // 用户列表-输入--list
@@ -51,6 +55,8 @@ type ReqUserList struct{
 	TotalLines 		int 		`json:"total_lines" doc:"总数,0：表示首次查询"`
 	PageIndex 		int 		`json:"page_index" doc:"页索引,1开始"`
 	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数，100以下"`
+
+	Basic           UserBasic   `json:"basic" doc:"条件查询"`
 }
 // 用户列表-输出
 type AckUserList struct{
@@ -59,4 +65,15 @@ type AckUserList struct{
 	TotalLines 		int 		`json:"total_lines" doc:"总数"`
 	PageIndex 		int 		`json:"page_index" doc:"页索引"`
 	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数"`
+}
+
+// 设置冻结开关
+type ReqFrozenUser struct{
+	UserKey 		string 	`json:"user_key" doc:"用户唯一标示"`
+	IsFrozen        int		`json:"is_frozen" doc:"用户冻结状态，0: 正常；1：冻结状态，默认是0"`
+}
+// 返回冻结开关
+type AckFrozenUser struct {
+	UserKey 		string 	`json:"user_key" doc:"用户唯一标示"`
+	IsFrozen        int		`json:"is_frozen" doc:"用户冻结状态，0: 正常；1：冻结状态，默认是0"`
 }
