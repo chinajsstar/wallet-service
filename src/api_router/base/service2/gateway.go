@@ -15,6 +15,7 @@ import (
 	"bastionpay_api/api"
 	"bastionpay_api/apibackend"
 	"bastionpay_api/apibackend/v1/backend"
+	"time"
 )
 
 type ServiceGateway struct{
@@ -183,7 +184,15 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 
 	go func() {
 		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(":"+mi.cfgGateway.Port, nil)
+		//err := http.ListenAndServe(":"+mi.cfgGateway.Port, nil)
+
+		server := &http.Server{
+			Addr:        ":"+mi.cfgGateway.Port,
+			Handler:     nil,
+			ReadTimeout: time.Second*20,
+		}
+
+		err := server.ListenAndServe()
 		if err != nil {
 			l4g.Crashf("", err)
 		}
