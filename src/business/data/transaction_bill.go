@@ -274,7 +274,7 @@ func SpHistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error
 	}
 
 	queryMap := make(map[string]interface{})
-	if len(userProperty.UserKey) > 0 {
+	if len(params.UserKey) > 0 {
 		queryMap["user_key"] = userProperty.UserKey
 	}
 

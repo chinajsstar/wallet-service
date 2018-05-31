@@ -124,6 +124,7 @@ type (
 
 	// 历史交易订单
 	SpReqTransactionBill struct {
+		UserKey        string  `json:"user_key"`
 		ID             int64   `json:"id" doc:"流水号"`
 		OrderID        string  `json:"order_id" doc:"订单号"`
 		AssetName      string  `json:"asset_name" doc:"币种"`
