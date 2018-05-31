@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 0
+	testType := 23
 	switch testType {
 	case 1:
 		req.Method.Function = "support_assets"
@@ -83,6 +83,10 @@ func TestHandleMsg(t *testing.T) {
 		req.Argv.Message = "{\"asset_name\":\"eth\", \"address\":\"0x5563eaB8a68D36156E15621b7D85Ac215C477434\"}"
 	case 22:
 		req.Method.Function = "block_height"
+		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Argv.Message = ""
+	case 23:
+		req.Method.Function = "sp_query_address"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = ""
 	}

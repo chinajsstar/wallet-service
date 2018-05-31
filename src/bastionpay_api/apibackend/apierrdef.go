@@ -67,6 +67,7 @@ func init()  {
 	AddErrMsg(ErrAccountSrvListUsers, "获取用户列表失败", []string{HttpRouterUser, HttpRouterAdmin})
 	AddErrMsg(ErrAccountSrvListUsersCount, "获取用户列表数量失败", []string{HttpRouterUser, HttpRouterAdmin})
 	AddErrMsg(ErrAccountPubKeyParse, "公钥解析失败", []string{HttpRouterUser, HttpRouterAdmin})
+	AddErrMsg(ErrAccountSrvSetFrozen, "设置用户状态失败", []string{HttpRouterUser, HttpRouterAdmin})
 
 	AddErrMsg(ErrAuthSrvNoUserKey, "未找到用户id", []string{HttpRouterApi, HttpRouterUser, HttpRouterAdmin})
 	AddErrMsg(ErrAuthSrvNoPublicKey, "未找到公钥", []string{HttpRouterApi, HttpRouterUser, HttpRouterAdmin})
@@ -131,6 +132,9 @@ const(
 
 	// pub key parse
 	ErrAccountPubKeyParse			= 11105
+
+	// set user frozen failed
+	ErrAccountSrvSetFrozen			= 11106
 
 	// /////////////////////////////////////////////////////
 	// 11201-11300 auth_srv errors

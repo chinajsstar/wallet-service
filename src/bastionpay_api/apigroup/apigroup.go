@@ -40,6 +40,7 @@ func init() {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocUpdateProfile})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocReadProfile})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocListUsers})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocUpdateFrozen})
 
 	// auth
 
@@ -53,12 +54,14 @@ func init() {
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBill})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionBillDaily})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocTransactionMessage})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocBlockHeight})
 
 	// backend
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSpPostTransaction})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSpReqAssetsAttributeList})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSetPayAddress})
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSetAssetAttribute})
+	RegisterApiDocHandler(&apidoc.ApiDocHandler{&backend.ApiDocSpGetbalance})
 
 	// bastionpay_tool
 	RegisterApiDocHandler(&apidoc.ApiDocHandler{&v1.ApiDocRecharge})

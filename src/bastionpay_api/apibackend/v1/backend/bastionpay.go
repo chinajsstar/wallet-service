@@ -191,4 +191,27 @@ type (
 		PageIndex    int                         `json:"page_index" doc:"页索引"`
 		MaxDispLines int                         `json:"max_disp_lines" doc:"页最大数"`
 	}
+
+	// 获取用户余额
+	SpReqUserBalance struct {
+		UserKey      string   `json:"user_key" doc:"用户Key"`
+		AssetNames   []string `json:"asset_names" doc:"需要查询余额的币种列表"`
+		TotalLines   int      `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex    int      `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines int      `json:"max_disp_lines" doc:"页最大数,100以下"`
+	}
+
+	SpAckUserBalance struct {
+		AssetName       string  `json:"asset_name" doc:"币种简称"`
+		AvailableAmount float64 `json:"available_amount" doc:"可用余额"`
+		FrozenAmount    float64 `json:"frozen_amount" doc:"冻结余额"`
+		Time            int64   `json:"time" doc:"刷新时间"`
+	}
+
+	SpAckUserBalanceList struct {
+		Data         []SpAckUserBalance `json:"data" doc:"币种余额列表"`
+		TotalLines   int                `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex    int                `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines int                `json:"max_disp_lines" doc:"页最大数,100以下"`
+	}
 )

@@ -41,3 +41,12 @@ var ApiDocListUsers = apidoc.ApiDoc{
 	Input:&backend.ReqUserList{},
 	Output:&backend.AckUserList{Data:[]backend.UserBasic{backend.UserBasic{}}},
 }
+
+var ApiDocUpdateFrozen = apidoc.ApiDoc{
+	Group:[]string{apibackend.HttpRouterAdmin},
+	VerName:"v1",
+	SrvName:"account",
+	FuncName:"updatefrozen",
+	Input:&backend.ReqFrozenUser{},
+	Output:&backend.AckFrozenUser{},
+}

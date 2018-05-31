@@ -119,17 +119,17 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 		MaxDispLines:      -1,
 	}
 
-	err := json.Unmarshal([]byte(req.Argv.Message), &params)
-	if err != nil {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
-		l4g.Error(res.ErrMsg)
-		return errors.New(res.ErrMsg)
+	if len(req.Argv.Message) > 0 {
+		err := json.Unmarshal([]byte(req.Argv.Message), &params)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, err.Error())
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
 	}
 
 	queryMap := make(map[string]interface{})
-	if userProperty.UserClass == 0 {
-		queryMap["user_key"] = userProperty.UserKey
-	} else {
+	if len(params.UserKey) > 0 {
 		queryMap["user_key"] = params.UserKey
 	}
 

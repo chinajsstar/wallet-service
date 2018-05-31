@@ -57,6 +57,7 @@ func initFunc() {
 	addFuncMap("sp_set_pay_address", data.SpSetPayAddress)
 	addFuncMap("sp_transaction_bill", data.SpHistoryTransactionBill)
 	addFuncMap("sp_transaction_bill_daily", data.SpHistoryTransactionBillDaily)
+	addFuncMap("sp_get_balance", data.SpGetBalance)
 }
 
 func NewServer() *Business {

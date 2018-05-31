@@ -100,22 +100,23 @@ func (auth * Auth)GetApiGroup()(map[string]service.NodeApi){
 }
 
 func (auth * Auth)HandleNotify(req *data.SrvRequest){
-	if req.Method.Srv == "account" && req.Method.Function == "updateprofile" {
+	if req.Method.Srv == "account" {
 		//reqUpdateProfile := v1.ReqUserUpdateProfile{}
 		//err := json.Unmarshal([]byte(req.Argv.Message), &reqUpdateProfile)
 		//if err != nil {
 		//	l4g.Error("HandleNotify-Unmarshal: %s", err.Error())
 		//	return
 		//}
+		if req.Method.Function == "updateprofile" || req.Method.Function == "updatefrozen" {
+			// reload profile
+			ndata, err := auth.reloadUserLevel(req.Argv.SubUserKey)
+			if err != nil {
+				l4g.Error("HandleNotify-reloadUserLevel: %s", err.Error())
+				return
+			}
 
-		// reload profile
-		ndata, err := auth.reloadUserLevel(req.Argv.SubUserKey)
-		if err != nil {
-			l4g.Error("HandleNotify-reloadUserLevel: %s", err.Error())
-			return
+			l4g.Info("HandleNotify-reloadUserLevel: ", req.Argv.SubUserKey, ndata)
 		}
-
-		l4g.Info("HandleNotify-reloadUserLevel: ", ndata)
 	}
 }
 

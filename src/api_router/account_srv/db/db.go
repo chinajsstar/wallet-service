@@ -36,9 +36,10 @@ var (
 		"updateProfile":          "UPDATE %s.%s set public_key = ?, source_ip = ?, callback_url = ?, update_time = ? where user_key = ?",
 		"readProfile":         	  "SELECT public_key, source_ip, callback_url from %s.%s where user_key = ?",
 
-		"setFrozen":         	  "UPDATE %s.%s set is_frozen = ? where user_key = ?",
+		"updateFrozen":           "UPDATE %s.%s set is_frozen = ? where user_key = ?",
+		"readFrozen":         	  "SELECT is_frozen from %s.%s where user_key = ?",
 
-		"listUsers":              "SELECT id, user_key, user_class, level, is_frozen from %s.%s order by id desc limit ?, ?",
+		"listUsers":              "SELECT id, user_name, user_mobile, user_email, user_key, user_class, level, is_frozen, unix_timestamp(create_time), unix_timestamp(update_time) from %s.%s order by id desc limit ?, ?",
 		"listUsersCount":         "SELECT count(*) from %s.%s",
 	}
 
@@ -104,7 +105,7 @@ func Register(userRegister *backend.ReqUserRegister, userKey string) error {
 	_, err := st["register"].Exec(
 		userRegister.UserName, userRegister.UserMobile, userRegister.UserEmail,
 		userKey, userRegister.UserClass,
-		"", "", "", userRegister.Level, 0,
+		"", "", "", userRegister.Level, userRegister.IsFrozen,
 		datetime, datetime)
 	return err
 }
@@ -150,9 +151,37 @@ func ReadProfile(userKey string) (*backend.AckUserReadProfile, error) {
 	return ackUserReadProfile, nil
 }
 
-func SetFrozen(userKey string, frozen rune) error {
-	_, err := st["setFrozen"].Exec(frozen, userKey)
+func UpdateFrozen(userKey string, frozen int) error {
+	_, err := st["updateFrozen"].Exec(frozen, userKey)
 	return err
+}
+
+func ReadFrozen(userKey string) (int, error) {
+	var r *sql.Rows
+	var err error
+	var isFrozen int
+
+	r, err = st["readFrozen"].Query(userKey)
+	if err != nil {
+		return -1, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		return -1, errors.New("row no next")
+	}
+
+	if err := r.Scan(&isFrozen); err != nil {
+		if err == sql.ErrNoRows {
+			return -1, errors.New("no rows")
+		}
+		return -1, err
+	}
+	if r.Err() != nil {
+		return -1, err
+	}
+
+	return isFrozen, nil
 }
 
 func ListUsers(beginIndex int, pageNum int) (*backend.AckUserList, error) {
@@ -169,7 +198,7 @@ func ListUsers(beginIndex int, pageNum int) (*backend.AckUserList, error) {
 	ul := &backend.AckUserList{}
 	for r.Next()  {
 		up := backend.UserBasic{}
-		if err := r.Scan(&up.Id, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen); err != nil {
+		if err := r.Scan(&up.Id, &up.UserName, &up.UserMobile, &up.UserEmail, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen, &up.CreateTime, &up.UpdateTime); err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}
@@ -212,4 +241,107 @@ func ListUserCount() (int, error) {
 	}
 
 	return count, nil
+}
+
+func buildUserBasicCondition(conds map[string]interface{}) (string, []interface{}) {
+	var statement string
+	var condition []interface{}
+
+	for k, v := range conds {
+		statement += " and " + k + " = ?"
+		condition = append(condition, v)
+	}
+
+	wholeStatement := ""
+	if statement != ""{
+		wholeStatement = " where true"
+		wholeStatement += statement
+	}
+
+	return wholeStatement, condition
+}
+
+func ListUserCountByBasic(conds map[string]interface{}) (int, error) {
+	var r *sql.Rows
+	var err error
+
+	basestatement := "SELECT count(*) from %s.%s"
+	statement, conditions := buildUserBasicCondition(conds)
+	basestatement += statement
+
+	prepared, err := db.Prepare(fmt.Sprintf(basestatement, database, usertable))
+	if err != nil {
+		return 0, err
+	}
+
+	r, err = prepared.Query(conditions...)
+	if err != nil {
+		return 0, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		return 0, errors.New("row no next")
+	}
+
+	var count int
+	if err := r.Scan(&count); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, errors.New("no rows")
+		}
+		return 0, err
+	}
+	if r.Err() != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func ListUsersByBasic(beginIndex int, pageNum int, conds map[string]interface{}) (*backend.AckUserList, error) {
+	var r *sql.Rows
+	var err error
+
+	basestatement := "SELECT id, user_name, user_mobile, user_email, user_key, user_class, level, is_frozen, unix_timestamp(create_time), unix_timestamp(update_time) from %s.%s"
+	statement, conditions := buildUserBasicCondition(conds)
+	basestatement += statement
+	basestatement += " order by id desc limit ?, ?"
+	conditions = append(conditions, beginIndex)
+	conditions = append(conditions, pageNum)
+
+	fmt.Println(basestatement)
+	fmt.Println(conditions...)
+
+	prepared, err := db.Prepare(fmt.Sprintf(basestatement, database, usertable))
+	if err != nil {
+		return nil, err
+	}
+
+	r, err = prepared.Query(conditions...)
+
+	//r, err = st["listUsers"].Query(beginIndex, pageNum)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	ul := &backend.AckUserList{}
+	for r.Next()  {
+		up := backend.UserBasic{}
+		if err := r.Scan(&up.Id, &up.UserName, &up.UserMobile, &up.UserEmail, &up.UserKey, &up.UserClass, &up.Level, &up.IsFrozen, &up.CreateTime, &up.UpdateTime); err != nil {
+			if err == sql.ErrNoRows {
+				fmt.Println(err)
+				continue
+			}
+			continue
+		}
+
+		ul.Data = append(ul.Data, up)
+	}
+
+	if r.Err() != nil {
+		return nil, err
+	}
+
+	return ul, nil
 }

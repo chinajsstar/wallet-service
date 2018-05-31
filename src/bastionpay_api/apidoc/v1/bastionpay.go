@@ -28,7 +28,7 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 
 // 币种余额
 var ApiDocGetBalance = apidoc.ApiDoc{
-	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser},
 	VerName:  "v1",
 	SrvName:  "bastionpay",
 	FuncName: "get_balance",
@@ -94,4 +94,24 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 	FuncName: "withdrawal",
 	Input:    &v1.ReqWithdrawal{},
 	Output:   &v1.AckWithdrawal{},
+}
+
+// 获取快高
+var ApiDocBlockHeight = apidoc.ApiDoc{
+	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	VerName:  "v1",
+	SrvName:  "bastionpay",
+	FuncName: "block_height",
+	Input:    &v1.ReqBlockHeight{},
+	Output:   &v1.AckBlockHeightList{Data:[]v1.AckBlockHeight{v1.AckBlockHeight{}}},
+}
+
+// 推送数据
+var ApiDocDataPush = apidoc.ApiDoc{
+	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	VerName:  "v1",
+	SrvName:  "",
+	FuncName: "",
+	Input:    new(string),
+	Output:   &v1.PushTransactionMessage{},
 }
