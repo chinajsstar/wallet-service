@@ -243,41 +243,13 @@ func ListUserCount() (int, error) {
 	return count, nil
 }
 
-func buildUserBasicCondition(basic *backend.UserBasic) (string, []interface{}) {
+func buildUserBasicCondition(conds map[string]interface{}) (string, []interface{}) {
 	var statement string
 	var condition []interface{}
 
-	if basic.Id != -1 {
-		statement += " and id = ?"
-		condition = append(condition, basic.Id)
-	}
-	if basic.UserKey != "" {
-		statement += " and user_key = ?"
-		condition = append(condition, basic.UserKey)
-	}
-	if basic.UserName != "" {
-		statement += " and user_name = ?"
-		condition = append(condition, basic.UserName)
-	}
-	if basic.UserMobile != "" {
-		statement += " and user_mobile = ?"
-		condition = append(condition, basic.UserMobile)
-	}
-	if basic.UserEmail != "" {
-		statement += " and user_email = ?"
-		condition = append(condition, basic.UserEmail)
-	}
-	if basic.UserClass != -1 {
-		statement += " and user_class = ?"
-		condition = append(condition, basic.UserClass)
-	}
-	if basic.IsFrozen != -1 {
-		statement += " and is_frozen = ?"
-		condition = append(condition, basic.IsFrozen)
-	}
-	if basic.Level != -1 {
-		statement += " and level = ?"
-		condition = append(condition, basic.Level)
+	for k, v := range conds {
+		statement += " and " + k + " = ?"
+		condition = append(condition, v)
 	}
 
 	wholeStatement := ""
@@ -289,12 +261,12 @@ func buildUserBasicCondition(basic *backend.UserBasic) (string, []interface{}) {
 	return wholeStatement, condition
 }
 
-func ListUserCountByBasic(basic *backend.UserBasic) (int, error) {
+func ListUserCountByBasic(conds map[string]interface{}) (int, error) {
 	var r *sql.Rows
 	var err error
 
 	basestatement := "SELECT count(*) from %s.%s"
-	statement, conditions := buildUserBasicCondition(basic)
+	statement, conditions := buildUserBasicCondition(conds)
 	basestatement += statement
 
 	prepared, err := db.Prepare(fmt.Sprintf(basestatement, database, usertable))
@@ -326,12 +298,12 @@ func ListUserCountByBasic(basic *backend.UserBasic) (int, error) {
 	return count, nil
 }
 
-func ListUsersByBasic(beginIndex int, pageNum int, basic *backend.UserBasic) (*backend.AckUserList, error) {
+func ListUsersByBasic(beginIndex int, pageNum int, conds map[string]interface{}) (*backend.AckUserList, error) {
 	var r *sql.Rows
 	var err error
 
 	basestatement := "SELECT id, user_name, user_mobile, user_email, user_key, user_class, level, is_frozen from %s.%s"
-	statement, conditions := buildUserBasicCondition(basic)
+	statement, conditions := buildUserBasicCondition(conds)
 	basestatement += statement
 	basestatement += " order by id desc limit ?, ?"
 	conditions = append(conditions, beginIndex)

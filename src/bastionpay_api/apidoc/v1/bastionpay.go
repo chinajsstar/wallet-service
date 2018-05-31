@@ -95,3 +95,13 @@ var ApiDocWithdrawal = apidoc.ApiDoc{
 	Input:    &v1.ReqWithdrawal{},
 	Output:   &v1.AckWithdrawal{},
 }
+
+// 获取快高
+var ApiDocBlockHeight = apidoc.ApiDoc{
+	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	VerName:  "v1",
+	SrvName:  "bastionpay",
+	FuncName: "block_height",
+	Input:    &v1.ReqBlockHeight{},
+	Output:   &v1.AckBlockHeightList{Data:[]v1.AckBlockHeight{v1.AckBlockHeight{}}},
+}
