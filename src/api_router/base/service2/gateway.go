@@ -551,7 +551,7 @@ func (mi *ServiceGateway) getApiInfo(req *data.SrvRequest) (*data.ApiInfo) {
 
 func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a api client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -612,7 +612,7 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 
 func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a user client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -674,7 +674,7 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 
 func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a admin client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -735,7 +735,7 @@ func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) 
 
 func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server test Accept a api test client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -792,6 +792,7 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 
 func (mi *ServiceGateway) handleHealth(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept health client: %s", req.RemoteAddr)
+	defer req.Body.Close()
 
 	nodes := mi.getSrvInfo()
 

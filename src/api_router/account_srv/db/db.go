@@ -23,10 +23,12 @@ var (
 
 	accountQ = map[string]string{
 		"register": `INSERT into %s.%s (
+				user_name, user_mobile, user_email,
 				user_key, user_class, 
 				public_key, source_ip, callback_url, level, is_frozen,
 				create_time, update_time) 
-				values (?, ?,
+				values (?, ?, ?,
+				?, ?,
 				?, ?, ?, ?, ?,
 				?, ?)`,
 		"delete": "DELETE from %s.%s where user_key = ?",
@@ -100,6 +102,7 @@ func Register(userRegister *backend.ReqUserRegister, userKey string) error {
 	var datetime = time.Now().UTC()
 	datetime.Format(time.RFC3339)
 	_, err := st["register"].Exec(
+		userRegister.UserName, userRegister.UserMobile, userRegister.UserEmail,
 		userKey, userRegister.UserClass,
 		"", "", "", userRegister.Level, 0,
 		datetime, datetime)
