@@ -3,6 +3,7 @@ package mysqlpool
 import (
 	. "business/def"
 	"fmt"
+	l4g "github.com/alecthomas/log4go"
 )
 
 func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, bool) {
@@ -24,6 +25,7 @@ func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, b
 	defer rows.Close()
 	if err != nil {
 		fmt.Println(err.Error())
+		l4g.Error(err.Error())
 		return dataList, len(dataList) > 0
 	}
 
@@ -36,6 +38,7 @@ func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, b
 			dataList = append(dataList, data)
 		} else {
 			fmt.Println(err.Error())
+			l4g.Error(err.Error())
 		}
 	}
 	return dataList, len(dataList) > 0

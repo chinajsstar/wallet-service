@@ -120,7 +120,6 @@ func (b *Business) Stop() {
 }
 
 func (b *Business) HandleMsg(req *adata.SrvRequest, res *adata.SrvResponse) error {
-	fmt.Println("----------------------" + req.Method.Function + "------------")
 	if v, ok := funcMap[req.Method.Function]; ok {
 		params := make([]reflect.Value, 0)
 		params = append(params, reflect.ValueOf(req), reflect.ValueOf(res))
