@@ -28,7 +28,7 @@ var ApiDocAssetAttribute = apidoc.ApiDoc{
 
 // 币种余额
 var ApiDocGetBalance = apidoc.ApiDoc{
-	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
+	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser},
 	VerName:  "v1",
 	SrvName:  "bastionpay",
 	FuncName: "get_balance",
