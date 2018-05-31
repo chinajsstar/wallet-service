@@ -199,18 +199,18 @@ type (
 	}
 
 	PushTransactionMessage struct {
-		MsgID         int64   `json:"msg_id"`
-		TransType     int     `json:"trans_type"`
-		Status        int     `json:"status"`
-		BlockinHeight int64   `json:"blockin_height"`
-		AssetName     string  `json:"asset_name"`
-		Address       string  `json:"address"`
-		Amount        float64 `json:"amount"`
-		PayFee        float64 `json:"pay_fee"`
-		Balance       float64 `json:"balance"`
-		Hash          string  `json:"hash"`
-		OrderID       string  `json:"order_id"`
-		Time          int64   `json:"time"`
+		MsgID         int64   `json:"msg_id" doc:"消息序号"`
+		TransType     int     `json:"trans_type" doc:"交易类型 {0:充值;1:提币;}"`
+		Status        int     `json:"status" doc:"交易状态 {0:进行中;1:成功;2:失败;}"`
+		BlockinHeight int64   `json:"blockin_height" doc:"交易入块高度"`
+		AssetName     string  `json:"asset_name" doc:"币名称"`
+		Address       string  `json:"address" doc:"地址 {充值时:充值目标地址;提币时,提币目标地址}"`
+		Amount        float64 `json:"amount" doc:"数量"`
+		PayFee        float64 `json:"pay_fee" doc:"手续费"`
+		Balance       float64 `json:"balance" doc:"当前余额"`
+		Hash          string  `json:"hash" doc:"交易哈希"`
+		OrderID       string  `json:"order_id" doc:"交易定单号"`
+		Time          int64   `json:"time" doc:"最后更新时间"`
 	}
 
 	ReqTransactionBillDaily struct {

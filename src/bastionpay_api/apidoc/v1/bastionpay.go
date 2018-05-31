@@ -76,21 +76,22 @@ var ApiDocTransactionMessage = apidoc.ApiDoc{
 	Output:   &v1.AckTransactionMessageList{Data: []v1.AckTransactionMessage{v1.AckTransactionMessage{}}},
 }
 
-// TODO:以下需继续
+// 申请新地址
 var ApiDocNewAddress = apidoc.ApiDoc{
 	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterAdmin},
 	VerName:  "v1",
 	SrvName:  "bastionpay",
 	FuncName: "new_address",
-	Input:    new(string),
-	Output:   new(string),
+	Input:    &v1.ReqNewAddress{},
+	Output:   &v1.AckNewAddressList{},
 }
 
+// 提币
 var ApiDocWithdrawal = apidoc.ApiDoc{
 	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterAdmin},
 	VerName:  "v1",
 	SrvName:  "bastionpay",
 	FuncName: "withdrawal",
-	Input:    new(string),
-	Output:   new(string),
+	Input:    &v1.ReqWithdrawal{},
+	Output:   &v1.AckWithdrawal{},
 }
