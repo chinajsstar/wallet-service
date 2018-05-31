@@ -85,6 +85,10 @@ func TestHandleMsg(t *testing.T) {
 		req.Method.Function = "block_height"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = ""
+	case 23:
+		req.Method.Function = "sp_query_address"
+		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
+		req.Argv.Message = ""
 	}
 
 	if testType > 0 {
