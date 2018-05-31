@@ -65,6 +65,39 @@ type (
 		Enabled               int     `json:"enabled"`
 	}
 
+	// 获取用户地址
+	SpReqUserAddress struct {
+		UserKey           string   `json:"user_key" doc:"用户Key"`
+		AssetNames        []string `json:"asset_names" doc:"币种"`
+		MaxAllocationTime int64    `json:"max_allocation_time" doc:"分配地址时间"`
+		MinAllocationTime int64    `json:"min_allocation_time" doc:"分配地址时间"`
+		Address           string   `json:"address" doc:"地址"`
+		TotalLines        int      `json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex         int      `json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines      int      `json:"max_disp_lines" doc:"页最大数，100以下"`
+	}
+
+	SpAckUserAddress struct {
+		UserKey         string  `json:"user_key"`
+		UserClass       int     `json:"user_class"`
+		AssetName       string  `json:"asset_name"`
+		Address         string  `json:"address"`
+		PrivateKey      string  `json:"private_key"`
+		AvailableAmount float64 `json:"available_amount"`
+		FrozenAmount    float64 `json:"frozen_amount"`
+		Enabled         int     `json:"enabled"`
+		CreateTime      int64   `json:"create_time"`
+		AllocationTime  int64   `json:"allocation_time"`
+		UpdateTime      int64   `json:"update_time"`
+	}
+
+	SpAckUserAddressList struct {
+		Data         []SpAckUserAddress `json:"data" doc:"用户地址列表"`
+		TotalLines   int                `json:"total_lines" doc:"总数"`
+		PageIndex    int                `json:"page_index" doc:"页索引"`
+		MaxDispLines int                `json:"max_disp_lines" doc:"页最大数"`
+	}
+
 	// 获取用户余额
 	SpReqChainBalance struct {
 		AssetName    string `json:"asset_name" doc:"需要查询余额的币种列表"`
