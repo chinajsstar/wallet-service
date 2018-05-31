@@ -80,6 +80,7 @@ type (
 
 	SpAckUserAddress struct {
 		UserKey         string  `json:"user_key"`
+		UserName        string  `json:"user_name"`
 		UserClass       int     `json:"user_class"`
 		AssetName       string  `json:"asset_name"`
 		Address         string  `json:"address"`
@@ -123,6 +124,7 @@ type (
 
 	// 历史交易订单
 	SpReqTransactionBill struct {
+		UserKey        string  `json:"user_key"`
 		ID             int64   `json:"id" doc:"流水号"`
 		OrderID        string  `json:"order_id" doc:"订单号"`
 		AssetName      string  `json:"asset_name" doc:"币种"`
@@ -140,6 +142,8 @@ type (
 	}
 
 	SpAckTransactionBill struct {
+		UserKey         string  `json:"user_key"`
+		UserName        string  `json:"user_name"`
 		ID              int64   `json:"id" doc:"流水号"`
 		OrderID         string  `json:"order_id" doc:"交易订单"`
 		UserOrderID     string  `json:"user_order_id" doc:"用户订单号"`
@@ -166,6 +170,7 @@ type (
 	}
 
 	SpReqTransactionBillDaily struct {
+		UserKey      string `json:"user_key"`
 		AssetName    string `json:"asset_name" doc:"币种"`
 		MaxPeriod    int    `json:"max_period" doc:"最大周期值"`
 		MinPeriod    int    `json:"min_period" doc:"最小周期值"`
@@ -175,6 +180,8 @@ type (
 	}
 
 	SpAckTransactionBillDaily struct {
+		UserKey     string  `json:"user_key"`
+		UserName    string  `json:"user_name"`
 		Period      int     `json:"period"`
 		AssetName   string  `json:"asset_name"`
 		SumDPAmount float64 `json:"sum_dp_amount"`
@@ -202,6 +209,8 @@ type (
 	}
 
 	SpAckUserBalance struct {
+		UserKey         string  `json:"user_key" doc:"用户Key"`
+		UserName        string  `json:"user_name" doc:"用户名称"`
 		AssetName       string  `json:"asset_name" doc:"币种简称"`
 		AvailableAmount float64 `json:"available_amount" doc:"可用余额"`
 		FrozenAmount    float64 `json:"frozen_amount" doc:"冻结余额"`

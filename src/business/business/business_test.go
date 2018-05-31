@@ -36,7 +36,7 @@ func TestHandleMsg(t *testing.T) {
 	case 5:
 		req.Method.Function = "new_address"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"asset_name\":\"btc\",\"count\":1}"
+		req.Argv.Message = "{\"asset_name\":\"eth\",\"count\":1}"
 	case 6:
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
@@ -86,7 +86,7 @@ func TestHandleMsg(t *testing.T) {
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = ""
 	case 23:
-		req.Method.Function = "sp_query_address"
+		req.Method.Function = "sp_transaction_bill"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
 		req.Argv.Message = ""
 	}

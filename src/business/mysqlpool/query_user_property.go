@@ -6,7 +6,7 @@ import (
 )
 
 func QueryUserProperty(queryMap map[string]interface{}) ([]UserProperty, bool) {
-	sqls := "select user_key,user_class,is_frozen,unix_timestamp(create_time),unix_timestamp(update_time)" +
+	sqls := "select user_key,user_name,user_class,is_frozen,unix_timestamp(create_time),unix_timestamp(update_time)" +
 		" from user_property where true "
 
 	userProperty := make([]UserProperty, 0)
@@ -27,7 +27,7 @@ func QueryUserProperty(queryMap map[string]interface{}) ([]UserProperty, bool) {
 
 	var data UserProperty
 	for rows.Next() {
-		err := rows.Scan(&data.UserKey, &data.UserClass, &data.IsFrozen, &data.CreateTime, &data.UpdateTime)
+		err := rows.Scan(&data.UserKey, &data.UserName, &data.UserClass, &data.IsFrozen, &data.CreateTime, &data.UpdateTime)
 		if err == nil {
 			userProperty = append(userProperty, data)
 		}
@@ -49,6 +49,36 @@ func QueryUserPropertyCount(queryMap map[string]interface{}) int {
 	db := Get()
 	db.QueryRow(sqls, params...).Scan(&count)
 	return count
+}
+
+func QueryUserPropertyMap(queryMap map[string]interface{}) map[string]UserProperty {
+	sqls := "select user_key,user_name,user_class,is_frozen,unix_timestamp(create_time),unix_timestamp(update_time)" +
+		" from user_property where true "
+
+	userPropertyMap := make(map[string]UserProperty)
+	params := make([]interface{}, 0)
+
+	if len(queryMap) > 0 {
+		sqls += andConditions(queryMap, &params)
+		sqls += andPagination(queryMap, &params)
+	}
+
+	db := Get()
+	rows, err := db.Query(sqls, params...)
+	defer rows.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+		return userPropertyMap
+	}
+
+	var data UserProperty
+	for rows.Next() {
+		err := rows.Scan(&data.UserKey, &data.UserName, &data.UserClass, &data.IsFrozen, &data.CreateTime, &data.UpdateTime)
+		if err == nil {
+			userPropertyMap[data.UserKey] = data
+		}
+	}
+	return userPropertyMap
 }
 
 func QueryUserPropertyByKey(userKey string) (UserProperty, bool) {

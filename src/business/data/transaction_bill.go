@@ -153,7 +153,7 @@ func HistoryTransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) er
 	userKey := req.GetAccessUserKey()
 	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
 	if !ok {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -239,7 +239,8 @@ func HistoryTransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) er
 
 func SpHistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
+	userPropertyMap := mysqlpool.QueryUserPropertyMap(nil)
+	userProperty, ok := userPropertyMap[userKey]
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
@@ -273,7 +274,7 @@ func SpHistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error
 	}
 
 	queryMap := make(map[string]interface{})
-	if userProperty.UserClass == 0 {
+	if len(params.UserKey) > 0 {
 		queryMap["user_key"] = userProperty.UserKey
 	}
 
@@ -346,6 +347,10 @@ func SpHistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error
 	if arr, ok := mysqlpool.QueryTransactionBill(queryMap); ok {
 		for _, v := range arr {
 			d := backend.SpAckTransactionBill{}
+			d.UserKey = v.UserKey
+			if u, ok := userPropertyMap[v.UserKey]; ok {
+				d.UserName = u.UserName
+			}
 			d.ID = v.ID
 			d.OrderID = v.OrderID
 			d.UserOrderID = v.UserOrderID
@@ -378,14 +383,16 @@ func SpHistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error
 
 func SpHistoryTransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
+	userPropertyMap := mysqlpool.QueryUserPropertyMap(nil)
+	userProperty, ok := userPropertyMap[userKey]
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userKey)
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
 
-	params := v1.ReqTransactionBillDaily{
+	params := backend.SpReqTransactionBillDaily{
+		UserKey:      "",
 		AssetName:    "",
 		MaxPeriod:    -1,
 		MinPeriod:    -1,
@@ -404,7 +411,10 @@ func SpHistoryTransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) 
 	}
 
 	queryMap := make(map[string]interface{})
-	queryMap["user_key"] = userProperty.UserKey
+
+	if len(params.UserKey) > 0 {
+		queryMap["user_key"] = userProperty.UserKey
+	}
 
 	if len(params.AssetName) > 0 {
 		queryMap["asset_name"] = params.AssetName
@@ -443,6 +453,10 @@ func SpHistoryTransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) 
 	if arr, ok := mysqlpool.QueryTransactionBillDaily(queryMap); ok {
 		for _, v := range arr {
 			d := backend.SpAckTransactionBillDaily{}
+			d.UserKey = v.UserKey
+			if u, ok := userPropertyMap[v.UserKey]; ok {
+				d.UserName = u.UserName
+			}
 			d.Period = v.Period
 			d.AssetName = v.AssetName
 			d.SumDPAmount = v.SumDPAmount

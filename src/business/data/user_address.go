@@ -102,7 +102,8 @@ func QueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 
 func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 	userKey := req.GetAccessUserKey()
-	userProperty, ok := mysqlpool.QueryUserPropertyByKey(userKey)
+	userPropertyMap := mysqlpool.QueryUserPropertyMap(nil)
+	userProperty, ok := userPropertyMap[userKey]
 	if !ok {
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "无效用户-"+userProperty.UserKey)
 		l4g.Error(res.ErrMsg)
@@ -179,6 +180,9 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 		for _, v := range arr {
 			d := backend.SpAckUserAddress{}
 			d.UserKey = v.UserKey
+			if u, ok := userPropertyMap[v.UserKey]; ok {
+				d.UserName = u.UserName
+			}
 			d.UserClass = v.UserClass
 			d.AssetName = v.AssetName
 			d.Address = v.Address
