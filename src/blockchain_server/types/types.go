@@ -20,6 +20,12 @@ type Account struct {
 	Address    string // 私钥对应的地址
 }
 
+func (self *Account)String() string {
+	return fmt.Sprintf(`
+PrivateKey:	"%s",
+Address:	"%s"`, self.PrivateKey, self.Address)
+}
+
 const (
 	Tx_state_ToBuild = iota // 尚未准备好, 调用buildTx后, 状态成为BuildOk
 	Tx_state_BuildOk        // ready to send

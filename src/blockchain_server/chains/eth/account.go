@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"encoding/hex"
 	bcrypto "blockchain_server/crypto"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func getPassphrase(length uint32) string {
@@ -34,39 +36,47 @@ func generateECKey() (*ecdsa.PrivateKey, error) {
 	return key, nil
 }
 
+func CheckAccount(account *wtypes.Account) bool {
+	if account==nil {
+		return false
+	}
+
+	if _, address, err := ParseKey(account.PrivateKey); err==nil {
+		if address!=account.Address {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 func NewAccount() (*wtypes.Account, error) {
 	priKey, err := generateECKey()
 	if err!=nil {
 		return nil, err
 	}
 
-	//keydata := crypto.FromECDSA(priKey)
-	//fmt.Printf("1: 0x%x\n", keydata)
-
-	cryptPrivKey, err := bcrypto.Encrypt(priKey.D.Bytes())
+	priKeyData := math.PaddedBigBytes(priKey.D, 32)
+	cryptPrivKey, err := bcrypto.Encrypt(priKeyData)
 	if err!=nil {
 		utils.Faltal_error(err)
 	}
-	cryptKeyString := fmt.Sprintf("0x%x", cryptPrivKey)
-	//decryptBytes, err := wallet.Decrypto(cryptedPrivKeyByte)
-	//if err!=nil {
-	//	return nil, err
-	//}
-	//prikey_string = hex.EncodeToString(decryptBytes)
+	cryptKeyString := common.ToHex(cryptPrivKey)
 
-	account := wtypes.Account{PrivateKey: cryptKeyString, Address:crypto.PubkeyToAddress(priKey.PublicKey).String()}
+	account := wtypes.Account{PrivateKey: cryptKeyString,
+		Address:crypto.PubkeyToAddress(priKey.PublicKey).String()}
 
-	//fmt.Printf("account.privatekey:	0x%x\n", priKey.D.Bytes())
-	//fmt.Printf("account.publickey:	%s\n", priKey.PublicKey.X.String())
-	//fmt.Printf("account.address:	%s\n", account.ContractAddress)
-	return &account, nil
+	if CheckAccount(&account) {
+		return &account, nil
+	}
+
+	return nil, fmt.Errorf("invalid account:%s", account.String())
 }
 
 func ParseKey(keyChiper string) (*ecdsa.PrivateKey, string, error) {
 	//fmt.Printf("crypt key : %s\n", keyChiper)
 	cryptKeyHexString := utils.String_cat_prefix(keyChiper, "0x")
 	cryptKeyData, err := hex.DecodeString(cryptKeyHexString )
-
 
 	if err!=nil {
 		return nil, "", fmt.Errorf("Invalid private key")
