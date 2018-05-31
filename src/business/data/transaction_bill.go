@@ -249,6 +249,7 @@ func SpHistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error
 
 	params := backend.SpReqTransactionBill{
 		ID:             -1,
+		UserKey:		"",
 		OrderID:        "",
 		AssetName:      "",
 		Address:        "",

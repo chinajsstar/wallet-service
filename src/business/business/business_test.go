@@ -88,7 +88,7 @@ func TestHandleMsg(t *testing.T) {
 	case 23:
 		req.Method.Function = "sp_transaction_bill"
 		req.Argv.UserKey = "795b587d-2ee7-4979-832d-5d0ea64205d5"
-		req.Argv.Message = ""
+		req.Argv.Message = "{\"trans_type\":0,\"total_lines\":0,\"page_index\":1,\"max_disp_lines\":10}"
 	}
 
 	if testType > 0 {
