@@ -478,7 +478,6 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 
 	L4g.Trace("SendTx, information:%s", tx.String())
 
-
 	// 如果tx.From不等于tx.TokenTx.From, 应该是从用户地址转出token
 	// 用户地址上应该是没有ether的. 则需要授权token
 	// 如果tx.From==tx.TokenTx.From, 说明是用户从热钱包地址提币,
