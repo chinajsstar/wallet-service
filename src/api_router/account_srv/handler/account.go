@@ -131,7 +131,13 @@ func (s *Account) Register(req *data.SrvRequest, res *data.SrvResponse) {
 // 登入
 func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	// from req
-	reqUserList := backend.ReqUserList{}
+	reqUserList := struct{
+		TotalLines 		int 		`json:"total_lines" doc:"总数,0：表示首次查询"`
+		PageIndex 		int 		`json:"page_index" doc:"页索引,1开始"`
+		MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数，100以下"`
+
+		Condition map[string]interface{}  `json:"condition" doc:"条件查询"`
+	}{}
 	err := json.Unmarshal([]byte(req.Argv.Message), &reqUserList)
 	if err != nil {
 		l4g.Error("error json message: %s", err.Error())
@@ -149,7 +155,7 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 
 	if totalLine == 0 {
 		//totalLine, err = db.ListUserCount()
-		totalLine, err = db.ListUserCountByBasic(&reqUserList.Basic)
+		totalLine, err = db.ListUserCountByBasic(reqUserList.Condition)
 		if err != nil {
 			l4g.Error("error json message: %s", err.Error())
 			res.Err = apibackend.ErrAccountSrvListUsersCount
@@ -164,7 +170,7 @@ func (s *Account) ListUsers(req *data.SrvRequest, res *data.SrvResponse) {
 	beginIndex = pageNum * (pageIndex-1)
 
 	//ackUserList, err := db.ListUsers(beginIndex, pageNum)
-	ackUserList, err := db.ListUsersByBasic(beginIndex, pageNum, &reqUserList.Basic)
+	ackUserList, err := db.ListUsersByBasic(beginIndex, pageNum, reqUserList.Condition)
 	if err != nil {
 		l4g.Error("error ListUsers: %s", err.Error())
 		res.Err = apibackend.ErrAccountSrvListUsers

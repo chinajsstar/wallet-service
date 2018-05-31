@@ -38,6 +38,26 @@ type AckUserReadProfile struct{
 	ServerPublicKey	string `json:"server_public_key" doc:"BastionPay公钥"`
 }
 
+// 用户列表-输入--list
+// 用户基本资料查询
+type UserCondition struct{
+	Id 				int    `json:"id,omitempty" doc:"用户ID"`
+	UserName        string `json:"user_name,omitempty" doc:"用户名称"`
+	UserMobile      string `json:"user_mobile,omitempty" doc:"用户电话"`
+	UserEmail       string `json:"user_email,omitempty" doc:"用户邮箱"`
+	UserKey 		string 	`json:"user_key,omitempty" doc:"用户唯一标示"`
+	UserClass 		int 	`json:"user_class,omitempty" doc:"用户类型"`
+	Level 			int 	`json:"level,omitempty" doc:"级别"`
+	IsFrozen        int		`json:"is_frozen,omitempty" doc:"用户冻结状态，0: 正常；1：冻结状态，默认是0"`
+}
+type ReqUserList struct{
+	TotalLines 		int 		`json:"total_lines" doc:"总数,0：表示首次查询"`
+	PageIndex 		int 		`json:"page_index" doc:"页索引,1开始"`
+	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数，100以下"`
+
+	Condition       UserCondition   `json:"condition" doc:"条件查询"`
+}
+// 用户列表-输出
 // 用户基本资料
 type UserBasic struct{
 	Id 				int    	`json:"id" doc:"用户ID"`
@@ -49,16 +69,6 @@ type UserBasic struct{
 	Level 			int 	`json:"level" doc:"级别"`
 	IsFrozen        int		`json:"is_frozen" doc:"用户冻结状态，0: 正常；1：冻结状态，默认是0"`
 }
-
-// 用户列表-输入--list
-type ReqUserList struct{
-	TotalLines 		int 		`json:"total_lines" doc:"总数,0：表示首次查询"`
-	PageIndex 		int 		`json:"page_index" doc:"页索引,1开始"`
-	MaxDispLines 	int 		`json:"max_disp_lines" doc:"页最大数，100以下"`
-
-	Basic           UserBasic   `json:"basic" doc:"条件查询"`
-}
-// 用户列表-输出
 type AckUserList struct{
 	Data 			[]UserBasic `json:"data" doc:"用户列表"`
 
