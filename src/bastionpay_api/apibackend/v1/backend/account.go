@@ -4,6 +4,9 @@ package backend
 type ReqUserRegister struct{
 	UserClass 		int `json:"user_class" doc:"用户类型，0:普通用户 1:热钱包; 2:管理员"`
 	Level 			int `json:"level" doc:"级别，0：用户，100：普通管理员，200：创世管理员"`
+	UserName        string `json:"user_name" doc:"用户名称"`
+	UserMobile      string `json:"user_mobile" doc:"用户电话"`
+	UserEmail       string `json:"user_email" doc:"用户邮箱"`
 }
 // 账号注册-输出
 type AckUserRegister struct{

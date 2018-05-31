@@ -125,7 +125,7 @@ type (
 	}
 
 	// 历史交易订单
-	ReqHistoryTransactionBill struct {
+	ReqTransactionBill struct {
 		ID             int64   `json:"id" doc:"流水号"`
 		OrderID        string  `json:"order_id" doc:"订单号"`
 		AssetName      string  `json:"asset_name" doc:"币种"`
@@ -142,7 +142,7 @@ type (
 		MaxDispLines   int     `json:"max_disp_lines" doc:"页最大数，100以下"`
 	}
 
-	AckHistoryTransactionBill struct {
+	AckTransactionBill struct {
 		ID              int64   `json:"id" doc:"流水号"`
 		OrderID         string  `json:"order_id" doc:"交易订单"`
 		UserOrderID     string  `json:"user_order_id" doc:"用户订单号"`
@@ -160,15 +160,15 @@ type (
 		ConfirmTime     int64   `json:"confirm_time" doc:"确认时间"`
 	}
 
-	AckHistoryTransactionBillList struct {
-		Data         []AckHistoryTransactionBill `json:"data" doc:"历史交易订单列表"`
-		TotalLines   int                         `json:"total_lines" doc:"总数"`
-		PageIndex    int                         `json:"page_index" doc:"页索引"`
-		MaxDispLines int                         `json:"max_disp_lines" doc:"页最大数"`
+	AckTransactionBillList struct {
+		Data         []AckTransactionBill `json:"data" doc:"历史交易订单列表"`
+		TotalLines   int                  `json:"total_lines" doc:"总数"`
+		PageIndex    int                  `json:"page_index" doc:"页索引"`
+		MaxDispLines int                  `json:"max_disp_lines" doc:"页最大数"`
 	}
 
 	// 历史交易消息
-	ReqHistoryTransactionMessage struct {
+	ReqTransactionMessage struct {
 		MaxMessageID int64 `json:"max_msg_id" doc:"最大消息id"`
 		MinMessageID int64 `json:"min_msg_id" doc:"最小消息id"`
 		TotalLines   int   `json:"total_lines" doc:"总数,0：表示首次查询"`
@@ -176,7 +176,7 @@ type (
 		MaxDispLines int   `json:"max_disp_lines" doc:"页最大数，100以下"`
 	}
 
-	AckHistoryTransactionMessage struct {
+	AckTransactionMessage struct {
 		MsgID         int64   `json:"msg_id" doc:"消息id"`
 		TransType     int     `json:"trans_type" doc:"交易类型"`
 		Status        int     `json:"status" doc:"交易状态"`
@@ -187,30 +187,30 @@ type (
 		PayFee        float64 `json:"pay_fee" doc:"交易费用"`
 		Balance       float64 `json:"balance" doc:"当前余额"`
 		Hash          string  `json:"hash" doc:"交易哈希"`
-		OrderId       string  `json:"order_id" doc:"交易订单"`
+		OrderID       string  `json:"order_id" doc:"交易订单"`
 		Time          int64   `json:"time" doc:"交易时间"`
 	}
 
-	AckHistoryTransactionMessageList struct {
-		Data         []AckHistoryTransactionMessage `json:"data" doc:"历史交易消息列表"`
-		TotalLines   int                            `json:"total_lines" doc:"总数"`
-		PageIndex    int                            `json:"page_index" doc:"页索引"`
-		MaxDispLines int                            `json:"max_disp_lines" doc:"页最大数"`
+	AckTransactionMessageList struct {
+		Data         []AckTransactionMessage `json:"data" doc:"历史交易消息列表"`
+		TotalLines   int                     `json:"total_lines" doc:"总数"`
+		PageIndex    int                     `json:"page_index" doc:"页索引"`
+		MaxDispLines int                     `json:"max_disp_lines" doc:"页最大数"`
 	}
 
 	PushTransactionMessage struct {
-		MsgID         int64   `json:"msg_id"`
-		TransType     int     `json:"trans_type"`
-		Status        int     `json:"status"`
-		BlockinHeight int64   `json:"blockin_height"`
-		AssetName     string  `json:"asset_name"`
-		Address       string  `json:"address"`
-		Amount        float64 `json:"amount"`
-		PayFee        float64 `json:"pay_fee"`
-		Balance       float64 `json:"balance"`
-		Hash          string  `json:"hash"`
-		OrderID       string  `json:"order_id"`
-		Time          int64   `json:"time"`
+		MsgID         int64   `json:"msg_id" doc:"消息序号"`
+		TransType     int     `json:"trans_type" doc:"交易类型 {0:充值;1:提币;}"`
+		Status        int     `json:"status" doc:"交易状态 {0:进行中;1:成功;2:失败;}"`
+		BlockinHeight int64   `json:"blockin_height" doc:"交易入块高度"`
+		AssetName     string  `json:"asset_name" doc:"币名称"`
+		Address       string  `json:"address" doc:"地址 {充值时:充值目标地址;提币时,提币目标地址}"`
+		Amount        float64 `json:"amount" doc:"数量"`
+		PayFee        float64 `json:"pay_fee" doc:"手续费"`
+		Balance       float64 `json:"balance" doc:"当前余额"`
+		Hash          string  `json:"hash" doc:"交易哈希"`
+		OrderID       string  `json:"order_id" doc:"交易定单号"`
+		Time          int64   `json:"time" doc:"最后更新时间"`
 	}
 
 	ReqTransactionBillDaily struct {

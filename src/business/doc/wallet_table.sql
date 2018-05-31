@@ -4,6 +4,9 @@
 DROP TABLE IF EXISTS `user_property`;
 CREATE TABLE `user_property` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_name` varchar(100) NOT NULL DEFAULT '',
+  `user_mobile` varchar(20) NOT NULL DEFAULT '',
+  `user_email` varchar(200) NOT NULL DEFAULT '',
   `user_key` varchar(255) NOT NULL DEFAULT '',
   `user_class` int(11) NOT NULL DEFAULT 0 COMMENT '0:普通用户 1:热钱包; 2:管理员',
   `public_key` text DEFAULT NULL COMMENT '公钥',
@@ -16,6 +19,12 @@ CREATE TABLE `user_property` (
   PRIMARY KEY (`user_key`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- ----------------------------
+-- add user_name, user_mobile, user_email if not exist
+-- alter table user_property add user_name varchar(100) NOT NULL DEFAULT '',add user_mobile varchar(20) NOT NULL DEFAULT '',add user_email varchar(200) NOT NULL DEFAULT '';
+-- alter table user_property drop column user_name,drop column user_mobile,drop column user_email;
+-- ----------------------------
 
 -- ----------------------------
 -- Records of `user`

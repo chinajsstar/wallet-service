@@ -19,7 +19,7 @@ func HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) erro
 		return errors.New(res.ErrMsg)
 	}
 
-	params := v1.ReqHistoryTransactionMessage{
+	params := v1.ReqTransactionMessage{
 		MaxMessageID: -1,
 		MinMessageID: -1,
 		TotalLines:   -1,
@@ -48,7 +48,7 @@ func HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) erro
 		queryMap["min_msg_id"] = params.MinMessageID
 	}
 
-	dataList := v1.AckHistoryTransactionMessageList{
+	dataList := v1.AckTransactionMessageList{
 		TotalLines:   -1,
 		PageIndex:    -1,
 		MaxDispLines: -1,
@@ -72,7 +72,7 @@ func HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) erro
 
 	if arr, ok := mysqlpool.QueryTransactionMessage(queryMap); ok {
 		for _, v := range arr {
-			d := v1.AckHistoryTransactionMessage{}
+			d := v1.AckTransactionMessage{}
 			d.MsgID = v.MsgID
 			d.TransType = v.TransType
 			d.Status = v.Status
@@ -83,7 +83,7 @@ func HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) erro
 			d.PayFee = v.PayFee
 			d.Balance = v.Balance
 			d.Hash = v.Hash
-			d.OrderId = v.OrderID
+			d.OrderID = v.OrderID
 			d.Time = v.Time
 			dataList.Data = append(dataList.Data, d)
 		}

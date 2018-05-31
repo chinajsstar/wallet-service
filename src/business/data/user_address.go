@@ -3,6 +3,7 @@ package data
 import (
 	"api_router/base/data"
 	"bastionpay_api/api/v1"
+	"bastionpay_api/apibackend/v1/backend"
 	. "business/def"
 	"business/mysqlpool"
 	"encoding/json"
@@ -108,7 +109,8 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 		return errors.New(res.ErrMsg)
 	}
 
-	params := v1.ReqUserAddress{
+	params := backend.SpReqUserAddress{
+		UserClass:         -1,
 		MaxAllocationTime: -1,
 		MinAllocationTime: -1,
 		Address:           "",
@@ -127,6 +129,12 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 	queryMap := make(map[string]interface{})
 	if userProperty.UserClass == 0 {
 		queryMap["user_key"] = userProperty.UserKey
+	} else {
+		queryMap["user_key"] = params.UserKey
+	}
+
+	if params.UserClass >= 0 {
+		queryMap["user_class"] = params.UserClass
 	}
 
 	if len(params.AssetNames) > 0 {
@@ -145,7 +153,7 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 		queryMap["address"] = params.Address
 	}
 
-	dataList := v1.AckUserAddressList{
+	dataList := backend.SpAckUserAddressList{
 		TotalLines:   -1,
 		PageIndex:    -1,
 		MaxDispLines: -1,
@@ -169,11 +177,18 @@ func SpQueryAddress(req *data.SrvRequest, res *data.SrvResponse) error {
 
 	if arr, ok := mysqlpool.QueryUserAddress(queryMap); ok {
 		for _, v := range arr {
-			d := v1.AckUserAddress{}
+			d := backend.SpAckUserAddress{}
+			d.UserKey = v.UserKey
+			d.UserClass = v.UserClass
 			d.AssetName = v.AssetName
 			d.Address = v.Address
+			d.PrivateKey = v.PrivateKey
+			d.AvailableAmount = v.AvailableAmount
+			d.FrozenAmount = v.FrozenAmount
+			d.Enabled = v.Enabled
+			d.CreateTime = v.CreateTime
 			d.AllocationTime = v.AllocationTime
-
+			d.UpdateTime = v.UpdateTime
 			dataList.Data = append(dataList.Data, d)
 		}
 	}

@@ -15,6 +15,7 @@ import (
 	"bastionpay_api/api"
 	"bastionpay_api/apibackend"
 	"bastionpay_api/apibackend/v1/backend"
+	"time"
 )
 
 type ServiceGateway struct{
@@ -183,7 +184,15 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 
 	go func() {
 		l4g.Info("Http server routine running... ")
-		err := http.ListenAndServe(":"+mi.cfgGateway.Port, nil)
+		//err := http.ListenAndServe(":"+mi.cfgGateway.Port, nil)
+
+		server := &http.Server{
+			Addr:        ":"+mi.cfgGateway.Port,
+			Handler:     nil,
+			ReadTimeout: time.Second*20,
+		}
+
+		err := server.ListenAndServe()
 		if err != nil {
 			l4g.Crashf("", err)
 		}
@@ -551,7 +560,7 @@ func (mi *ServiceGateway) getApiInfo(req *data.SrvRequest) (*data.ApiInfo) {
 
 func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a api client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -612,7 +621,7 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 
 func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a user client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -674,7 +683,7 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 
 func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept a admin client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -735,7 +744,7 @@ func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) 
 
 func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server test Accept a api test client: %s", req.RemoteAddr)
-	//defer req.Body.Close()
+	defer req.Body.Close()
 
 	//w.Header().Set("Access-Control-Allow-Origin", "*")             //允许访问所有域
 	//w.Header().Add("Access-Control-Allow-Headers", "Content-Type") //header的类型
@@ -792,6 +801,7 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 
 func (mi *ServiceGateway) handleHealth(w http.ResponseWriter, req *http.Request) {
 	l4g.Debug("Http server Accept health client: %s", req.RemoteAddr)
+	defer req.Body.Close()
 
 	nodes := mi.getSrvInfo()
 
