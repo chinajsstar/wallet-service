@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	l4g "github.com/alecthomas/log4go"
+	"fmt"
 )
 
 func HistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error {
@@ -238,6 +239,7 @@ func HistoryTransactionBillDaily(req *data.SrvRequest, res *data.SrvResponse) er
 }
 
 func SpHistoryTransactionBill(req *data.SrvRequest, res *data.SrvResponse) error {
+	fmt.Println("--------SpHistoryTransactionBill-------")
 	userKey := req.GetAccessUserKey()
 	userPropertyMap := mysqlpool.QueryUserPropertyMap(nil)
 	userProperty, ok := userPropertyMap[userKey]
