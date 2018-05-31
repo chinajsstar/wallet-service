@@ -83,6 +83,9 @@ func QueryTransactionBillCount(queryMap map[string]interface{}) int {
 		sqls += andConditions(queryMap, &params)
 	}
 
+	fmt.Println(sqls)
+	fmt.Println(params)
+
 	db := Get()
 	db.QueryRow(sqls, params...).Scan(&count)
 	return count
