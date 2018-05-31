@@ -1,10 +1,10 @@
 package types
 
 import (
-	"fmt"
-	"math/big"
-	"math"
 	"blockchain_server/utils"
+	"fmt"
+	"math"
+	"math/big"
 )
 
 //-32700	Parse error	Invalid JSON was received by the server.
@@ -22,8 +22,8 @@ type Account struct {
 
 const (
 	Tx_state_ToBuild = iota // 尚未准备好, 调用buildTx后, 状态成为BuildOk
-	Tx_state_BuildOk   		// ready to send
-	Tx_state_Signed    		// build, and signed, ready for send!
+	Tx_state_BuildOk        // ready to send
+	Tx_state_Signed         // build, and signed, ready for send!
 
 	Tx_state_pending   		// pending Transaction on node
 	Tx_state_mined     		// transaction mined on a block!!
@@ -41,15 +41,23 @@ const (
 	// offline 模式可以都保存
 	Onlinemode_offline = "offline"
 	Onlinemode_online  = "online"
-
-	StandardDecimal = 8
 )
+
+var txStateNames = map[TxState]string{
+	Tx_state_ToBuild:     "to build",
+	Tx_state_BuildOk:     "build ok",
+	Tx_state_Signed:      "signed",
+	Tx_state_pending:     "pending",
+	Tx_state_mined:       "mined",
+	Tx_state_confirmed:   "confirmed",
+	Tx_state_unconfirmed: "unconfirmed",
+}
 
 type Token struct {
 	Name     string `json:"name"`
 	Address  string `json:"address"`
 	Symbol   string `json:"symbol"`
-	Decimals int   `json:"decimals,string,omitempty"`
+	Decimals int    `json:"decimals,string,omitempty"`
 }
 
 // Transaction中的TokenTx
@@ -62,7 +70,7 @@ type TokenTx struct {
 
 func (self *TokenTx) String() string {
 	return fmt.Sprintf(
-	`TokenTransaction inormation: 
+		`TokenTransaction inormation: 
 		TokenAddress: %s
 		Symbol		: %s
 		From		: %s
@@ -71,7 +79,7 @@ func (self *TokenTx) String() string {
 		self.Token.Address, self.Token.Symbol, self.From, self.To, self.Value)
 }
 
-func (self *TokenTx) Value_decimaled () (*big.Int) {
+func (self *TokenTx) Value_decimaled() *big.Int {
 	if !self.IsValid() {
 		return nil
 	}
@@ -79,7 +87,7 @@ func (self *TokenTx) Value_decimaled () (*big.Int) {
 }
 
 func (self *TokenTx) SetValue_by_decimaled(value *big.Int) float64 {
-	if isValid:=self.IsValid(); isValid==false {
+	if isValid := self.IsValid(); isValid == false {
 		return 0
 	}
 	self.Value = self.Token.Undecimal(value)
@@ -113,7 +121,7 @@ func (self *TokenTx) ContractAddress() string {
 
 func (self *Token) Dodecimal(v float64) *big.Int {
 	val := v * math.Pow10(self.Decimals)
-	ival, _:= new(big.Int).SetString(fmt.Sprintf("%.0f", val), 10)
+	ival, _ := new(big.Int).SetString(fmt.Sprintf("%.0f", val), 10)
 	return ival
 }
 
@@ -175,13 +183,13 @@ type RechargeTx struct {
 }
 
 type Transfer struct {
-	Tx_hash             string
-	From                string
-	To                  string
-	Value               float64// 交易金额
-	Fee                 float64
+	Tx_hash string
+	From    string
+	To      string
+	Value   float64 // 交易金额
+	Fee     float64
 	//Gas                 uint64	// deprecated!!!!
-	Total				float64// 总花费金额
+	Total               float64 // 总花费金额
 	State               TxState
 	InBlock             uint64 // 所在块高
 	ConfirmatedHeight   uint64 // 确认块高
@@ -195,39 +203,16 @@ type Transfer struct {
 	////fmt.Println("dd-mm-yyyy : ", current.Format("02-01-2006"))
 }
 
-func (tx *Transfer) Tatolcost() float64{
+func (tx *Transfer) Tatolcost() float64 {
 	return tx.Fee + tx.Value
 }
 
-func TxStateString(state TxState) string {
-	switch state {
-	case Tx_state_ToBuild:
-		{
-			return "To build"
-		}
-	case Tx_state_BuildOk:
-		{
-			return "Build Ok"
-		}
-	case Tx_state_pending:
-		{
-			return "Pending"
-		}
-	case Tx_state_mined:
-		{
-			return "mined"
-		}
-	case Tx_state_confirmed:
-		{
-			return "confirmed"
-		}
-	case Tx_state_unconfirmed:
-		{
-			return "unconfirmed"
-		}
-	default:
-		return "unkown"
+func TxStateString(state TxState) (name string) {
+	name = txStateNames[state]
+	if name=="" {
+		name="unknow state"
 	}
+	return
 }
 
 func (tx *Transfer) IsTokenTx() bool {

@@ -701,7 +701,7 @@ func (self *Client) startScanBlock() {
 			L4g.Trace("ETH Scanblock warning:\n[blockheight(%d)==scanblock(%d)],len(addresslit)=%d.",
 				top, self.scanblock,
 				self.addresslist.Len())
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
 			continue
 		}
 
@@ -713,16 +713,11 @@ func (self *Client) startScanBlock() {
 			continue
 		}
 
-		L4g.Trace("Start Scaning block :%d", self.scanblock)
-
 		txs := block.Transactions()
-
+		L4g.Trace("Start Scaning block :%d, %d Tx on block(%d)", self.scanblock, len(txs))
 		for _, tx := range txs {
-			L4g.Trace("find tx(%s)", tx.Hash().String())
 			to := tx.To()
-			if to == nil {
-				continue
-			}
+			if to == nil { continue }
 
 			// from和to都需要监控, 所以这个地方用addresses数组来保存
 			// 然后检查addresses中是否有地址在监控地址中
@@ -730,22 +725,23 @@ func (self *Client) startScanBlock() {
 			addresses := []string{tx.From()}
 
 			// check if 'to' is a cantract address
-			if code, err := self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
-				tk := self.tokens[to.String()]
-				if tk == nil {
-					continue
-				}
+			//if code, err := self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
+			//	tk := self.tokens[to.String()]
+			//	if tk == nil {
+			//		continue
+			//	}
 
+			// 如果地址是监控的token合约地址
+			if self.tokens[to.String()]!=nil {
 				tkowner, tkreciver, _, err := token.ParseTokenTxInput(tx.Data())
-
 				if err!=nil {
-					L4g.Error("ETH parsing TxInputData error:%s, TxInfo:%s",
+					L4g.Trace("ETH parsing TxInputData error:%s, TxInfo:%s",
 						err.Error(), tx.String())
 					continue
-				} else {
-					if tkowner != "" { addresses = append(addresses, tkowner) }
-					if tkreciver != "" { addresses = append(addresses, tkreciver) }
 				}
+
+				if tkowner != "" { addresses = append(addresses, tkowner) }
+				if tkreciver != "" { addresses = append(addresses, tkreciver) }
 			} else {
 				addresses = append(addresses, to.String())
 			}
@@ -756,6 +752,10 @@ func (self *Client) startScanBlock() {
 					// TODO: 以后需要看看ethereum库中相关部分
 					tx.Inblock = scanblock
 					tmp_tx := self.toTx(tx)
+
+					L4g.Trace("find related tx on block(%d), txinformation:%s",
+						self.scanblock, tmp_tx.String())
+
 					// rctChannel 触发以后, 被ClientManager.loopRechargeTxMessage函数处理!
 					select {
 					case <-self.ctx.Done():
@@ -768,6 +768,9 @@ func (self *Client) startScanBlock() {
 			}
 		}
 		self.scanblock++
+
+		// 休眠0.5秒, 减轻钱包网络负荷
+		time.Sleep(time.Millisecond * 500)
 
 		// scan 20 block, once save
 		if self.scanblock%20 == 0 {
