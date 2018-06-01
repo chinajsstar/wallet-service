@@ -9,7 +9,6 @@ import (
 	"blockchain_server/utils"
 	wtypes "blockchain_server/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"encoding/hex"
 	bcrypto "blockchain_server/crypto"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/common"
@@ -74,13 +73,7 @@ func NewAccount() (*wtypes.Account, error) {
 }
 
 func ParseKey(keyChiper string) (*ecdsa.PrivateKey, string, error) {
-	//fmt.Printf("crypt key : %s\n", keyChiper)
-	cryptKeyHexString := utils.String_cat_prefix(keyChiper, "0x")
-	cryptKeyData, err := hex.DecodeString(cryptKeyHexString )
-
-	if err!=nil {
-		return nil, "", fmt.Errorf("Invalid private key")
-	}
+	cryptKeyData := common.FromHex(keyChiper)
 	decryptBytes, err := bcrypto.Decrypto(cryptKeyData)
 	if err!=nil {
 		return nil, "",  err
