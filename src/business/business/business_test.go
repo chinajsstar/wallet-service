@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 23
+	testType := 5
 	switch testType {
 	case 1:
 		req.Method.Function = "support_assets"
@@ -36,7 +36,7 @@ func TestHandleMsg(t *testing.T) {
 	case 5:
 		req.Method.Function = "new_address"
 		req.Argv.UserKey = "737205c4-af3c-426d-973d-165a0bf46c71"
-		req.Argv.Message = "{\"asset_name\":\"eth\",\"count\":1}"
+		req.Argv.Message = "{\"asset_name\":\"eth\",\"count\":3}"
 	case 6:
 		time.Sleep(time.Second * 3)
 		req.Method.Function = "withdrawal"
