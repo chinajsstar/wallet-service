@@ -391,11 +391,10 @@ func (self *Client) approveTokenTx(tokenOwnerKey, spenderKey, contractHex string
 	signer := etypes.HomesteadSigner{}
 
 	balance, err = self.GetBalance(ownerHex, "")
-	// if have enought txfee
-	if balance < WeiToEther(txfee) && false {
+	// if have enough txfee
+	if balance < WeiToEther(txfee) {
 		// Spender需要充owner转走token, 首先需要Token的Owner调用合约给自己授权
 		// 所以由Spender先发送txfee给owner, 作为执行授权的交易费
-		// 因为Spender中没有'ether'作为txfee
 		tx, err = self.buildRawTx(spender, owner, txfee, nil)
 		//L4g.Trace("Build Fee ethereumTx:%s, txfee:(%d * %d) = %d",
 		//	tx.String(), gasprice.Uint64(), gaslimit, txfee)
