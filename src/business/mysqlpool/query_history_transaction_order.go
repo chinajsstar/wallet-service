@@ -24,7 +24,6 @@ func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, b
 	rows, err := db.Query(sqls, params...)
 	defer rows.Close()
 	if err != nil {
-		fmt.Println(err.Error())
 		l4g.Error(err.Error())
 		return dataList, len(dataList) > 0
 	}
@@ -37,7 +36,6 @@ func QueryTransactionBill(queryMap map[string]interface{}) ([]TransactionBill, b
 		if err == nil {
 			dataList = append(dataList, data)
 		} else {
-			fmt.Println(err.Error())
 			l4g.Error(err.Error())
 		}
 	}
