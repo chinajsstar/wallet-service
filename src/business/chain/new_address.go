@@ -82,10 +82,10 @@ func generateAddress(userProperty *UserProperty, assetProperty *AssetProperty, c
 	}
 	cmd := service.NewAccountCmd("", assetName, 1)
 	userAddress := make([]UserAddress, 0)
-	for i := 0; i < count; i++ {
+	for {
 		accounts, err := wallet.NewAccounts(cmd)
 		if err != nil {
-			CheckError(ErrorFailed, err.Error())
+			l4g.Error(err.Error())
 			return []UserAddress{}
 		}
 		nowTM := time.Now().Unix()
@@ -107,26 +107,32 @@ func generateAddress(userProperty *UserProperty, assetProperty *AssetProperty, c
 		cmd := service.NewRechargeAddressCmd("", assetName, []string{data.Address})
 		err = wallet.InsertRechargeAddress(cmd)
 		if err != nil {
-			CheckError(ErrorFailed, err.Error())
+			l4g.Error(err.Error())
 			return []UserAddress{}
 		}
-		userAddress = append(userAddress, data)
-	}
-	err := mysqlpool.AddUserAddress(userAddress)
-	if err != nil {
-		return []UserAddress{}
-	}
 
-	if userProperty.UserClass == 0 {
-		err = mysqlpool.AddUserAccount(userProperty.UserKey, userProperty.UserClass, assetProperty.AssetName)
+		//添加地址到数据库
+		err = mysqlpool.AddUserAddress([]UserAddress{data})
 		if err != nil {
-			return []UserAddress{}
+			l4g.Error(err.Error())
+			continue
+		}
+
+		if userProperty.UserClass == 0 {
+			err = mysqlpool.AddUserAccount(userProperty.UserKey, userProperty.UserClass, assetProperty.AssetName)
+			if err != nil {
+				l4g.Error(err.Error())
+				return []UserAddress{}
+			}
+		}
+
+		if userProperty.UserClass == 1 && assetProperty.IsToken == 0 {
+			mysqlpool.CreateTokenAddress(userAddress)
+		}
+
+		userAddress = append(userAddress, data)
+		if len(userAddress) >= count {
+			return userAddress
 		}
 	}
-
-	if userProperty.UserClass == 1 && assetProperty.IsToken == 0 {
-		mysqlpool.CreateTokenAddress(userAddress)
-	}
-
-	return userAddress
 }

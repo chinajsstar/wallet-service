@@ -294,23 +294,36 @@ CREATE TABLE `transaction_bill_daily` (
 
 
 -- ----------------------------
+-- Table structure for `profit_account`
+-- ----------------------------
+DROP TABLE IF EXISTS `profit_account`;
+CREATE TABLE `profit_account` (
+  `id` int(11) NOT NULL AUTO_INCREMENT, 
+  `asset_name` varchar(255) NOT NULL DEFAULT '',
+  `amount` decimal(32, 12) NOT NULL DEFAULT 0,
+  `update_time` datetime NOT NULL,
+  PRIMARY KEY (`user_key`,`asset_name`),
+  UNIQUE KEY `id_UNIQUE` (`id`),
+  UNIQUE KEY `user_key_asset` (`user_key`,`asset_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- ----------------------------
 -- Table structure for `profit_bill`
 -- ----------------------------
 DROP TABLE IF EXISTS `profit_bill`;
 CREATE TABLE `profit_bill` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `profit_user_key` varchar(255) NOT NULL DEFAULT '' COMMENT '利润归属对象',
   `user_key` varchar(255) NOT NULL DEFAULT '' COMMENT '商户Key',
-  `trans_type` int(11) NOT NULL COMMENT '0:充值, 1:提币',
+  `trans_type` int(11) NOT NULL COMMENT '0:充值, 1:提币, 2:加油, 3:授权, 4:归集',
   `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '币种', 
   `order_id` varchar(255) NOT NULL DEFAULT '' COMMENT '交易订单号',
-  `hash` varchar(255) NOT NULL DEFAULT '',
+  `hash` varchar(255) NOT NULL DEFAULT '哈希值',
   `amount` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '金额',
   `pay_fee` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '手续费',
-  `miner_fee` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '矿工',
+  `miner_fee` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '矿工费',
   `profit` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '利润',
-  `time` datetime NOT NULL COMMENT '时间',             
-  PRIMARY KEY (`profit_user_key`, `asset_name`, `order_id`),
+  `update_time` datetime NOT NULL COMMENT '时间',             
+  PRIMARY KEY (`asset_name`, `order_id`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -322,10 +335,9 @@ DROP TABLE IF EXISTS `profit_bill_daily`;
 CREATE TABLE `profit_bill_daily` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `period` int(11) NOT NULL DEFAULT 0 COMMENT '周期标识',
-  `profit_user_key` varchar(255) NOT NULL DEFAULT '' COMMENT '利润归属对象',
   `asset_name` varchar(255) NOT NULL DEFAULT '' COMMENT '币种', 
   `sum_profit` decimal(32, 12) NOT NULL DEFAULT 0 COMMENT '利润',
-  `time` datetime NOT NULL COMMENT '时间',             
+  `update_time` datetime NOT NULL COMMENT '时间',             
   PRIMARY KEY (`profit_user_key`, `asset_name`),
   UNIQUE KEY `id_UNIQUE` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

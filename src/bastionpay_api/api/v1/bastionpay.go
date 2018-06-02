@@ -14,14 +14,14 @@ type (
 
 	ReqWithdrawal struct {
 		AssetName   string  `json:"asset_name" doc:"币种简称"`
-		Amount      float64 `json:"" doc:"数量"`
-		Address     string  `json:"" doc:"提币地址"`
-		UserOrderID string  `json:"" doc:"用户自定义序号"`
+		Amount      float64 `json:"amount" doc:"数量"`
+		Address     string  `json:"address" doc:"提币地址"`
+		UserOrderID string  `json:"user_order_id" doc:"用户自定义序号"`
 	}
 
 	AckWithdrawal struct {
-		OrderID     string `json:"" doc:"交易订单号"`
-		UserOrderID string `json:"" doc:"用户自定义序号"`
+		OrderID     string `json:"order_id" doc:"交易订单号"`
+		UserOrderID string `json:"user_order_id" doc:"用户自定义序号"`
 	}
 
 	ReqSupportAssets struct{}
@@ -244,10 +244,10 @@ type (
 	}
 
 	AckPayAddress struct {
-		AssetName  string  `json:"asset_name"`
-		Address    string  `json:"address"`
-		Amount     float64 `json:"amount"`
-		UpdateTime int64   `json:"update_time"`
+		AssetName  string  `json:"asset_name" doc:"币种简称"`
+		Address    string  `json:"address" doc:"地址"`
+		Amount     float64 `json:"amount" doc:"数量"`
+		UpdateTime int64   `json:"update_time" doc:"更新时间"`
 	}
 
 	AckPayAddressList struct {
@@ -255,13 +255,13 @@ type (
 	}
 
 	ReqBlockHeight struct {
-		AssetNames []string `json:"asset_names"`
+		AssetNames []string `json:"asset_names" doc:"币种简称"`
 	}
 
 	AckBlockHeight struct {
-		AssetName   string
-		BlockHeight int64
-		UpdateTime  int64
+		AssetName   string `json:"asset_name" doc:"币种简称"`
+		BlockHeight int64  `json:"block_height" doc:"块高"`
+		UpdateTime  int64  `json:"ppdate_time" doc:"更新时间"`
 	}
 
 	AckBlockHeightList struct {
