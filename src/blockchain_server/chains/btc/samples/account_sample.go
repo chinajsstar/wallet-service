@@ -32,7 +32,6 @@ func main() {
 					hex.EncodeToString(k.SerializeUncompressed()),
 					address.EncodeAddress(),
 					address.String())
-
 			}
 		}
 	}

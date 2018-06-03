@@ -9,6 +9,9 @@ import (
 	"blockchain_server/conf"
 	"blockchain_server/chains/btc"
 	"context"
+	"encoding/hex"
+	"encoding/binary"
+	"strconv"
 )
 
 var (
@@ -62,13 +65,30 @@ var (
 	L4g = L4G.BuildL4g(types.Chain_bitcoin, "bitcoin")
 )
 
+var index_prefix string = "BTC_HD_Child_PubKey"
+func keyToIndex (index_str, slat string) (uint32, error) {
+	// TODO: to check if data has been change by some one!
+	index_len_hex := index_str[32:40]
+
+	if index_len_bs, err := hex.DecodeString(index_len_hex); err!=nil {
+		return 0, err
+	} else {
+		index_len := binary.LittleEndian.Uint32(index_len_bs)
+		real_index_str := string(index_str[64-index_len:])
+		if index, err := strconv.ParseUint(real_index_str, 16, 32); err!=nil {
+			return 0, err
+		} else { return uint32(index), nil }
+	}
+}
+
 func main() {
 	L4g.Trace("-------------------bitcoin client sample start-------------------")
 	clientManager := service.NewClientManager()
 	client, err := btc.ClientInstance()
 
 	if nil != err {
-		fmt.Printf("create client:%s error:%s", Coinname, err.Error())
+		L4g.Error("create client:%s error:%s", Coinname, err.Error())
+		L4g.Close()
 		return
 	}
 
@@ -78,13 +98,26 @@ func main() {
 	defer cancel()
 
 	//*********批量创建账号示例*********/
-	if false {
-		accCmd := service.NewAccountCmd("message id", Coinname, 20)
+	if  true {
+		accCmd := service.NewAccountCmd("message id", Coinname, 5)
 		var accs []*types.Account
 		accs, err = clientManager.NewAccounts(accCmd)
 		for i, account := range accs {
-			fmt.Printf("-------≥≥≥≥≥≥≥≥≥ account[%d], crypt private key:%s, address:%s\n",
-				i, account.PrivateKey, account.Address)
+
+			if childIndex, err := keyToIndex(account.PrivateKey, index_prefix);err!=nil {
+				L4g.Trace("worng Privatekey:%s, message:%s",
+					account.PrivateKey, err.Error())
+				continue
+			} else {
+				L4g.Trace(`
+----------account[%d] information:---------------
+child index:		%d,
+virtual private key:%s,
+real private key:	%s,
+address string:		%s`,
+					i, childIndex, account.PrivateKey, "", account.Address)
+			}
+
 		}
 	}
 
@@ -98,7 +131,7 @@ func main() {
 		go testWatchAddress(ctx, clientManager, Coinname, nil, watchaddress, done_watchaddress)
 	}else {i--}
 
-	if true {
+	if false {
 		go testSendTx(ctx, clientManager, from_acc.PrivateKey, to_acc.Address, Coinname,
 			"", 0.1, done_sendTx)
 	} else{i--}
@@ -161,7 +194,7 @@ func testWatchAddress(ctx context.Context, clientManager *service.ClientManager,
 				}
 			case <-ctx.Done():
 				{
-					fmt.Println("RechangeTx context done, because : ", ctx.Err())
+					L4g.Trace("RechangeTx context done, because : ", ctx.Err())
 					break exit
 				}
 			}

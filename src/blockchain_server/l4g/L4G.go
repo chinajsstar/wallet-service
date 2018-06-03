@@ -15,7 +15,14 @@ func init () {
 }
 
 func GetL4g(name string) log4go.Logger {
-	return l4gs[name]
+	l := l4gs[name]
+
+	if nil==l {
+		l = l4gs["default"]
+		l.Warn("there are no l4g named '%s', return 'default' ", name)
+	}
+
+	return l
 }
 
 func BuildL4g(name string, filename string) log4go.Logger {

@@ -627,7 +627,6 @@ func (c *Client) Stop() {
 	default:
 		close(c.quit)
 		c.Shutdown()
-
 		if !c.started {
 			close(c.walletNotification)
 			close(c.blockNotification)
