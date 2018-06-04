@@ -108,7 +108,7 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
-	l4g.Info("push %s to %s", req.Argv.Message, req.Argv.UserKey)
+	l4g.Info("push %s to %s-%s", req.Argv.Message, req.Argv.UserKey, url)
 
 	func(){
 		pushData := api.UserResponseData{}
