@@ -1,7 +1,7 @@
 package data
 
 import (
-	"api_router/base/data"
+	"bastionpay_base/data"
 	"bastionpay_api/api/v1"
 	. "business/def"
 	"business/jsonparse"

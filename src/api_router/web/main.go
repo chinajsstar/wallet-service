@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 	l4g "github.com/alecthomas/log4go"
-	"api_router/base/config"
+	"bastionpay_base/config"
 )
 
 const WebSrvConfig = "web.json"

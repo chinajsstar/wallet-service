@@ -2,7 +2,7 @@ package main
 
 import (
 	//"api_router/base/service"
-	service "api_router/base/service2"
+	service "bastionpay_base/service2"
 	"api_router/account_srv/handler"
 	"fmt"
 	"context"
@@ -13,7 +13,7 @@ import (
 	"os"
 	l4g "github.com/alecthomas/log4go"
 	"api_router/account_srv/db"
-	"api_router/base/config"
+	"bastionpay_base/config"
 )
 
 const AccountSrvConfig = "account.json"

@@ -2,12 +2,12 @@ package main
 
 import (
 	//"api_router/base/service"
-	service "api_router/base/service2"
+	service "bastionpay_base/service2"
 	"fmt"
 	"time"
 	"context"
 	l4g "github.com/alecthomas/log4go"
-	"api_router/base/config"
+	"bastionpay_base/config"
 	"bastionpay_api/utils"
 )
 

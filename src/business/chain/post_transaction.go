@@ -1,7 +1,7 @@
 package chain
 
 import (
-	"api_router/base/data"
+	"bastionpay_base/data"
 	"bastionpay_api/apibackend/v1/backend"
 	"blockchain_server/service"
 	. "business/def"

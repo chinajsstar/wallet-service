@@ -2,8 +2,8 @@ package service2
 
 import (
 	"sync"
-	"api_router/base/data"
-	"api_router/base/config"
+	"bastionpay_base/data"
+	"bastionpay_base/config"
 	"context"
 	"strings"
 	"log"
