@@ -108,6 +108,8 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
+	l4g.Info("push %s to %s-%s", req.Argv.Message, req.Argv.UserKey, url)
+
 	func(){
 		pushData := api.UserResponseData{}
 
@@ -120,16 +122,19 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 			res.Err = apibackend.ErrDataCorrupted
 			return
 		}
-		var ret string
-		err = nethelper.CallToHttpServer(url, "", string(b), &ret)
+
+		l4g.Info("push data: %s", string(b))
+
+		httpCode, ret, err := nethelper.CallToHttpServer(url, "", string(b))
 		if err != nil {
 			l4g.Error("push http: %s", err.Error())
 			res.Err = apibackend.ErrPushSrvPushData
 			return
 		}
-
 		res.Value.Message = ret
+
+		l4g.Info("push status:%d-%s", httpCode, ret)
 	}()
 
-	l4g.Info("push:", req.Argv.Message)
+	l4g.Info("push fin to %s", req.Argv.UserKey)
 }
