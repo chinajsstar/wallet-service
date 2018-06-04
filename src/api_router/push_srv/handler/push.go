@@ -123,6 +123,8 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 			return
 		}
 
+		l4g.Info("push data: %s", string(b))
+
 		httpCode, ret, err := nethelper.CallToHttpServer(url, "", string(b))
 		if err != nil {
 			l4g.Error("push http: %s", err.Error())
