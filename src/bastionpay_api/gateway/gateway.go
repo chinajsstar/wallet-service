@@ -128,7 +128,7 @@ func outputApi(path string, message []byte) ([]byte, *api.Error) {
 	fmt.Println("request: ", string(userDataByte))
 
 	httpPath := setting.BastionPay.Url + path
-	resByte, err := httpPost(httpPath, userDataByte)
+	resByte, err := HttpPost(httpPath, userDataByte)
 	if err != nil {
 		return nil, api.NewError(1, err.Error())
 	}
@@ -154,6 +154,30 @@ func outputApi(path string, message []byte) ([]byte, *api.Error) {
 }
 
 func Encryption(message []byte) (*api.UserData, error) {
+	return EncryptionData(message, setting.User.UserKey, setting.BastionPay.PubKey, setting.User.PrivKey)
+}
+
+func Decryption(userData *api.UserData) ([]byte, error) {
+	return DecryptionData(userData, setting.BastionPay.PubKey, setting.User.PrivKey)
+}
+
+/// 通用方法...
+func HttpPost(path string, data []byte) ([]byte, error) {
+	client := http.Client{Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		ResponseHeaderTimeout: time.Second * 30,
+	}}
+
+	resp, err := client.Post(path, "application/json;charset=utf-8", bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return ioutil.ReadAll(resp.Body)
+}
+
+func EncryptionData(message []byte, userKey string, serPubKey []byte, userPrivKey []byte) (*api.UserData, error) {
 	var (
 		err error
 		encMessage []byte
@@ -161,10 +185,10 @@ func Encryption(message []byte) (*api.UserData, error) {
 	)
 
 	userData := &api.UserData{}
-	userData.UserKey = setting.User.UserKey
+	userData.UserKey = userKey
 
 	// encrypt
-	encMessage, err = utils.RsaEncrypt(message, setting.BastionPay.PubKey, utils.RsaEncodeLimit2048)
+	encMessage, err = utils.RsaEncrypt(message, serPubKey, utils.RsaEncodeLimit2048)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +199,7 @@ func Encryption(message []byte) (*api.UserData, error) {
 	hs.Write(encMessage)
 	hashData := hs.Sum(nil)
 
-	signature, err = utils.RsaSign(crypto.SHA512, hashData, setting.User.PrivKey)
+	signature, err = utils.RsaSign(crypto.SHA512, hashData, userPrivKey)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +208,7 @@ func Encryption(message []byte) (*api.UserData, error) {
 	return userData, nil
 }
 
-func Decryption(userData *api.UserData) ([]byte, error) {
+func DecryptionData(userData *api.UserData, serPubKey []byte, userPrivKey []byte) ([]byte, error) {
 	var (
 		err error
 		encMessage 	[]byte
@@ -206,26 +230,11 @@ func Decryption(userData *api.UserData) ([]byte, error) {
 	hs.Write([]byte(encMessage))
 	hashData := hs.Sum(nil)
 
-	err = utils.RsaVerify(crypto.SHA512, hashData, signature, setting.BastionPay.PubKey)
+	err = utils.RsaVerify(crypto.SHA512, hashData, signature, serPubKey)
 	if err != nil {
 		return nil, err
 	}
 
 	// decrypt
-	return utils.RsaDecrypt(encMessage, setting.User.PrivKey, utils.RsaDecodeLimit2048)
-}
-
-func httpPost(path string, data []byte) ([]byte, error) {
-	client := http.Client{Transport: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		ResponseHeaderTimeout: time.Second * 30,
-	}}
-
-	resp, err := client.Post(path, "application/json;charset=utf-8", bytes.NewBuffer(data))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return ioutil.ReadAll(resp.Body)
+	return utils.RsaDecrypt(encMessage, userPrivKey, utils.RsaDecodeLimit2048)
 }
