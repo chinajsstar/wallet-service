@@ -24,6 +24,7 @@ import (
 
 var (L4g = L4G.BuildL4g(types.Chain_eth, "ethereum"))
 
+
 type Client struct {
 	ctx         context.Context
 	ctx_canncel context.CancelFunc
@@ -52,6 +53,7 @@ type Client struct {
 const (
 	max_nonce          = 1024 * 1024
 	first_custom_nonce = max_nonce + 1
+	min_gasprice	   = int64(141e8) // 14.1GWei
 )
 
 func (self *Client) lock() {
@@ -241,6 +243,11 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 		return
 	}
 
+	// 最小gasprice为14(GWei) !!!!
+	if -1 == gasprice.CmpAbs(big.NewInt(min_gasprice)) {
+		gasprice.SetInt64(min_gasprice)
+	}
+
 	// I don't kown why here set feild 'From' to param:'from' will cause the following,
 	// "gas required exceeds allowance or always failing transaction" error
 	// so, pass nil as 'From'
@@ -274,6 +281,10 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 
 	if gasprice, err = self.c.SuggestGasPrice(context.TODO()); err != nil {
 		return nil, fmt.Errorf("failed to suggest gas price: %v", err)
+	}
+
+	if -1 == gasprice.CmpAbs(big.NewInt(min_gasprice)) {
+		gasprice.SetInt64(min_gasprice)
 	}
 
 	if pendingcode, err = self.c.PendingCodeAt(context.TODO(), to); err != nil {

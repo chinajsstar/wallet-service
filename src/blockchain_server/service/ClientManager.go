@@ -679,3 +679,4 @@ func (self *ClientManager) SendSignedTx(txCmdString string) error {
 
 	return nil
 }
+
