@@ -10,15 +10,15 @@ import (
 	"strconv"
 	"api_router/base/config"
 	"bastionpay_api/gateway"
+	"encoding/json"
+	"reflect"
 )
 
 const httpaddrGateway = "http://127.0.0.1:8082"
-const httpaddrNigix = "http://127.0.0.1:8070"
 
 func setGateway() error {
 	var err error
 
-	runDir, _ := utils.GetRunDir()
 	cfgDir := config.GetBastionPayConfigDir()
 
 	accountDir := cfgDir + "/" + config.BastionPayAccountDirName
@@ -29,12 +29,12 @@ func setGateway() error {
 
 	userKey := "1c75c668-f1ab-474b-9dae-9ed7950604b4"
 
-	adminPubkey, err := ioutil.ReadFile(runDir + "/public_administrator.pem")
+	adminPubkey, err := ioutil.ReadFile(cfgDir + "/public_administrator.pem")
 	if err != nil {
 		return err
 	}
 
-	adminPrivkey, err := ioutil.ReadFile(runDir + "/private_administrator.pem")
+	adminPrivkey, err := ioutil.ReadFile(cfgDir + "/private_administrator.pem")
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,60 @@ func DoApiTest(count *int64, right *int64, times int64){
 	}
 }
 
+func checkMapIsValid(value interface{}, data map[string]interface{}) error {
+	t := reflect.ValueOf(value).Type()
+	if t.Kind() != reflect.Struct {
+		return fmt.Errorf("type is not struct")
+	}
+
+	keys := make(map[string]reflect.Type)
+	n := t.NumField()
+	for i := 0; i < n; i++ {
+		jstr := t.Field(i).Tag.Get("json")
+		if jstr == "-" {
+			continue
+		}
+		if jstr == "" {
+			jstr = t.Field(i).Name
+		}
+		keys[jstr] = t.Field(i).Type
+	}
+
+	for k, _ :=range data {
+		_, ok := keys[k];
+		if !ok {
+			return fmt.Errorf("%s is error param", k)
+		}
+
+		//if ts != reflect.ValueOf(v).Type() {
+		//	return fmt.Errorf("%s is error param type,%s-%s", k,ts.Name(),reflect.ValueOf(v).Type().Name())
+		//}
+	}
+
+	return nil
+}
+
+type TT struct {
+	Data string `json:"data"`
+	T    int    `json:"t"`
+	H    int    `json:"h"`
+}
+
+func test(msg string)  {
+	var p map[string]interface{}
+	json.Unmarshal([]byte(msg), &p)
+	fmt.Println(p)
+
+	err := checkMapIsValid(TT{}, p)
+	fmt.Println(err)
+}
+
 func main() {
+	//test("{\"data\":\"five\",\"t\":2}")
+	//test("{\"data\":\"five\",\"h\":2}")
+	//test("{\"data\":\"five\",\"g\":2}")
+	//return
+
 	// 目录
 	curDir, _ := utils.GetCurrentDir()
 	runDir, _ := utils.GetRunDir()

@@ -613,6 +613,7 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// write back http
+	w.Header().Set("Connection", "close")
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
@@ -674,6 +675,7 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// write back http
+	w.Header().Set("Connection", "close")
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
@@ -736,6 +738,7 @@ func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) 
 	}
 
 	// write back http
+	w.Header().Set("Connection", "close")
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
@@ -793,6 +796,7 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 	}
 
 	// write back http
+	w.Header().Set("Connection", "close")
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
@@ -810,6 +814,7 @@ func (mi *ServiceGateway) handleHealth(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	w.Header().Set("Connection", "close")
 	w.Write(b)
 }
 
