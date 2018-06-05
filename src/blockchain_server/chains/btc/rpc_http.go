@@ -121,10 +121,16 @@ func (c *Client) handler() {
 					return
 				} else {
 
-					if len(btx.Details)!=0 && btx.Details[0].Category=="immature" {
-						L4g.Trace("Transaction(%s) is from a mineding block, ignore this TX!", btx.BlockHash)
+					if len(btx.Details)!=0 && btx.Details[0].Category!="send" && btx.Details[0].Category!="receive" {
+						L4g.Trace("Transaction(%s) detail[0].category='%s', ignore this TX!",
+							btx.BlockHash, btx.Details[0].Category)
 						return
 					}
+
+					//if len(btx.Details)!=0 && (btx.Details[0].Category=="immature"||btx.Details[0].Category=="generate") {
+					//	L4g.Trace("Transaction(%s) is from a mineding block, ignore this TX!", btx.BlockHash)
+					//	return
+					//}
 
 					L4g.Trace("Notify handler convert BTCTx to StandardTx Start!!")
 					if tx, err := c.toTx(btx); err == nil {

@@ -1,10 +1,14 @@
 package main
 
 import (
-	"github.com/btcsuite/btcd/rpcclient"
-	"blockchain_server/types"
-	"log"
 	"blockchain_server/l4g"
+	"blockchain_server/types"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/btcsuite/btcutil"
+	"log"
+	"github.com/btcsuite/btcd/btcjson"
+	"strconv"
 )
 
 //----------account[0] information:---------------
@@ -40,17 +44,21 @@ var (
 	// the following account create fro extend publick key
 	// child index from 1 : to 5
 	accs = []types.Account{
-		{"mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy", "1af172762746ae5722948e342a0abddb01000000xGU55VythhpMhHkHcJ9tP2x1"},
-		{"mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK", "52e5f1cb31fec078b4891c2c05a9661501000000PHovvvnmhs1FS9Ev7ZFNeEv2"},
-		{"mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA", "8dcd7c7cbae3bb60d1d89f6d6aed5ff301000000hcqzyyOIwoUXUsm6IgTl7Or3"},
-		{"muLBXrSNdAsPBtRM9fS73p8QHZCnFwKKDi", "1c1da3f9d7b66c855f0fb2f97f0c26f201000000QKdbN5ICgA5orsHkCzHG9Pv4"},
-		{"mnXM8CCyXmzBZM1d11rUax4XBv4bYDNhJ6", "aff7117bf1eab04914602ed27e2a9d64010000006hoKDbrmFTiBBaeJ7y7lfCj5"},
+		{Address: "mmztibmBsXh3ezygzAMN52CtfCUwPWzXMy", PrivateKey: "1af172762746ae5722948e342a0abddb01000000xGU55VythhpMhHkHcJ9tP2x1"},
+		{Address: "mfetgXxCwsh9U19v3Kv5j77FdgbchHjkzK", PrivateKey: "52e5f1cb31fec078b4891c2c05a9661501000000PHovvvnmhs1FS9Ev7ZFNeEv2"},
+		{Address: "mwBgJASmXyh3TF8PEkoTY8yePfi44P6aNA", PrivateKey: "8dcd7c7cbae3bb60d1d89f6d6aed5ff301000000hcqzyyOIwoUXUsm6IgTl7Or3"},
+		{Address: "muLBXrSNdAsPBtRM9fS73p8QHZCnFwKKDi", PrivateKey: "1c1da3f9d7b66c855f0fb2f97f0c26f201000000QKdbN5ICgA5orsHkCzHG9Pv4"},
+		{Address: "mnXM8CCyXmzBZM1d11rUax4XBv4bYDNhJ6", PrivateKey: "aff7117bf1eab04914602ed27e2a9d64010000006hoKDbrmFTiBBaeJ7y7lfCj5"},
 	}
-	l4g = L4G.GetL4g(types.Chain_bitcoin)
-	client *rpcclient.Client
+	l4g                    = L4G.GetL4g(types.Chain_bitcoin)
+	client                 *rpcclient.Client
+	propertyid_indivisible = int64(2147483651)
+	propertyid_divisible   = int64(2147483652)
+
+	addresses []btcutil.Address
 )
 
-func init () {
+func init() {
 	// Connect to local bitcoin core RPC server using HTTP POST mode.
 	connCfg := &rpcclient.ConnConfig{
 		Host:         "127.0.0.1:18443",
@@ -72,11 +80,52 @@ func init () {
 	if err != nil {
 		log.Fatal(err)
 	}
-	l4g.Info("Block count: %d", blockCount)
-}
+	l4g.Info("init bitcoin client success, block height: %d", blockCount)
 
+	for _, acc := range accs {
+		if address, err := btcutil.DecodeAddress(acc.Address, &chaincfg.TestNet3Params); err != nil {
+			continue
+		} else {
+			addresses = append(addresses, address)
+		}
+	}
+}
 
 func main() {
-	//client.ListUnspentMinMaxAddresses()
+	client.ImportAddress(accs[0].Address, "ZToken_IndivisibleBank", false)
+
 }
 
+
+type OMNI_PlayloadSimplesendCmd struct {
+	Propertyid 	uint64	`josn:"propertyid"`
+	Amount 		string	`json:"amount"`
+
+}
+
+func sendToken(tokenId string, from, to btcutil.Address, value float64) (err error) {
+	var (
+		unspents []btcjson.ListUnspentResult
+	)
+	unspents, err = client.ListUnspentMinMaxAddresses(0, 999999, []btcutil.Address{from})
+	if err!=nil {
+		l4g.Error("list unsptent(%s) faild, message:%s",
+			from.String(), err.Error())
+		return err
+	}
+
+	l4g.Info("address unspent count:%d", len(unspents))
+
+	err = btcjson.RegisterCmd("omni_createplayload_simplesend", (*OMNI_PlayloadSimplesendCmd)(nil),  btcjson.UFWalletOnly)
+
+	if err!=nil {
+		l4g.Error("regist omni_createplayload_simplesend cmd faild, message:%s",
+			from.String(), err.Error())
+		return err
+	}
+
+	data, err := client.OmniProperty(propertyid_divisible)
+	l4g.Trace("property information: %s", string(data))
+
+	// --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "omni_createpayload_simplesend", "params": [1, "100.0"] }' -H 'content-type: text/plain;'
+}

@@ -1,0 +1,39 @@
+omnicore-cli -regtest getaddressesbyaccount "ZToken"
+[
+  "msKnP4nBYZackpxGjmzzSgPMZiNgUQ6C9i"
+]
+
+omnicore-cli -regtest generatetoaddress 102 msKnP4nBYZackpxGjmzzSgPMZiNgUQ6C9i
+
+omnicore-cli -regtest  listunspent 0 9999999 "[\"msKnP4nBYZackpxGjmzzSgPMZiNgUQ6C9i\"]"
+[
+  {
+    "txid": "9f4ce93565bee41b796c9bbbaac1b2385138914f60125c85d7735fb900934122",
+    "vout": 0,
+    "address": "msKnP4nBYZackpxGjmzzSgPMZiNgUQ6C9i",
+    "account": "",
+    "scriptPubKey": "76a914d3cf2e9f532f8d770e1ff6d59ba2a92eea3a617288ac",
+    "amount": 50.00000000,
+    "confirmations": 101,
+    "spendable": true,
+    "solvable": true
+  },
+  {
+    "txid": "4386665094524dd2218e2b1699362c2e4716578d5dfc65d0fae1498b23039d99",
+    "vout": 0,
+    "address": "msKnP4nBYZackpxGjmzzSgPMZiNgUQ6C9i",
+    "account": "",
+    "scriptPubKey": "76a914d3cf2e9f532f8d770e1ff6d59ba2a92eea3a617288ac",
+    "amount": 50.00000000,
+    "confirmations": 102,
+    "spendable": true,
+    "solvable": true
+  }
+]
+
+
+omnicore omni_sendissuancefixed "msKnP4nBYZackpxGjmzzSgPMZiNgUQ6C9i" 2 1 0 "ZToken" "indivisible" "ZToken" "zl03jsj@163.com" "zl03jsj@163.com" "1000000"
+9a57d96db2d9e39b8e3069659011dde45f9929e394e57c78da0803880d2e6118
+
+omnicore omni_sendissuancefixed "msKnP4nBYZackpxGjmzzSgPMZiNgUQ6C9i" 2 2 0 "ZToken" "divisible" "ZToken" "zl03jsj@163.com" "zl03jsj@163.com" "1000000"
+025c561c052c225ed75e645727780bac1c04e4750b0fa4b86f5dfd7441c89893

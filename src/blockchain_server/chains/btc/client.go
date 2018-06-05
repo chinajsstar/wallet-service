@@ -348,11 +348,13 @@ func (c *Client) msgTxInputDetail(txIns []*wire.TxIn)(from []string, txIntotalVa
 	var total int64 = 0
 	for i, txIn :=  range txIns{
 		L4g.Trace("--------The index(%d) Txin detail--------", i)
+
 		if tx, err = c.GetRawTransaction(&txIn.PreviousOutPoint.Hash); err==nil {
 			var tmps []string
 			if tmps, _, err = c.msgTxOutDetail(tx.MsgTx().TxOut); err!=nil {
 				L4g.Error("bitcoin InnerError: msgTxAddresses, message:%s",
 					err.Error())
+				return
 			} else {
 
 				L4g.Trace("GetRawTransaction(txIn.PreviouseOutPoint.Hash=%s):\n%#v",
@@ -373,7 +375,8 @@ func (c *Client) msgTxInputDetail(txIns []*wire.TxIn)(from []string, txIntotalVa
 				}
 			}
 		} else {
-			L4g.Error("bitcoin InnerErr:msgTxAddresses,message %s", err.Error())
+			L4g.Error("bitcoin getrawtransaction(%s)faild,message %s", err.Error())
+			return
 		}
 	}
 
@@ -415,8 +418,20 @@ func (c *Client) updateTxWithBTCTx(stx *types.Transfer, btx *btcjson.GetTransact
 	if err!=nil { return err }
 
 	if stx.From=="" || stx.To=="" || stx.Fee==0.0 || stx.Value==0.0 {
+
 		froms, txInTotalValue, err = c.msgTxInputDetail(msgTx.TxIn)
+
+		if err!=nil {
+			L4g.Error("msgTxInputDetail faild, message:%s")
+			return err
+		}
+
 		tos, txOutValues, err = c.msgTxOutDetail(msgTx.TxOut)
+
+		if err!=nil {
+			L4g.Error("msgTxOutDetail faild, message:%s")
+			return err
+		}
 
 		var outTotalValue float64
 		for _, v := range txOutValues {
@@ -425,7 +440,9 @@ func (c *Client) updateTxWithBTCTx(stx *types.Transfer, btx *btcjson.GetTransact
 
 		// 这里的计算并不完全准确
 		if stx.From=="" {
-			stx.From = froms[0]
+			if len(froms)!=0 {
+				stx.From = froms[0]
+			}
 		}
 
 		if stx.To=="" {
@@ -436,19 +453,6 @@ func (c *Client) updateTxWithBTCTx(stx *types.Transfer, btx *btcjson.GetTransact
 				break
 			}
 		}
-
-		//for i, to:=range tos {
-		//	if toaddress, err := btcutil.DecodeAddress(to, c.chain_params); err==nil {
-		//		if acc, _ :=c.GetAccount(toaddress); c.importAddressLabelName==acc {
-		//			stx.To = to
-		//			stx.Value = txOutValues[i]
-		//			break
-		//		}
-		//	} else {
-		//		L4g.Error("bitcoin get address(%s) label faild, message:%s",
-		//			toaddress.String(), err.Error())
-		//	}
-		//}
 
 		stx.Fee = txInTotalValue - outTotalValue
 	}

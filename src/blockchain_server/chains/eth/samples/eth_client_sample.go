@@ -32,8 +32,6 @@ var (
 
 	to_account     = default_accs[1]
 	token_receiver = default_accs[2]
-
-	L4g = L4G.BuildL4g(types.Chain_eth, "ethereum")
 )
 
 func main() {

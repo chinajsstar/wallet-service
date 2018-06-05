@@ -13,6 +13,13 @@ func WeiToEther(w *big.Int) float64 {
 	return utils.PrecisionN(f, 6)
 }
 
+func WeiToGWei(w *big.Int) float64 {
+	bigfloat := new(big.Float).SetInt(w)
+	bigfloat = bigfloat.Mul(bigfloat, big.NewFloat(1.0e-9))
+	f, _ := bigfloat.Float64()
+	return utils.PrecisionN(f, 6)
+}
+
 func EtherToWei(e float64) *big.Int {
 	tf := new(big.Float).SetFloat64(e)
 	tf = tf.Mul(tf, big.NewFloat(1.0e+18))

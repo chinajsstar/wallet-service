@@ -52,8 +52,8 @@ type Client struct {
 
 const (
 	max_nonce          = 1024 * 1024
-	first_custom_nonce = max_nonce + 1
 	min_gasprice	   = int64(141e8) // 14.1GWei
+	first_custom_nonce = max_nonce + 1
 )
 
 func (self *Client) lock() {
@@ -402,6 +402,18 @@ func (self *Client) approveTokenTx(tokenOwnerKey, spenderKey, contractHex string
 	signer := etypes.HomesteadSigner{}
 
 	balance, err = self.GetBalance(ownerHex, "")
+
+	if true {
+		gwei  := WeiToGWei(gasprice)
+		ether := WeiToEther(gasprice)
+		L4g.Trace(`--------------------approve tx fee information-----------------
+token transferFrom:
+need txfee:   %d * %f(gwei) = %f(gwei) = %f(ether)
+have balance: %f(ethter)`,
+	gaslimit, gwei, float64(gaslimit) * gwei, float64(gaslimit)* ether,
+		balance)
+	}
+
 	// if have enough txfee
 	if balance < WeiToEther(txfee) {
 		// Spender需要充owner转走token, 首先需要Token的Owner调用合约给自己授权
@@ -418,7 +430,13 @@ func (self *Client) approveTokenTx(tokenOwnerKey, spenderKey, contractHex string
 			goto Exception
 		}
 
-		L4g.Trace("Send tx fee for approving, txinfo:%s", signedTx.String())
+		if true {
+			gwei := WeiToGWei(gasprice)
+			L4g.Trace("Send tx fee(%d * %f = %f) balane=%f for approving, txinfo:%s",
+				gaslimit, gwei, float64(gaslimit)*gwei, balance,
+				signedTx.String())
+		}
+
 		if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
 			goto Exception
 		}

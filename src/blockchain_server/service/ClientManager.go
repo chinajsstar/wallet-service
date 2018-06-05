@@ -379,7 +379,7 @@ func (self *ClientManager) trackTxState(clientName string,
 	tx_channel <- tx
 
 	max_try_count := 30
-	i := 0
+	tried_count := 0
 
 	if tx.State==types.Tx_state_unconfirmed || tx.State==types.Tx_state_confirmed {
 		goto exitfor
@@ -388,7 +388,7 @@ func (self *ClientManager) trackTxState(clientName string,
 	// 每次有新块高增加, 才会去检查transaction的状态是否发生改变
 	// 如果状态没有改变, 说明tansaction还没有被打包到新的块中
 	// 直到transaction的状态变为了 mined, 再进入 确认的流程中
-	for i := 0; i < max_try_count; i++ {
+	for tried_count = 0; tried_count < max_try_count; tried_count++ {
 
 		currentHeight := instance.BlockHeight()
 
@@ -429,10 +429,10 @@ func (self *ClientManager) trackTxState(clientName string,
 			tx_channel <- tx
 			goto exitfor
 		}
-		i++
+		tried_count++
 	}
 
-	if i == max_try_count {
+	if tried_count >= max_try_count {
 		message := fmt.Sprintf("Track tx(%s), upto max try count:%d, send error!",
 			tx.Tx_hash, max_try_count)
 		l4g.Error(message)
