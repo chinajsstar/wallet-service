@@ -32,6 +32,7 @@ var (
 
 	to_account     = default_accs[1]
 	token_receiver = default_accs[2]
+	L4g = L4G.GetL4g(types.Chain_eth)
 )
 
 func main() {
@@ -65,7 +66,8 @@ func main() {
 	done_watchaddress := make(chan bool)
 	done_sendTx := make(chan bool)
 
-	token := "ZTK"
+	//token := "ZTK"
+	token := ""
 	i := 0
 	if false {
 		go watchRechargeTxByAddress(ctx, clientManager, types.Chain_eth,
@@ -76,7 +78,7 @@ func main() {
 	}
 
 	if true {
-		go send_tokenTx(
+		go sendTx(
 			ctx,
 			clientManager,
 			caller.PrivateKey,
@@ -165,7 +167,7 @@ func watchRechargeTxByAddress(ctx context.Context, clientManager *service.Client
 	done <- true
 }
 
-func send_tokenTx(ctx context.Context, clientManager *service.ClientManager,
+func sendTx(ctx context.Context, clientManager *service.ClientManager,
 	callFromKey, tokenOwnerKey, tokenTo string,
 	coin string, token string, value float64, done chan bool) {
 

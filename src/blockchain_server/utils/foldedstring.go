@@ -37,9 +37,7 @@ func (slice *FoldedStrings) Insert(s string) {
 }
 
 func (slice *FoldedStrings) Contains(s string) bool {
-	//s = strings.ToLower(s)
-	if index:=sort.SearchStrings(*slice, s); index>=0 && index<len(*slice) && (*slice)[index]==s {
-		return true
-	}
-	return false
+	index := sort.SearchStrings(*slice, s)
+	return index>=0 && index<len(*slice) &&
+		strings.ToLower((*slice)[index])==strings.ToLower(s)
 }

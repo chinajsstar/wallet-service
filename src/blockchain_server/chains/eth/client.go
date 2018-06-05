@@ -47,13 +47,17 @@ type Client struct {
 
 	//abi       abi.ABI
 	nonceMtx *sync.Mutex
-	nonceMap map[string]uint64
+
+	nonce    map[string]uint64
+
+	// 如果oneTxing为true, 则每个地址发出一笔交易
+	// 到交易结束之前, 无法再次发出交易
+	addressTxing map[string]string
+	oneTxing     bool
 }
 
 const (
-	max_nonce          = 1024 * 1024
 	min_gasprice	   = int64(141e8) // 14.1GWei
-	first_custom_nonce = max_nonce + 1
 )
 
 func (self *Client) lock() {
@@ -88,31 +92,31 @@ func ClientInstance() (*Client, error) {
 	return instance, nil
 }
 
-func (self *Client) nextNonce(from string) (nonce uint64) {
-	self.nonceMtx.Lock()
-	var err error
-	nonce = self.nonceMap[from]
-	if 0 == nonce {
-		nonce, err = self.c.PendingNonceAt(context.TODO(), common.HexToAddress(from))
-		if err != nil {
+func (self *Client) nextNonce(from string) (nonce uint64, err error) {
+	address := common.HexToAddress(from)
+	if self.oneTxing {
+		nonce, err =self.c.PendingNonceAt(context.TODO(), address)
+		if err!=nil {
+			L4g.Error("Pending nonce at address(%s) faild, message:%s",
+				from, err.Error())
 		}
 	} else {
-		if nonce == max_nonce {
-			nonce, err = self.c.PendingNonceAt(context.TODO(), common.HexToAddress(from))
-			if err != nil {
+		from = strings.ToLower(from)
+
+		self.nonceMtx.Lock()
+		defer self.nonceMtx.Unlock()
+
+		nonce = self.nonce[from]
+		if 0==nonce {
+			nonce, err =self.c.PendingNonceAt(context.TODO(), address)
+			if err!=nil {
+				L4g.Error("Pending nonce at %s faild, message:%s",from, err.Error())
+				return
 			}
 		}
+		self.nonce[from] = nonce + 1
 	}
-	self.nonceMap[from] = nonce + 1
-	self.nonceMtx.Unlock()
-
-	return nonce
-}
-
-func (self *Client) removeNonce(from string) {
-	self.nonceMtx.Lock()
-	delete(self.nonceMap, from)
-	self.nonceMtx.Unlock()
+	return
 }
 
 func (self *Client) init() error {
@@ -120,9 +124,11 @@ func (self *Client) init() error {
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
 
 	self.nonceMtx = new(sync.Mutex)
-	self.nonceMap = make(map[string]uint64, 256)
+	self.nonce = make(map[string]uint64)
 
-	self.addresslist = new(utils.FoldedStrings)
+	self.addresslist  = new(utils.FoldedStrings)
+	self.addressTxing = make(map[string]string)
+	self.oneTxing = true
 
 	// 起始扫描高度为 当前真实高度 - 确认数
 	if _, err := self.refreshBlockHeight(); err != nil {
@@ -272,10 +278,10 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 		pendingcode     []byte
 	)
 
-	//if nonce, err = self.c.PendingNonceAt(context.TODO(), from); err != nil {
-	//	return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	//}
-	nonce = self.nextNonce(from.String())
+	nonce, err = self.nextNonce(from.String())
+	if err!=nil {
+		return nil, err
+	}
 
 	L4g.Trace("PendingNonceAt(%s) = %d", from.String(), nonce)
 
@@ -287,10 +293,12 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 		gasprice.SetInt64(min_gasprice)
 	}
 
-	if pendingcode, err = self.c.PendingCodeAt(context.TODO(), to); err != nil {
-	} else {
-		if len(pendingcode) == 0 { // 这是一个普通账号!!!
-		} else { // 这是一个合约地址!!!
+	if false {
+		if pendingcode, err = self.c.PendingCodeAt(context.TODO(), to); err != nil {
+		} else {
+			if len(pendingcode) == 0 { // 这是一个普通账号!!!
+			} else { // 这是一个合约地址!!!
+			}
 		}
 	}
 
@@ -452,7 +460,11 @@ have balance: %f(ethter)`,
 		}
 	}
 
-	nonce = self.nextNonce(ownerHex)
+	nonce, err = self.nextNonce(ownerHex)
+	if err!=nil {
+		goto Exception
+
+	}
 	//nonce, err = self.c.PendingNonceAt(context.TODO(), owner);
 	//if err != nil {
 	//	goto Exception
@@ -493,15 +505,52 @@ Exception:
 }
 
 // from is a crypted private key
-func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
+func (self *Client) SendTx(fromkey string, tx *types.Transfer) (err error) {
 
 	L4g.Trace("Start SendTx......")
-	defer L4g.Trace("SendTx end......")
 
-	fromPrivkey, input, err := self.initTxInfo(fromkey, tx)
+	defer func() {
+		if err!=nil {
+			L4g.Error("SendTx with error:%s", err.Error())
+		}
+
+		defer L4g.Trace("SendTx end......")
+
+		if self.oneTxing {
+			self.nonceMtx.Lock()
+			defer self.nonceMtx.Unlock()
+			from := strings.ToLower(tx.From)
+			if err!=nil {
+				delete(self.addressTxing, from)
+			} else {
+				self.addressTxing[from] = tx.Tx_hash
+			}
+		}
+	}()
+
+	var (
+		fromPrivkey *ecdsa.PrivateKey
+		input []byte
+	)
+
+	fromPrivkey, input, err = self.initTxInfo(fromkey, tx)
 	if err != nil {
 		L4g.Trace("initTxInfo faild, message:%s", err.Error())
 		return err
+	}
+
+	if self.oneTxing {
+		self.nonceMtx.Lock()
+		defer self.nonceMtx.Unlock()
+		from := strings.ToLower(tx.From)
+
+		if self.addressTxing[from]!="" {
+			err := fmt.Errorf("'From' address(%s) is working on Tx(%s), can't sendTx befor task complete!", from, self.addressTxing[from])
+			L4g.Error("%s", err.Error())
+			return err
+		} else {
+			self.addressTxing[from] = "still on!"
+		}
 	}
 
 	L4g.Trace("SendTx, information:%s", tx.String())
@@ -519,10 +568,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 		}
 	}
 
-	var (
-		etx, signedTx *etypes.Transaction
-	)
-
+	var etx, signedTx *etypes.Transaction
 	etx, err = self.buildRawTx(
 		common.HexToAddress(tx.From),
 		common.HexToAddress(tx.To),
@@ -532,13 +578,15 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 		goto Exception
 	}
 
+	tx.Tx_hash = etx.Hash().String()
 	tx.State = types.Tx_state_BuildOk
+
 	signedTx, err = etypes.SignTx(etx, etypes.HomesteadSigner{}, fromPrivkey)
-	tx.Tx_hash = signedTx.Hash().String()
 	if err != nil {
 		L4g.Error("sign Transaction error:%s", err.Error())
 		goto Exception
 	}
+	tx.Tx_hash = signedTx.Hash().String()
 	tx.State = types.Tx_state_Signed
 
 	if err = self.c.SendTransaction(context.TODO(), signedTx); err != nil {
@@ -548,7 +596,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) error {
 	tx.State = types.Tx_state_pending
 
 Exception:
-	return err
+	return
 }
 
 func (self *Client) GetBalance(addstr string, tokenSymbol string) (float64, error) {
@@ -832,8 +880,6 @@ func (self *Client) blockTime(bn uint64) uint64 {
 }
 
 func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
-	//height := self.virtualBlockHeight()
-
 	receipt, err := self.c.TransactionReceipt(self.ctx, common.HexToHash(tx.Tx_hash))
 	if err != nil {
 		L4g.Error("Update Transaction(%s) with Receipt error : %s", tx.Tx_hash, err.Error())
@@ -856,17 +902,36 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 	return nil
 }
 
-func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transaction) error {
+func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transaction) (err error) {
+	defer func() {
+		if self.oneTxing {
+			from := strings.ToLower(destTx.From)
+			hash := destTx.Tx_hash
+
+			self.nonceMtx.Lock()
+			defer self.nonceMtx.Unlock()
+
+			if err!=nil ||
+				( (destTx.State==types.Tx_state_confirmed ||
+					destTx.State==types.Tx_state_unconfirmed) &&
+					self.addressTxing[from] == hash )  {
+				delete(self.addressTxing, from)
+			}
+
+		}
+	}()
 	if srcTx == nil {
-		return fmt.Errorf("update tx error, message:sourceTx is nil")
+		err = fmt.Errorf("update tx error, message:sourceTx is nil")
+		return
 	}
 	hash := srcTx.Hash().String()
 
 	if destTx.Tx_hash == "" {
 		destTx.Tx_hash = hash
 	} else if hash != destTx.Tx_hash {
-		return fmt.Errorf("updateTx error, destTx.Hash(%s) != srcTx.Hash(%s)",
+		err = fmt.Errorf("updateTx error, destTx.Hash(%s) != srcTx.Hash(%s)",
 			destTx.Tx_hash, hash)
+		return
 	}
 
 	if destTx.Confirmationsnumber == 0 {
@@ -893,10 +958,15 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 		// check if 'to' is a cantract address
 		to := srcTx.To()
 		if to != nil {
-			if code, err := self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
-				tkfrom, tkto, value, err := token.ParseTokenTxInput(srcTx.Data())
+			var code []byte
+			if code, err = self.c.PendingCodeAt(context.TODO(), *to); err == nil && len(code) != 0 {
+				var (
+					tkfrom, tkto string
+					value *big.Int
+				)
+				tkfrom, tkto, value, err = token.ParseTokenTxInput(srcTx.Data())
 				if err != nil {
-					return err
+					return
 				}
 
 				if destTx.TokenTx == nil {
@@ -917,7 +987,7 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 			}
 			destTx.To = to.String()
 		} else {
-			return fmt.Errorf("Transaction(%s) To address is nil?????", srcTx.Hash().String())
+			err = fmt.Errorf("Transaction(%s) To address is nil?????", srcTx.Hash().String())
 		}
 
 		destTx.From = srcTx.From()
@@ -931,7 +1001,7 @@ func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transac
 	destTx.State = state
 
 	if state == types.Tx_state_confirmed {
-		if err := self.updateTxWithReceipt(destTx); err == nil {
+		if err = self.updateTxWithReceipt(destTx); err == nil {
 			if destTx.State == types.Tx_state_confirmed {
 				destTx.ConfirmatedHeight = height + uint64(self.confirm_count)
 			}
@@ -1029,7 +1099,9 @@ func (self *Client) initTxInfo(fromKey string, tx *types.Transfer) (fromPrivkey 
 	if err != nil {
 		return
 	}
+
 	tx.From = from
+	tx.Tx_hash = "still on!"
 
 	if tkTx := tx.TokenTx; tkTx != nil {
 		_, tkTx.From, err = ParseKey(tx.TokenFromKey)
