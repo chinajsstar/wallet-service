@@ -8,7 +8,6 @@ import (
 	"github.com/btcsuite/btcutil"
 	"log"
 	"github.com/btcsuite/btcd/btcjson"
-	"strconv"
 )
 
 //----------account[0] information:---------------
@@ -69,14 +68,16 @@ func init() {
 	}
 	// Notice the notification parameter is nil since notifications are
 	// not supported in HTTP POST mode.
-	client, err := rpcclient.New(connCfg, nil)
+	var (
+		err error
+		blockCount int64
+	)
+	client, err = rpcclient.New(connCfg, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer client.Shutdown()
-
 	// Get the current block count.
-	blockCount, err := client.GetBlockCount()
+	blockCount, err = client.GetBlockCount()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,16 +93,28 @@ func init() {
 }
 
 func main() {
-	client.ImportAddress(accs[0].Address, "ZToken_IndivisibleBank", false)
+	var (
+		err error
+		res []byte
+		from, to btcutil.Address
+	)
+	err = client.ImportAddress(accs[0].Address, "ZToken_IndivisibleBank", false)
+	if err!=nil { log.Fatal(err) }
 
+	if false {
+		res, err = client.OmniProperty(propertyid_divisible)
+		if err!=nil { log.Fatal(err) }
+	}
+
+	from, err = btcutil.DecodeAddress(accs[0].Address,
+		&chaincfg.RegressionNetParams )
+	sendToken(propertyid_divisible, accs[0].Address)
+
+	l4g.Info("property information:%s", string(res))
+	L4G.Close("all")
 }
 
 
-type OMNI_PlayloadSimplesendCmd struct {
-	Propertyid 	uint64	`josn:"propertyid"`
-	Amount 		string	`json:"amount"`
-
-}
 
 func sendToken(tokenId string, from, to btcutil.Address, value float64) (err error) {
 	var (
@@ -116,8 +129,6 @@ func sendToken(tokenId string, from, to btcutil.Address, value float64) (err err
 
 	l4g.Info("address unspent count:%d", len(unspents))
 
-	err = btcjson.RegisterCmd("omni_createplayload_simplesend", (*OMNI_PlayloadSimplesendCmd)(nil),  btcjson.UFWalletOnly)
-
 	if err!=nil {
 		l4g.Error("regist omni_createplayload_simplesend cmd faild, message:%s",
 			from.String(), err.Error())
@@ -126,6 +137,6 @@ func sendToken(tokenId string, from, to btcutil.Address, value float64) (err err
 
 	data, err := client.OmniProperty(propertyid_divisible)
 	l4g.Trace("property information: %s", string(data))
-
+	return
 	// --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "omni_createpayload_simplesend", "params": [1, "100.0"] }' -H 'content-type: text/plain;'
 }

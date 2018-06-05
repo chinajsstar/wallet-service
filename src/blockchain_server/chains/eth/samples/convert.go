@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func ConvertWeiToEther(w *big.Int) float64 {
+func convertWeiToEther(w *big.Int) float64 {
 	bigfloat := new(big.Float).SetInt(w)
 	bigfloat = bigfloat.Mul(bigfloat, big.NewFloat(1.0e-18))
 
@@ -14,7 +14,7 @@ func ConvertWeiToEther(w *big.Int) float64 {
 	return f
 }
 
-func ConvertEtherToWei(e float64) *big.Int {
+func convertEtherToWei(e float64) *big.Int {
 	tf := new(big.Float).SetFloat64(e)
 	tf = tf.Mul(tf, big.NewFloat(1.0e+18))
 
@@ -26,7 +26,7 @@ func ConvertEtherToWei(e float64) *big.Int {
 	return ib
 }
 
-func ConvertWeiToGWei(w *big.Int) float64 {
+func convertWeiToGWei(w *big.Int) float64 {
 
 	bigfloat := new(big.Float).SetInt(w)
 	bigfloat = bigfloat.Mul(bigfloat, big.NewFloat(1.0e-9))
@@ -35,15 +35,15 @@ func ConvertWeiToGWei(w *big.Int) float64 {
 }
 
 func main() {
-	bigint := ConvertEtherToWei(10000000.00000001)
+	bigint := convertEtherToWei(10000000.00000001)
 	fmt.Printf("%d\n", bigint.Uint64())
 
 	min_gasprice := int64(141e8) // 14.1GWei
 	price := big.NewInt(11e8)
-	if -1==price.CmpAbs(big.NewInt(min_gasprice)) {
+	if -1==price.Cmp(big.NewInt(min_gasprice)) {
 		price.SetInt64(min_gasprice)
 	}
-	gwei := ConvertWeiToGWei(price)
+	gwei := convertWeiToGWei(price)
 	fmt.Printf("%f", gwei)
 	time.Sleep(3 * time.Second)
 }

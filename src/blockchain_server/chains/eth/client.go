@@ -244,7 +244,7 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 	}
 
 	// 最小gasprice为14(GWei) !!!!
-	if -1 == gasprice.CmpAbs(big.NewInt(min_gasprice)) {
+	if -1 == gasprice.Cmp(big.NewInt(min_gasprice)) {
 		gasprice.SetInt64(min_gasprice)
 	}
 
@@ -283,7 +283,7 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 		return nil, fmt.Errorf("failed to suggest gas price: %v", err)
 	}
 
-	if -1 == gasprice.CmpAbs(big.NewInt(min_gasprice)) {
+	if -1 == gasprice.Cmp(big.NewInt(min_gasprice)) {
 		gasprice.SetInt64(min_gasprice)
 	}
 
