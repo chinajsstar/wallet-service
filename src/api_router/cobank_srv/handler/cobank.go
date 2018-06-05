@@ -45,7 +45,7 @@ func (x *Cobank) callBack(userID string, callbackMsg string) {
 	pData.Argv.Message = callbackMsg
 
 	res := data.SrvResponse{}
-	x.node.InnerCallByEncrypt(&pData, &res)
+	x.node.InnerCall(&pData, &res)
 	l4g.Info("push return: ", res)
 }
 

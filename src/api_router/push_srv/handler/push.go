@@ -11,11 +11,16 @@ import (
 	"encoding/json"
 	"bastionpay_api/api"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apibackend/v1/backend"
+	"io/ioutil"
+	"bastionpay_base/config"
 )
 
 type Push struct{
+	privateKey []byte
+
 	rwmu sync.RWMutex
-	usersCallbackUrl map[string]string
+	usersCallbackUrl map[string]*backend.AckUserReadProfile
 }
 
 var defaultPush = &Push{}
@@ -24,48 +29,54 @@ func PushInstance() *Push{
 	return defaultPush
 }
 
-func (push * Push)Init() {
-	push.usersCallbackUrl = make(map[string]string)
+func (push * Push)Init(dir string) {
+	var err error
+	push.privateKey, err = ioutil.ReadFile(dir + "/"+ config.BastionPayPrivateKey)
+	if err != nil {
+		l4g.Crashf("", err)
+	}
+
+	push.usersCallbackUrl = make(map[string]*backend.AckUserReadProfile)
 }
 
-func (push * Push)getUserCallbackUrl(userKey string) (string, error)  {
-	url := func() string{
+func (push * Push)getUserProfile(userKey string) (*backend.AckUserReadProfile, error)  {
+	rp := func() *backend.AckUserReadProfile{
 		push.rwmu.RLock()
 		defer push.rwmu.RUnlock()
 
 		return push.usersCallbackUrl[userKey]
 	}()
-	if url != "" {
-		return url,nil
+	if rp != nil {
+		return rp, nil
 	}
 
-	return func() (string, error){
+	return func() (*backend.AckUserReadProfile, error){
 		push.rwmu.Lock()
 		defer push.rwmu.Unlock()
 
-		url := push.usersCallbackUrl[userKey]
-		if url != "" {
-			return url, nil
+		rp := push.usersCallbackUrl[userKey]
+		if rp != nil {
+			return rp, nil
 		}
-		url, err := db.ReadUserCallbackUrl(userKey)
+		rp, err := db.ReadProfile(userKey)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		push.usersCallbackUrl[userKey] = url
-		return url, nil
+		push.usersCallbackUrl[userKey] = rp
+		return rp, nil
 	}()
 }
 
-func (push * Push)reloadUserCallbackUrl(userKey string) (string, error)  {
+func (push * Push)reloadUserCallbackUrl(userKey string) (*backend.AckUserReadProfile, error)  {
 	push.rwmu.Lock()
 	defer push.rwmu.Unlock()
 
-	url, err := db.ReadUserCallbackUrl(userKey)
+	rp, err := db.ReadProfile(userKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	push.usersCallbackUrl[userKey] = url
-	return url, nil
+	push.usersCallbackUrl[userKey] = rp
+	return rp, nil
 }
 
 func (push *Push)GetApiGroup()(map[string]service.NodeApi){
@@ -89,31 +100,38 @@ func (push *Push)HandleNotify(req *data.SrvRequest){
 		//}
 
 		// reload profile
-		ndata, err := push.reloadUserCallbackUrl(req.Argv.SubUserKey)
+		rp, err := push.reloadUserCallbackUrl(req.Argv.SubUserKey)
 		if err != nil {
 			l4g.Error("HandleNotify-reloadUserCallbackUrl: %s", err.Error())
 			return
 		}
 
-		l4g.Info("HandleNotify-reloadUserCallbackUrl: ", ndata)
+		l4g.Info("HandleNotify-reloadUserCallbackUrl: ", rp)
 	}
 }
 
 // 推送数据
 func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
-	url, err := push.getUserCallbackUrl(req.Argv.UserKey)
+	rp, err := push.getUserProfile(req.Argv.UserKey)
 	if err != nil {
 		l4g.Error("(%s) no user callback: %s",req.Argv.UserKey, err.Error())
 		res.Err = apibackend.ErrPushSrvPushData
 		return
 	}
 
-	l4g.Info("push %s to %s-%s", req.Argv.Message, req.Argv.UserKey, url)
+	l4g.Info("push %s to %s-%s", req.Argv.Message, req.Argv.UserKey, rp.CallbackUrl)
 
 	func(){
-		pushData := api.UserResponseData{}
+		// encrypt
+		srvData, err := data.EncryptionAndSignData([]byte(req.Argv.Message), req.Argv.UserKey, []byte(rp.PublicKey), push.privateKey)
+		if err != nil {
+			l4g.Error("EncryptionAndSignData: %s", err.Error())
+			res.Err = apibackend.ErrInternal
+			return
+		}
 
-		req.Argv.ToApiData(&pushData.Value)
+		pushData := api.UserResponseData{}
+		srvData.ToApiData(&pushData.Value)
 
 		// call url
 		b, err := json.Marshal(pushData)
@@ -125,7 +143,7 @@ func (push *Push)PushData(req *data.SrvRequest, res *data.SrvResponse) {
 
 		l4g.Info("push data: %s", string(b))
 
-		httpCode, ret, err := nethelper.CallToHttpServer(url, "", string(b))
+		httpCode, ret, err := nethelper.CallToHttpServer(rp.CallbackUrl, "", string(b))
 		if err != nil {
 			l4g.Error("push http: %s", err.Error())
 			res.Err = apibackend.ErrPushSrvPushData

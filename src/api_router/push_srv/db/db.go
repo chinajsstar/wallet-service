@@ -8,6 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	l4g "github.com/alecthomas/log4go"
 	"bastionpay_base/config"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
 var (
@@ -19,7 +20,7 @@ var (
 	q = map[string]string{}
 
 	accountQ = map[string]string{
-		"readUserCallbackUrl": "SELECT callback_url from %s.%s where user_key = ? limit ? offset ?",
+		"readProfile":         	  "SELECT public_key, source_ip, callback_url from %s.%s where user_key = ?",
 	}
 
 	st = map[string]*sql.Stmt{}
@@ -75,30 +76,31 @@ func Init(configPath string) {
 	}
 }
 
-func ReadUserCallbackUrl(userKey string) (string, error) {
+func ReadProfile(userKey string) (*backend.AckUserReadProfile, error) {
 	var r *sql.Rows
 	var err error
 
-	r, err = st["readUserCallbackUrl"].Query(userKey, 1, 0)
+	r, err = st["readProfile"].Query(userKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer r.Close()
 
 	if !r.Next() {
-		return "", errors.New("row no next")
+		return nil, errors.New("row no next")
 	}
 
-	var url string
-	if err := r.Scan(&url); err != nil {
+	ackUserReadProfile := &backend.AckUserReadProfile{}
+	if err := r.Scan(&ackUserReadProfile.PublicKey, &ackUserReadProfile.SourceIP, &ackUserReadProfile.CallbackUrl); err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.New("no rows")
+			return nil, errors.New("no rows")
 		}
-		return "", err
+		return nil, err
 	}
 	if r.Err() != nil {
-		return "", err
+		return nil, err
 	}
 
-	return url, nil
+	ackUserReadProfile.UserKey = userKey
+	return ackUserReadProfile, nil
 }

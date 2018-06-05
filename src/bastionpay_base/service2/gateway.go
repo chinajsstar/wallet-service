@@ -153,20 +153,6 @@ func (mi *ServiceGateway) innerCall(client *rpc2.Client, req *data.SrvRequest, r
 	return nil
 }
 
-func (mi *ServiceGateway) innerCallByEncrypt(client *rpc2.Client, req *data.SrvRequest, res *data.SrvResponse) error {
-	mi.wg.Add(1)
-	defer mi.wg.Done()
-
-	mi.srvCallByEncrypt(req, res)
-
-	// make sure no data if err
-	if res.Err != apibackend.NoErr {
-		res.Value.Message = ""
-		res.Value.Signature = ""
-	}
-	return nil
-}
-
 // start http server
 func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 	// http
@@ -242,7 +228,6 @@ func (mi *ServiceGateway) startTcpServer(ctx context.Context) {
 	mi.Server.Handle(data.MethodCenterUnRegister, mi.unRegister)
 	mi.Server.Handle(data.MethodCenterInnerNotify, mi.innerNotify)
 	mi.Server.Handle(data.MethodCenterInnerCall, mi.innerCall)
-	mi.Server.Handle(data.MethodCenterInnerCallByEncrypt, mi.innerCallByEncrypt)
 
 	l4g.Debug("Start Tcp server on %s", mi.cfgGateway.GatewayPort)
 
@@ -283,29 +268,6 @@ func (mi *ServiceGateway) srvCall(req *data.SrvRequest, res *data.SrvResponse) {
 	}
 
 	*res = rpcSrvRes
-}
-
-func (mi *ServiceGateway) srvCallByEncrypt(req *data.SrvRequest, res *data.SrvResponse) {
-	// encode and sign data
-	var reqEncrypted data.SrvRequest
-	reqEncrypted.Method = req.Method
-	reqEncrypted.Argv = req.Argv
-	var reqEncryptedRes data.SrvResponse
-	if mi.encryptData(&reqEncrypted, &reqEncryptedRes); reqEncryptedRes.Err != apibackend.NoErr{
-		*res = reqEncryptedRes
-		return
-	}
-
-	// push encode and sign data
-	var reqPush data.SrvRequest
-	reqPush.Method = req.Method
-	reqPush.Argv.UserKey = req.Argv.UserKey
-	reqPush.Argv.Message = reqEncryptedRes.Value.Message
-	reqPush.Argv.Signature = reqEncryptedRes.Value.Signature
-	var reqPushRes data.SrvResponse
-
-	mi.callFunction(&reqPush, &reqPushRes)
-	*res = reqPushRes
 }
 
 // user call by api

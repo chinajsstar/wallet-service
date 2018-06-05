@@ -1,16 +1,11 @@
 package handler
 
 import (
-	"fmt"
 	"api_router/auth_srv/db"
-	"bastionpay_api/utils"
 	"bastionpay_base/data"
 	//"api_router/base/service"
 	service "bastionpay_base/service2"
-	"crypto/sha512"
-	"crypto"
 	"io/ioutil"
-	"encoding/base64"
 	"sync"
 	l4g "github.com/alecthomas/log4go"
 	"bastionpay_base/config"
@@ -155,38 +150,9 @@ func (auth *Auth)AuthData(req *data.SrvRequest, res *data.SrvResponse) {
 		}
 	}
 
-	bencrypted, err := base64.StdEncoding.DecodeString(req.Argv.Message)
+	originData, err := data.DecryptionAndVerifyData(&req.Argv, []byte(ul.PublicKey), auth.privateKey)
 	if err != nil {
-		l4g.Error("error base64: %s", err.Error())
-		res.Err = apibackend.ErrInternal
-		return
-	}
-
-	bsignature, err := base64.StdEncoding.DecodeString(req.Argv.Signature)
-	if err != nil {
-		l4g.Error("error base64: %s", err.Error())
-		res.Err = apibackend.ErrInternal
-		return
-	}
-
-	// 验证签名
-	var hashData []byte
-	hs := sha512.New()
-	hs.Write(bencrypted)
-	hashData = hs.Sum(nil)
-
-	err = utils.RsaVerify(crypto.SHA512, hashData, bsignature, []byte(ul.PublicKey))
-	if err != nil {
-		l4g.Error("verify: %s", err.Error())
-		res.Err = apibackend.ErrAuthSrvIllegalData
-		return
-	}
-
-	// 解密数据
-	var originData []byte
-	originData, err = utils.RsaDecrypt(bencrypted, auth.privateKey, utils.RsaDecodeLimit2048)
-	if err != nil {
-		l4g.Error("decrypt: %s", err.Error())
+		l4g.Error("DecryptionAndVerifyData: %s", err.Error())
 		res.Err = apibackend.ErrAuthSrvIllegalData
 		return
 	}
@@ -209,45 +175,14 @@ func (auth *Auth)EncryptData(req *data.SrvRequest, res *data.SrvResponse) {
 		return
 	}
 
-	// 加密
-	bencrypted, err := func() ([]byte, error){
-		// 用用户的pub加密message ->encrypteddata
-		bencrypted, err := utils.RsaEncrypt([]byte(req.Argv.Message), []byte(ul.PublicKey), utils.RsaEncodeLimit2048)
-		if err != nil {
-			return nil, err
-		}
-
-		return bencrypted, nil
-	}()
+	srvData, err := data.EncryptionAndSignData([]byte(req.Argv.Message), req.Argv.UserKey, []byte(ul.PublicKey), auth.privateKey)
 	if err != nil {
-		l4g.Error("encrypt: %s", err.Error())
-		res.Err = apibackend.ErrInternal
-		return
-	}
-
-	// 签名
-	bsignature, err := func() ([]byte, error){
-		// 用服务器的pri签名encrypteddata ->signature
-		var hashData []byte
-		hs := sha512.New()
-		hs.Write(bencrypted)
-		hashData = hs.Sum(nil)
-
-		bsignature, err := utils.RsaSign(crypto.SHA512, hashData, auth.privateKey)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-
-		return bsignature, nil
-	}()
-	if err != nil {
-		l4g.Error("sign: %s", err.Error())
+		l4g.Error("EncryptionAndSignData: %s", err.Error())
 		res.Err = apibackend.ErrInternal
 		return
 	}
 
 	// ok
-	res.Value.Message = base64.StdEncoding.EncodeToString(bencrypted)
-	res.Value.Signature = base64.StdEncoding.EncodeToString(bsignature)
+	res.Value.Message = srvData.Message
+	res.Value.Signature = srvData.Signature
 }

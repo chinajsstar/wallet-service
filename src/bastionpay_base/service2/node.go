@@ -161,20 +161,6 @@ func (ni *ServiceNode) InnerNotify(req *data.SrvRequest, res *data.SrvResponse) 
 	return err
 }
 
-// inner call a request to router by encrypt
-func (ni *ServiceNode) InnerCallByEncrypt(req *data.SrvRequest, res *data.SrvResponse) error {
-	ni.rwmu.RLock()
-	defer ni.rwmu.RUnlock()
-
-	var err error
-	if ni.client != nil {
-		err = ni.client.Call(data.MethodCenterInnerCallByEncrypt, req, res)
-	}else{
-		err = errors.New("client is nil")
-	}
-	return err
-}
-
 func (ni *ServiceNode)connectToCenter() (*rpc2.Client, error){
 	conn, err := net.Dial("tcp", ni.serviceCenterAddr)
 	if err != nil {
