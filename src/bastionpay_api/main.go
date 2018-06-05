@@ -268,6 +268,17 @@ func main()  {
 
 				fmt.Println("---------------------")
 			}
+		} else if argv[0] == "decode"{
+			if len(argv) < 3 {
+				fmt.Println("decode message signature")
+				//continue
+			}
+			ud := api.UserData{}
+			ud.Message = `Erf4ULyC05ayM0jLrncDxzDDqmCz1bDKzUerFerci0rNRf7CkWQb1ZRijEE5LZIrvIiYzJe3oEQXL/OwcAA0Mp/gWlpzF7hwWaLwGYWGWt1bdW/yEd3HbHlUUoS0rxi17fJ2EkvBsGkSaHVLm3YGss9TF3udrFQJDqh0M6yKAYeMBr8sARQc4GIosVMyctBTdOwI/GYzisvKrc4N+jE5YtORP9zkXybDvRluyAW2HDKZ9FYNJFxFXu/OWaTCJbI5Z8oati/DhM/v749kxXapIIoPBuKWIAtl9IbfdTyZdXoMcBzVF4r5eS0MU/Xs4KIK9gKdOBY2wmyWuWpcUjk+57ERfxDoFP5DHc8DGVfo+4gFCsmYxp+qTDSJW2M9xmH75QofpyHgLeUcHkKipX4SMVSk/FYhaVKBJ+FP+BXpr7Xl/n9aZkzTK8/qpgF4sqnlGxpNE6jl/nBgVA1GLqTaG+zkNdMWY7bpSGR5nYc1Kb6MUnvLgBwRTiwspWA57E16gUvx9SJLlgkLbHUKZtuArpOovaJWA+TR3IzC9QhiloCWuyi03XLJVDvXrPqm/6APzL+4XwTEE98NJR9SgQzBHTdcqgwiavS/eq5MtPQFt9g388j80mc/vsvP57Odqg7BbE1DKZyw17RdfkyPwYfyJZQTEymUgaH0uzq7wp46KpE=`
+			ud.Signature = `h/SYdhV8srfchOHVN44Vo/v2V5nqmG26YaLz76b72P93VSzz66vwuNObANQpHlXjRMDW49IokkBIiqB06/GUEidVNrg3A+4tQILSWSZlOkKFHAxC7VctIAlllkxqYtIVyILPB5e9LEHXDVUt5coLoVpzbkDg7uihoBMNiAtQxn89H7AduRVrEtTCnqhmbbsaS3yMDqsx/ArODXYUWU8nxCglYQIVI4w7FBu4S4Wl1pe353FzvNE07tG5/x8htt4sRXf5btYj3muvKq1Ch6PuJgIV4hSc3dgKzMA3jOG4PJhZWyFQCT0NkjOHoBO1RtvuT4wbi1IUNRtEVvCOySxxzQ==`
+			a, err := gateway.Decryption(&ud)
+			fmt.Println(string(a))
+			fmt.Println(err)
 		} else {
 			userUsage()
 		}

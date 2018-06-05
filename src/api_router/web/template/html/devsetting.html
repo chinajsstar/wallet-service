@@ -8,17 +8,17 @@
     </head>
     <body>
         <h1>开发设置</h1>
-        <div><p>公钥</p><textarea style="height: 400px; width:600px" readonly="readonly" id="serpubkey" name="serpubkey">{{.SerPubKey}}</textarea></div>
+        <div><p>公钥</p><textarea style="height: 400px; width:600px" readonly="readonly" id="serpubkey" name="serpubkey">{{.ServerPublicKey}}</textarea></div>
         <form data-type="formDevSettingAction" action="/dodevsetting" form-rediret="/index">
             <table>
                 <tr>
-                <td>公钥</td><td><textarea style="height: 400px; width:600px" id="pubkey" name="pubkey"></textarea></td>
+                <td>公钥</td><td><textarea style="height: 400px; width:600px" id="pubkey" name="pubkey">{{.PublicKey}}</textarea></td>
                 </tr>
                 <tr>
-                <td>源ip</td><td><input style="width:400px" id="sourceip" type="text" name="sourceip"></input></td>
+                <td>源ip</td><td><input style="width:400px" id="sourceip" type="text" name="sourceip">{{.SourceIP}}</input></td>
                 </tr>
                 <tr>
-                <td>回调</td><td><input style="width:400px" id="cburl" type="text" name="cburl"></input></td>
+                <td>回调</td><td><input style="width:400px" id="cburl" type="text" name="cburl">{{.CallbackUrl}}</input></td>
                 </tr>
                 <tr>
                     <td><input type="submit" value="上传" style="width:100px;height:25px"></input></td>

@@ -73,3 +73,7 @@ rechargeName = "Recharge"
 rechargeDescription = "Recharge(test private chain)"
 generateName = "Generate block"
 generateDescription = "Generate block(test private chain)"
+
+pushTag = "Push"
+pushName = "Push"
+pushDescription = "push notify to user"

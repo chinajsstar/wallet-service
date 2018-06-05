@@ -189,7 +189,8 @@ func (mi *ServiceGateway) startHttpServer(ctx context.Context) {
 		server := &http.Server{
 			Addr:        ":"+mi.cfgGateway.Port,
 			Handler:     nil,
-			ReadTimeout: time.Second*20,
+			ReadTimeout: time.Second*10,
+			WriteTimeout: time.Second*10,
 		}
 
 		err := server.ListenAndServe()
@@ -613,7 +614,8 @@ func (mi *ServiceGateway) handleApi(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// write back http
-	w.Header().Set("Connection", "close")
+	connectionType := req.Header.Get("Connection")
+	w.Header().Set("Connection", connectionType)
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
@@ -675,7 +677,8 @@ func (mi *ServiceGateway) handleUser(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// write back http
-	w.Header().Set("Connection", "close")
+	connectionType := req.Header.Get("Connection")
+	w.Header().Set("Connection", connectionType)
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
@@ -738,7 +741,8 @@ func (mi *ServiceGateway) handleAdmin(w http.ResponseWriter, req *http.Request) 
 	}
 
 	// write back http
-	w.Header().Set("Connection", "close")
+	connectionType := req.Header.Get("Connection")
+	w.Header().Set("Connection", connectionType)
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
@@ -796,7 +800,8 @@ func (mi *ServiceGateway) handleApiTest(w http.ResponseWriter, req *http.Request
 	}
 
 	// write back http
-	w.Header().Set("Connection", "close")
+	connectionType := req.Header.Get("Connection")
+	w.Header().Set("Connection", connectionType)
 	w.Header().Set("Content-Type", "application/json")
 	b, _ := json.Marshal(userResponse)
 	w.Write(b)
