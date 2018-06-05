@@ -8,7 +8,7 @@ import (
 	"bastionpay_api/utils"
 	"strings"
 	"strconv"
-	"api_router/base/config"
+	"bastionpay_base/config"
 	"bastionpay_api/gateway"
 	"encoding/json"
 	"reflect"

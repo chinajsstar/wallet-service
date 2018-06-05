@@ -2,9 +2,9 @@ package service2
 
 import (
 	"sync"
-	"api_router/base/data"
-	"api_router/base/nethelper"
-	"api_router/base/config"
+	"bastionpay_base/data"
+	"bastionpay_base/nethelper"
+	"bastionpay_base/config"
 	"encoding/json"
 	"context"
 	"net/http"

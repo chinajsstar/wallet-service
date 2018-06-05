@@ -1,7 +1,7 @@
 package service2
 
 import (
-	"api_router/base/data"
+	"bastionpay_base/data"
 	"sync"
 	"sync/atomic"
 	l4g "github.com/alecthomas/log4go"

@@ -2,14 +2,14 @@ package handler
 
 import (
 	"api_router/account_srv/db"
-	"api_router/base/data"
+	"bastionpay_base/data"
 	"io/ioutil"
 	//service "api_router/base/service"
-	service "api_router/base/service2"
+	service "bastionpay_base/service2"
 	"encoding/json"
 	"github.com/satori/go.uuid"
 	l4g "github.com/alecthomas/log4go"
-	"api_router/base/config"
+	"bastionpay_base/config"
 	"bastionpay_api/utils"
 	"bastionpay_api/apibackend"
 	"bastionpay_api/apibackend/v1/backend"

@@ -126,7 +126,7 @@ func outputApiTest(path string, message []byte) ([]byte, *api.Error) {
 	fmt.Println("request: ", string(userDataByte))
 
 	httpPath := setting.BastionPay.Url + path
-	resByte, err := httpPost(httpPath, userDataByte)
+	resByte, err := HttpPost(httpPath, userDataByte)
 	if err != nil {
 		return nil, api.NewError(1, err.Error())
 	}
