@@ -11,7 +11,6 @@ import (
 	"strings"
 	l4g "github.com/alecthomas/log4go"
 	"fmt"
-	"bastionpay_api/api/v1"
 	"bastionpay_base/nethelper"
 	"encoding/base64"
 	"crypto/sha512"
@@ -21,6 +20,7 @@ import (
 	"bastionpay_api/api"
 	"bastionpay_api/apigroup"
 	"bastionpay_api/apibackend"
+	"bastionpay_api/apibackend/v1/backend"
 )
 
 const (
@@ -125,13 +125,17 @@ func sendPostData(addr, subUserKey string, rawmessage, version, srv, function st
 	fmt.Println("ok send msg:", body)
 
 	// 发送数据
-	var res string
-	nethelper.CallToHttpServer(addr, path, body, &res)
-	fmt.Println("ok get ack:", res)
+	code, resBody, err := nethelper.CallToHttpServer(addr, path, body)
+	if err != nil {
+		return nil, nil, err
+	}
+	fmt.Println("ok get err:", err)
+	fmt.Println("ok get code:", code)
+	fmt.Println("ok get ack:", resBody)
 
 	// 解包数据
 	ackData := &api.UserResponseData{}
-	err = json.Unmarshal([]byte(res), &ackData)
+	err = json.Unmarshal([]byte(resBody), &ackData)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -177,7 +181,7 @@ func sendPostData(addr, subUserKey string, rawmessage, version, srv, function st
 
 ////////////////////////////////////////////////////////////////////////////////
 type Web struct{
-	srvInfoList v1.ServiceInfoList
+	srvInfoList backend.ServiceInfoList
 
 	loginUsers map[string]interface{}
 }
@@ -450,13 +454,15 @@ func (self *Web) handleLogin(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-type UserDev struct {
-	SerPubKey string
-}
 // http handler
 func (self *Web) handleDevSetting(w http.ResponseWriter, req *http.Request) {
 	//log.Println("Http server Accept a rest client: ", req.RemoteAddr)
 	//defer req.Body.Close()
+	cookie, err := req.Cookie("name")
+	if err != nil || cookie.Value == ""{
+		http.Redirect(w, req, "/login", http.StatusFound)
+		return
+	}
 
 	//fmt.Println("path=", req.URL.Path)
 	//fmt.Println("query=", req.URL.RawQuery)
@@ -468,7 +474,14 @@ func (self *Web) handleDevSetting(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	t.Execute(w, &UserDev{SerPubKey:string(wallet_server_pubkey)})
+	d1, _, err := sendPostData(httpaddrGateway, cookie.Value, "", "v1", "account", "readprofile")
+	fmt.Println(d1)
+
+	ul := &backend.AckUserReadProfile{}
+	json.Unmarshal([]byte(d1.Value.Message), &ul)
+	ul.ServerPublicKey = string(wallet_server_pubkey)
+
+	t.Execute(w, ul)
 	return
 }
 
@@ -559,7 +572,7 @@ func (this *Web)DevSettingAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("dev argv=", message)
 
-		ul := v1.ReqUserUpdateProfile{}
+		ul := backend.ReqUserUpdateProfile{}
 		json.Unmarshal(bb, &ul)
 
 		if ul.PublicKey == "" && ul.SourceIP == "" && ul.CallbackUrl == ""{
@@ -610,7 +623,7 @@ func (this *Web)RegisterAction(w http.ResponseWriter, r *http.Request) {
 		message = string(bb)
 		fmt.Println("argv=", message)
 
-		uc := v1.ReqUserRegister{}
+		uc := backend.ReqUserRegister{}
 		json.Unmarshal(bb, &uc)
 
 		d1, _, err := sendPostData(httpaddrGateway, "", message, "v1", "account", "register")

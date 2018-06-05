@@ -110,8 +110,8 @@ var ApiDocBlockHeight = apidoc.ApiDoc{
 var ApiDocDataPush = apidoc.ApiDoc{
 	Group:    []string{apibackend.HttpRouterApi, apibackend.HttpRouterUser, apibackend.HttpRouterAdmin},
 	VerName:  "v1",
-	SrvName:  "",
-	FuncName: "",
-	Input:    new(string),
-	Output:   &v1.PushTransactionMessage{},
+	SrvName:  "push",
+	FuncName: "push",
+	Input:    &v1.PushTransactionMessage{},
+	Output:   &struct {}{},
 }

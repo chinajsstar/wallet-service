@@ -73,3 +73,7 @@ rechargeName = "充值"
 rechargeDescription = "充值(测试私链)"
 generateName = "挖矿"
 generateDescription = "挖矿(测试私链)"
+
+pushTag = "推送"
+pushName = "推送"
+pushDescription = "推送通知给用户"
