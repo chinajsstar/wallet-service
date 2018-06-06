@@ -14,7 +14,6 @@ const(
 	MethodCenterUnRegister 			= "ServiceCenter.UnRegister"			// unregister to center
 	MethodCenterInnerNotify  		= "ServiceCenter.InnerNotify"			// notify data to center to nodes
 	MethodCenterInnerCall  			= "ServiceCenter.InnerCall"				// call a api to center
-	MethodCenterInnerCallByEncrypt 	= "ServiceCenter.InnerCallByEncrypt"	// call a api by encrypt data to center
 
 	MethodNodeCall         			= "ServiceNode.Call"					// center call a srv node function
 	MethodNodeNotify         		= "ServiceNode.Notify"					// center notify to a srv node function

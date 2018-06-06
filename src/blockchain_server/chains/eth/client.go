@@ -611,6 +611,10 @@ func (self *Client) Tx(tx_hash string) (*types.Transfer, error) {
 }
 
 func (self *Client) loopRefreshBlockheight() {
+	defer func() {
+		self.waits.Done()
+		L4g.Trace("ETH loop for refresh blockheight stoped!!!")
+	}()
 	break_for:
 	for {
 		select {
@@ -628,7 +632,6 @@ func (self *Client) loopRefreshBlockheight() {
 		}
 		}
 	}
-	L4g.Trace("ETH loop for refresh blockheight stoped!!!")
 }
 
 //func (self *Client) subscribeBlockHeader() error {
@@ -696,6 +699,10 @@ func (self *Client) loopRefreshBlockheight() {
 //}
 
 func (self *Client) startScanBlock() {
+	defer func() {
+		L4g.Trace("scan block stoped!!!!......")
+		self.waits.Done()
+	}()
 	var scanblock, top uint64
 	for {
 		// top block height
@@ -990,9 +997,17 @@ func (self *Client) saveConfigurations() {
 }
 
 func (self *Client) Stop() {
+	{
+		self.nonces.stop()
+		self.waits.Done()
+	}
+
 	self.ctx_canncel()
-	self.nonces.stop()
 	self.saveConfigurations()
+
+	L4g.Trace("Waiting eth client stop.....")
+	defer L4g.Trace("Eth client stop success.....")
+	self.waits.Wait()
 }
 
 // from is a crypted private key, if ok, may replace SendTx

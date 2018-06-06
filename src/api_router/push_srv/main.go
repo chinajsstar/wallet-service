@@ -26,7 +26,8 @@ func main() {
 	cfgPath := cfgDir + "/" + PushSrvConfig
 	db.Init(cfgPath)
 
-	handler.PushInstance().Init()
+	accountDir := cfgDir + "/" + config.BastionPayAccountDirName
+	handler.PushInstance().Init(accountDir)
 
 	// create service node
 	fmt.Println("config path:", cfgPath)

@@ -115,6 +115,7 @@ type (
 		Balance       float64 `json:"balance"`
 		Hash          string  `json:"hash"`
 		OrderID       string  `json:"order_id"`
+		UserOrderID   string  `json:"user_order_id"`
 		Time          int64   `json:"time"`
 	}
 
