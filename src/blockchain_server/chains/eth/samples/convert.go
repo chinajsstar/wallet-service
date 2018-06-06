@@ -35,15 +35,33 @@ func convertWeiToGWei(w *big.Int) float64 {
 }
 
 func main() {
-	bigint := convertEtherToWei(10000000.00000001)
-	fmt.Printf("%d\n", bigint.Uint64())
+	var nonces map[string]uint64
+	nonces = make(map[string]uint64, 256)
+	nonces["a"] = 1
+	nonces["b"] = 1
+	nonces["c"] = 1
 
-	min_gasprice := int64(141e8) // 14.1GWei
-	price := big.NewInt(11e8)
-	if -1==price.Cmp(big.NewInt(min_gasprice)) {
-		price.SetInt64(min_gasprice)
+	a := nonces["a"]
+	b := nonces["b"]
+	c := nonces["c"]
+	d := nonces["d"]
+
+	fmt.Printf("%d, %d, %d, %d", a, b, c, d)
+	for i, nonce := range nonces {
+		fmt.Printf("key: %s, nonce: %d", i, nonce)
 	}
-	gwei := convertWeiToGWei(price)
-	fmt.Printf("%f", gwei)
+
+	if false {
+		bigint := convertEtherToWei(10000000.00000001)
+		fmt.Printf("%d\n", bigint.Uint64())
+
+		min_gasprice := int64(141e8) // 14.1GWei
+		price := big.NewInt(11e8)
+		if -1==price.Cmp(big.NewInt(min_gasprice)) {
+			price.SetInt64(min_gasprice)
+		}
+		gwei := convertWeiToGWei(price)
+		fmt.Printf("%f", gwei)
+	}
 	time.Sleep(3 * time.Second)
 }

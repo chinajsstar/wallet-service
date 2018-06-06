@@ -24,7 +24,6 @@ import (
 
 var (L4g = L4G.BuildL4g(types.Chain_eth, "ethereum"))
 
-
 type Client struct {
 	ctx         context.Context
 	ctx_canncel context.CancelFunc
@@ -35,9 +34,9 @@ type Client struct {
 	scanblock   uint64               // 起始扫描高度
 
 	//rctChannel 发送的充值 被Client.Manager.loopRechargeTxMessage 接收到
-	rctChannel     types.RechargeTxChannel
-	address_locker *sync.RWMutex
-	confirm_count  uint16 // 交易确认数
+	rctChannel    types.RechargeTxChannel
+	addresMutx    *sync.RWMutex
+	confirm_count uint16 // 交易确认数
 
 	// TODO:后面支持动态增加ERC20代币的时候, 这个map应该改成协程同步的!
 	// TODO:这个map中保存的token, 实际上是config中的指针, 并通过abi更新了相关字段信息
@@ -45,28 +44,13 @@ type Client struct {
 	tokens    map[string]*types.Token // address->types.EthToken
 	contracts map[string]*token.Token // symbol ->token.EthToken
 
-	//abi       abi.ABI
-	nonceMtx *sync.Mutex
-
-	nonce    map[string]uint64
-
-	// 如果oneTxing为true, 则每个地址发出一笔交易
-	// 到交易结束之前, 无法再次发出交易
-	addressTxing map[string]string
-	oneTxing     bool
+	nonces *Nonces
+	waits 	sync.WaitGroup
 }
 
 const (
-	min_gasprice	   = int64(141e8) // 14.1GWei
+	minGasPrice = int64(141e8) // 14.1GWei
 )
-
-func (self *Client) lock() {
-	self.address_locker.Lock()
-}
-
-func (self *Client) unlock() {
-	self.address_locker.Unlock()
-}
 
 var (
 	instance *Client = nil
@@ -93,42 +77,14 @@ func ClientInstance() (*Client, error) {
 }
 
 func (self *Client) nextNonce(from string) (nonce uint64, err error) {
-	address := common.HexToAddress(from)
-	if self.oneTxing {
-		nonce, err =self.c.PendingNonceAt(context.TODO(), address)
-		if err!=nil {
-			L4g.Error("Pending nonce at address(%s) faild, message:%s",
-				from, err.Error())
-		}
-	} else {
-		from = strings.ToLower(from)
-
-		self.nonceMtx.Lock()
-		defer self.nonceMtx.Unlock()
-
-		nonce = self.nonce[from]
-		if 0==nonce {
-			nonce, err =self.c.PendingNonceAt(context.TODO(), address)
-			if err!=nil {
-				L4g.Error("Pending nonce at %s faild, message:%s",from, err.Error())
-				return
-			}
-		}
-		self.nonce[from] = nonce + 1
-	}
+	nonce, err = self.nonces.nextNonce(self.c, from)
 	return
 }
 
 func (self *Client) init() error {
 	// self.ctx must
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
-
-	self.nonceMtx = new(sync.Mutex)
-	self.nonce = make(map[string]uint64)
-
-	self.addresslist  = new(utils.FoldedStrings)
-	self.addressTxing = make(map[string]string)
-	self.oneTxing = true
+	self.nonces = newNonces()
 
 	// 起始扫描高度为 当前真实高度 - 确认数
 	if _, err := self.refreshBlockHeight(); err != nil {
@@ -149,7 +105,7 @@ func (self *Client) init() error {
 		self.scanblock = self.virtualBlockHeight()
 	}
 
-	self.address_locker = new(sync.RWMutex)
+	self.addresMutx = new(sync.RWMutex)
 
 	// 如果为0, 则默认从最新的块开始扫描
 	if self.scanblock == 0 {
@@ -202,8 +158,12 @@ func (self *Client) SetNotifyChannel(ch chan interface{}) {
 }
 
 func (self *Client) Start() error {
+	self.waits.Add(3)
+
+	go self.nonces.loopUnusedNonce()
 	go self.loopRefreshBlockheight()
 	go self.startScanBlock()
+
 	return nil
 }
 
@@ -250,8 +210,8 @@ func (self *Client) estimatTxFee(from, to common.Address, value *big.Int,
 	}
 
 	// 最小gasprice为14(GWei) !!!!
-	if -1 == gasprice.Cmp(big.NewInt(min_gasprice)) {
-		gasprice.SetInt64(min_gasprice)
+	if -1 == gasprice.Cmp(big.NewInt(minGasPrice)) {
+		gasprice.SetInt64(minGasPrice)
 	}
 
 	// I don't kown why here set feild 'From' to param:'from' will cause the following,
@@ -289,8 +249,8 @@ func (self *Client) buildRawTx(from, to common.Address, value *big.Int, input []
 		return nil, fmt.Errorf("failed to suggest gas price: %v", err)
 	}
 
-	if -1 == gasprice.Cmp(big.NewInt(min_gasprice)) {
-		gasprice.SetInt64(min_gasprice)
+	if -1 == gasprice.Cmp(big.NewInt(minGasPrice)) {
+		gasprice.SetInt64(minGasPrice)
 	}
 
 	if false {
@@ -513,19 +473,7 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) (err error) {
 		if err!=nil {
 			L4g.Error("SendTx with error:%s", err.Error())
 		}
-
 		defer L4g.Trace("SendTx end......")
-
-		if self.oneTxing {
-			self.nonceMtx.Lock()
-			defer self.nonceMtx.Unlock()
-			from := strings.ToLower(tx.From)
-			if err!=nil {
-				delete(self.addressTxing, from)
-			} else {
-				self.addressTxing[from] = tx.Tx_hash
-			}
-		}
 	}()
 
 	var (
@@ -537,20 +485,6 @@ func (self *Client) SendTx(fromkey string, tx *types.Transfer) (err error) {
 	if err != nil {
 		L4g.Trace("initTxInfo faild, message:%s", err.Error())
 		return err
-	}
-
-	if self.oneTxing {
-		self.nonceMtx.Lock()
-		defer self.nonceMtx.Unlock()
-		from := strings.ToLower(tx.From)
-
-		if self.addressTxing[from]!="" {
-			err := fmt.Errorf("'From' address(%s) is working on Tx(%s), can't sendTx befor task complete!", from, self.addressTxing[from])
-			L4g.Error("%s", err.Error())
-			return err
-		} else {
-			self.addressTxing[from] = "still on!"
-		}
 	}
 
 	L4g.Trace("SendTx, information:%s", tx.String())
@@ -866,8 +800,8 @@ exitfor:
 }
 
 func (self *Client) hasAddress(address string) bool {
-	self.lock()
-	defer self.unlock()
+	self.addresMutx.Lock()
+	defer self.addresMutx.Unlock()
 	return self.addresslist.Contains(address)
 }
 
@@ -903,23 +837,6 @@ func (self *Client) updateTxWithReceipt(tx *types.Transfer) error {
 }
 
 func (self *Client) updateTxWithTx(destTx *types.Transfer, srcTx *etypes.Transaction) (err error) {
-	defer func() {
-		if self.oneTxing {
-			from := strings.ToLower(destTx.From)
-			hash := destTx.Tx_hash
-
-			self.nonceMtx.Lock()
-			defer self.nonceMtx.Unlock()
-
-			if err!=nil ||
-				( (destTx.State==types.Tx_state_confirmed ||
-					destTx.State==types.Tx_state_unconfirmed) &&
-					self.addressTxing[from] == hash )  {
-				delete(self.addressTxing, from)
-			}
-
-		}
-	}()
 	if srcTx == nil {
 		err = fmt.Errorf("update tx error, message:sourceTx is nil")
 		return
@@ -1038,11 +955,11 @@ func (self *Client) toTx(tx *etypes.Transaction) *types.Transfer {
 }
 
 func (self *Client) InsertWatchingAddress(address []string) (invalid []string) {
-	self.lock()
-	defer self.unlock()
+	self.addresMutx.Lock()
+	defer self.addresMutx.Unlock()
 
 	if self.addresslist == nil {
-		self.addresslist = new(utils.FoldedStrings) // utils.FoldedStrings(make(string[], 0, 512))
+		self.addresslist = new(utils.FoldedStrings)
 	}
 
 	if self.addresslist.Len() == 0 {
@@ -1074,6 +991,7 @@ func (self *Client) saveConfigurations() {
 
 func (self *Client) Stop() {
 	self.ctx_canncel()
+	self.nonces.stop()
 	self.saveConfigurations()
 }
 
