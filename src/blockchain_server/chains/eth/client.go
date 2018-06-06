@@ -85,6 +85,7 @@ func (self *Client) init() error {
 	// self.ctx must
 	self.ctx, self.ctx_canncel = context.WithCancel(context.Background())
 	self.nonces = newNonces()
+	self.addresslist = new(utils.FoldedStrings)
 
 	// 起始扫描高度为 当前真实高度 - 确认数
 	if _, err := self.refreshBlockHeight(); err != nil {
@@ -730,7 +731,7 @@ func (self *Client) startScanBlock() {
 		}
 
 		txs := block.Transactions()
-		L4g.Trace("Start Scaning block :%d, %d Tx on block(%d)", self.scanblock, len(txs))
+		L4g.Trace("Start Scaning block :%d, %d Tx on block", self.scanblock, len(txs))
 		for _, tx := range txs {
 			to := tx.To()
 			if to == nil { continue }
@@ -1034,7 +1035,7 @@ func (self *Client) initTxInfo(fromKey string, tx *types.Transfer) (fromPrivkey 
 	}
 
 	tx.From = from
-	tx.Tx_hash = "still on!"
+	tx.Tx_hash = "tx doesn't build complete"
 
 	if tkTx := tx.TokenTx; tkTx != nil {
 		_, tkTx.From, err = ParseKey(tx.TokenFromKey)

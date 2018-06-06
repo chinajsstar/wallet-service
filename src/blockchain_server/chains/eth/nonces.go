@@ -17,7 +17,10 @@ import (
 // 从钱包节点重新获取新的nonce来设置Nonces[from].nonce,
 // 然后把Nonces[from].nonce+1
 
-const maxUpdateSecond = 60
+const (
+	maxUpdateSecond = 60
+	hour = time.Second * 60 * 60
+)
 
 type Nonce struct {
 	nonce    uint64
@@ -60,7 +63,6 @@ func (self *Nonces)stop() {
 
 // 定期清理 map内 长时间不使用的元素
 func (self *Nonces) loopUnusedNonce() {
-	const hour = time.Duration(60*60)
 
 	L4g.Trace("begin unusedNonceloop......")
 	defer L4g.Trace("end unusedNonceloop......")
@@ -69,14 +71,16 @@ func (self *Nonces) loopUnusedNonce() {
 	for {
 		select {
 		case <-time.After(hour): {
+			L4g.Info("start clear unused nonces....")
 			self.mutx.Lock()
-			defer self.mutx.Unlock()
 			for from, theNonce := range self.nonceMap {
 				if theNonce.lastRefreshTimeDiffNow() < hour.Seconds() {
 					continue
 				}
 				delete(self.nonceMap, from)
 			}
+			self.mutx.Unlock()
+			L4g.Info("clear unused nonces complete....")
 		}
 		case <- self.quit:{
 			break exit_for

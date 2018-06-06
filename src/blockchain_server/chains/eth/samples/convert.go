@@ -4,6 +4,13 @@ import (
 	"fmt"
 	"math/big"
 	"time"
+	"sync"
+	"blockchain_server/l4g"
+	"blockchain_server/types"
+)
+
+var (
+	l4g = L4G.GetL4g(types.Chain_eth)
 )
 
 func convertWeiToEther(w *big.Int) float64 {
@@ -35,21 +42,19 @@ func convertWeiToGWei(w *big.Int) float64 {
 }
 
 func main() {
-	var nonces map[string]uint64
-	nonces = make(map[string]uint64, 256)
-	nonces["a"] = 1
-	nonces["b"] = 1
-	nonces["c"] = 1
 
-	a := nonces["a"]
-	b := nonces["b"]
-	c := nonces["c"]
-	d := nonces["d"]
-
-	fmt.Printf("%d, %d, %d, %d", a, b, c, d)
-	for i, nonce := range nonces {
-		fmt.Printf("key: %s, nonce: %d", i, nonce)
+	mutx := sync.Mutex{}
+	{
+		mutx.Lock()
+		defer func() {
+			l4g.Trace("will unlock!!!!")
+			time.Sleep(time.Second * 3)
+			mutx.Unlock()
+		}()
 	}
+
+	l4g.Trace("into second lock!!!")
+	time.Sleep(time.Second * 3)
 
 	if false {
 		bigint := convertEtherToWei(10000000.00000001)
