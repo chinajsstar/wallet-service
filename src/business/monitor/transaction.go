@@ -18,7 +18,7 @@ func Blockin(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 
 	//为提币订单填充Hash
 	if len(blockin.OrderID) > 0 {
-		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash"+
+		row := db.QueryRow("select user_key, asset_name, address, amount, pay_fee, hash, user_order_id"+
 			" from withdrawal_order where order_id = ?", blockin.OrderID)
 		transNotice := TransactionNotice{
 			MsgID:         0,
@@ -30,7 +30,7 @@ func Blockin(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 			Time:          blockin.Time,
 		}
 		err := row.Scan(&transNotice.UserKey, &transNotice.AssetName, &transNotice.Address, &transNotice.Amount,
-			&transNotice.PayFee, &transNotice.Hash)
+			&transNotice.PayFee, &transNotice.Hash, &transNotice.UserOrderID)
 		if err == nil {
 			if len(transNotice.Hash) <= 0 {
 				transNotice.Hash = blockin.Hash
@@ -81,9 +81,8 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 					OrderID:       blockin.OrderID,
 					Time:          blockin.Time,
 				}
-				var userOrderID string
 				err := row.Scan(&transNotice.UserKey, &transNotice.AssetName, &transNotice.Address, &transNotice.Amount,
-					&transNotice.PayFee, &transNotice.MinerFee, &transNotice.Hash, &userOrderID)
+					&transNotice.PayFee, &transNotice.MinerFee, &transNotice.Hash, &transNotice.UserOrderID)
 				if err == nil {
 					tx, _ := db.Begin()
 					tx.Exec("update user_account set frozen_amount = frozen_amount - ?, update_time = ?"+
@@ -94,7 +93,7 @@ func Confirm(blockin *TransactionBlockin, transfer *types.Transfer, callback Pus
 						transNotice.UserKey, transNotice.AssetName)
 					row.Scan(&transNotice.Balance)
 					tx.Commit()
-					mysqlpool.RemoveUserOrder(transNotice.UserKey, userOrderID)
+					mysqlpool.RemoveUserOrder(transNotice.UserKey, transNotice.UserOrderID)
 					SendTransactionNotic(&transNotice, callback)
 					AddProfitBill(&transNotice)
 					AddTransactionBill(&transNotice)
@@ -345,11 +344,11 @@ func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallba
 	}
 
 	ret, err := db.Exec("insert into transaction_notice (user_key, msg_id, trans_type, status, blockin_height,"+
-		" asset_name, address, amount, pay_fee, miner_fee, balance, hash, order_id, time)"+
-		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?",
+		" asset_name, address, amount, pay_fee, miner_fee, balance, hash, order_id, user_order_id, time)"+
+		" select ?, count(*)+1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? from transaction_notice where user_key = ?",
 		transNotice.UserKey, transNotice.TransType, transNotice.Status, transNotice.BlockinHeight, transNotice.AssetName,
 		transNotice.Address, transNotice.Amount, transNotice.PayFee, transNotice.MinerFee, transNotice.Balance,
-		transNotice.Hash, transNotice.OrderID, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat), transNotice.UserKey)
+		transNotice.Hash, transNotice.OrderID, transNotice.UserOrderID, time.Unix(transNotice.Time, 0).UTC().Format(TimeFormat), transNotice.UserKey)
 	if err != nil {
 		return err
 	}
@@ -374,6 +373,7 @@ func SendTransactionNotic(transNotice *TransactionNotice, callback PushMsgCallba
 		Balance:       transNotice.Balance,
 		Hash:          transNotice.Hash,
 		OrderID:       transNotice.OrderID,
+		UserOrderID:   transNotice.UserOrderID,
 		Time:          transNotice.Time,
 	}
 

@@ -64,3 +64,6 @@
 [submodule "src/github.com/shopspring/decimal"]
 	path = src/github.com/shopspring/decimal
 	url = https://github.com/shopspring/decimal
+[submodule "src/github.com/jinzhu/gorm"]
+	path = src/github.com/jinzhu/gorm
+	url = https://github.com/jinzhu/gorm.git
