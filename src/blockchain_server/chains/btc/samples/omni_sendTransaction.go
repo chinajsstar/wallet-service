@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcutil"
 	"log"
 	"github.com/btcsuite/btcd/btcjson"
+	"encoding/binary"
 )
 
 //----------account[0] information:---------------
@@ -92,28 +93,40 @@ func init() {
 	}
 }
 
+
 func main() {
 	var (
 		err error
 		res []byte
-		from, to btcutil.Address
+		//from, to btcutil.Address
 	)
 	err = client.ImportAddress(accs[0].Address, "ZToken_IndivisibleBank", false)
 	if err!=nil { log.Fatal(err) }
 
-	if false {
-		res, err = client.OmniProperty(propertyid_divisible)
-		if err!=nil { log.Fatal(err) }
+	//from, err = btcutil.DecodeAddress(accs[0].Address,
+	//	&chaincfg.RegressionNetParams )
+	//sendToken(propertyid_divisible, accs[0].Address)
+
+
+	var hash = []byte {0, 0, 0, 0, 0, 0, 0, 2, 1}
+	length := len(hash)
+
+	for i:=0; i < length; i+=8 {
+		sum := binary.BigEndian.Uint64(hash[i:i+8])
+		l4g.Info("sum = %d", sum)
 	}
 
-	from, err = btcutil.DecodeAddress(accs[0].Address,
-		&chaincfg.RegressionNetParams )
-	sendToken(propertyid_divisible, accs[0].Address)
+	showOmniTokenProperty(propertyid_divisible)
 
 	l4g.Info("property information:%s", string(res))
 	L4G.Close("all")
 }
 
+func showOmniTokenProperty(propertyid int64) {
+	property, err := client.OmniProperty(propertyid)
+	if err!=nil { log.Fatal(err) }
+	l4g.Trace("PropertyResut:%#v", property)
+}
 
 
 func sendToken(tokenId string, from, to btcutil.Address, value float64) (err error) {
@@ -134,9 +147,6 @@ func sendToken(tokenId string, from, to btcutil.Address, value float64) (err err
 			from.String(), err.Error())
 		return err
 	}
-
-	data, err := client.OmniProperty(propertyid_divisible)
-	l4g.Trace("property information: %s", string(data))
 	return
 	// --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "omni_createpayload_simplesend", "params": [1, "100.0"] }' -H 'content-type: text/plain;'
 }
