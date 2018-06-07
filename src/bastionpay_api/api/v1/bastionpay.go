@@ -188,6 +188,7 @@ type (
 		Balance       float64 `json:"balance" doc:"当前余额"`
 		Hash          string  `json:"hash" doc:"交易哈希"`
 		OrderID       string  `json:"order_id" doc:"交易订单"`
+		UserOrderID   string  `json:"user_order_id" doc:"用户自定义订单ID"`
 		Time          int64   `json:"time" doc:"交易时间"`
 	}
 

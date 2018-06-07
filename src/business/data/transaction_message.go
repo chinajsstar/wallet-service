@@ -1,8 +1,8 @@
 package data
 
 import (
-	"bastionpay_base/data"
 	"bastionpay_api/api/v1"
+	"bastionpay_base/data"
 	. "business/def"
 	"business/mysqlpool"
 	"encoding/json"
@@ -84,6 +84,7 @@ func HistoryTransactionMessage(req *data.SrvRequest, res *data.SrvResponse) erro
 			d.Balance = v.Balance
 			d.Hash = v.Hash
 			d.OrderID = v.OrderID
+			d.UserOrderID = v.UserOrderID
 			d.Time = v.Time
 			dataList.Data = append(dataList.Data, d)
 		}

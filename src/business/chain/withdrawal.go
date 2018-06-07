@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"bastionpay_base/data"
 	"bastionpay_api/api/v1"
+	"bastionpay_base/data"
 	"blockchain_server/service"
 	. "business/def"
 	"business/monitor"
@@ -39,16 +39,6 @@ func Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
 		err := json.Unmarshal([]byte(req.Argv.Message), &params)
 		if err != nil {
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "解析Json失败-"+err.Error())
-			l4g.Error(res.ErrMsg)
-			return errors.New(res.ErrMsg)
-		}
-	}
-
-	uuID := monitor.GenerateUUID("WD")
-	if len(params.UserOrderID) > 0 {
-		err := mysqlpool.AddUserOrder(userProperty.UserKey, params.UserOrderID, uuID)
-		if err != nil {
-			res.Err, res.ErrMsg = CheckError(ErrorFailed, "不能发起重复订单交易")
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
 		}
@@ -99,8 +89,8 @@ func Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
 		return errors.New(res.ErrMsg)
 	}
 
-	if params.Amount <= assetProperty.DepositMin {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, fmt.Sprint("提币金额要大于", assetProperty.DepositMin))
+	if params.Amount <= 0 {
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, fmt.Sprint("提币金额要大于0"))
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
 	}
@@ -113,9 +103,19 @@ func Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
 	}
 
 	if userAddress.AvailableAmount < params.Amount+payFee {
-		res.Err, res.ErrMsg = CheckError(ErrorFailed, "热钱包可用资金不足(这里需要特殊处理)")
+		res.Err, res.ErrMsg = CheckError(ErrorFailed, "热钱包可用资金不足")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)
+	}
+
+	uuID := monitor.GenerateUUID("WD")
+	if len(params.UserOrderID) > 0 {
+		err := mysqlpool.AddUserOrder(userProperty.UserKey, params.UserOrderID, uuID)
+		if err != nil {
+			res.Err, res.ErrMsg = CheckError(ErrorFailed, "不能发起重复订单交易")
+			l4g.Error(res.ErrMsg)
+			return errors.New(res.ErrMsg)
+		}
 	}
 
 	err := mysqlpool.WithDrawalOrder(userProperty.UserKey, assetProperty.AssetName, params.Address, params.Amount,
@@ -131,6 +131,7 @@ func Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.ParentName, userAddress.PrivateKey,
 			params.Address, assetProperty.AssetName, userAddress.PrivateKey, params.Amount)
 		if err != nil {
+			mysqlpool.RemoveUserOrder(userProperty.UserKey, params.UserOrderID)
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
@@ -140,6 +141,7 @@ func Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
 		cmdTx, err := service.NewSendTxCmd(uuID, assetProperty.AssetName, userAddress.PrivateKey,
 			params.Address, "", "", params.Amount)
 		if err != nil {
+			mysqlpool.RemoveUserOrder(userProperty.UserKey, params.UserOrderID)
 			res.Err, res.ErrMsg = CheckError(ErrorFailed, "指令执行失败:"+err.Error())
 			l4g.Error(res.ErrMsg)
 			return errors.New(res.ErrMsg)
@@ -154,6 +156,7 @@ func Withdrawal(req *data.SrvRequest, res *data.SrvResponse) error {
 
 	pack, err := json.Marshal(ack)
 	if err != nil {
+		mysqlpool.RemoveUserOrder(userProperty.UserKey, params.UserOrderID)
 		res.Err, res.ErrMsg = CheckError(ErrorFailed, "返回数据包错误")
 		l4g.Error(res.ErrMsg)
 		return errors.New(res.ErrMsg)

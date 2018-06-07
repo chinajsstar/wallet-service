@@ -1,7 +1,7 @@
 package business
 
 import (
-	"api_router/base/data"
+	"bastionpay_base/data"
 	"business/monitor"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
@@ -15,7 +15,7 @@ func TestHandleMsg(t *testing.T) {
 	var req data.SrvRequest
 	var res data.SrvResponse
 
-	testType := 5
+	testType := 0
 	switch testType {
 	case 1:
 		req.Method.Function = "support_assets"

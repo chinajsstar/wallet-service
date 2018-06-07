@@ -7,7 +7,7 @@ import (
 
 func QueryTransactionMessage(queryMap map[string]interface{}) ([]TransactionNotice, bool) {
 	sqls := "select user_key, msg_id, trans_type, status, blockin_height, asset_name, address, amount," +
-		" pay_fee, balance, hash, order_id, unix_timestamp(time) from transaction_notice where true"
+		" pay_fee, balance, hash, order_id, user_order_id, unix_timestamp(time) from transaction_notice where true"
 
 	messages := make([]TransactionNotice, 0)
 	params := make([]interface{}, 0)
@@ -29,7 +29,7 @@ func QueryTransactionMessage(queryMap map[string]interface{}) ([]TransactionNoti
 	var data TransactionNotice
 	for rows.Next() {
 		err := rows.Scan(&data.UserKey, &data.MsgID, &data.TransType, &data.Status, &data.BlockinHeight, &data.AssetName,
-			&data.Address, &data.Amount, &data.PayFee, &data.Balance, &data.Hash, &data.OrderID, &data.Time)
+			&data.Address, &data.Amount, &data.PayFee, &data.Balance, &data.Hash, &data.OrderID, &data.UserOrderID, &data.Time)
 		if err == nil {
 			messages = append(messages, data)
 		}
